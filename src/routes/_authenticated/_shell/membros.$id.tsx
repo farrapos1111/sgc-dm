@@ -1,0 +1,648 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+  useSuspenseQuery,
+  useQuery,
+  useMutation,
+  useQueryClient,
+  queryOptions,
+} from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
+import { getMember, revealMemberPii } from "@/lib/members.functions";
+import {
+  getMemberOrgHistory,
+  listCatalog,
+  assignPosition,
+  removePosition,
+  assignCommissionMember,
+  removeCommissionMember,
+} from "@/lib/organization.functions";
+import { currentTerm, termLabel, termOptions } from "@/lib/terms";
+import { getMemberAttendance } from "@/lib/attendance.functions";
+import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
+import { can } from "@/lib/permissions";
+
+import { useActiveChapter } from "@/context/ActiveChapterContext";
+import { PageHeader } from "@/components/PageHeader";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  formatCpfMask,
+  formatRgMask,
+  formatDateBR,
+  formatDateTimeBR,
+  statusLabel,
+  grauOf,
+  isAptoGrauDemolay,
+} from "@/lib/format";
+import { ArrowLeft, Eye, Shield, Pencil, Plus, Trash2 } from "lucide-react";
+import { PageSkeleton } from "@/components/PageSkeleton";
+
+export const Route = createFileRoute("/_authenticated/_shell/membros/$id")({
+  head: () => ({ meta: [{ title: "Perfil do membro — SG-CDM" }] }),
+  component: MembroPerfil,
+});
+
+const memberQO = (id: string) =>
+  queryOptions({
+    queryKey: ["member", id],
+    queryFn: () => getMember({ data: { id } }),
+  });
+
+const orgQO = (memberId: string) =>
+  queryOptions({
+    queryKey: ["member-org", memberId],
+    queryFn: () => getMemberOrgHistory({ data: { memberId } }),
+  });
+
+const attendanceQO = (memberId: string) =>
+  queryOptions({
+    queryKey: ["member-attendance", memberId],
+    queryFn: () => getMemberAttendance({ data: { memberId } }),
+  });
+
+function MembroPerfil() {
+  const { id } = Route.useParams();
+  const navigate = useNavigate();
+  const [tab, setTab] = useState("dados");
+  const { data } = useSuspenseQuery(memberQO(id));
+  const needsOrg = tab === "cargos";
+  const needsAttendance = tab === "presencas";
+  const { data: org, isPending: orgPending } = useQuery({
+    ...orgQO(id),
+    enabled: needsOrg,
+  });
+  const { data: attendance = [], isPending: attendancePending } = useQuery({
+    ...attendanceQO(id),
+    enabled: needsAttendance,
+  });
+  const { member, guardians, consents, audit } = data;
+  const orgData = org ?? { positions: [] as any[], commissions: [] as any[] };
+
+  const mandatoryRecs = (attendance as any[]).filter((r) => r.calendar_event?.mandatory);
+  const mandatoryPresent = mandatoryRecs.filter((r) => r.status === "presente").length;
+  const mandatoryPct =
+    mandatoryRecs.length > 0 ? Math.round((mandatoryPresent / mandatoryRecs.length) * 100) : null;
+
+
+  const [revealed, setRevealed] = useState<{ cpf?: string; rg?: string }>({});
+  const reveal = useMutation({
+    mutationFn: (field: "cpf" | "rg") =>
+      revealMemberPii({ data: { memberId: id, field } }),
+    onSuccess: (res, field) => {
+      setRevealed((r) => ({ ...r, [field]: res.value }));
+      toast.success(`${field.toUpperCase()} revelado (auditoria registrada)`);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Sem permissão"),
+  });
+
+  // --- Edição de cargos e comissões no perfil ---
+  const qc = useQueryClient();
+  const { active } = useActiveChapter();
+  const roleName = active?.role.name;
+  const canEditOrg = can(roleName, "conselho") || can(roleName, "secretaria");
+  const isAdminView = canEditOrg || can(roleName, "admin");
+  const chapterId = (member as any).chapter_id ?? active?.chapter_id ?? "";
+  const [term, setTerm] = useState(currentTerm());
+
+  const { data: catalog } = useQuery({
+    queryKey: ["org-catalog"],
+    queryFn: () => listCatalog(),
+    enabled: canEditOrg,
+  });
+
+  function refreshOrg() {
+    qc.invalidateQueries({ queryKey: ["member-org", id] });
+    qc.invalidateQueries({ queryKey: ["chapter-positions"] });
+    qc.invalidateQueries({ queryKey: ["commission-members"] });
+  }
+
+  const addPos = useMutation({
+    mutationFn: (positionId: number) =>
+      assignPosition({
+        data: {
+          chapterId,
+          memberId: id,
+          positionId,
+          year: term.year,
+          semester: term.semester,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Perfil atualizado: cargo designado");
+      refreshOrg();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Não foi possível designar"),
+  });
+  const delPos = useMutation({
+    mutationFn: (rowId: string) => removePosition({ data: { id: rowId } }),
+    onSuccess: () => {
+      toast.success("Perfil atualizado: cargo removido");
+      refreshOrg();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro"),
+  });
+  const addCom = useMutation({
+    mutationFn: (v: { commissionId: number; role: any }) =>
+      assignCommissionMember({
+        data: {
+          chapterId,
+          memberId: id,
+          commissionId: v.commissionId,
+          role: v.role,
+          year: term.year,
+          semester: term.semester,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Perfil atualizado: participação registrada");
+      refreshOrg();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro"),
+  });
+  const delCom = useMutation({
+    mutationFn: (rowId: string) => removeCommissionMember({ data: { id: rowId } }),
+    onSuccess: () => {
+      toast.success("Perfil atualizado: participação removida");
+      refreshOrg();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro"),
+  });
+
+
+  return (
+    <div>
+      <PageHeader
+        title={member.full_name}
+        subtitle={`${statusLabel(member.status)} · ${grauOf(member).label}`}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => navigate({ to: "/membros" })}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate({ to: "/membros/$id/editar", params: { id } })}
+            >
+              <Pencil className="mr-2 h-4 w-4" /> Editar
+            </Button>
+          </div>
+        }
+      />
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="dados">Dados</TabsTrigger>
+          <TabsTrigger value="cargos">Cargos</TabsTrigger>
+          <TabsTrigger value="presencas">Presenças</TabsTrigger>
+          <TabsTrigger value="timeline">Linha do tempo</TabsTrigger>
+
+          <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dados">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Card className="rounded-[12px] p-5">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Identificação</h3>
+              <dl className="space-y-2 text-sm">
+                <Row k="Nome" v={member.full_name} />
+                <Row k="Nascimento" v={formatDateBR(member.birth_date)} />
+                <Row
+                  k="Grau"
+                  v={
+                    <span className="flex items-center gap-1.5">
+                      <Badge variant="outline">{grauOf(member).label}</Badge>
+                      {isAdminView && isAptoGrauDemolay(member) && (
+                        <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 dark:bg-amber-500/20 dark:text-amber-200 dark:hover:bg-amber-500/20">
+                          Apto a G∴D∴
+                        </Badge>
+                      )}
+                    </span>
+                  }
+                />
+                <Row k="Iniciação à Ordem DeMolay" v={formatDateBR(member.iniciacao_ordem)} />
+                <Row k="Exame de Grau Iniciático" v={formatDateBR(member.exam_grau_iniciatico)} />
+                <Row k="Iniciação ao Grau DeMolay" v={formatDateBR(member.iniciacao_grau_demolay)} />
+                <Row k="Exame de Grau DeMolay" v={formatDateBR(member.exam_grau_demolay)} />
+                <Row k="Status" v={<Badge variant="secondary">{statusLabel(member.status)}</Badge>} />
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">CPF</dt>
+                  <dd className="flex items-center gap-2 font-mono">
+                    {revealed.cpf ?? formatCpfMask(member.cpf_last2)}
+                    {!revealed.cpf && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => reveal.mutate("cpf")}
+                        disabled={reveal.isPending}
+                      >
+                        <Eye className="mr-1 h-3.5 w-3.5" /> Revelar
+                      </Button>
+                    )}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">RG</dt>
+                  <dd className="flex items-center gap-2 font-mono">
+                    {revealed.rg ?? formatRgMask(member.rg_last2)}
+                    {!revealed.rg && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => reveal.mutate("rg")}
+                        disabled={reveal.isPending}
+                      >
+                        <Eye className="mr-1 h-3.5 w-3.5" /> Revelar
+                      </Button>
+                    )}
+                  </dd>
+                </div>
+              </dl>
+            </Card>
+            <Card className="rounded-[12px] p-5">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Contato</h3>
+              <dl className="space-y-2 text-sm">
+                <Row k="Telefone" v={member.phone || "—"} />
+                <Row k="Email" v={member.email || "—"} />
+                <Row k="Endereço" v={
+                  member.address && typeof member.address === "object"
+                    ? [
+                        (member.address as any).street,
+                        (member.address as any).city,
+                        (member.address as any).state,
+                        (member.address as any).zip,
+                      ].filter(Boolean).join(", ") || "—"
+                    : "—"
+                } />
+              </dl>
+            </Card>
+
+            {guardians.length > 0 && (
+              <Card className="rounded-[12px] p-5 md:col-span-2">
+                <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Responsáveis</h3>
+                <ul className="space-y-3">
+                  {guardians.map((g) => (
+                    <li key={g.id} className="text-sm">
+                      <div className="font-medium">{g.full_name} <span className="ml-1 text-xs text-muted-foreground">({g.relationship || "—"})</span></div>
+                      <div className="text-muted-foreground">{g.phone || "—"} · {g.email || "—"} · CPF {formatCpfMask(g.cpf_last2)}</div>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+
+            {consents.length > 0 && (
+              <Card className="rounded-[12px] p-5 md:col-span-2">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                  <Shield className="h-4 w-4" /> Consentimentos LGPD
+                </h3>
+                <ul className="space-y-1.5 text-sm">
+                  {consents.map((c) => (
+                    <li key={c.id} className="flex items-center justify-between">
+                      <span>Versão {c.consent_text_version}</span>
+                      <span className="text-muted-foreground">{formatDateTimeBR(c.signed_at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="cargos">
+          {orgPending && !org ? (
+            <PageSkeleton />
+          ) : (
+          <>
+          {canEditOrg && (
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <Label className="text-sm text-muted-foreground">Vigência para novas designações</Label>
+              <Select
+                value={`${term.year}-${term.semester}`}
+                onValueChange={(v) => {
+                  const [y, s] = v.split("-");
+                  setTerm({ year: Number(y), semester: Number(s) as 1 | 2 });
+                }}
+              >
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {termOptions().map((t) => (
+                    <SelectItem key={`${t.year}-${t.semester}`} value={`${t.year}-${t.semester}`}>
+                      {termLabel(t.year, t.semester)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Card className="rounded-[12px] p-5">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  Cargos do capítulo e conselho
+                </h3>
+                {canEditOrg && (
+                  <PickerDialog
+                    title="Designar cargo"
+                    triggerLabel="Designar cargo"
+                    options={(catalog?.positions ?? []).map((p) => ({
+                      value: String(p.id),
+                      label: `${p.label} · ${p.scope === "consultivo" ? "Conselho" : "Capítulo"}`,
+                    }))}
+                    onConfirm={(v) => addPos.mutate(Number(v))}
+                  />
+                )}
+              </div>
+              {orgData.positions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum cargo registrado.</p>
+              ) : (
+                <ul className="divide-y divide-border text-sm">
+                  {orgData.positions.map((p) => (
+                    <li key={p.id} className="flex items-center justify-between gap-2 py-2">
+                      <span>{p.position?.label}</span>
+                      <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
+                        {termLabel(p.term_year, p.term_semester)}
+                        {canEditOrg && (
+                          <Button size="icon" variant="ghost" onClick={() => delPos.mutate(p.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+            <Card className="rounded-[12px] p-5">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  Histórico em comissões
+                </h3>
+                {canEditOrg && (
+                  <PickerDialog
+                    title="Adicionar em comissão"
+                    triggerLabel="Adicionar comissão"
+                    options={(catalog?.commissions ?? []).map((c) => ({
+                      value: String(c.id),
+                      label: c.label,
+                    }))}
+                    withRole
+                    onConfirm={(v, role) =>
+                      addCom.mutate({ commissionId: Number(v), role: role ?? "membro" })
+                    }
+                  />
+                )}
+              </div>
+              {orgData.commissions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhuma participação registrada.</p>
+              ) : (
+                <ul className="divide-y divide-border text-sm">
+                  {orgData.commissions.map((c) => (
+                    <li key={c.id} className="flex items-center justify-between gap-2 py-2">
+                      <span>
+                        {c.commission?.label}{" "}
+                        <Badge variant="secondary" className="ml-1">
+                          {COMMISSION_ROLE_LABELS[c.role] ?? c.role}
+                        </Badge>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
+                        {termLabel(c.term_year, c.term_semester)}
+                        {canEditOrg && (
+                          <Button size="icon" variant="ghost" onClick={() => delCom.mutate(c.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
+          </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="presencas">
+          {attendancePending && tab === "presencas" && attendance.length === 0 ? (
+            <PageSkeleton />
+          ) : (
+          <>
+          <Card className="mb-4 rounded-[12px] p-5">
+            <div className="text-sm font-medium text-muted-foreground">
+              Frequência em itens obrigatórios
+            </div>
+            <div className="mt-2 flex items-baseline gap-3">
+              <span
+                className="text-3xl font-bold"
+                style={{
+                  color:
+                    mandatoryPct === null
+                      ? "var(--muted-foreground)"
+                      : mandatoryPct >= 75
+                        ? "#047857"
+                        : "#B91C1C",
+                }}
+              >
+                {mandatoryPct === null ? "—" : `${mandatoryPct}%`}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                {mandatoryPresent} de {mandatoryRecs.length} contabilizáveis
+              </span>
+            </div>
+          </Card>
+          <Card className="rounded-[12px] p-0">
+            {(attendance as any[]).length === 0 ? (
+              <div className="p-5 text-sm text-muted-foreground">
+                Nenhum registro de presença ainda.
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {(attendance as any[]).map((r) => {
+                  const ev = r.calendar_event;
+                  const meta = ev ? TYPE_META[ev.event_type as CalendarType] : undefined;
+                  return (
+                    <li key={r.id} className="p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium">{ev?.title ?? "Item removido"}</span>
+                        {meta && (
+                          <span
+                            className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                            style={{ backgroundColor: meta.bg, color: meta.color }}
+                          >
+                            {meta.label}
+                          </span>
+                        )}
+                        <Badge variant={ev?.mandatory ? "default" : "secondary"}>
+                          {ev?.mandatory ? "Contabilizável" : "Facultativo"}
+                        </Badge>
+                        <span
+                          className="ml-auto text-xs font-semibold"
+                          style={{ color: r.status === "presente" ? "#047857" : "#B91C1C" }}
+                        >
+                          {r.status === "presente" ? "Presente" : "Ausente"}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {formatDateTimeBR(ev?.start_at)}
+                        {r.justification ? ` · Justificativa: ${r.justification}` : ""}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
+          </>
+          )}
+        </TabsContent>
+
+
+        <TabsContent value="timeline">
+          <Card className="rounded-[12px] p-5">
+            {audit.length === 0 ? (
+              <div className="text-sm text-muted-foreground">Nenhum evento registrado ainda.</div>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {audit.map((a) => (
+                  <li key={a.id} className="flex items-center justify-between border-b border-border pb-2 last:border-b-0">
+                    <span>
+                      {a.action === "pii_reveal"
+                        ? `Revelação de ${(a.new_value as any)?.field?.toUpperCase() ?? "PII"}`
+                        : a.action}
+                    </span>
+                    <span className="text-muted-foreground">{formatDateTimeBR(a.created_at)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="financeiro">
+          <Card className="rounded-[12px] p-5 text-sm text-muted-foreground">
+            Extrato financeiro do membro será liberado em breve.
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function PickerDialog({
+  title,
+  triggerLabel,
+  options,
+  withRole,
+  onConfirm,
+}: {
+  title: string;
+  triggerLabel: string;
+  options: { value: string; label: string }[];
+  withRole?: boolean;
+  onConfirm: (value: string, role?: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState("");
+  const [role, setRole] = useState("membro");
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Plus className="mr-1.5 h-4 w-4" /> {triggerLabel}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        {options.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nada disponível.</p>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-1.5 block text-sm">Selecione</Label>
+              <Select value={value} onValueChange={setValue}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Escolha uma opção" />
+                </SelectTrigger>
+                <SelectContent>
+                  {options.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {withRole && (
+              <div>
+                <Label className="mb-1.5 block text-sm">Cargo na comissão</Label>
+                <Select value={role} onValueChange={setRole}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(COMMISSION_ROLE_LABELS).map(([v, l]) => (
+                      <SelectItem key={v} value={v}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button
+              className="w-full"
+              onClick={() => {
+                if (!value) return;
+                onConfirm(value, withRole ? role : undefined);
+                setOpen(false);
+                setValue("");
+              }}
+            >
+              Confirmar
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
+const COMMISSION_ROLE_LABELS: Record<string, string> = {
+  presidente: "Presidente",
+  vice: "Vice",
+  membro: "Membro",
+  auxiliar_senior: "Auxiliar Sênior",
+};
+
+function Row({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-muted-foreground">{k}</dt>
+      <dd>{v}</dd>
+    </div>
+  );
+}

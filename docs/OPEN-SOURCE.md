@@ -1,0 +1,260 @@
+# SG-CDM — Projeto aberto e guia de contribuição
+
+Este documento é para quem quer **contribuir com o código** do SG-CDM. Para entender a arquitetura em profundidade, veja [TECNICO.md](./TECNICO.md); para entender o produto, veja o [Guia do Usuário](./GUIA-DO-USUARIO.md).
+
+---
+
+## Sobre o projeto
+
+O **SG-CDM (Sistema Gerenciador de Capítulos DeMolay)** é um sistema de gestão para capítulos da Ordem DeMolay: membros, atas, presenças, tesouraria, calendário e comissões, com controle de acesso por cargo e acompanhamento regional/estadual.
+
+**Por que abrir o código:**
+
+- **Capítulos não têm orçamento de software.** Um sistema pago, por mais barato, exclui exatamente os capítulos que mais precisam de organização.
+- **O sistema guarda dados pessoais de adolescentes.** Código aberto significa que qualquer pessoa pode auditar como o consentimento é coletado, como os documentos são protegidos e o que é registrado — em vez de confiar na palavra de quem construiu.
+- **Cada capítulo tem suas particularidades.** Um capítulo que precisa de um relatório específico consegue fazer, em vez de esperar em uma fila de pedidos.
+
+---
+
+## Status do projeto
+
+Sendo direto, para você saber no que está entrando:
+
+- **Em desenvolvimento ativo.** Ainda não há release versionada nem instância pública de referência.
+- **Sem testes automatizados e sem CI.** E o ESLint, que seria a barreira restante, hoje acusa ~2.535 erros pré-existentes — na prática, a única verificação efetiva é o TypeScript em modo `strict` durante o build.
+- **Boa parte do código foi gerada e é sincronizada via [Lovable](https://lovable.dev).** Isso impõe uma restrição real ao histórico do git — veja [Restrição crítica de histórico](#restrição-crítica-de-histórico-git).
+- O histórico de commits **não** serve como documentação: a maioria são commits automáticos com a mensagem "Changes".
+
+Nada disso impede contribuição — mas explica por que a seção de [roadmap](#roadmap--onde-ajudar) começa por testes e CI.
+
+---
+
+## Licença — **decisão pendente**
+
+> ⚠️ **Este repositório ainda não tem um arquivo `LICENSE`.**
+>
+> Sem licença explícita, o código é **legalmente proprietário por padrão**: ninguém tem permissão para usar, copiar, modificar ou redistribuir, mesmo com o repositório público. Na prática, isso deixa contribuições externas em limbo jurídico — o contribuidor não sabe sob quais termos está cedendo o trabalho, e o mantenedor não sabe sob quais termos está recebendo.
+>
+> **Definir a licença é o passo mais importante antes de aceitar a primeira contribuição externa.**
+
+Opções em discussão:
+
+| Licença | O que implica | A favor | Contra |
+| --- | --- | --- | --- |
+| **MIT** | Permissiva. Qualquer um usa, modifica e redistribui, inclusive em produto fechado. Só exige manter o aviso de copyright. | Adoção máxima; qualquer capítulo ou grupo pode subir a sua instância sem preocupação | Alguém pode fechar um fork, hospedar como serviço pago e não devolver nada |
+| **AGPL-3.0** | Copyleft forte. Quem hospeda uma versão modificada como serviço precisa publicar o código dessa versão. | Garante que melhorias voltem para a comunidade — coerente com um sistema de gestão oferecido pela web | Afasta usos comerciais e é mais difícil de explicar a contribuidores iniciantes |
+
+**Decisão em aberto, a cargo do mantenedor.** Quando definida: criar o arquivo `LICENSE`, preencher o campo `license` no `package.json`, reavaliar o `"private": true`, e atualizar esta seção e o `README.md` da raiz.
+
+---
+
+## Começando
+
+### Pré-requisitos
+
+- **Bun** (recomendado) ou **Node.js 20+**
+- Um projeto **Supabase** (o schema é reproduzível pelas migrations do repositório)
+
+### Passos
+
+```bash
+git clone https://github.com/farrapos1111/sibling-chapter.git
+cd sibling-chapter
+
+bun install          # ou: npm install
+
+# crie o .env — ver o modelo abaixo
+
+bun run dev          # http://localhost:3000
+```
+
+### Modelo de `.env`
+
+Ainda não há um arquivo `.env.example` versionado (é um dos itens do roadmap). Use este bloco como modelo:
+
+```bash
+# ---- Supabase: obrigatórias ----
+# Encontráveis no painel do Supabase em Settings → API
+SUPABASE_PROJECT_ID=seu-project-ref
+SUPABASE_URL=https://seu-project-ref.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sua-chave-anonima
+
+# Os mesmos valores, prefixados — usados pelo cliente do navegador
+VITE_SUPABASE_PROJECT_ID=seu-project-ref
+VITE_SUPABASE_URL=https://seu-project-ref.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-anonima
+
+# ---- Somente servidor: NUNCA versionar ----
+# Ignora todas as políticas de segurança do banco. Só no ambiente de deploy.
+# SUPABASE_SERVICE_ROLE_KEY=
+
+# Sem esta chave, os recursos de IA lançam "IA indisponível".
+# O restante do sistema funciona normalmente.
+# LOVABLE_API_KEY=
+```
+
+A chave publicável (anônima) é pública por design — ela é embutida no bundle do navegador e a proteção real vem das políticas RLS do Postgres. Já `SUPABASE_SERVICE_ROLE_KEY` **ignora todas essas políticas**: ela nunca vai para o cliente, nunca para o repositório, só para os *secrets* do ambiente de deploy.
+
+### Banco de dados
+
+O schema vive em `supabase/migrations/` (26 arquivos `.sql`). Aplique-os no seu projeto Supabase com a CLI do Supabase. Depois de qualquer migration nova, regenere os tipos em `src/integrations/supabase/types.ts`.
+
+---
+
+## Organização do repositório
+
+```
+docs/                  esta documentação
+supabase/migrations/   schema do banco — fonte única de verdade
+src/
+  routes/              telas (roteamento por arquivo)
+  lib/
+    *.functions.ts     camada de serviço (server functions)
+    *.server.ts        código exclusivo de servidor
+    *.ts               helpers puros
+  components/ui/       primitivos shadcn/ui — não editar
+  components/          componentes de feature
+  context/ hooks/      estado transversal
+  integrations/supabase/   clientes e tipos gerados
+```
+
+Detalhamento completo de camadas, fluxo de dados e modelo de dados em [TECNICO.md](./TECNICO.md).
+
+---
+
+## Fluxo de contribuição
+
+1. **Abra uma issue antes** de trabalhar em algo grande — evita duas pessoas resolvendo o mesmo problema de formas incompatíveis.
+2. **Crie um branch a partir de `main`**: `feat/nome-curto`, `fix/nome-curto` ou `docs/nome-curto`.
+3. **Faça a mudança**, mantendo o escopo enxuto. Um PR, um assunto.
+4. **Atualize a documentação no mesmo PR** — ver [Regra de documentação](#regra-de-documentação).
+5. **Rode as verificações locais:**
+   ```bash
+   npx eslint <apenas-os-arquivos-que-você-tocou>
+   npx prettier --write <apenas-os-arquivos-que-você-tocou>
+   bun run build      # confirma que o build passa e o TypeScript está limpo
+   ```
+
+   > ⚠️ **Não rode `bun run lint` ou `bun run format` no repositório inteiro.** O código atual acumula ~2.535 erros de ESLint em 70 arquivos, sendo 2.377 apenas de formatação (o Prettier nunca foi aplicado ao código gerado). Um `prettier --write .` reformataria 70 arquivos de uma vez, produzindo um diff gigante que esconde a sua mudança real e conflita com a sincronização do Lovable. **Limite-se aos arquivos que você editou.** O detalhamento está em [TECNICO.md](./TECNICO.md#12-estado-atual-e-lacunas-conhecidas).
+6. **Abra o PR** com: o que mudou, por que, como testar. Se mexeu na interface, inclua capturas de tela — antes e depois.
+
+### Restrição crítica de histórico git
+
+> ⛔ **Não reescreva histórico já publicado.** Nada de `push --force`, `rebase`, `commit --amend` ou `squash` sobre commits que já estão no remoto.
+
+Este repositório é sincronizado com o editor Lovable: os commits enviados ao branch conectado voltam para lá e aparecem no editor. Reescrever histórico publicado quebra essa sincronia e pode **fazer o mantenedor perder o histórico do projeto** no lado do Lovable. A restrição está registrada em [AGENTS.md](../AGENTS.md) na raiz.
+
+Corolário: mantenha o branch conectado sempre em estado funcional. Um commit quebrado no `main` quebra também o editor.
+
+---
+
+## Padrões de código
+
+**Idioma.** Textos da interface, segmentos de rota e comentários em **português**; identificadores de código (variáveis, funções, tipos) em **inglês**. É uma inconsistência aparente, mas intencional e consistente em todo o projeto.
+
+**Formatação.** Prettier, aplicado como regra do ESLint: 100 colunas, aspas duplas, vírgula final. Formate **apenas os arquivos que você tocou** (`npx prettier --write caminho/do/arquivo.tsx`) — o repositório inteiro está fora de formatação e um `--write .` geral produz um diff que inviabiliza a revisão. Não discuta estilo em revisão de PR: o Prettier decide.
+
+**Imports.** Use o alias `@/` para `src/`. Nada de `../../../`.
+
+**Validação.** Toda *server function* valida a entrada com Zod, e as mensagens de erro são em português, porque chegam direto ao usuário via toast.
+
+**`src/components/ui/` não se edita.** São primitivos do shadcn/ui. Precisa de comportamento diferente? Componha por cima, em um componente de feature.
+
+**Sufixos de arquivo têm significado:**
+- `*.functions.ts` — *server functions*, importáveis normalmente do cliente
+- `*.server.ts` — exclusivo de servidor, importado **dinamicamente** (`await import()`) de dentro do handler
+
+O ESLint bloqueia o pacote `server-only` do Next.js com uma mensagem explicando essa convenção.
+
+**Arquivos gerados — nunca editar à mão:** `src/routeTree.gen.ts` e `src/integrations/supabase/types.ts`.
+
+**Bibliotecas pesadas entram sob demanda** (`await import()`), como já é feito com `jspdf`, `xlsx`, `qrcode` e `html5-qrcode`.
+
+**Nunca commite segredo.** Chave, token ou senha real não entra no repositório, nem em comentário, nem em arquivo de teste.
+
+---
+
+## Mudanças no banco de dados
+
+1. **Sempre por migration** em `supabase/migrations/`. Nunca altere o schema pelo painel do Supabase — a mudança não chega em quem clonou o projeto.
+2. **Toda tabela nova precisa de RLS.** Uma tabela sem política é uma tabela aberta. Use os helpers já existentes: `is_chapter_member`, `has_permission`, `can_read_chapter`, `is_commission_member`.
+3. **Toda tabela de conteúdo carrega `chapter_id`** — é a chave de isolamento entre capítulos.
+4. **Mudou permissão? Mude nos dois lados.** A matriz de cargos existe duplicada: em TypeScript ([src/lib/permissions.ts](../src/lib/permissions.ts)) e em SQL (função `has_permission`). Alterar só uma cria divergência silenciosa: a interface esconde o botão mas o banco aceita a escrita, ou o contrário. **As duas pontas, no mesmo PR.**
+5. **Regenere `types.ts`** depois de aplicar a migration.
+
+---
+
+## Segurança
+
+O projeto lida com dados pessoais de menores de idade. Leve a sério.
+
+**Reportar vulnerabilidade:** não abra issue pública. Entre em contato em privado com o mantenedor do repositório e dê tempo para a correção antes de qualquer divulgação. (Ainda não há `SECURITY.md` nem endereço dedicado — está no roadmap.)
+
+**Ao contribuir, atenção especial a:**
+
+- `SUPABASE_SERVICE_ROLE_KEY` ignora toda a RLS. Nunca no cliente, nunca no repositório, nunca em log.
+- CPF e RG são cifrados no banco e só se revelam pela RPC `reveal_member_pii`. Não crie caminho novo que devolva PII em claro.
+- O escopo regional/estadual é **somente leitura** e **sem PII**. Não amplie isso sem discussão.
+- Toda tabela nova precisa de RLS antes do merge.
+- Nunca registre PII em log ou telemetria de erro.
+
+---
+
+## Código de conduta
+
+O SG-CDM atende uma organização juvenil, e o padrão de convivência acompanha isso:
+
+- **Respeito, sempre.** Critique a ideia, o código, a decisão — nunca a pessoa.
+- **Zero tolerância a assédio**, de qualquer forma, em qualquer espaço do projeto.
+- **Paciência com quem está começando.** Muita gente que vai contribuir aqui é jovem e está no primeiro projeto. Uma revisão de PR mal-educada custa um contribuidor.
+- **Sem conteúdo impróprio** em código, comentário, issue ou PR.
+
+Um `CODE_OF_CONDUCT.md` formal (provavelmente baseado no Contributor Covenant) ainda será adotado. Até lá, valem os pontos acima. Comportamento fora desse padrão pode resultar em bloqueio de participação.
+
+---
+
+## Roadmap — onde ajudar
+
+As lacunas conhecidas do projeto, que são também as melhores primeiras contribuições:
+
+| Prioridade | Item | Por quê |
+| --- | --- | --- |
+| 🔴 Alta | Definir e adicionar o `LICENSE` | Sem isso, contribuição externa fica em limbo jurídico |
+| 🔴 Alta | Remover as credenciais de teste da tela de login ([src/routes/auth.tsx](../src/routes/auth.tsx)) | Bloqueia qualquer uso real |
+| 🔴 Alta | Adicionar `.env` ao `.gitignore` e versionar um `.env.example` | Hoje o `.env` está no repositório; é questão de tempo até alguém colocar um segredo ali |
+| 🟠 Média | Investigar os 9 erros de `react-hooks/rules-of-hooks` | São os únicos erros de lint que apontam bug de execução, não estilo |
+| 🟠 Média | Testes automatizados (Vitest para os helpers, Playwright para os fluxos) | Não existe nenhum; comece por `permissions.ts`, `format.ts`, `terms.ts`, `finance-xlsx.ts` |
+| 🟠 Média | Zerar a dívida de formatação (`prettier --write .` em um PR isolado, sem nenhuma outra mudança) | Enquanto houver 2.377 erros de estilo, o lint não serve de barreira. Precisa ser um PR só disso, combinado antes com o mantenedor |
+| 🟠 Média | CI no GitHub Actions rodando lint + build | Nenhuma verificação automática hoje — só faz sentido depois de zerar a dívida acima |
+| 🟠 Média | Script de `typecheck` no `package.json` | Erros de tipo só aparecem no editor ou no build |
+| 🟡 Baixa | Revisão de acessibilidade (navegação por teclado, leitores de tela, contraste) | Nunca foi auditada |
+| 🟡 Baixa | Corrigir `package.json.name` (ainda `tanstack_start_ts`) | Herança do template |
+| 🟡 Baixa | `CODE_OF_CONDUCT.md` e `SECURITY.md` formais | Hoje só existem em resumo, aqui |
+| 🟡 Baixa | Decidir o destino de `improveText` e de `supabaseAdmin` | Ambos existem no código e não são usados por ninguém |
+
+Quer ajudar mas não sabe por onde começar? Abra uma issue perguntando — é uma contribuição legítima.
+
+---
+
+## Regra de documentação
+
+> **PR que muda comportamento e não atualiza a documentação correspondente não é mergeado.**
+
+Não é burocracia. Documentação adiada é documentação nunca escrita, e documentação errada é pior do que documentação nenhuma — as pessoas confiam nela e tomam decisões erradas. O custo de atualizar um parágrafo no PR em que a mudança está fresca é minúsculo perto do custo de descobrir seis meses depois que a doc mente.
+
+| Tipo de mudança | Atualizar |
+| --- | --- |
+| Nova rota, nova *server function*, nova tabela/migration, nova variável de ambiente, nova dependência | [TECNICO.md](./TECNICO.md) |
+| Nova tela, novo campo, ou qualquer fluxo visível para quem usa o sistema | [GUIA-DO-USUARIO.md](./GUIA-DO-USUARIO.md) |
+| Mudança em setup, scripts, convenções ou processo de PR | **este documento** |
+| Mudança em cargo, permissão ou regra de acesso | **os três** |
+| Mudança apenas de estilo, refatoração sem efeito visível | nenhum |
+
+Antes de marcar o PR como pronto:
+
+- [ ] O comportamento mudou para quem usa? → Guia do Usuário
+- [ ] Quem for mexer nesse código precisa saber de algo novo? → Documentação técnica
+- [ ] Mudou como se roda, testa ou contribui? → este documento
+- [ ] Adicionei variável de ambiente? → tabela em `TECNICO.md` **e** o bloco `.env.example` acima
+- [ ] Fechei um item do roadmap? → remova-o daqui e da seção de lacunas em `TECNICO.md`
+- [ ] Os caminhos de arquivo que citei realmente existem?
