@@ -87,16 +87,35 @@ export const updateChapterProfile = createServerFn({ method: "POST" })
         name: z.string().min(1),
         number: z.string().min(1),
         city: z.string().nullable().optional(),
+        founded_at: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")
+          .nullable()
+          .optional(),
       })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const { data: current, error: readErr } = await context.supabase
+      .from("chapters")
+      .select("settings")
+      .eq("id", data.chapter_id)
+      .single();
+    if (readErr) throw new Error(readErr.message);
+
+    const settings: Record<string, unknown> = {
+      ...(((current?.settings as Record<string, unknown> | null) ?? {}) as Record<string, unknown>),
+    };
+    if (data.founded_at) settings.founded_at = data.founded_at;
+    else delete settings.founded_at;
+
     const { data: row, error } = await context.supabase
       .from("chapters")
       .update({
         name: data.name.trim(),
         number: data.number.trim(),
         city: data.city?.trim() || null,
+        settings: settings as any,
       })
       .eq("id", data.chapter_id)
       .select()

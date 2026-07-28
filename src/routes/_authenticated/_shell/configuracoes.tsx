@@ -402,12 +402,22 @@ function ChapterProfileCard() {
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
   const [city, setCity] = useState("");
+  const [foundedAt, setFoundedAt] = useState("");
 
   useEffect(() => {
     setName(active?.chapter.name ?? "");
     setNumber(active?.chapter.number ?? "");
     setCity(active?.chapter.city ?? "");
-  }, [active?.chapter.name, active?.chapter.number, active?.chapter.city]);
+    const founded = (active?.chapter as any)?.settings?.founded_at;
+    setFoundedAt(typeof founded === "string" ? founded : "");
+  }, [
+    active?.chapter.name,
+    active?.chapter.number,
+    active?.chapter.city,
+    (active?.chapter as any)?.settings?.founded_at,
+  ]);
+
+  const foundedYear = foundedAt.match(/^(\d{4})/)?.[1] ?? "";
 
   const save = useMutation({
     mutationFn: () =>
@@ -417,6 +427,7 @@ function ChapterProfileCard() {
           name: name.trim(),
           number: number.trim(),
           city: city.trim() || null,
+          founded_at: foundedAt || null,
         },
       }),
     onSuccess: () => {
@@ -443,6 +454,22 @@ function ChapterProfileCard() {
         <div className="sm:col-span-3">
           <Label className="mb-1 block text-xs">Cidade sede</Label>
           <Input value={city} onChange={(e) => setCity(e.target.value)} disabled={!isAdmin} />
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="mb-1 block text-xs">Data de fundação</Label>
+          <Input
+            type="date"
+            value={foundedAt}
+            onChange={(e) => setFoundedAt(e.target.value)}
+            disabled={!isAdmin}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Define o primeiro semestre disponível nas vigências de cargos e comissões.
+          </p>
+        </div>
+        <div>
+          <Label className="mb-1 block text-xs">Ano de fundação</Label>
+          <Input value={foundedYear} readOnly disabled placeholder="—" />
         </div>
       </div>
       {isAdmin ? (

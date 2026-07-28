@@ -81,12 +81,25 @@ const guardianSchema = z.object({
 
 const addressSchema = z
   .object({
+    zip: z.string().optional().default(""),
     street: z.string().optional().default(""),
+    number: z.string().optional().default(""),
+    complement: z.string().optional().default(""),
+    neighborhood: z.string().optional().default(""),
     city: z.string().optional().default(""),
     state: z.string().optional().default(""),
-    zip: z.string().optional().default(""),
+    country: z.string().optional().default("Brasil"),
   })
-  .default({ street: "", city: "", state: "", zip: "" });
+  .default({
+    zip: "",
+    street: "",
+    number: "",
+    complement: "",
+    neighborhood: "",
+    city: "",
+    state: "",
+    country: "Brasil",
+  });
 
 const createInput = z.object({
   chapter_id: z.string().uuid(),

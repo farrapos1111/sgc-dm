@@ -16,7 +16,7 @@ import { membersListKey } from "@/lib/query-keys";
 import { listOngoingItems } from "@/lib/attendance.functions";
 import { canManageAttendance } from "@/lib/permissions";
 import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
-import { formatBRL, formatDateBR, formatDateTimeBR } from "@/lib/format";
+import { formatBRL, formatDateBR, formatDateTimeBR, parseDateOnly } from "@/lib/format";
 
 
 export const Route = createFileRoute("/_authenticated/_shell/inicio")({
@@ -63,7 +63,7 @@ function Inicio() {
 
   const birthdayMonth = now.getMonth();
   const birthdays = members
-    .filter((m) => m.birth_date && new Date(m.birth_date).getMonth() === birthdayMonth)
+    .filter((m) => m.birth_date && parseDateOnly(m.birth_date)?.getMonth() === birthdayMonth)
     .slice(0, 5);
 
   // Sem tabelas financeiras ainda: consideramos vazio quando não há eventos e não há membros

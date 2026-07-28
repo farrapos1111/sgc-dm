@@ -6,7 +6,7 @@ import { getMember, updateMember } from "@/lib/members.functions";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { isUnder21 } from "@/lib/format";
+import { isUnder21, maskCepInput } from "@/lib/format";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import {
   MemberDataFields,
@@ -46,10 +46,14 @@ function EditarMembro() {
     rg: "",
     phone: data.member.phone ?? "",
     email: data.member.email ?? "",
+    address_zip: maskCepInput(addr.zip ?? ""),
     address_street: addr.street ?? "",
+    address_number: addr.number ?? "",
+    address_complement: addr.complement ?? "",
+    address_neighborhood: addr.neighborhood ?? "",
     address_city: addr.city ?? "",
     address_state: addr.state ?? "",
-    address_zip: addr.zip ?? "",
+    address_country: addr.country ?? "Brasil",
   });
 
   const existing = data.guardians ?? [];
@@ -97,10 +101,14 @@ function EditarMembro() {
           phone: dados.phone,
           email: dados.email,
           address: {
+            zip: dados.address_zip,
             street: dados.address_street,
+            number: dados.address_number,
+            complement: dados.address_complement,
+            neighborhood: dados.address_neighborhood,
             city: dados.address_city,
             state: dados.address_state,
-            zip: dados.address_zip,
+            country: dados.address_country,
           },
           status: dados.status,
           guardians,

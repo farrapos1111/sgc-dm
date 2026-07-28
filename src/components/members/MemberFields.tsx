@@ -1,9 +1,9 @@
-import type { ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { maskCpfInput, maskPhoneInput } from "@/lib/format";
+import { digitsOnly, maskCepInput, maskCpfInput, maskPhoneInput } from "@/lib/format";
+import { Loader2 } from "lucide-react";
 
 export type MemberStatus = "ativo" | "inativo" | "senior" | "macom";
 
@@ -19,10 +19,14 @@ export type MemberFormData = {
   rg: string;
   phone: string;
   email: string;
+  address_zip: string;
   address_street: string;
+  address_number: string;
+  address_complement: string;
+  address_neighborhood: string;
   address_city: string;
   address_state: string;
-  address_zip: string;
+  address_country: string;
 };
 
 export type GuardianFormData = {
@@ -45,10 +49,14 @@ export const emptyMember: MemberFormData = {
   rg: "",
   phone: "",
   email: "",
+  address_zip: "",
   address_street: "",
+  address_number: "",
+  address_complement: "",
+  address_neighborhood: "",
   address_city: "",
   address_state: "",
-  address_zip: "",
+  address_country: "Brasil",
 };
 
 export const emptyGuardian: GuardianFormData = {
@@ -57,6 +65,29 @@ export const emptyGuardian: GuardianFormData = {
   cpf: "",
   phone: "",
   email: "",
+};
+
+export const GUARDIAN_RELATIONSHIPS = [
+  "Mãe",
+  "Pai",
+  "Tutor",
+  "Tutora",
+  "Avô",
+  "Avó",
+  "Tio",
+  "Tia",
+  "Irmão",
+  "Irmã",
+  "Responsável legal",
+  "Outro",
+] as const;
+
+type BrasilApiCep = {
+  cep: string;
+  state: string;
+  city: string;
+  neighborhood: string;
+  street: string;
 };
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -77,6 +108,52 @@ export function MemberDataFields({
   onChange: (patch: Partial<MemberFormData>) => void;
   showPiiHint?: boolean;
 }) {
+  const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "error" | "ok">("idle");
+  const [cepError, setCepError] = useState("");
+  const lastLookedUp = useRef("");
+
+  async function lookupCep(raw: string) {
+    const cep = digitsOnly(raw);
+    if (cep.length !== 8 || cep === lastLookedUp.current) return;
+    lastLookedUp.current = cep;
+    setCepStatus("loading");
+    setCepError("");
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
+      if (!res.ok) {
+        setCepStatus("error");
+        setCepError(res.status === 404 ? "CEP não encontrado" : "Não foi possível buscar o CEP");
+        return;
+      }
+      const data = (await res.json()) as BrasilApiCep;
+      onChange({
+        address_zip: maskCepInput(data.cep || cep),
+        address_street: data.street ?? "",
+        address_neighborhood: data.neighborhood ?? "",
+        address_city: data.city ?? "",
+        address_state: (data.state ?? "").toUpperCase(),
+        address_country: "Brasil",
+      });
+      setCepStatus("ok");
+    } catch {
+      setCepStatus("error");
+      setCepError("Não foi possível buscar o CEP");
+    }
+  }
+
+  function handleCepChange(raw: string) {
+    const masked = maskCepInput(raw);
+    onChange({ address_zip: masked });
+    const digits = digitsOnly(masked);
+    if (digits.length < 8) {
+      lastLookedUp.current = "";
+      setCepStatus("idle");
+      setCepError("");
+      return;
+    }
+    void lookupCep(masked);
+  }
+
   return (
     <div className="space-y-4">
       <Field label="Nome completo *">
@@ -135,7 +212,6 @@ export function MemberDataFields({
           Apto a G∴D∴ — exame de Grau Iniciático concluído, aguardando iniciação no Grau DeMolay.
         </p>
       )}
-      <p className="text-xs text-muted-foreground">Somente membros com grau DM podem assumir cargos do capítulo.</p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="CPF">
@@ -166,27 +242,70 @@ export function MemberDataFields({
           <Input type="email" value={value.email} onChange={(e) => onChange({ email: e.target.value })} />
         </Field>
       </div>
-      <Field label="Endereço">
-        <Textarea
-          value={value.address_street}
-          placeholder="Rua, número, bairro…"
-          onChange={(e) => onChange({ address_street: e.target.value })}
-        />
-      </Field>
-      <div className="grid grid-cols-3 gap-4">
-        <Field label="Cidade">
-          <Input value={value.address_city} onChange={(e) => onChange({ address_city: e.target.value })} />
-        </Field>
-        <Field label="UF">
-          <Input
-            maxLength={2}
-            value={value.address_state}
-            onChange={(e) => onChange({ address_state: e.target.value.toUpperCase() })}
-          />
-        </Field>
-        <Field label="CEP">
-          <Input value={value.address_zip} onChange={(e) => onChange({ address_zip: e.target.value })} />
-        </Field>
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <Field label="CEP">
+            <div className="relative">
+              <Input
+                value={value.address_zip}
+                placeholder="00000-000"
+                inputMode="numeric"
+                onChange={(e) => handleCepChange(e.target.value)}
+                onBlur={() => void lookupCep(value.address_zip)}
+              />
+              {cepStatus === "loading" && (
+                <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              )}
+            </div>
+          </Field>
+          <Field label="Endereço">
+            <Input
+              value={value.address_street}
+              placeholder="Rua, avenida…"
+              onChange={(e) => onChange({ address_street: e.target.value })}
+            />
+          </Field>
+          <Field label="Número">
+            <Input
+              value={value.address_number}
+              placeholder="Nº"
+              onChange={(e) => onChange({ address_number: e.target.value })}
+            />
+          </Field>
+          <Field label="Complemento">
+            <Input
+              value={value.address_complement}
+              placeholder="Apto, bloco…"
+              onChange={(e) => onChange({ address_complement: e.target.value })}
+            />
+          </Field>
+        </div>
+        {cepError && <p className="text-xs text-destructive">{cepError}</p>}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <Field label="Bairro">
+            <Input
+              value={value.address_neighborhood}
+              onChange={(e) => onChange({ address_neighborhood: e.target.value })}
+            />
+          </Field>
+          <Field label="Cidade">
+            <Input value={value.address_city} onChange={(e) => onChange({ address_city: e.target.value })} />
+          </Field>
+          <Field label="UF">
+            <Input
+              maxLength={2}
+              value={value.address_state}
+              onChange={(e) => onChange({ address_state: e.target.value.toUpperCase() })}
+            />
+          </Field>
+          <Field label="País">
+            <Input
+              value={value.address_country}
+              onChange={(e) => onChange({ address_country: e.target.value })}
+            />
+          </Field>
+        </div>
       </div>
     </div>
   );
@@ -203,6 +322,12 @@ export function GuardianFields({
   onChange: (patch: Partial<GuardianFormData>) => void;
   required?: boolean;
 }) {
+  const known = (GUARDIAN_RELATIONSHIPS as readonly string[]).includes(value.relationship);
+  const relationshipOptions =
+    value.relationship && !known
+      ? [value.relationship, ...GUARDIAN_RELATIONSHIPS]
+      : [...GUARDIAN_RELATIONSHIPS];
+
   return (
     <div className="space-y-4 rounded-[12px] border border-border p-4">
       <h4 className="text-sm font-semibold">{title}</h4>
@@ -211,11 +336,21 @@ export function GuardianFields({
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Parentesco">
-          <Input
-            placeholder="Ex: mãe, pai, tutor"
-            value={value.relationship}
-            onChange={(e) => onChange({ relationship: e.target.value })}
-          />
+          <Select
+            value={value.relationship || undefined}
+            onValueChange={(v) => onChange({ relationship: v })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              {relationshipOptions.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
         <Field label="CPF">
           <Input

@@ -6,7 +6,7 @@ import {
   useQueryClient,
   queryOptions,
 } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { getMember, revealMemberPii } from "@/lib/members.functions";
 import {
@@ -17,7 +17,9 @@ import {
   assignCommissionMember,
   removeCommissionMember,
 } from "@/lib/organization.functions";
-import { currentTerm, termLabel, termOptions } from "@/lib/terms";
+import { currentTerm, termLabel, termOptions, chapterFoundedAt, type Term } from "@/lib/terms";
+import { TermSelect } from "@/components/TermSelect";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { getMemberAttendance } from "@/lib/attendance.functions";
 import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
 import { can } from "@/lib/permissions";
@@ -120,6 +122,7 @@ function MembroPerfil() {
   const canEditOrg = can(roleName, "conselho") || can(roleName, "secretaria");
   const isAdminView = canEditOrg || can(roleName, "admin");
   const chapterId = (member as any).chapter_id ?? active?.chapter_id ?? "";
+  const foundedAt = chapterFoundedAt(active?.chapter);
   const [term, setTerm] = useState(currentTerm());
 
   const { data: catalog } = useQuery({
@@ -135,14 +138,14 @@ function MembroPerfil() {
   }
 
   const addPos = useMutation({
-    mutationFn: (positionId: number) =>
+    mutationFn: (v: { positionId: number; year: number; semester: 1 | 2 }) =>
       assignPosition({
         data: {
           chapterId,
           memberId: id,
-          positionId,
-          year: term.year,
-          semester: term.semester,
+          positionId: v.positionId,
+          year: v.year,
+          semester: v.semester,
         },
       }),
     onSuccess: () => {
@@ -160,15 +163,20 @@ function MembroPerfil() {
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
   const addCom = useMutation({
-    mutationFn: (v: { commissionId: number; role: any }) =>
+    mutationFn: (v: {
+      commissionId: number;
+      role: any;
+      year?: number;
+      semester?: 1 | 2;
+    }) =>
       assignCommissionMember({
         data: {
           chapterId,
           memberId: id,
           commissionId: v.commissionId,
           role: v.role,
-          year: term.year,
-          semester: term.semester,
+          year: v.year ?? term.year,
+          semester: v.semester ?? term.semester,
         },
       }),
     onSuccess: () => {
@@ -283,12 +291,22 @@ function MembroPerfil() {
                 <Row k="Email" v={member.email || "—"} />
                 <Row k="Endereço" v={
                   member.address && typeof member.address === "object"
-                    ? [
-                        (member.address as any).street,
-                        (member.address as any).city,
-                        (member.address as any).state,
-                        (member.address as any).zip,
-                      ].filter(Boolean).join(", ") || "—"
+                    ? (() => {
+                        const a = member.address as Record<string, string>;
+                        const line1 = [
+                          a.street,
+                          a.number,
+                          a.complement,
+                        ].filter(Boolean).join(", ");
+                        const line2 = [
+                          a.neighborhood,
+                          a.city,
+                          a.state,
+                          a.zip,
+                          a.country,
+                        ].filter(Boolean).join(" — ");
+                        return [line1, line2].filter(Boolean).join(" · ") || "—";
+                      })()
                     : "—"
                 } />
               </dl>
@@ -331,65 +349,45 @@ function MembroPerfil() {
             <PageSkeleton />
           ) : (
           <>
-          {canEditOrg && (
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-              <Label className="text-sm text-muted-foreground">Vigência para novas designações</Label>
-              <Select
-                value={`${term.year}-${term.semester}`}
-                onValueChange={(v) => {
-                  const [y, s] = v.split("-");
-                  setTerm({ year: Number(y), semester: Number(s) as 1 | 2 });
-                }}
-              >
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {termOptions().map((t) => (
-                    <SelectItem key={`${t.year}-${t.semester}`} value={`${t.year}-${t.semester}`}>
-                      {termLabel(t.year, t.semester)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Card className="rounded-[12px] p-5">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-muted-foreground">
-                  Cargos do capítulo e conselho
-                </h3>
-                {canEditOrg && (
-                  <PickerDialog
-                    title="Designar cargo"
-                    triggerLabel="Designar cargo"
-                    options={(catalog?.positions ?? []).map((p) => ({
-                      value: String(p.id),
-                      label: `${p.label} · ${p.scope === "consultivo" ? "Conselho" : "Capítulo"}`,
-                    }))}
-                    onConfirm={(v) => addPos.mutate(Number(v))}
-                  />
-                )}
-              </div>
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                Cargos do capítulo e conselho
+              </h3>
               {orgData.positions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum cargo registrado.</p>
               ) : (
                 <ul className="divide-y divide-border text-sm">
                   {orgData.positions.map((p) => (
                     <li key={p.id} className="flex items-center justify-between gap-2 py-2">
-                      <span>{p.position?.label}</span>
-                      <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
-                        {termLabel(p.term_year, p.term_semester)}
-                        {canEditOrg && (
-                          <Button size="icon" variant="ghost" onClick={() => delPos.mutate(p.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                      <span>
+                        {p.position?.label}
+                        <span className="text-muted-foreground">
+                          {" "}
+                          — {termLabel(p.term_year, p.term_semester)}
+                        </span>
                       </span>
+                      {canEditOrg && (
+                        <Button size="icon" variant="ghost" onClick={() => delPos.mutate(p.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </li>
                   ))}
                 </ul>
+              )}
+              {canEditOrg && (
+                <NewPositionForms
+                  options={(catalog?.positions ?? []).map((p) => ({
+                    value: String(p.id),
+                    label: `${p.label} · ${p.scope === "consultivo" ? "Conselho" : "Capítulo"}`,
+                  }))}
+                  foundedAt={foundedAt}
+                  pending={addPos.isPending}
+                  onSave={(positionId, year, semester) =>
+                    addPos.mutateAsync({ positionId, year, semester })
+                  }
+                />
               )}
             </Card>
             <Card className="rounded-[12px] p-5">
@@ -406,9 +404,17 @@ function MembroPerfil() {
                       label: c.label,
                     }))}
                     withRole
-                    onConfirm={(v, role) =>
-                      addCom.mutate({ commissionId: Number(v), role: role ?? "membro" })
-                    }
+                    withTerm
+                    foundedAt={foundedAt}
+                    defaultTerm={term}
+                    onConfirm={(v, role, t) => {
+                      if (t) setTerm(t);
+                      addCom.mutate({
+                        commissionId: Number(v),
+                        role: role ?? "membro",
+                        ...(t ? { year: t.year, semester: t.semester } : {}),
+                      });
+                    }}
                   />
                 )}
               </div>
@@ -548,22 +554,124 @@ function MembroPerfil() {
   );
 }
 
+function NewPositionForms({
+  options,
+  foundedAt,
+  pending,
+  onSave,
+}: {
+  options: { value: string; label: string }[];
+  foundedAt?: string | null;
+  pending: boolean;
+  onSave: (positionId: number, year: number, semester: 1 | 2) => Promise<unknown>;
+}) {
+  const cur = currentTerm();
+  const terms = termOptions({ foundedAt });
+  const [rows, setRows] = useState<
+    { key: number; positionId: string; year: number; semester: 1 | 2 }[]
+  >([]);
+  const nextKey = useRef(1);
+
+  function addRow() {
+    const key = nextKey.current++;
+    setRows((r) => [...r, { key, positionId: "", year: cur.year, semester: cur.semester }]);
+  }
+
+  function updateRow(key: number, patch: Partial<(typeof rows)[number]>) {
+    setRows((r) => r.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  }
+
+  function removeRow(key: number) {
+    setRows((r) => r.filter((row) => row.key !== key));
+  }
+
+  async function saveRow(key: number) {
+    const row = rows.find((r) => r.key === key);
+    if (!row?.positionId) {
+      toast.error("Selecione o cargo");
+      return;
+    }
+    try {
+      await onSave(Number(row.positionId), row.year, row.semester);
+      removeRow(key);
+    } catch {
+      // erro já tratado no mutation
+    }
+  }
+
+  return (
+    <div className="mt-4 space-y-3 border-t border-border pt-4">
+      {rows.map((row) => (
+        <div key={row.key} className="space-y-3 rounded-[8px] border border-border p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-medium">Novo Cargo</span>
+            <Button size="icon" variant="ghost" onClick={() => removeRow(row.key)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <Label className="mb-1.5 block text-sm">Cargo</Label>
+              <SearchableSelect
+                value={row.positionId}
+                options={options}
+                onChange={(v) => updateRow(row.key, { positionId: v })}
+                placeholder="Selecione o cargo"
+                searchPlaceholder="Buscar cargo…"
+                emptyText="Nenhum cargo encontrado."
+              />
+            </div>
+            <div>
+              <Label className="mb-1.5 block text-sm">Vigência</Label>
+              <TermSelect
+                value={{ year: row.year, semester: row.semester }}
+                terms={terms}
+                onChange={(t) =>
+                  updateRow(row.key, { year: t.year, semester: t.semester })
+                }
+              />
+            </div>
+          </div>
+          <Button
+            size="sm"
+            disabled={pending || !row.positionId}
+            onClick={() => void saveRow(row.key)}
+          >
+            {pending ? "Salvando…" : "Confirmar cargo"}
+          </Button>
+        </div>
+      ))}
+      <Button size="sm" variant="outline" onClick={addRow}>
+        <Plus className="mr-1.5 h-4 w-4" /> Novo Cargo
+      </Button>
+    </div>
+  );
+}
+
 function PickerDialog({
   title,
   triggerLabel,
   options,
   withRole,
+  withTerm,
+  foundedAt,
+  defaultTerm,
   onConfirm,
 }: {
   title: string;
   triggerLabel: string;
   options: { value: string; label: string }[];
   withRole?: boolean;
-  onConfirm: (value: string, role?: string) => void;
+  withTerm?: boolean;
+  foundedAt?: string | null;
+  defaultTerm?: Term;
+  onConfirm: (value: string, role?: string, term?: Term) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [role, setRole] = useState("membro");
+  const [term, setTerm] = useState<Term>(defaultTerm ?? currentTerm());
+  const terms = termOptions({ foundedAt });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -582,19 +690,20 @@ function PickerDialog({
           <div className="space-y-4">
             <div>
               <Label className="mb-1.5 block text-sm">Selecione</Label>
-              <Select value={value} onValueChange={setValue}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Escolha uma opção" />
-                </SelectTrigger>
-                <SelectContent>
-                  {options.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={value}
+                options={options}
+                onChange={setValue}
+                placeholder="Escolha uma opção"
+                searchPlaceholder="Buscar…"
+              />
             </div>
+            {withTerm && (
+              <div>
+                <Label className="mb-1.5 block text-sm">Vigência</Label>
+                <TermSelect value={term} terms={terms} onChange={setTerm} />
+              </div>
+            )}
             {withRole && (
               <div>
                 <Label className="mb-1.5 block text-sm">Cargo na comissão</Label>
@@ -616,7 +725,7 @@ function PickerDialog({
               className="w-full"
               onClick={() => {
                 if (!value) return;
-                onConfirm(value, withRole ? role : undefined);
+                onConfirm(value, withRole ? role : undefined, withTerm ? term : undefined);
                 setOpen(false);
                 setValue("");
               }}

@@ -28,15 +28,16 @@ import {
   listChapterPositions,
   listCommissionMembers,
   assignPosition,
-  removePosition,
   assignCommissionMember,
   removeCommissionMember,
 } from "@/lib/organization.functions";
 import { listMembers } from "@/lib/members.functions";
 import { membersListKey } from "@/lib/query-keys";
-import { currentTerm, termLabel, termOptions } from "@/lib/terms";
+import { currentTerm, termOptions, chapterFoundedAt } from "@/lib/terms";
+import { TermSelect } from "@/components/TermSelect";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { can } from "@/lib/permissions";
-import { grauOf, is21OrOlder } from "@/lib/format";
+import { is21OrOlder } from "@/lib/format";
 import { Trash2, UserPlus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/gestao")({
@@ -66,6 +67,8 @@ function GestaoPage() {
   const qc = useQueryClient();
   const [term, setTerm] = useState(currentTerm());
   const chapterId = active?.chapter_id ?? "";
+  const foundedAt = chapterFoundedAt(active?.chapter);
+  const terms = useMemo(() => termOptions({ foundedAt }), [foundedAt]);
   const canEdit = can(active?.role.name, "secretaria");
   const canEditCommissions = can(active?.role.name, "comissoes");
 
@@ -98,6 +101,7 @@ function GestaoPage() {
   function invalidate() {
     qc.invalidateQueries({ queryKey: ["chapter-positions"] });
     qc.invalidateQueries({ queryKey: ["commission-members"] });
+    qc.invalidateQueries({ queryKey: ["member-org"] });
   }
 
   const assignPos = useMutation({
@@ -110,14 +114,6 @@ function GestaoPage() {
       invalidate();
     },
     onError: (e: any) => toast.error(e?.message ?? "Não foi possível designar"),
-  });
-  const delPos = useMutation({
-    mutationFn: (id: string) => removePosition({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Designação removida");
-      invalidate();
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
   const assignCom = useMutation({
     mutationFn: (v: { memberId: string; commissionId: number; role: any }) =>
@@ -140,38 +136,24 @@ function GestaoPage() {
   });
 
   const byPosition = useMemo(() => {
-    const map = new Map<number, (typeof positions)[number]>();
-    positions.forEach((p) => map.set(p.position_id, p));
+    const map = new Map<number, (typeof positions)[number][]>();
+    for (const p of positions) {
+      const list = map.get(p.position_id) ?? [];
+      list.push(p);
+      map.set(p.position_id, list);
+    }
     return map;
   }, [positions]);
 
-  const eligibleForChapter = members.filter((m) => grauOf(m).code === "DM");
   const eligibleForConselho = members.filter((m) => is21OrOlder(m.birth_date));
 
   return (
     <div>
       <PageHeader
         title="Gestão"
-        subtitle="Cargos do capítulo e comissões por vigência."
+        subtitle="Cargos e comissões conforme o perfil dos membros, por vigência."
         actions={
-          <Select
-            value={`${term.year}-${term.semester}`}
-            onValueChange={(v) => {
-              const [y, s] = v.split("-");
-              setTerm({ year: Number(y), semester: Number(s) as 1 | 2 });
-            }}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {termOptions().map((t) => (
-                <SelectItem key={`${t.year}-${t.semester}`} value={`${t.year}-${t.semester}`}>
-                  {termLabel(t.year, t.semester)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <TermSelect className="w-[240px]" value={term} terms={terms} onChange={setTerm} />
         }
       />
 
@@ -189,48 +171,49 @@ function GestaoPage() {
                   {scope === "capitulo" ? "Cargos do Capítulo" : "Conselho Consultivo"}
                 </h3>
                 <ul className="divide-y divide-border text-sm">
-                  {catalog.positions
-                    .filter((p) => p.scope === scope)
-                    .map((p) => {
-                      const assigned = byPosition.get(p.id);
-                      return (
-                        <li key={p.id} className="flex items-center justify-between gap-2 py-2.5">
-                          <div className="min-w-0">
-                            <div className="font-medium">{p.label}</div>
-                            <div className="truncate text-xs text-muted-foreground">
-                              {assigned?.member?.full_name ?? "Vago"}
+                    {catalog.positions
+                      .filter((p) => p.scope === scope)
+                      .map((p) => {
+                        const assigned = byPosition.get(p.id) ?? [];
+                        const occupied = assigned.length > 0;
+                        return (
+                          <li key={p.id} className="flex items-start justify-between gap-2 py-2.5">
+                            <div className="min-w-0">
+                              <div className="font-medium">{p.label}</div>
+                              {occupied ? (
+                                <ul className="mt-0.5 space-y-0.5">
+                                  {assigned.map((a) => (
+                                    <li
+                                      key={a.id}
+                                      className="truncate text-xs text-muted-foreground"
+                                    >
+                                      {a.member?.full_name}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-xs text-muted-foreground">Vago</div>
+                              )}
                             </div>
-                          </div>
-                          {canEdit && (
-                            <div className="flex shrink-0 items-center gap-1">
+                            {canEdit && !occupied && (
                               <AssignDialog
                                 title={`Designar ${p.label}`}
                                 members={
-                                  scope === "consultivo" ? eligibleForConselho : eligibleForChapter
+                                  scope === "consultivo" ? eligibleForConselho : members
                                 }
                                 emptyHint={
                                   scope === "consultivo"
                                     ? "Nenhum membro com 21 anos ou mais."
-                                    : "Nenhum membro com grau DM."
+                                    : "Nenhum membro cadastrado."
                                 }
                                 onConfirm={(memberId) =>
                                   assignPos.mutate({ memberId, positionId: p.id })
                                 }
                               />
-                              {assigned && (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => delPos.mutate(assigned.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          )}
-                        </li>
-                      );
-                    })}
+                            )}
+                          </li>
+                        );
+                      })}
                 </ul>
               </Card>
             ))}
@@ -304,6 +287,8 @@ function AssignDialog({
   const [memberId, setMemberId] = useState("");
   const [role, setRole] = useState<string>("membro");
 
+  const options = members.map((m) => ({ value: m.id, label: m.full_name }));
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -321,18 +306,13 @@ function AssignDialog({
           <div className="space-y-4">
             <div>
               <Label className="mb-1.5 block text-sm">Membro</Label>
-              <Select value={memberId} onValueChange={setMemberId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um membro" />
-                </SelectTrigger>
-                <SelectContent>
-                  {members.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={memberId}
+                options={options}
+                onChange={setMemberId}
+                placeholder="Selecione um membro"
+                searchPlaceholder="Buscar membro…"
+              />
             </div>
             {withRole && (
               <div>

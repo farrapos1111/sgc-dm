@@ -13,27 +13,36 @@ export function formatBRL(value: number | null | undefined): string {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export function formatDateBR(iso: string | null | undefined): string {
-  if (!iso) return "—";
+/**
+ * Datas do tipo `date` (YYYY-MM-DD) devem ser lidas em horário local.
+ * `new Date("2008-07-16")` é UTC meia-noite e no Brasil vira o dia anterior.
+ */
+export function parseDateOnly(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso.trim());
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
   const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export function formatDateBR(iso: string | null | undefined): string {
+  const d = parseDateOnly(iso);
+  if (!d) return "—";
   return d.toLocaleDateString("pt-BR");
 }
 
 export function formatDateTimeBR(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
 export function isMinor(birthDate: string | null | undefined): boolean {
-  if (!birthDate) return false;
-  const bd = new Date(birthDate);
-  const now = new Date();
-  const age =
-    now.getFullYear() -
-    bd.getFullYear() -
-    (now < new Date(now.getFullYear(), bd.getMonth(), bd.getDate()) ? 1 : 0);
-  return age < 18;
+  const age = ageFrom(birthDate);
+  return age !== null && age < 18;
 }
 
 export function digitsOnly(s: string): string {
@@ -60,6 +69,11 @@ export function maskPhoneInput(v: string): string {
     .replace(/(\d{5})(\d)/, "$1-$2");
 }
 
+export function maskCepInput(v: string): string {
+  const d = digitsOnly(v).slice(0, 8);
+  return d.replace(/^(\d{5})(\d)/, "$1-$2");
+}
+
 export const STATUS_LABELS: Record<string, string> = {
   ativo: "Ativo",
   inativo: "Inativo",
@@ -73,8 +87,8 @@ export function statusLabel(status: string | null | undefined): string {
 }
 
 export function ageFrom(birthDate: string | null | undefined): number | null {
-  if (!birthDate) return null;
-  const bd = new Date(birthDate);
+  const bd = parseDateOnly(birthDate);
+  if (!bd) return null;
   const now = new Date();
   return (
     now.getFullYear() -
@@ -112,4 +126,3 @@ export function grauOf(m: MemberGrauInfo): { code: "DM" | "GI" | null; label: st
 export function isAptoGrauDemolay(m: MemberGrauInfo): boolean {
   return Boolean(m.exam_grau_iniciatico) && !m.iniciacao_grau_demolay;
 }
-

@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery, queryOptions } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { listMembers } from "@/lib/members.functions";
+import { listChapterPositions } from "@/lib/organization.functions";
 import { membersListKey } from "@/lib/query-keys";
+import { currentTerm } from "@/lib/terms";
 import { PageHeader } from "@/components/PageHeader";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { EmptyState } from "@/components/EmptyState";
@@ -22,6 +24,14 @@ export const Route = createFileRoute("/_authenticated/_shell/membros/")({
 });
 
 type StatusFilter = "all" | "ativo" | "inativo" | "senior" | "macom";
+type MemberFilter = "todos" | "sem_cargo" | "sem_exame_dm" | "apto_gd";
+
+const MEMBER_FILTERS: { value: MemberFilter; label: string }[] = [
+  { value: "todos", label: "Todos" },
+  { value: "sem_cargo", label: "DeMolays sem cargo" },
+  { value: "sem_exame_dm", label: "Sem exame de Grau DeMolay" },
+  { value: "apto_gd", label: "Aptos a receber o Grau DeMolay" },
+];
 
 const membersQO = (chapterId: string, search: string, status: StatusFilter) =>
   queryOptions({
@@ -35,6 +45,8 @@ function MembrosList() {
   const [searchInput, setSearchInput] = useState("");
   const [searchDebounced, setSearchDebounced] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [memberFilter, setMemberFilter] = useState<MemberFilter>("todos");
+  const term = currentTerm();
 
   useEffect(() => {
     const handle = window.setTimeout(() => setSearchDebounced(searchInput), 300);
@@ -45,6 +57,34 @@ function MembrosList() {
     ...membersQO(active.chapter_id, searchDebounced, status),
     placeholderData: keepPreviousData,
   });
+
+  const needsPositions = memberFilter === "sem_cargo";
+  const { data: positions = [] } = useQuery({
+    queryKey: ["chapter-positions", active.chapter_id, term.year, term.semester],
+    queryFn: () =>
+      listChapterPositions({
+        data: { chapterId: active.chapter_id, year: term.year, semester: term.semester },
+      }),
+    enabled: needsPositions,
+  });
+
+  const memberIdsWithCargo = useMemo(
+    () => new Set(positions.map((p) => p.member_id)),
+    [positions],
+  );
+
+  const filteredMembers = useMemo(() => {
+    switch (memberFilter) {
+      case "sem_cargo":
+        return members.filter((m) => m.status === "ativo" && !memberIdsWithCargo.has(m.id));
+      case "sem_exame_dm":
+        return members.filter((m) => m.status === "ativo" && !m.exam_grau_demolay);
+      case "apto_gd":
+        return members.filter((m) => m.status === "ativo" && isAptoGrauDemolay(m));
+      default:
+        return members;
+    }
+  }, [memberFilter, members, memberIdsWithCargo]);
 
   const isAdmin =
     can(active.role.name, "secretaria") ||
@@ -59,7 +99,7 @@ function MembrosList() {
     <div className={isFetching ? "opacity-80 transition-opacity" : undefined}>
       <PageHeader
         title="Membros"
-        subtitle={`${members.length} ${members.length === 1 ? "membro" : "membros"}`}
+        subtitle={`${filteredMembers.length} ${filteredMembers.length === 1 ? "membro" : "membros"}`}
         actions={
           <Button asChild style={{ backgroundColor: active.chapter.primary_color }}>
             <Link to="/membros/novo">
@@ -69,7 +109,7 @@ function MembrosList() {
         }
       />
 
-      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_180px]">
+      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_180px_minmax(200px,280px)]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -91,24 +131,42 @@ function MembrosList() {
             <SelectItem value="macom">Maçom</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={memberFilter} onValueChange={(v) => setMemberFilter(v as MemberFilter)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Filtrar" />
+          </SelectTrigger>
+          <SelectContent>
+            {MEMBER_FILTERS.map((f) => (
+              <SelectItem key={f.value} value={f.value}>
+                {f.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {members.length === 0 ? (
+      {filteredMembers.length === 0 ? (
         <EmptyState
           icon={<Users className="h-7 w-7" />}
           title="Nenhum membro encontrado"
-          description="Cadastre o primeiro membro do capítulo."
+          description={
+            memberFilter !== "todos"
+              ? "Nenhum membro corresponde a este filtro."
+              : "Cadastre o primeiro membro do capítulo."
+          }
           action={
-            <Button asChild style={{ backgroundColor: active.chapter.primary_color }}>
-              <Link to="/membros/novo">
-                <PlusCircle className="mr-2 h-4 w-4" /> Cadastrar membro
-              </Link>
-            </Button>
+            memberFilter === "todos" ? (
+              <Button asChild style={{ backgroundColor: active.chapter.primary_color }}>
+                <Link to="/membros/novo">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Cadastrar membro
+                </Link>
+              </Button>
+            ) : undefined
           }
         />
       ) : (
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          {members.map((m) => {
+          {filteredMembers.map((m) => {
             const grau = grauOf(m);
             return (
               <Link key={m.id} to="/membros/$id" params={{ id: m.id }}>
