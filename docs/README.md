@@ -4,11 +4,13 @@
 
 ## Os três documentos
 
+Toda a documentação vive em [`docs/`](./) e no visualizador do app em **`/documentacao`**:
+
 | Documento | Leia se você é… | Cobre |
 | --- | --- | --- |
-| [TECNICO.md](./TECNICO.md) | desenvolvedor(a), vai mexer no código | stack, arquitetura, modelo de dados, permissões, variáveis de ambiente, build e deploy |
-| [GUIA-DO-USUARIO.md](./GUIA-DO-USUARIO.md) | membro do capítulo, ou vai apresentar o sistema | o que o sistema faz, tela por tela, em linguagem simples |
-| [OPEN-SOURCE.md](./OPEN-SOURCE.md) | quer contribuir com o projeto | setup local, fluxo de contribuição, padrões de código, licença, segurança |
+| [TECNICO.md](./TECNICO.md) · `/documentacao/tecnica` | desenvolvedor(a), vai mexer no código | stack, arquitetura, modelo de dados, permissões, variáveis de ambiente, build e deploy |
+| [GUIA-DO-USUARIO.md](./GUIA-DO-USUARIO.md) · `/documentacao/guia` | membro do capítulo, ou vai apresentar o sistema | o que o sistema faz, tela por tela, em linguagem simples |
+| [OPEN-SOURCE.md](./OPEN-SOURCE.md) · `/documentacao/open-source` | quer contribuir com o projeto | setup local, tutorial de contribuição, padrões de código, licença, segurança |
 
 ---
 

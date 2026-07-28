@@ -113,6 +113,11 @@ function AuthPage() {
           <code className="text-foreground">usuario.solo@sgcdm.test</code> <br />
           senha: <code className="text-foreground">Teste@1234</code>
         </p>
+        <p className="text-center text-xs text-muted-foreground mt-4">
+          <a href="/documentacao" className="underline underline-offset-2 hover:text-foreground">
+            Documentação
+          </a>
+        </p>
       </div>
     </div>
   );

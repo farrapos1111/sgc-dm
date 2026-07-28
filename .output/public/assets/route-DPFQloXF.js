@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-By8HlURe.js";import{t}from"./OrgScopeContext-1VsSv-ca.js";import{m as n,u as r}from"./index-cLlzI-w6.js";import{t as i}from"./ActiveChapterContext-CVAV0hPN.js";var a=e();function o(){let{user:e}=r.useRouteContext();return(0,a.jsx)(i,{userId:e.id,children:(0,a.jsx)(t,{children:(0,a.jsx)(n,{})})})}export{o as component};

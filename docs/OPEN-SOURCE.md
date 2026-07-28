@@ -1,6 +1,6 @@
 # SG-CDM — Projeto aberto e guia de contribuição
 
-Este documento é para quem quer **contribuir com o código** do SG-CDM. Para entender a arquitetura em profundidade, veja [TECNICO.md](./TECNICO.md); para entender o produto, veja o [Guia do Usuário](./GUIA-DO-USUARIO.md).
+Este documento é para quem quer **contribuir com o código** do SG-CDM. Para entender a arquitetura em profundidade, veja [TECNICO.md](./TECNICO.md); para entender o produto, veja o [Guia do Usuário](./GUIA-DO-USUARIO.md). No app, este guia também está em `/documentacao/open-source`.
 
 ---
 
@@ -29,44 +29,24 @@ Nada disso impede contribuição — mas explica por que a seção de [roadmap](
 
 ---
 
-## Licença — **decisão pendente**
+## Licença
 
-> ⚠️ **Este repositório ainda não tem um arquivo `LICENSE`.**
->
-> Sem licença explícita, o código é **legalmente proprietário por padrão**: ninguém tem permissão para usar, copiar, modificar ou redistribuir, mesmo com o repositório público. Na prática, isso deixa contribuições externas em limbo jurídico — o contribuidor não sabe sob quais termos está cedendo o trabalho, e o mantenedor não sabe sob quais termos está recebendo.
->
-> **Definir a licença é o passo mais importante antes de aceitar a primeira contribuição externa.**
+Este repositório está sob a **[GNU Affero General Public License v3.0 (AGPL-3.0)](../LICENSE)**.
 
-Opções em discussão:
+A AGPL é um *copyleft* forte: você pode usar, modificar e redistribuir o código; se hospedar uma versão modificada como serviço na rede, precisa oferecer o código-fonte dessa versão sob a mesma licença. O objetivo é garantir que melhorias voltem para a comunidade — coerente com um sistema de gestão oferecido pela web.
 
-| Licença | O que implica | A favor | Contra |
-| --- | --- | --- | --- |
-| **MIT** | Permissiva. Qualquer um usa, modifica e redistribui, inclusive em produto fechado. Só exige manter o aviso de copyright. | Adoção máxima; qualquer capítulo ou grupo pode subir a sua instância sem preocupação | Alguém pode fechar um fork, hospedar como serviço pago e não devolver nada |
-| **AGPL-3.0** | Copyleft forte. Quem hospeda uma versão modificada como serviço precisa publicar o código dessa versão. | Garante que melhorias voltem para a comunidade — coerente com um sistema de gestão oferecido pela web | Afasta usos comerciais e é mais difícil de explicar a contribuidores iniciantes |
-
-**Decisão em aberto, a cargo do mantenedor.** Quando definida: criar o arquivo `LICENSE`, preencher o campo `license` no `package.json`, reavaliar o `"private": true`, e atualizar esta seção e o `README.md` da raiz.
+Contribuições são aceitas sob os mesmos termos. O campo `license` no `package.json` e o arquivo `LICENSE` na raiz são a referência formal.
 
 ---
 
-## Começando
+## Começando (setup local)
 
 ### Pré-requisitos
 
+- **Git** instalado na máquina
 - **Bun** (recomendado) ou **Node.js 20+**
 - Um projeto **Supabase** (o schema é reproduzível pelas migrations do repositório)
-
-### Passos
-
-```bash
-git clone https://github.com/farrapos1111/sibling-chapter.git
-cd sibling-chapter
-
-bun install          # ou: npm install
-
-# crie o .env — ver o modelo abaixo
-
-bun run dev          # http://localhost:3000
-```
+- Conta no **GitHub**
 
 ### Modelo de `.env`
 
@@ -101,6 +81,122 @@ O schema vive em `supabase/migrations/` (26 arquivos `.sql`). Aplique-os no seu 
 
 ---
 
+## Tutorial: sua primeira contribuição
+
+Este passo a passo segue o fluxo clássico *fork → clone → branch → commit → pull request*, no espírito do projeto [First Contributions](https://github.com/firstcontributions/first-contributions). Se você nunca abriu um PR, comece por aqui.
+
+Repositório: [https://github.com/farrapos1111/sgc-dm](https://github.com/farrapos1111/sgc-dm)
+
+### 1. Fork do repositório
+
+No GitHub, abra [farrapos1111/sgc-dm](https://github.com/farrapos1111/sgc-dm) e clique em **Fork**. Isso cria uma cópia do projeto na sua conta.
+
+### 2. Clone o seu fork
+
+No seu fork, clique em **Code**, copie a URL (HTTPS ou SSH) e clone:
+
+```bash
+git clone https://github.com/SEU-USUARIO/sgc-dm.git
+cd sgc-dm
+```
+
+Substitua `SEU-USUARIO` pelo seu usuário do GitHub.
+
+Instale as dependências e suba o ambiente (opcional se a mudança for só documentação):
+
+```bash
+bun install          # ou: npm install
+# crie o .env — ver o modelo acima
+bun run dev          # http://localhost:3000
+```
+
+### 3. Crie um branch
+
+A partir de `main`:
+
+```bash
+git switch -c feat/nome-curto
+```
+
+Prefixos aceitos:
+
+| Prefixo | Quando usar |
+| --- | --- |
+| `feat/` | nova funcionalidade |
+| `fix/` | correção de bug |
+| `docs/` | só documentação |
+
+Exemplo: `git switch -c docs/corrigir-typo-guia`
+
+Se `git switch` não existir na sua versão do Git:
+
+```bash
+git checkout -b feat/nome-curto
+```
+
+### 4. Faça a alteração
+
+Mantenha o escopo enxuto: **um PR, um assunto**.
+
+Em mudanças grandes, **abra uma issue antes** — evita duas pessoas resolvendo o mesmo problema de formas incompatíveis.
+
+**Atualize a documentação no mesmo PR** — ver [Regra de documentação](#regra-de-documentação).
+
+### 5. Adicione e faça o commit
+
+```bash
+git status
+git add caminho/do/arquivo-alterado.tsx
+git commit -m "Descreva o porquê da mudança em uma frase"
+```
+
+Exemplo:
+
+```bash
+git add docs/GUIA-DO-USUARIO.md
+git commit -m "Corrige descrição da tela Mais no guia do usuário"
+```
+
+### 6. Envie o branch para o seu fork
+
+```bash
+git push -u origin feat/nome-curto
+```
+
+Use o mesmo nome do branch que você criou.
+
+### 7. Abra o Pull Request
+
+No GitHub, no **seu** fork, aparece o botão **Compare & pull request**. Clique, preencha:
+
+- **o que** mudou
+- **por que**
+- **como testar**
+
+Se mexeu na interface, inclua capturas de tela (antes e depois). Envie o PR para o repositório original `farrapos1111/sgc-dm`.
+
+### Antes de marcar o PR como pronto
+
+Rode as verificações **só nos arquivos que você tocou**:
+
+```bash
+npx eslint <apenas-os-arquivos-que-você-tocou>
+npx prettier --write <apenas-os-arquivos-que-você-tocou>
+bun run build      # confirma que o build passa e o TypeScript está limpo
+```
+
+> **Não rode `bun run lint` ou `bun run format` no repositório inteiro.** O código atual acumula ~2.535 erros de ESLint em 70 arquivos, sendo 2.377 apenas de formatação. Um `prettier --write .` reformataria 70 arquivos de uma vez, escondendo a sua mudança real e conflitando com a sincronização do Lovable. **Limite-se aos arquivos que você editou.** Detalhe em [TECNICO.md](./TECNICO.md#12-estado-atual-e-lacunas-conhecidas).
+
+### Restrição crítica de histórico git
+
+> **Não reescreva histórico já publicado.** Nada de `push --force`, `rebase`, `commit --amend` ou `squash` sobre commits que já estão no remoto.
+
+Este repositório é sincronizado com o editor Lovable: os commits enviados ao branch conectado voltam para lá e aparecem no editor. Reescrever histórico publicado quebra essa sincronia e pode **fazer o mantenedor perder o histórico do projeto** no lado do Lovable. A restrição está registrada em [AGENTS.md](../AGENTS.md) na raiz.
+
+Corolário: mantenha o branch conectado sempre em estado funcional. Um commit quebrado no `main` quebra também o editor.
+
+---
+
 ## Organização do repositório
 
 ```
@@ -119,32 +215,6 @@ src/
 ```
 
 Detalhamento completo de camadas, fluxo de dados e modelo de dados em [TECNICO.md](./TECNICO.md).
-
----
-
-## Fluxo de contribuição
-
-1. **Abra uma issue antes** de trabalhar em algo grande — evita duas pessoas resolvendo o mesmo problema de formas incompatíveis.
-2. **Crie um branch a partir de `main`**: `feat/nome-curto`, `fix/nome-curto` ou `docs/nome-curto`.
-3. **Faça a mudança**, mantendo o escopo enxuto. Um PR, um assunto.
-4. **Atualize a documentação no mesmo PR** — ver [Regra de documentação](#regra-de-documentação).
-5. **Rode as verificações locais:**
-   ```bash
-   npx eslint <apenas-os-arquivos-que-você-tocou>
-   npx prettier --write <apenas-os-arquivos-que-você-tocou>
-   bun run build      # confirma que o build passa e o TypeScript está limpo
-   ```
-
-   > ⚠️ **Não rode `bun run lint` ou `bun run format` no repositório inteiro.** O código atual acumula ~2.535 erros de ESLint em 70 arquivos, sendo 2.377 apenas de formatação (o Prettier nunca foi aplicado ao código gerado). Um `prettier --write .` reformataria 70 arquivos de uma vez, produzindo um diff gigante que esconde a sua mudança real e conflita com a sincronização do Lovable. **Limite-se aos arquivos que você editou.** O detalhamento está em [TECNICO.md](./TECNICO.md#12-estado-atual-e-lacunas-conhecidas).
-6. **Abra o PR** com: o que mudou, por que, como testar. Se mexeu na interface, inclua capturas de tela — antes e depois.
-
-### Restrição crítica de histórico git
-
-> ⛔ **Não reescreva histórico já publicado.** Nada de `push --force`, `rebase`, `commit --amend` ou `squash` sobre commits que já estão no remoto.
-
-Este repositório é sincronizado com o editor Lovable: os commits enviados ao branch conectado voltam para lá e aparecem no editor. Reescrever histórico publicado quebra essa sincronia e pode **fazer o mantenedor perder o histórico do projeto** no lado do Lovable. A restrição está registrada em [AGENTS.md](../AGENTS.md) na raiz.
-
-Corolário: mantenha o branch conectado sempre em estado funcional. Um commit quebrado no `main` quebra também o editor.
 
 ---
 
@@ -219,7 +289,6 @@ As lacunas conhecidas do projeto, que são também as melhores primeiras contrib
 
 | Prioridade | Item | Por quê |
 | --- | --- | --- |
-| 🔴 Alta | Definir e adicionar o `LICENSE` | Sem isso, contribuição externa fica em limbo jurídico |
 | 🔴 Alta | Remover as credenciais de teste da tela de login ([src/routes/auth.tsx](../src/routes/auth.tsx)) | Bloqueia qualquer uso real |
 | 🔴 Alta | Adicionar `.env` ao `.gitignore` e versionar um `.env.example` | Hoje o `.env` está no repositório; é questão de tempo até alguém colocar um segredo ali |
 | 🟠 Média | Investigar os 9 erros de `react-hooks/rules-of-hooks` | São os únicos erros de lint que apontam bug de execução, não estilo |

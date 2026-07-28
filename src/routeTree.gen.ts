@@ -11,9 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as DocumentacaoRouteRouteImport } from './routes/documentacao/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedShellRouteRouteImport } from './routes/_authenticated/_shell/route'
 import { Route as AuthenticatedSelecionarCapituloRouteImport } from './routes/_authenticated/selecionar-capitulo'
+import { Route as DocumentacaoIndexRouteImport } from './routes/documentacao/index'
+import { Route as DocumentacaoGuiaRouteImport } from './routes/documentacao/guia'
+import { Route as DocumentacaoOpenSourceRouteImport } from './routes/documentacao/open-source'
+import { Route as DocumentacaoTecnicaRouteImport } from './routes/documentacao/tecnica'
 import { Route as AuthenticatedShellAtasRouteImport } from './routes/_authenticated/_shell/atas'
 import { Route as AuthenticatedShellCalendarioRouteImport } from './routes/_authenticated/_shell/calendario'
 import { Route as AuthenticatedShellConfiguracoesRouteImport } from './routes/_authenticated/_shell/configuracoes'
@@ -52,6 +57,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocumentacaoRouteRoute = DocumentacaoRouteRouteImport.update({
+  id: '/documentacao',
+  path: '/documentacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -67,6 +77,26 @@ const AuthenticatedSelecionarCapituloRoute =
     path: '/selecionar-capitulo',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const DocumentacaoIndexRoute = DocumentacaoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DocumentacaoRouteRoute,
+} as any)
+const DocumentacaoGuiaRoute = DocumentacaoGuiaRouteImport.update({
+  id: '/guia',
+  path: '/guia',
+  getParentRoute: () => DocumentacaoRouteRoute,
+} as any)
+const DocumentacaoOpenSourceRoute = DocumentacaoOpenSourceRouteImport.update({
+  id: '/open-source',
+  path: '/open-source',
+  getParentRoute: () => DocumentacaoRouteRoute,
+} as any)
+const DocumentacaoTecnicaRoute = DocumentacaoTecnicaRouteImport.update({
+  id: '/tecnica',
+  path: '/tecnica',
+  getParentRoute: () => DocumentacaoRouteRoute,
+} as any)
 const AuthenticatedShellAtasRoute = AuthenticatedShellAtasRouteImport.update({
   id: '/atas',
   path: '/atas',
@@ -236,8 +266,13 @@ const AuthenticatedShellMembrosIdEditarRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/documentacao': typeof DocumentacaoRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
+  '/documentacao/guia': typeof DocumentacaoGuiaRoute
+  '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
+  '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
+  '/documentacao/': typeof DocumentacaoIndexRoute
   '/atas': typeof AuthenticatedShellAtasRoute
   '/calendario': typeof AuthenticatedShellCalendarioRoute
   '/configuracoes': typeof AuthenticatedShellConfiguracoesRoute
@@ -271,6 +306,10 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/': typeof AuthenticatedIndexRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
+  '/documentacao/guia': typeof DocumentacaoGuiaRoute
+  '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
+  '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
+  '/documentacao': typeof DocumentacaoIndexRoute
   '/atas': typeof AuthenticatedShellAtasRoute
   '/calendario': typeof AuthenticatedShellCalendarioRoute
   '/configuracoes': typeof AuthenticatedShellConfiguracoesRoute
@@ -303,10 +342,15 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/documentacao': typeof DocumentacaoRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/_shell': typeof AuthenticatedShellRouteRouteWithChildren
   '/_authenticated/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
+  '/documentacao/guia': typeof DocumentacaoGuiaRoute
+  '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
+  '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/documentacao/': typeof DocumentacaoIndexRoute
   '/_authenticated/_shell/atas': typeof AuthenticatedShellAtasRoute
   '/_authenticated/_shell/calendario': typeof AuthenticatedShellCalendarioRoute
   '/_authenticated/_shell/configuracoes': typeof AuthenticatedShellConfiguracoesRoute
@@ -340,8 +384,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/documentacao'
     | '/auth'
     | '/selecionar-capitulo'
+    | '/documentacao/guia'
+    | '/documentacao/open-source'
+    | '/documentacao/tecnica'
+    | '/documentacao/'
     | '/atas'
     | '/calendario'
     | '/configuracoes'
@@ -375,6 +424,10 @@ export interface FileRouteTypes {
     | '/auth'
     | '/'
     | '/selecionar-capitulo'
+    | '/documentacao/guia'
+    | '/documentacao/open-source'
+    | '/documentacao/tecnica'
+    | '/documentacao'
     | '/atas'
     | '/calendario'
     | '/configuracoes'
@@ -406,10 +459,15 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
+    | '/documentacao'
     | '/auth'
     | '/_authenticated/_shell'
     | '/_authenticated/selecionar-capitulo'
+    | '/documentacao/guia'
+    | '/documentacao/open-source'
+    | '/documentacao/tecnica'
     | '/_authenticated/'
+    | '/documentacao/'
     | '/_authenticated/_shell/atas'
     | '/_authenticated/_shell/calendario'
     | '/_authenticated/_shell/configuracoes'
@@ -442,6 +500,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  DocumentacaoRouteRoute: typeof DocumentacaoRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
 }
 
@@ -459,6 +518,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documentacao': {
+      id: '/documentacao'
+      path: '/documentacao'
+      fullPath: '/documentacao'
+      preLoaderRoute: typeof DocumentacaoRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/': {
@@ -481,6 +547,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/selecionar-capitulo'
       preLoaderRoute: typeof AuthenticatedSelecionarCapituloRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/documentacao/': {
+      id: '/documentacao/'
+      path: '/'
+      fullPath: '/documentacao/'
+      preLoaderRoute: typeof DocumentacaoIndexRouteImport
+      parentRoute: typeof DocumentacaoRouteRoute
+    }
+    '/documentacao/guia': {
+      id: '/documentacao/guia'
+      path: '/guia'
+      fullPath: '/documentacao/guia'
+      preLoaderRoute: typeof DocumentacaoGuiaRouteImport
+      parentRoute: typeof DocumentacaoRouteRoute
+    }
+    '/documentacao/open-source': {
+      id: '/documentacao/open-source'
+      path: '/open-source'
+      fullPath: '/documentacao/open-source'
+      preLoaderRoute: typeof DocumentacaoOpenSourceRouteImport
+      parentRoute: typeof DocumentacaoRouteRoute
+    }
+    '/documentacao/tecnica': {
+      id: '/documentacao/tecnica'
+      path: '/tecnica'
+      fullPath: '/documentacao/tecnica'
+      preLoaderRoute: typeof DocumentacaoTecnicaRouteImport
+      parentRoute: typeof DocumentacaoRouteRoute
     }
     '/_authenticated/_shell/atas': {
       id: '/_authenticated/_shell/atas'
@@ -776,8 +870,26 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface DocumentacaoRouteRouteChildren {
+  DocumentacaoGuiaRoute: typeof DocumentacaoGuiaRoute
+  DocumentacaoOpenSourceRoute: typeof DocumentacaoOpenSourceRoute
+  DocumentacaoTecnicaRoute: typeof DocumentacaoTecnicaRoute
+  DocumentacaoIndexRoute: typeof DocumentacaoIndexRoute
+}
+
+const DocumentacaoRouteRouteChildren: DocumentacaoRouteRouteChildren = {
+  DocumentacaoGuiaRoute: DocumentacaoGuiaRoute,
+  DocumentacaoOpenSourceRoute: DocumentacaoOpenSourceRoute,
+  DocumentacaoTecnicaRoute: DocumentacaoTecnicaRoute,
+  DocumentacaoIndexRoute: DocumentacaoIndexRoute,
+}
+
+const DocumentacaoRouteRouteWithChildren =
+  DocumentacaoRouteRoute._addFileChildren(DocumentacaoRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  DocumentacaoRouteRoute: DocumentacaoRouteRouteWithChildren,
   AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport

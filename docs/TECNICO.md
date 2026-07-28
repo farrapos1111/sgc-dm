@@ -28,6 +28,7 @@ A aplicação é **multi-inquilino por capítulo**: quase toda tabela carrega `c
 | Formulários | react-hook-form + `@hookform/resolvers` | `^7.71.2` |
 | IA | Vercel AI SDK (`ai`) via Lovable AI Gateway | `^7.0.37` |
 | Documentos | jspdf, xlsx, qrcode, html5-qrcode | — |
+| Markdown (docs no app) | react-markdown + remark-gfm | — |
 | Gráficos | recharts | `^2.15.4` |
 | Lint/format | ESLint 9 (flat config) + Prettier | — |
 
@@ -55,6 +56,7 @@ src/
   components/
     ui/              52 primitivos shadcn/ui — não editar à mão
     shell/           AppShell (sidebar desktop, abas mobile, troca de escopo)
+    docs/            visualizador público de documentação (Markdown)
     members/ minutes/ settings/   componentes de feature
     *.tsx            EmptyState, PageHeader, PageSkeleton, QrScanner, ThemeToggle…
   context/           ActiveChapterContext, OrgScopeContext, ThemeContext
@@ -203,16 +205,17 @@ Quase toda tabela de conteúdo carrega `chapter_id` (a chave de inquilino), `cre
 
 ### Fluxo de autenticação
 
-1. `/auth` ([src/routes/auth.tsx](../src/routes/auth.tsx), `ssr: false`) — e-mail e senha via `supabase.auth.signInWithPassword`.
-2. `_authenticated/route.tsx` — o `beforeLoad` chama `supabase.auth.getUser()` e redireciona para `/auth` se não houver sessão; monta `ActiveChapterProvider` e `OrgScopeProvider`.
-3. `_authenticated/index.tsx` redireciona `/` → `/inicio`.
-4. `_shell/route.tsx` resolve o escopo de trabalho:
+1. `/auth` ([src/routes/auth.tsx](../src/routes/auth.tsx), `ssr: false`) — e-mail e senha via `supabase.auth.signInWithPassword`. Link para a documentação pública em `/documentacao`.
+2. **Rotas públicas de documentação** (fora de `_authenticated`): `/documentacao`, `/documentacao/tecnica`, `/documentacao/guia`, `/documentacao/open-source` — layout próprio em [src/routes/documentacao/](../src/routes/documentacao/), renderizam os Markdowns de `docs/` via `react-markdown` ([src/lib/docs-catalog.ts](../src/lib/docs-catalog.ts), [src/components/docs/](../src/components/docs/)).
+3. `_authenticated/route.tsx` — o `beforeLoad` chama `supabase.auth.getUser()` e redireciona para `/auth` se não houver sessão; monta `ActiveChapterProvider` e `OrgScopeProvider`.
+4. `_authenticated/index.tsx` redireciona `/` → `/inicio`.
+5. `_shell/route.tsx` resolve o escopo de trabalho:
    - 0 vínculos de capítulo + ≥1 liderança → entra direto no escopo regional
    - >1 vínculo e nenhum escolhido → `/selecionar-capitulo`
    - 0 de ambos → mensagem de conta não vinculada
-5. O capítulo ativo é persistido em `localStorage` (`sgcdm.activeChapterId`) **e** espelhado em `profiles.active_chapter_id` para continuidade entre dispositivos. O escopo org fica em `sgcdm.activeOrgScope`.
-6. Toda chamada de *server function* leva `Authorization: Bearer <access_token>` e é verificada no servidor com `supabase.auth.getClaims(token)`. Um middleware de CSRF protege essas requisições.
-7. O logout limpa o `localStorage`, chama `supabase.auth.signOut()` e navega com recarga completa para `/auth`.
+6. O capítulo ativo é persistido em `localStorage` (`sgcdm.activeChapterId`) **e** espelhado em `profiles.active_chapter_id` para continuidade entre dispositivos. O escopo org fica em `sgcdm.activeOrgScope`.
+7. Toda chamada de *server function* leva `Authorization: Bearer <access_token>` e é verificada no servidor com `supabase.auth.getClaims(token)`. Um middleware de CSRF protege essas requisições.
+8. O logout limpa o `localStorage`, chama `supabase.auth.signOut()` e navega com recarga completa para `/auth`.
 
 ### Autorização em duas camadas
 

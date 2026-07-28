@@ -29,13 +29,13 @@ O schema do banco está em `supabase/migrations/`, aplicável em qualquer projet
 
 ## Documentação
 
-Toda a documentação vive em [`docs/`](./docs/):
+Toda a documentação vive em [`docs/`](./docs/) e também no visualizador do app em **`/documentacao`**:
 
 | Documento | Leia se você é… |
 | --- | --- |
-| [Documentação técnica](./docs/TECNICO.md) | desenvolvedor(a) — arquitetura, modelo de dados, permissões, variáveis de ambiente, deploy |
-| [Guia do Usuário](./docs/GUIA-DO-USUARIO.md) | membro do capítulo, ou vai apresentar o sistema |
-| [Projeto aberto e contribuição](./docs/OPEN-SOURCE.md) | quer contribuir — setup, padrões de código, fluxo de PR, segurança |
+| [Documentação técnica](./docs/TECNICO.md) · `/documentacao/tecnica` | desenvolvedor(a) — arquitetura, modelo de dados, permissões, variáveis de ambiente, deploy |
+| [Guia do Usuário](./docs/GUIA-DO-USUARIO.md) · `/documentacao/guia` | membro do capítulo, ou vai apresentar o sistema |
+| [Projeto aberto e contribuição](./docs/OPEN-SOURCE.md) · `/documentacao/open-source` | quer contribuir — setup, tutorial de PR, padrões, segurança |
 
 ## Scripts
 
@@ -51,11 +51,25 @@ Toda a documentação vive em [`docs/`](./docs/):
 
 ## Licença
 
-**Ainda não definida.** Sem um arquivo `LICENSE`, o código é proprietário por padrão. As opções em discussão (MIT e AGPL-3.0) estão em [docs/OPEN-SOURCE.md](./docs/OPEN-SOURCE.md#licença--decisão-pendente).
+Este projeto é licenciado sob a **[GNU Affero General Public License v3.0 (AGPL-3.0)](./LICENSE)**.
+
+Em resumo: você pode usar, modificar e redistribuir o código; se hospedar uma versão modificada como serviço na rede, precisa publicar o código-fonte dessa versão sob a mesma licença.
 
 ## Contribuindo
 
-Leia [docs/OPEN-SOURCE.md](./docs/OPEN-SOURCE.md) antes de abrir um PR. Dois pontos que valem destaque:
+Nunca contribuiu em open source? O fluxo é o mesmo de sempre — fork, branch, commit, pull request. Resumo:
 
-- ⛔ **Não reescreva histórico já publicado** (`push --force`, `rebase`, `amend`, `squash`). O repositório é sincronizado com o editor Lovable e isso quebra o histórico do projeto.
-- 📄 **Toda alteração atualiza a documentação correspondente no mesmo PR.** Documentação adiada é documentação nunca escrita.
+1. **Fork** [farrapos1111/sgc-dm](https://github.com/farrapos1111/sgc-dm) no GitHub
+2. **Clone** o seu fork
+3. Crie um **branch** (`feat/…`, `fix/…` ou `docs/…`)
+4. Faça a alteração (e atualize a documentação no mesmo PR)
+5. `git add` → `git commit`
+6. `git push` para o seu fork
+7. Abra o **Pull Request** no repositório original
+
+Tutorial completo (comandos, setup local e regras do projeto): [docs/OPEN-SOURCE.md](./docs/OPEN-SOURCE.md) ou `/documentacao/open-source`.
+
+Dois pontos que valem destaque:
+
+- Não reescreva histórico já publicado (`push --force`, `rebase`, `amend`, `squash`). O repositório é sincronizado com o editor Lovable e isso quebra o histórico do projeto.
+- Toda alteração atualiza a documentação correspondente no mesmo PR. Documentação adiada é documentação nunca escrita.

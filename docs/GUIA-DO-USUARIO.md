@@ -115,6 +115,10 @@ Para quem tem cargo acima do capítulo:
 - **Membros** — busca de membros entre capítulos (com os documentos protegidos)
 - **Instituições e Regiões** — cadastro e edição de capítulos e regiões, exclusivo do Grão-Mestre Estadual
 
+### Documentação
+
+Sem precisar de permissão especial: em **Mais → Documentação**, ou pela URL `/documentacao` (também acessível sem login). Há três guias — técnico, do usuário e de contribuição open source.
+
 ---
 
 ## Cuidado com os dados pessoais
@@ -132,7 +136,7 @@ O sistema guarda dados de adolescentes, então esse ponto foi tratado com rigor:
 ## Perguntas frequentes
 
 **Funciona no celular?**
-Sim. No celular o menu vira uma barra de abas na parte de baixo da tela, com atalhos para Início, Membros, Caixa, Eventos e um botão "Mais" com o restante.
+Sim. No celular o menu vira uma barra de abas na parte de baixo da tela, com atalhos para Início, Membros, Caixa, Eventos e um botão "Mais" com o restante — inclusive o atalho para a **Documentação** (`/documentacao`), que também pode ser aberta sem login.
 
 **Preciso instalar alguma coisa?**
 Não. É pelo navegador, no computador ou no celular.

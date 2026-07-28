@@ -1,0 +1,1 @@
+function e(){let e=new Date;return{year:e.getFullYear(),semester:e.getMonth()<6?1:2}}function t(e,t){return`${t}º semestre de ${e}`}function n(t=4){let{year:n}=e(),r=[];for(let e=n+1;e>=n-t;e--)r.push({year:e,semester:2}),r.push({year:e,semester:1});return r}export{t as n,n as r,e as t};

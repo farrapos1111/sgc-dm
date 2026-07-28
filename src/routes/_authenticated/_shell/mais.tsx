@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Repeat, Building2, Landmark, Settings } from "lucide-react";
+import { LogOut, Repeat, Building2, Landmark, Settings, BookOpen } from "lucide-react";
 import { can } from "@/lib/permissions";
 
 export const Route = createFileRoute("/_authenticated/_shell/mais")({
@@ -77,6 +77,21 @@ function MaisPage() {
             </Button>
           </Card>
         )}
+        <Card className="rounded-[12px] p-5">
+          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <BookOpen className="h-5 w-5" /> Documentação
+          </div>
+          <div className="text-sm text-muted-foreground">
+            Guias técnicos, do usuário e de contribuição open source.
+          </div>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => navigate({ to: "/documentacao" })}
+          >
+            Abrir documentação
+          </Button>
+        </Card>
         <Card className="rounded-[12px] p-5">
           <Button variant="destructive" onClick={signOut}>
             <LogOut className="mr-2 h-4 w-4" /> Sair
