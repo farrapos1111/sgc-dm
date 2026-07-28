@@ -37,3 +37,5 @@ Documentação que vive num PR separado nunca é escrita. Se a mudança de compo
 - [ ] Mudou como se roda, testa ou contribui? → `OPEN-SOURCE.md`
 - [ ] Adicionei variável de ambiente? → `TECNICO.md` **e** o bloco `.env.example` em `OPEN-SOURCE.md`
 - [ ] Os caminhos de arquivo que citei na doc realmente existem?
+
+
