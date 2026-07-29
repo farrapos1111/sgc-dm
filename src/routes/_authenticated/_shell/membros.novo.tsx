@@ -173,6 +173,7 @@ function NovoMembro() {
           },
           status: dados.status,
           kind: dados.kind,
+          status_effective_on: dados.status_effective_on || null,
           guardians,
           consent_text_version: menor ? CONSENT_VERSION : "",
         },

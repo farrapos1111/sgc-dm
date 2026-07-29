@@ -96,7 +96,7 @@ function MembroPerfil() {
     ...attendanceQO(id),
     enabled: needsAttendance,
   });
-  const { member, guardians, consents, audit } = data;
+  const { member, guardians, consents, audit, awayPeriods = [], irregularSince } = data;
   const orgData = org ?? { positions: [] as any[], commissions: [] as any[] };
 
   const mandatoryRecs = (attendance as any[]).filter((r) => r.calendar_event?.mandatory);
@@ -260,6 +260,25 @@ function MembroPerfil() {
                   <Row k="ID maçônica" v={(member as any).masonic_id || "—"} />
                 )}
                 <Row k="Status" v={<Badge variant="secondary">{statusLabel(member.status)}</Badge>} />
+                {irregularSince ? (
+                  <Row k="Irregular desde" v={formatDateBR(irregularSince)} />
+                ) : null}
+                {awayPeriods.length > 0 ? (
+                  <Row
+                    k="Afastamentos"
+                    v={
+                      <ul className="space-y-0.5 text-right text-sm">
+                        {awayPeriods.map((p) => (
+                          <li key={p.id}>
+                            {formatDateBR(p.started_on)}
+                            {" → "}
+                            {p.ended_on ? formatDateBR(p.ended_on) : "atual"}
+                          </li>
+                        ))}
+                      </ul>
+                    }
+                  />
+                ) : null}
                 <Row
                   k="Tipo"
                   v={
