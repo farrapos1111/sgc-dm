@@ -1,14 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  ChevronDown,
+  Copy,
   Download,
   FileSpreadsheet,
   FileText,
   Landmark,
+  Link2,
   Pencil,
   Plus,
+  RefreshCw,
   Settings2,
   Trash2,
   TrendingDown,
@@ -29,9 +33,19 @@ import {
 import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { can } from "@/lib/permissions";
 import { formatBRL, formatDateBR } from "@/lib/format";
+import { chapterFoundedAt } from "@/lib/terms";
 import {
   createCashEntry,
   createManualDuesEntry,
@@ -53,6 +67,11 @@ import {
 
 import { downloadCashTemplate, exportCashXlsx, parseCashSheet, type ParsedRow } from "@/lib/finance-xlsx";
 import { exportCashPdf } from "@/lib/finance-pdf";
+import {
+  ensureCashShareToken,
+  getCashShareToken,
+  revokeCashShareToken,
+} from "@/lib/cash-share.functions";
 
 export const Route = createFileRoute("/_authenticated/_shell/tesouraria/fluxo")({
   head: () => ({
@@ -99,12 +118,31 @@ function FluxoCaixa() {
   const qc = useQueryClient();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState<number | null>(now.getMonth() + 1);
+
+  const availableYears = useMemo(() => {
+    const currentYear = now.getFullYear();
+    const founded = chapterFoundedAt(active?.chapter);
+    const startYear = founded ? Number(founded.slice(0, 4)) : currentYear - 2;
+    const years: number[] = [];
+    for (let y = currentYear; y >= startYear; y--) years.push(y);
+    return years;
+  }, [active?.chapter]);
+  const [month, setMonth] = useState<number | null>(null);
+  const [monthOrder, setMonthOrder] = useState<"newest" | "oldest">("newest");
+  const [openMonths, setOpenMonths] = useState<Set<number>>(
+    () => new Set([now.getMonth() + 1]),
+  );
+  const [sortKey, setSortKey] = useState<CashSortKey>("entry_date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const writable = can(active?.role.name, "tesouraria");
 
   const [form, setForm] = useState<EntryForm>(emptyForm());
   const [entryOpen, setEntryOpen] = useState(false);
   const [catsOpen, setCatsOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
   const [importRows, setImportRows] = useState<ParsedRow[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -115,7 +153,8 @@ function FluxoCaixa() {
   });
 
   const entries = data?.entries ?? [];
-  const bank = data?.bank ?? { income: 0, expense: 0, balance: 0 };
+  const opening = data?.opening ?? { balance: 0, previousYear: year - 1 };
+  const openingBalance = Number(opening.balance) || 0;
 
   const { data: catData } = useQuery({
     queryKey: ["cash-categories", active?.chapter_id],
@@ -143,6 +182,55 @@ function FluxoCaixa() {
     if (form.category) names.add(form.category);
     return [...names];
   }, [categories, form.category]);
+
+  /** Categorias disponíveis no filtro (config + lançamentos do período). */
+  const filterCategoryOptions = useMemo(() => {
+    const names = new Set<string>(FIXED_CATEGORIES);
+    for (const c of categories) names.add(c.name);
+    for (const e of entries) {
+      if (e.category) names.add(e.category);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [categories, entries]);
+
+  /**
+   * Subcategorias para filtro: nomes presentes nos lançamentos + configuradas
+   * (eventos/hospitalaria). Pronto para quando subcategorias por evento forem mais usadas.
+   */
+  const filterSubcategoryOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const e of entries) {
+      if (selectedCategories.length && !selectedCategories.includes(e.category)) continue;
+      if (e.subcategory) names.add(e.subcategory);
+    }
+    for (const s of subcategories) {
+      if (!s.name) continue;
+      // Escopos dinâmicos ligados a categorias conhecidas
+      if (selectedCategories.length) {
+        const matchesEventos =
+          selectedCategories.includes("Eventos") && s.scope === "eventos";
+        const matchesHosp =
+          selectedCategories.includes("Hospitalaria") && s.scope === "hospitalaria";
+        if (!matchesEventos && !matchesHosp) continue;
+      }
+      names.add(s.name);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [entries, subcategories, selectedCategories]);
+
+  const filteredEntries = useMemo(() => {
+    return entries.filter((e) => {
+      if (selectedCategories.length && !selectedCategories.includes(e.category)) {
+        return false;
+      }
+      if (selectedSubcategories.length) {
+        if (!e.subcategory || !selectedSubcategories.includes(e.subcategory)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [entries, selectedCategories, selectedSubcategories]);
 
   // Lançamento manual de mensalidade (uma ou várias competências).
   const [duesMemberId, setDuesMemberId] = useState("");
@@ -178,14 +266,105 @@ function FluxoCaixa() {
   const periodTotals = useMemo(() => {
     let income = 0;
     let expense = 0;
-    for (const e of entries) {
+    for (const e of filteredEntries) {
       if (e.kind === "entrada") income += Number(e.amount);
       else expense += Number(e.amount);
     }
     return { income, expense, balance: income - expense };
-  }, [entries]);
+  }, [filteredEntries]);
 
-  const periodLabel = month ? `${monthName(month)} de ${year}` : "Período completo";
+  const closingBalance = openingBalance + periodTotals.balance;
+
+  const periodLabel = month ? `${monthName(month)} de ${year}` : `Ano de ${year}`;
+
+  const entriesByMonth = useMemo(() => {
+    if (month !== null) return null;
+    const groups = new Map<number, typeof filteredEntries>();
+    for (const e of filteredEntries) {
+      const m = Number(String(e.entry_date).slice(5, 7));
+      if (!m) continue;
+      const list = groups.get(m) ?? [];
+      list.push(e);
+      groups.set(m, list);
+    }
+    return [...groups.entries()]
+      .sort((a, b) => (monthOrder === "newest" ? b[0] - a[0] : a[0] - b[0]))
+      .map(([m, list]) => {
+        let income = 0;
+        let expense = 0;
+        for (const e of list) {
+          if (e.kind === "entrada") income += Number(e.amount);
+          else expense += Number(e.amount);
+        }
+        return {
+          month: m,
+          entries: sortCashEntries(list, sortKey, sortDir),
+          income,
+          expense,
+        };
+      });
+  }, [filteredEntries, month, monthOrder, sortKey, sortDir]);
+
+  const sortedMonthEntries = useMemo(
+    () => (month !== null ? sortCashEntries(filteredEntries, sortKey, sortDir) : filteredEntries),
+    [filteredEntries, month, sortKey, sortDir],
+  );
+
+  // Remove subcategorias selecionadas que deixaram de existir nas opções
+  useEffect(() => {
+    if (!selectedSubcategories.length) return;
+    const allowed = new Set(filterSubcategoryOptions);
+    setSelectedSubcategories((prev) => {
+      const next = prev.filter((s) => allowed.has(s));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [filterSubcategoryOptions, selectedSubcategories.length]);
+
+  function toggleFilterValue(
+    list: string[],
+    value: string,
+    setList: (next: string[]) => void,
+  ) {
+    setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+  }
+
+  // Em Geral: só o mês atual aberto por padrão ao mudar o ano (se for o ano corrente)
+  useEffect(() => {
+    if (month !== null) return;
+    const today = new Date();
+    if (year === today.getFullYear()) {
+      setOpenMonths(new Set([today.getMonth() + 1]));
+    } else {
+      setOpenMonths(new Set());
+    }
+  }, [year, month]);
+
+  function toggleMonth(m: number) {
+    setOpenMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m);
+      else next.add(m);
+      return next;
+    });
+  }
+
+  function expandAllMonths() {
+    if (!entriesByMonth) return;
+    setOpenMonths(new Set(entriesByMonth.map((g) => g.month)));
+  }
+
+  function collapseAllMonths() {
+    setOpenMonths(new Set());
+  }
+
+  function toggleSort(key: CashSortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "entry_date" || key === "amount" ? "desc" : "asc");
+    }
+  }
 
   const invalidate = async () => {
     await qc.invalidateQueries({ queryKey: ["cash-entries"] });
@@ -264,13 +443,75 @@ function FluxoCaixa() {
         chapterCity: active!.chapter.city,
         logoPath: (active!.chapter as any).logo_url ?? null,
         periodLabel,
-        entries: [...entries].reverse(),
+        entries: [...filteredEntries].reverse(),
         totals: periodTotals,
+        opening: {
+          balance: openingBalance,
+          previousYear: opening.previousYear,
+          title:
+            month === null
+              ? `Saldo remanescente do ano ${opening.previousYear}`
+              : "Saldo inicial do período",
+          hint:
+            month === null
+              ? "Caixa transferido do exercício anterior (chão deste relatório)."
+              : `Inclui o restante do ano ${opening.previousYear} e meses anteriores (chão deste relatório).`,
+        },
         signers,
       });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao gerar PDF"),
   });
+
+  const shareUrl = shareToken
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/fluxo-caixa/${shareToken}`
+    : "";
+
+  const openShare = useMutation({
+    mutationFn: async () => {
+      const existing = await getCashShareToken({ data: { chapterId: active!.chapter_id } });
+      if (existing.token) return existing.token;
+      const created = await ensureCashShareToken({
+        data: { chapterId: active!.chapter_id, regenerate: false },
+      });
+      return created.token;
+    },
+    onSuccess: (token) => {
+      setShareToken(token);
+      setShareOpen(true);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao gerar link"),
+  });
+
+  const regenerateShare = useMutation({
+    mutationFn: () =>
+      ensureCashShareToken({ data: { chapterId: active!.chapter_id, regenerate: true } }),
+    onSuccess: (r) => {
+      setShareToken(r.token);
+      toast.success("Novo link gerado. O anterior deixou de funcionar.");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao regenerar link"),
+  });
+
+  const revokeShare = useMutation({
+    mutationFn: () => revokeCashShareToken({ data: { chapterId: active!.chapter_id } }),
+    onSuccess: () => {
+      setShareToken(null);
+      setShareOpen(false);
+      toast.success("Link público revogado");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao revogar link"),
+  });
+
+  async function copyShareLink() {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Link copiado");
+    } catch {
+      toast.error("Não foi possível copiar o link");
+    }
+  }
 
   async function handleFile(file: File) {
     try {
@@ -320,20 +561,127 @@ function FluxoCaixa() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={String(year)} onValueChange={(v) => setYear(Number(v))} disabled={month === null}>
+        <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
           <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {[now.getFullYear() + 1, now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2].map((y) => (
+            {availableYears.map((y) => (
               <SelectItem key={y} value={String(y)}>{y}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="min-w-36 justify-between">
+              <span>
+                Categorias
+                {selectedCategories.length > 0 ? ` (${selectedCategories.length})` : ""}
+              </span>
+              <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel>Filtrar categorias</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {filterCategoryOptions.map((name) => (
+              <DropdownMenuCheckboxItem
+                key={name}
+                checked={selectedCategories.includes(name)}
+                onCheckedChange={() =>
+                  toggleFilterValue(selectedCategories, name, setSelectedCategories)
+                }
+                onSelect={(e) => e.preventDefault()}
+              >
+                {name}
+              </DropdownMenuCheckboxItem>
+            ))}
+            {selectedCategories.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setSelectedCategories([])}>
+                  Limpar filtro
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              className="min-w-40 justify-between"
+              disabled={filterSubcategoryOptions.length === 0}
+            >
+              <span>
+                Subcategorias
+                {selectedSubcategories.length > 0
+                  ? ` (${selectedSubcategories.length})`
+                  : ""}
+              </span>
+              <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-64 max-h-72">
+            <DropdownMenuLabel>Filtrar subcategorias</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {filterSubcategoryOptions.length === 0 ? (
+              <DropdownMenuItem disabled>
+                Nenhuma subcategoria no período
+              </DropdownMenuItem>
+            ) : (
+              filterSubcategoryOptions.map((name) => (
+                <DropdownMenuCheckboxItem
+                  key={name}
+                  checked={selectedSubcategories.includes(name)}
+                  onCheckedChange={() =>
+                    toggleFilterValue(selectedSubcategories, name, setSelectedSubcategories)
+                  }
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {name}
+                </DropdownMenuCheckboxItem>
+              ))
+            )}
+            {selectedSubcategories.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setSelectedSubcategories([])}>
+                  Limpar filtro
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <div className="ml-auto flex flex-wrap gap-2">
           <Button
             variant="outline"
+            onClick={() => openShare.mutate()}
+            disabled={openShare.isPending || !writable}
+          >
+            <Link2 className="mr-2 h-4 w-4" />
+            {openShare.isPending ? "Abrindo…" : "Compartilhar"}
+          </Button>
+          <Button
+            variant="outline"
             onClick={() =>
-              exportCashXlsx(entries, `fluxo-de-caixa-${month ? `${year}-${month}` : "geral"}.xlsx`)
+              exportCashXlsx(
+                filteredEntries,
+                `fluxo-de-caixa-${month ? `${year}-${String(month).padStart(2, "0")}` : year}.xlsx`,
+                {
+                  periodLabel,
+                  opening: {
+                    balance: openingBalance,
+                    previousYear: opening.previousYear,
+                    title:
+                      month === null
+                        ? `Saldo remanescente do ano ${opening.previousYear} (caixa transferido)`
+                        : `Saldo inicial do período (inclui restante de ${opening.previousYear})`,
+                  },
+                  totals: periodTotals,
+                },
+              )
             }
           >
             <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
@@ -365,7 +713,21 @@ function FluxoCaixa() {
       </div>
 
       {/* Indicadores */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <MetricCard
+          label={
+            month === null
+              ? `Restante de ${opening.previousYear}`
+              : "Saldo inicial do período"
+          }
+          value={formatBRL(openingBalance)}
+          hint={
+            month === null
+              ? "Caixa transferido do ano anterior"
+              : `Inclui restante de ${opening.previousYear} e meses anteriores`
+          }
+          icon={<Landmark className="h-5 w-5 text-muted-foreground" />}
+        />
         <MetricCard
           label="Total de entradas"
           value={formatBRL(periodTotals.income)}
@@ -379,17 +741,18 @@ function FluxoCaixa() {
           icon={<TrendingDown className="h-5 w-5 text-rose-600 dark:text-rose-400" />}
         />
         <MetricCard
-          label="Saldo do banco"
-          value={formatBRL(bank.balance)}
-          hint="Acumulado de todos os períodos"
-          icon={<Landmark className="h-5 w-5 text-muted-foreground" />}
-        />
-        <MetricCard
-          label="Resultado do mês"
+          label="Resultado do período"
           value={formatBRL(periodTotals.balance)}
           hint={periodLabel}
           tone={periodTotals.balance < 0 ? "text-rose-600 dark:text-rose-400" : undefined}
           icon={<Wallet className="h-5 w-5 text-muted-foreground" />}
+        />
+        <MetricCard
+          label="Saldo final"
+          value={formatBRL(closingBalance)}
+          hint={`Restante ${opening.previousYear} + período`}
+          tone={closingBalance < 0 ? "text-rose-600 dark:text-rose-400" : undefined}
+          icon={<Landmark className="h-5 w-5 text-muted-foreground" />}
         />
       </div>
 
@@ -415,34 +778,82 @@ function FluxoCaixa() {
             ) : undefined
           }
         />
-      ) : (
-        <Card className="divide-y divide-border overflow-hidden rounded-[12px]">
-          {entries.map((e) => (
-            <div key={e.id} className="flex items-center gap-3 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{e.description}</div>
-                <div className="text-xs text-muted-foreground">
-                  {formatDateBR(e.entry_date)} · {e.category}
-                  {e.subcategory ? ` · ${e.subcategory}` : ""}
-                </div>
-
-              </div>
-              <div
-                className={`whitespace-nowrap text-sm font-semibold ${
-                  e.kind === "entrada"
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-rose-600 dark:text-rose-400"
-                }`}
-              >
-                {e.kind === "entrada" ? "+" : "−"} {formatBRL(Number(e.amount))}
-              </div>
-              {writable && (
-                <div className="flex shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Editar lançamento"
-                    onClick={() => {
+      ) : filteredEntries.length === 0 ? (
+        <EmptyState
+          icon={<Wallet className="h-7 w-7" />}
+          title="Nenhum lançamento com esses filtros"
+          description="Ajuste as categorias ou subcategorias selecionadas para ver os lançamentos."
+          action={
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedCategories([]);
+                setSelectedSubcategories([]);
+              }}
+            >
+              Limpar filtros
+            </Button>
+          }
+        />
+      ) : month === null && entriesByMonth ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              value={monthOrder}
+              onValueChange={(v) => setMonthOrder(v as "newest" | "oldest")}
+            >
+              <SelectTrigger className="w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Meses: mais recentes</SelectItem>
+                <SelectItem value="oldest">Meses: mais antigos</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button type="button" variant="outline" size="sm" onClick={expandAllMonths}>
+              Expandir todos
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={collapseAllMonths}>
+              Fechar todos
+            </Button>
+          </div>
+          {entriesByMonth.map((group) => {
+            const open = openMonths.has(group.month);
+            return (
+              <Card key={group.month} className="overflow-hidden rounded-[12px]">
+                <button
+                  type="button"
+                  className="flex w-full flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                  onClick={() => toggleMonth(group.month)}
+                  aria-expanded={open}
+                >
+                  <div className="flex items-center gap-2">
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                        open ? "rotate-0" : "-rotate-90"
+                      }`}
+                    />
+                    <h3 className="text-sm font-semibold capitalize">
+                      {monthName(group.month)} de {year}
+                    </h3>
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-xs sm:text-sm">
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      Entradas {formatBRL(group.income)}
+                    </span>
+                    <span className="text-rose-600 dark:text-rose-400">
+                      Saídas {formatBRL(group.expense)}
+                    </span>
+                  </div>
+                </button>
+                {open && (
+                  <CashEntriesTable
+                    entries={group.entries}
+                    writable={writable}
+                    sortKey={sortKey}
+                    sortDir={sortDir}
+                    onSort={toggleSort}
+                    onEdit={(e) => {
                       setForm({
                         id: e.id,
                         kind: e.kind,
@@ -453,24 +864,38 @@ function FluxoCaixa() {
                         amount: String(e.amount),
                         entry_date: e.entry_date,
                       });
-
                       setEntryOpen(true);
                     }}
-                  >
-                    <Pencil className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Excluir lançamento"
-                    onClick={() => remove.mutate(e.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </div>
-              )}
-            </div>
-          ))}
+                    onDelete={(id) => remove.mutate(id)}
+                  />
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <Card className="overflow-hidden rounded-[12px]">
+          <CashEntriesTable
+            entries={sortedMonthEntries}
+            writable={writable}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={toggleSort}
+            onEdit={(e) => {
+              setForm({
+                id: e.id,
+                kind: e.kind,
+                category: e.category,
+                eventId: "",
+                subcategoryId: "",
+                description: e.description,
+                amount: String(e.amount),
+                entry_date: e.entry_date,
+              });
+              setEntryOpen(true);
+            }}
+            onDelete={(id) => remove.mutate(id)}
+          />
         </Card>
       )}
 
@@ -726,6 +1151,55 @@ function FluxoCaixa() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Link público do fluxo de caixa</DialogTitle>
+            <DialogDescription>
+              Qualquer pessoa com o link pode visualizar e exportar (PDF/Excel) o fluxo,
+              sem login. Quem tiver o link vê todos os lançamentos do período escolhido.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>URL compartilhável</Label>
+            <div className="flex gap-2">
+              <Input readOnly value={shareUrl} className="font-mono text-xs" />
+              <Button type="button" variant="outline" onClick={() => void copyShareLink()}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Regenerar invalida o link atual. Revogar remove o acesso público.
+            </p>
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => revokeShare.mutate()}
+              disabled={revokeShare.isPending}
+            >
+              Revogar link
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => regenerateShare.mutate()}
+                disabled={regenerateShare.isPending}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Regenerar
+              </Button>
+              <Button type="button" onClick={() => void copyShareLink()}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <CategoriesDialog open={catsOpen} onOpenChange={setCatsOpen} />
     </div>
   );
@@ -836,6 +1310,170 @@ function CategoriesDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+type CashEntryRow = {
+  id: string;
+  kind: "entrada" | "saida";
+  category: string;
+  subcategory: string | null;
+  description: string;
+  amount: number | string;
+  entry_date: string;
+};
+
+type CashSortKey = "entry_date" | "kind" | "category" | "description" | "amount";
+
+function sortCashEntries(
+  list: CashEntryRow[],
+  key: CashSortKey,
+  dir: "asc" | "desc",
+): CashEntryRow[] {
+  const mul = dir === "asc" ? 1 : -1;
+  return [...list].sort((a, b) => {
+    let cmp = 0;
+    switch (key) {
+      case "entry_date":
+        cmp = a.entry_date.localeCompare(b.entry_date);
+        break;
+      case "kind":
+        cmp = a.kind.localeCompare(b.kind);
+        break;
+      case "category":
+        cmp = `${a.category} ${a.subcategory ?? ""}`.localeCompare(
+          `${b.category} ${b.subcategory ?? ""}`,
+          "pt-BR",
+          { sensitivity: "base" },
+        );
+        break;
+      case "description":
+        cmp = a.description.localeCompare(b.description, "pt-BR", { sensitivity: "base" });
+        break;
+      case "amount":
+        cmp = Number(a.amount) - Number(b.amount);
+        break;
+    }
+    return cmp * mul;
+  });
+}
+
+function CashEntriesTable({
+  entries,
+  writable,
+  sortKey,
+  sortDir,
+  onSort,
+  onEdit,
+  onDelete,
+}: {
+  entries: CashEntryRow[];
+  writable: boolean;
+  sortKey: CashSortKey;
+  sortDir: "asc" | "desc";
+  onSort: (key: CashSortKey) => void;
+  onEdit: (e: CashEntryRow) => void;
+  onDelete: (id: string) => void;
+}) {
+  function SortHeader({
+    label,
+    column,
+    align = "left",
+  }: {
+    label: string;
+    column: CashSortKey;
+    align?: "left" | "right";
+  }) {
+    const active = sortKey === column;
+    return (
+      <th className={`px-4 py-2.5 font-medium ${align === "right" ? "text-right" : "text-left"}`}>
+        <button
+          type="button"
+          className={`inline-flex items-center gap-1 hover:text-foreground ${
+            active ? "text-foreground" : "text-muted-foreground"
+          } ${align === "right" ? "flex-row-reverse" : ""}`}
+          onClick={() => onSort(column)}
+        >
+          {label}
+          <span className="text-[10px] opacity-70">{active ? (sortDir === "asc" ? "↑" : "↓") : "↕"}</span>
+        </button>
+      </th>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[640px] text-sm">
+        <thead>
+          <tr className="border-b border-border text-xs">
+            <SortHeader label="Data" column="entry_date" />
+            <SortHeader label="Tipo" column="kind" />
+            <SortHeader label="Categoria" column="category" />
+            <SortHeader label="Descrição" column="description" />
+            <SortHeader label="Valor" column="amount" align="right" />
+            {writable && <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Ações</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((e) => (
+            <tr key={e.id} className="border-b border-border last:border-b-0">
+              <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                {formatDateBR(e.entry_date)}
+              </td>
+              <td
+                className={`whitespace-nowrap px-4 py-3 font-medium ${
+                  e.kind === "entrada"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-rose-600 dark:text-rose-400"
+                }`}
+              >
+                {e.kind === "entrada" ? "Entrada" : "Saída"}
+              </td>
+              <td className="px-4 py-3">
+                <div className="font-medium">{e.category}</div>
+                {e.subcategory ? (
+                  <div className="text-xs text-muted-foreground">{e.subcategory}</div>
+                ) : null}
+              </td>
+              <td className="max-w-[280px] truncate px-4 py-3" title={e.description}>
+                {e.description}
+              </td>
+              <td
+                className={`whitespace-nowrap px-4 py-3 text-right font-semibold ${
+                  e.kind === "entrada"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-rose-600 dark:text-rose-400"
+                }`}
+              >
+                {e.kind === "entrada" ? "+" : "−"} {formatBRL(Number(e.amount))}
+              </td>
+              {writable && (
+                <td className="px-2 py-2 text-right">
+                  <div className="inline-flex">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Editar lançamento"
+                      onClick={() => onEdit(e)}
+                    >
+                      <Pencil className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Excluir lançamento"
+                      onClick={() => onDelete(e.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

@@ -11,8 +11,9 @@ export { competenceLabel };
 /* ----------------------------- Fluxo de caixa ---------------------------- */
 
 /**
- * Lista lançamentos do mês ou de todo o período (`month: null`) e devolve
- * também os totais acumulados de todos os tempos (saldo do banco).
+ * Lista lançamentos do mês ou de todo o ano (`month: null`) e devolve
+ * totais do banco, além do saldo de abertura (caixa remanescente do ano anterior /
+ * acumulado até o início do período).
  */
 export const listCashEntries = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -30,22 +31,35 @@ export const listCashEntries = createServerFn({ method: "POST" })
       .select("id, kind, category, subcategory, description, amount, entry_date, created_at")
       .eq("chapter_id", data.chapterId);
 
+    const periodStart = data.month
+      ? `${data.year}-${String(data.month).padStart(2, "0")}-01`
+      : `${data.year}-01-01`;
+
     if (data.month) {
-      const from = `${data.year}-${String(data.month).padStart(2, "0")}-01`;
       const end = new Date(data.year, data.month, 1).toISOString().slice(0, 10);
-      query = query.gte("entry_date", from).lt("entry_date", end);
+      query = query.gte("entry_date", periodStart).lt("entry_date", end);
+    } else {
+      const end = `${data.year + 1}-01-01`;
+      query = query.gte("entry_date", periodStart).lt("entry_date", end);
     }
 
-    const [rows, all] = await Promise.all([
+    const [rows, all, prior] = await Promise.all([
       query.order("entry_date", { ascending: false }).limit(2000),
       context.supabase
         .from("cash_entries")
         .select("kind, amount")
         .eq("chapter_id", data.chapterId)
         .limit(10000),
+      context.supabase
+        .from("cash_entries")
+        .select("kind, amount")
+        .eq("chapter_id", data.chapterId)
+        .lt("entry_date", periodStart)
+        .limit(10000),
     ]);
     if (rows.error) throw new Error(rows.error.message);
     if (all.error) throw new Error(all.error.message);
+    if (prior.error) throw new Error(prior.error.message);
 
     let bankIn = 0;
     let bankOut = 0;
@@ -54,9 +68,19 @@ export const listCashEntries = createServerFn({ method: "POST" })
       else bankOut += Number(r.amount);
     }
 
+    let openingBalance = 0;
+    for (const r of prior.data ?? []) {
+      if (r.kind === "entrada") openingBalance += Number(r.amount);
+      else openingBalance -= Number(r.amount);
+    }
+
     return {
       entries: rows.data ?? [],
       bank: { income: bankIn, expense: bankOut, balance: bankIn - bankOut },
+      opening: {
+        balance: openingBalance,
+        previousYear: data.year - 1,
+      },
     };
   });
 

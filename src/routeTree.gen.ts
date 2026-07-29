@@ -20,6 +20,7 @@ import { Route as DocumentacaoIndexRouteImport } from './routes/documentacao/ind
 import { Route as DocumentacaoGuiaRouteImport } from './routes/documentacao/guia'
 import { Route as DocumentacaoOpenSourceRouteImport } from './routes/documentacao/open-source'
 import { Route as DocumentacaoTecnicaRouteImport } from './routes/documentacao/tecnica'
+import { Route as FluxoCaixaTokenRouteImport } from './routes/fluxo-caixa.$token'
 import { Route as AuthenticatedShellAtasRouteImport } from './routes/_authenticated/_shell/atas'
 import { Route as AuthenticatedShellCalendarioRouteImport } from './routes/_authenticated/_shell/calendario'
 import { Route as AuthenticatedShellConfiguracoesRouteImport } from './routes/_authenticated/_shell/configuracoes'
@@ -102,6 +103,11 @@ const DocumentacaoTecnicaRoute = DocumentacaoTecnicaRouteImport.update({
   id: '/tecnica',
   path: '/tecnica',
   getParentRoute: () => DocumentacaoRouteRoute,
+} as any)
+const FluxoCaixaTokenRoute = FluxoCaixaTokenRouteImport.update({
+  id: '/fluxo-caixa/$token',
+  path: '/fluxo-caixa/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedShellAtasRoute = AuthenticatedShellAtasRouteImport.update({
   id: '/atas',
@@ -279,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
+  '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/documentacao/': typeof DocumentacaoIndexRoute
   '/atas': typeof AuthenticatedShellAtasRoute
   '/calendario': typeof AuthenticatedShellCalendarioRoute
@@ -317,6 +324,7 @@ export interface FileRoutesByTo {
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
+  '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/documentacao': typeof DocumentacaoIndexRoute
   '/atas': typeof AuthenticatedShellAtasRoute
   '/calendario': typeof AuthenticatedShellCalendarioRoute
@@ -358,6 +366,7 @@ export interface FileRoutesById {
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
+  '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/documentacao/': typeof DocumentacaoIndexRoute
   '/_authenticated/_shell/atas': typeof AuthenticatedShellAtasRoute
@@ -400,6 +409,7 @@ export interface FileRouteTypes {
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
+    | '/fluxo-caixa/$token'
     | '/documentacao/'
     | '/atas'
     | '/calendario'
@@ -438,6 +448,7 @@ export interface FileRouteTypes {
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
+    | '/fluxo-caixa/$token'
     | '/documentacao'
     | '/atas'
     | '/calendario'
@@ -478,6 +489,7 @@ export interface FileRouteTypes {
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
+    | '/fluxo-caixa/$token'
     | '/_authenticated/'
     | '/documentacao/'
     | '/_authenticated/_shell/atas'
@@ -515,6 +527,7 @@ export interface RootRouteChildren {
   DocumentacaoRouteRoute: typeof DocumentacaoRouteRouteWithChildren
   AtualizarCadastroRoute: typeof AtualizarCadastroRoute
   AuthRoute: typeof AuthRoute
+  FluxoCaixaTokenRoute: typeof FluxoCaixaTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -595,6 +608,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/documentacao/tecnica'
       preLoaderRoute: typeof DocumentacaoTecnicaRouteImport
       parentRoute: typeof DocumentacaoRouteRoute
+    }
+    '/fluxo-caixa/$token': {
+      id: '/fluxo-caixa/$token'
+      path: '/fluxo-caixa/$token'
+      fullPath: '/fluxo-caixa/$token'
+      preLoaderRoute: typeof FluxoCaixaTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/_shell/atas': {
       id: '/_authenticated/_shell/atas'
@@ -912,6 +932,7 @@ const rootRouteChildren: RootRouteChildren = {
   DocumentacaoRouteRoute: DocumentacaoRouteRouteWithChildren,
   AtualizarCadastroRoute: AtualizarCadastroRoute,
   AuthRoute: AuthRoute,
+  FluxoCaixaTokenRoute: FluxoCaixaTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -109,19 +109,103 @@ export function exportCashXlsx(
     amount: number | string;
   }>,
   fileName: string,
+  options?: {
+    periodLabel?: string;
+    opening?: {
+      balance: number;
+      previousYear: number;
+      title?: string;
+    } | null;
+    totals?: { income: number; expense: number; balance: number };
+  },
 ) {
-  const rows = entries.map((e) => ({
-    Data: e.entry_date.split("-").reverse().join("/"),
-    Tipo: e.kind === "entrada" ? "Entrada" : "Saída",
-    Categoria: e.category,
-    Descrição: e.description,
-    Valor: Number(e.amount),
-  }));
-  const ws = XLSX.utils.json_to_sheet(rows, {
-    header: ["Data", "Tipo", "Categoria", "Descrição", "Valor"],
-  });
-  ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 22 }, { wch: 48 }, { wch: 14 }];
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Fluxo de caixa");
+
+  if (options?.opening || options?.totals) {
+    const opening = options.opening;
+    const totals = options.totals ?? { income: 0, expense: 0, balance: 0 };
+    const openingBalance = opening?.balance ?? 0;
+    const summary: Array<Array<string | number>> = [
+      ["Relatório de Fluxo de Caixa"],
+      [options.periodLabel ?? ""],
+      [],
+    ];
+    if (opening) {
+      summary.push([
+        opening.title ??
+          `Saldo remanescente do ano ${opening.previousYear} (caixa transferido)`,
+        openingBalance,
+      ]);
+      summary.push([]);
+    }
+    summary.push(["Total de entradas", totals.income]);
+    summary.push(["Total de saídas", totals.expense]);
+    summary.push(["Resultado do período", totals.balance]);
+    if (opening) {
+      summary.push(["Saldo final", openingBalance + totals.balance]);
+    }
+    const wsSummary = XLSX.utils.aoa_to_sheet(summary);
+    wsSummary["!cols"] = [{ wch: 55 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo");
+  }
+
+  // Agrupar por mês
+  const monthGroups = new Map<number, typeof entries>();
+  for (const e of entries) {
+    const m = Number(String(e.entry_date).slice(5, 7));
+    if (!m) continue;
+    const list = monthGroups.get(m) ?? [];
+    list.push(e);
+    monthGroups.set(m, list);
+  }
+  const months = [...monthGroups.entries()].sort((a, b) => a[0] - b[0]);
+  const monthName = (m: number) =>
+    new Date(2000, m - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
+
+  if (months.length > 1) {
+    for (const [m, group] of months) {
+      let income = 0;
+      let expense = 0;
+      for (const e of group) {
+        if (e.kind === "entrada") income += Number(e.amount);
+        else expense += Number(e.amount);
+      }
+      const sheetData: Array<Array<string | number>> = [
+        ["Data", "Tipo", "Categoria", "Descrição", "Valor"],
+      ];
+      for (const e of group) {
+        sheetData.push([
+          e.entry_date.split("-").reverse().join("/"),
+          e.kind === "entrada" ? "Entrada" : "Saída",
+          e.category,
+          e.description,
+          Number(e.amount),
+        ]);
+      }
+      sheetData.push([]);
+      sheetData.push(["Entradas", income]);
+      sheetData.push(["Saídas", expense]);
+      sheetData.push(["Resultado", income - expense]);
+
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+      ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 22 }, { wch: 48 }, { wch: 14 }];
+      const name = `${monthName(m).charAt(0).toUpperCase() + monthName(m).slice(1)}`;
+      XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+    }
+  } else {
+    const rows = entries.map((e) => ({
+      Data: e.entry_date.split("-").reverse().join("/"),
+      Tipo: e.kind === "entrada" ? "Entrada" : "Saída",
+      Categoria: e.category,
+      Descrição: e.description,
+      Valor: Number(e.amount),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows, {
+      header: ["Data", "Tipo", "Categoria", "Descrição", "Valor"],
+    });
+    ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 22 }, { wch: 48 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, ws, "Fluxo de caixa");
+  }
+
   XLSX.writeFile(wb, fileName);
 }
