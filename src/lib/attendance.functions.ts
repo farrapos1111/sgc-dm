@@ -38,9 +38,10 @@ export const getOngoing = createServerFn({ method: "POST" })
     const [members, records, minutes] = await Promise.all([
       context.supabase
         .from("members")
-        .select("id, full_name, status")
+        .select("id, full_name, status, kind")
         .eq("chapter_id", item.chapter_id)
-        .eq("status", "ativo")
+        .eq("status", "regular")
+        .eq("kind", "demolay_ativo")
         .order("full_name"),
       context.supabase
         .from("attendance_records")
@@ -151,7 +152,7 @@ export const listAttendanceOverview = createServerFn({ method: "POST" })
         .limit(200),
       context.supabase
         .from("members")
-        .select("id, full_name, status")
+        .select("id, full_name, status, kind")
         .eq("chapter_id", data.chapterId)
         .order("full_name"),
     ]);

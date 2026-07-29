@@ -1,13 +1,29 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { is21OrOlder, isUnder21 } from "@/lib/format";
 
-const statusEnum = z.enum(["ativo", "inativo", "senior", "macom"]);
+const statusEnum = z.enum(["regular", "irregular"]);
+const kindEnum = z.enum(["demolay_ativo", "senior", "macom"]);
+
+type MemberKind = z.infer<typeof kindEnum>;
+
+/** Demolay Ativo com 21+ vira Senior; Senior com menos de 21 volta para Demolay Ativo. Maçom permanece. */
+function resolveAutoKind(
+  kind: MemberKind,
+  birthDate: string | null | undefined,
+): MemberKind {
+  if (kind === "macom") return kind;
+  if (is21OrOlder(birthDate)) return "senior";
+  if (kind === "senior" && isUnder21(birthDate)) return "demolay_ativo";
+  return kind;
+}
 
 const listInput = z.object({
   chapterId: z.string().uuid(),
   search: z.string().optional().default(""),
-  status: z.enum(["ativo", "inativo", "senior", "macom", "all"]).optional().default("all"),
+  status: z.enum(["regular", "irregular", "all"]).optional().default("all"),
+  kind: z.enum(["demolay_ativo", "senior", "macom", "all"]).optional().default("all"),
 });
 
 export const listMembers = createServerFn({ method: "POST" })
@@ -17,11 +33,12 @@ export const listMembers = createServerFn({ method: "POST" })
     let q = context.supabase
       .from("members")
       .select(
-        "id, full_name, birth_date, status, phone, email, cpf_last2, rg_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, created_at",
+        "id, full_name, birth_date, status, kind, phone, email, cpf_last2, rg_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, demolay_id, masonic_id, created_at",
       )
       .eq("chapter_id", data.chapterId)
       .order("full_name", { ascending: true });
     if (data.status !== "all") q = q.eq("status", data.status);
+    if (data.kind !== "all") q = q.eq("kind", data.kind);
     if (data.search && data.search.trim().length > 0) q = q.ilike("full_name", `%${data.search}%`);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
@@ -35,7 +52,7 @@ export const getMember = createServerFn({ method: "POST" })
     const { data: member, error } = await context.supabase
       .from("members")
       .select(
-        "id, chapter_id, full_name, birth_date, status, phone, email, address, cpf_last2, rg_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, created_at, updated_at",
+        "id, chapter_id, full_name, birth_date, status, kind, phone, email, address, cpf_last2, rg_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, demolay_id, masonic_id, created_at, updated_at",
       )
       .eq("id", data.id)
       .maybeSingle();
@@ -55,7 +72,7 @@ export const getMember = createServerFn({ method: "POST" })
         .order("signed_at", { ascending: false }),
       context.supabase
         .from("audit_logs")
-        .select("id, action, new_value, user_id, created_at")
+        .select("id, action, old_value, new_value, user_id, created_at")
         .eq("table_name", "members")
         .eq("record_id", data.id)
         .order("created_at", { ascending: false })
@@ -109,12 +126,15 @@ const createInput = z.object({
   exam_grau_demolay: z.string().optional().nullable(),
   iniciacao_ordem: z.string().optional().nullable(),
   iniciacao_grau_demolay: z.string().optional().nullable(),
+  demolay_id: z.string().optional().default(""),
+  masonic_id: z.string().optional().default(""),
   cpf: z.string().optional().default(""),
   rg: z.string().optional().default(""),
   phone: z.string().optional().default(""),
   email: z.string().email().optional().or(z.literal("")).default(""),
   address: addressSchema,
-  status: statusEnum.default("ativo"),
+  status: statusEnum.default("regular"),
+  kind: kindEnum.default("demolay_ativo"),
   guardians: z.array(guardianSchema).max(2).optional().default([]),
   consent_text_version: z.string().default("v1-2026-07"),
 });
@@ -124,6 +144,7 @@ export const createMember = createServerFn({ method: "POST" })
   .inputValidator((raw) => createInput.parse(raw))
   .handler(async ({ data, context }) => {
     const [first, second] = data.guardians ?? [];
+    const kind = resolveAutoKind(data.kind, data.birth_date);
     const args = {
       _chapter_id: data.chapter_id,
       _full_name: data.full_name,
@@ -132,12 +153,15 @@ export const createMember = createServerFn({ method: "POST" })
       _exam_grau_demolay: data.exam_grau_demolay || null,
       _iniciacao_ordem: data.iniciacao_ordem || null,
       _iniciacao_grau_demolay: data.iniciacao_grau_demolay || null,
+      _demolay_id: data.demolay_id || null,
+      _masonic_id: kind === "macom" ? data.masonic_id || null : null,
       _cpf: data.cpf || "",
       _rg: data.rg || "",
       _phone: data.phone || "",
       _email: data.email || "",
       _address: data.address ?? {},
       _status: data.status,
+      _kind: kind,
       _guardian: first ?? null,
       _consent_text_version: data.consent_text_version,
     } as unknown as Parameters<typeof context.supabase.rpc<"create_member_with_pii">>[1];
@@ -163,12 +187,15 @@ const updateInput = z.object({
   exam_grau_demolay: z.string().optional().nullable(),
   iniciacao_ordem: z.string().optional().nullable(),
   iniciacao_grau_demolay: z.string().optional().nullable(),
+  demolay_id: z.string().optional().default(""),
+  masonic_id: z.string().optional().default(""),
   cpf: z.string().optional().default(""),
   rg: z.string().optional().default(""),
   phone: z.string().optional().default(""),
   email: z.string().email().optional().or(z.literal("")).default(""),
   address: addressSchema,
   status: statusEnum,
+  kind: kindEnum,
   guardians: z.array(guardianSchema).max(2).optional().default([]),
 });
 
@@ -176,6 +203,7 @@ export const updateMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => updateInput.parse(raw))
   .handler(async ({ data, context }) => {
+    const kind = resolveAutoKind(data.kind, data.birth_date);
     const args = {
       _member_id: data.id,
       _full_name: data.full_name,
@@ -186,10 +214,13 @@ export const updateMember = createServerFn({ method: "POST" })
       _email: data.email || "",
       _address: data.address ?? {},
       _status: data.status,
+      _kind: kind,
       _exam_grau_iniciatico: data.exam_grau_iniciatico || null,
       _exam_grau_demolay: data.exam_grau_demolay || null,
       _iniciacao_ordem: data.iniciacao_ordem || null,
       _iniciacao_grau_demolay: data.iniciacao_grau_demolay || null,
+      _demolay_id: data.demolay_id || null,
+      _masonic_id: kind === "macom" ? data.masonic_id || null : null,
       _guardians: data.guardians ?? [],
     } as unknown as Parameters<typeof context.supabase.rpc<"update_member_with_pii">>[1];
     const { error } = await context.supabase.rpc("update_member_with_pii", args);

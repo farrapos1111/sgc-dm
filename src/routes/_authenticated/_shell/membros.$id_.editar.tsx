@@ -6,7 +6,7 @@ import { getMember, updateMember } from "@/lib/members.functions";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { isUnder21, maskCepInput } from "@/lib/format";
+import { isUnder21, is21OrOlder, maskCepInput } from "@/lib/format";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import {
   MemberDataFields,
@@ -15,6 +15,7 @@ import {
   type MemberFormData,
   type GuardianFormData,
   type MemberStatus,
+  type MemberKind,
 } from "@/components/members/MemberFields";
 import { ArrowLeft, Check, Plus, X } from "lucide-react";
 
@@ -34,14 +35,29 @@ function EditarMembro() {
   const { data } = useSuspenseQuery(memberQO(id));
   const addr = (data.member.address ?? {}) as Record<string, string>;
 
+  const birth = data.member.birth_date ?? "";
+  const rawStatus = (data.member.status ?? "regular") as MemberStatus;
+  const rawKind = ((data.member as { kind?: string }).kind ?? "demolay_ativo") as MemberKind;
+  const initialKind: MemberKind =
+    rawKind === "macom"
+      ? "macom"
+      : is21OrOlder(birth)
+        ? "senior"
+        : rawKind === "senior" && isUnder21(birth)
+          ? "demolay_ativo"
+          : rawKind;
+
   const [dados, setDados] = useState<MemberFormData>({
     full_name: data.member.full_name ?? "",
-    birth_date: data.member.birth_date ?? "",
+    birth_date: birth,
     exam_grau_iniciatico: data.member.exam_grau_iniciatico ?? "",
     exam_grau_demolay: data.member.exam_grau_demolay ?? "",
     iniciacao_ordem: data.member.iniciacao_ordem ?? "",
     iniciacao_grau_demolay: data.member.iniciacao_grau_demolay ?? "",
-    status: (data.member.status ?? "ativo") as MemberStatus,
+    demolay_id: (data.member as any).demolay_id ?? "",
+    masonic_id: (data.member as any).masonic_id ?? "",
+    status: rawStatus === "irregular" ? "irregular" : "regular",
+    kind: initialKind,
     cpf: "",
     rg: "",
     phone: data.member.phone ?? "",
@@ -96,6 +112,8 @@ function EditarMembro() {
           exam_grau_demolay: dados.exam_grau_demolay || null,
           iniciacao_ordem: dados.iniciacao_ordem || null,
           iniciacao_grau_demolay: dados.iniciacao_grau_demolay || null,
+          demolay_id: dados.demolay_id,
+          masonic_id: dados.masonic_id,
           cpf: dados.cpf,
           rg: dados.rg,
           phone: dados.phone,
@@ -111,6 +129,7 @@ function EditarMembro() {
             country: dados.address_country,
           },
           status: dados.status,
+          kind: dados.kind,
           guardians,
         },
       });

@@ -62,7 +62,8 @@ export const listDuties = createServerFn({ method: "POST" })
         .from("members")
         .select("id, full_name")
         .eq("chapter_id", data.chapterId)
-        .in("status", ["ativo", "senior"])
+        .eq("status", "regular")
+        .in("kind", ["demolay_ativo", "senior"])
         .order("full_name"),
     ]);
     if (duties.error) throw new Error(duties.error.message);

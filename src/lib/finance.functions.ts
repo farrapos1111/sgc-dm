@@ -283,9 +283,10 @@ export const listDues = createServerFn({ method: "POST" })
     const [members, dues] = await Promise.all([
       context.supabase
         .from("members")
-        .select("id, full_name, status")
+        .select("id, full_name, status, kind")
         .eq("chapter_id", data.chapterId)
-        .in("status", ["ativo"])
+        .eq("status", "regular")
+        .eq("kind", "demolay_ativo")
         .order("full_name"),
       context.supabase
         .from("member_dues")
@@ -394,7 +395,8 @@ export const generateDues = createServerFn({ method: "POST" })
       .from("members")
       .select("id")
       .eq("chapter_id", data.chapterId)
-      .in("status", ["ativo"]);
+      .eq("status", "regular")
+      .eq("kind", "demolay_ativo");
     if (mErr) throw new Error(mErr.message);
     const rows = (members ?? []).map((m) => ({
       chapter_id: data.chapterId,
@@ -526,7 +528,8 @@ export const listActiveMembers = createServerFn({ method: "POST" })
       .from("members")
       .select("id, full_name")
       .eq("chapter_id", data.chapterId)
-      .in("status", ["ativo"])
+      .eq("status", "regular")
+      .eq("kind", "demolay_ativo")
       .order("full_name");
     if (error) throw new Error(error.message);
     return rows ?? [];

@@ -57,7 +57,7 @@ function PresencasFrequencyTab({
     }
 
     return members
-      .filter((m) => m.status === "ativo")
+      .filter((m) => m.status === "regular" && (m as { kind?: string }).kind === "demolay_ativo")
       .map((m) => {
         const t = tallies.get(m.id) ?? { total: 0, present: 0 };
         return {

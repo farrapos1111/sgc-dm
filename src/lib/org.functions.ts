@@ -85,7 +85,7 @@ export const listScopeChapters = createServerFn({ method: "POST" })
     if (ids.length === 0) return [];
 
     const [membersRes, nextRes, regionsRes] = await Promise.all([
-      context.supabase.from("members").select("id, chapter_id, status").in("chapter_id", ids),
+      context.supabase.from("members").select("id, chapter_id, status, kind").in("chapter_id", ids),
       context.supabase
         .from("calendar_events")
         .select("id, chapter_id, title, start_at, event_type")
@@ -104,7 +104,9 @@ export const listScopeChapters = createServerFn({ method: "POST" })
     return (chapters ?? []).map((c) => ({
       ...c,
       region_name: regions.find((r) => r.id === c.region_id)?.name ?? null,
-      active_members: members.filter((m) => m.chapter_id === c.id && m.status === "ativo").length,
+      active_members: members.filter(
+        (m) => m.chapter_id === c.id && m.status === "regular" && (m as { kind?: string }).kind === "demolay_ativo",
+      ).length,
       total_members: members.filter((m) => m.chapter_id === c.id).length,
       next_item: upcoming.find((e) => e.chapter_id === c.id) ?? null,
     }));
@@ -118,7 +120,8 @@ export const listScopeMembers = createServerFn({ method: "POST" })
       .object({
         chapterIds: z.array(z.string().uuid()).min(1),
         search: z.string().optional().default(""),
-        status: z.enum(["ativo", "inativo", "senior", "macom", "all"]).optional().default("all"),
+        status: z.enum(["regular", "irregular", "all"]).optional().default("all"),
+        kind: z.enum(["demolay_ativo", "senior", "macom", "all"]).optional().default("all"),
       })
       .parse(raw),
   )
@@ -126,12 +129,13 @@ export const listScopeMembers = createServerFn({ method: "POST" })
     let q = context.supabase
       .from("members")
       .select(
-        "id, chapter_id, full_name, birth_date, status, phone, email, cpf_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay",
+        "id, chapter_id, full_name, birth_date, status, kind, phone, email, cpf_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay",
       )
       .in("chapter_id", data.chapterIds)
       .order("full_name", { ascending: true })
       .limit(500);
     if (data.status !== "all") q = q.eq("status", data.status);
+    if (data.kind !== "all") q = q.eq("kind", data.kind);
     if (data.search.trim().length > 0) q = q.ilike("full_name", `%${data.search.trim()}%`);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);

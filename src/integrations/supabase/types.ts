@@ -1205,12 +1205,15 @@ export type Database = {
           exam_grau_iniciatico: string | null
           full_name: string
           id: string
+          demolay_id: string | null
+          masonic_id: string | null
           iniciacao_grau_demolay: string | null
           iniciacao_ordem: string | null
           phone: string | null
           rg_encrypted: string | null
           rg_last2: string | null
           status: Database["public"]["Enums"]["member_status"]
+          kind: Database["public"]["Enums"]["member_kind"]
           updated_at: string
         }
         Insert: {
@@ -1226,12 +1229,15 @@ export type Database = {
           exam_grau_iniciatico?: string | null
           full_name: string
           id?: string
+          demolay_id?: string | null
+          masonic_id?: string | null
           iniciacao_grau_demolay?: string | null
           iniciacao_ordem?: string | null
           phone?: string | null
           rg_encrypted?: string | null
           rg_last2?: string | null
           status?: Database["public"]["Enums"]["member_status"]
+          kind?: Database["public"]["Enums"]["member_kind"]
           updated_at?: string
         }
         Update: {
@@ -1247,12 +1253,15 @@ export type Database = {
           exam_grau_iniciatico?: string | null
           full_name?: string
           id?: string
+          demolay_id?: string | null
+          masonic_id?: string | null
           iniciacao_grau_demolay?: string | null
           iniciacao_ordem?: string | null
           phone?: string | null
           rg_encrypted?: string | null
           rg_last2?: string | null
           status?: Database["public"]["Enums"]["member_status"]
+          kind?: Database["public"]["Enums"]["member_kind"]
           updated_at?: string
         }
         Relationships: [
@@ -1761,61 +1770,45 @@ export type Database = {
         Returns: boolean
       }
       can_read_chapter: { Args: { _chapter_id: string }; Returns: boolean }
-      create_member_with_pii:
-        | {
-            Args: {
-              _address: Json
-              _birth_date: string
-              _chapter_id: string
-              _consent_text_version: string
-              _cpf: string
-              _email: string
-              _full_name: string
-              _guardian: Json
-              _phone: string
-              _rg: string
-              _status: Database["public"]["Enums"]["member_status"]
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _address: Json
-              _birth_date: string
-              _chapter_id: string
-              _consent_text_version: string
-              _cpf: string
-              _email: string
-              _exam_grau_demolay?: string
-              _exam_grau_iniciatico?: string
-              _full_name: string
-              _guardian: Json
-              _phone: string
-              _rg: string
-              _status: Database["public"]["Enums"]["member_status"]
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _address: Json
-              _birth_date: string
-              _chapter_id: string
-              _consent_text_version: string
-              _cpf: string
-              _email: string
-              _exam_grau_demolay?: string
-              _exam_grau_iniciatico?: string
-              _full_name: string
-              _guardian: Json
-              _iniciacao_grau_demolay?: string
-              _iniciacao_ordem?: string
-              _phone: string
-              _rg: string
-              _status: Database["public"]["Enums"]["member_status"]
-            }
-            Returns: string
-          }
+      create_member_with_pii: {
+        Args: {
+          _address: Json
+          _birth_date: string
+          _chapter_id: string
+          _consent_text_version: string
+          _cpf: string
+          _demolay_id?: string
+          _email: string
+          _exam_grau_demolay?: string
+          _exam_grau_iniciatico?: string
+          _full_name: string
+          _guardian: Json
+          _iniciacao_grau_demolay?: string
+          _iniciacao_ordem?: string
+          _kind: Database["public"]["Enums"]["member_kind"]
+          _masonic_id?: string
+          _phone: string
+          _rg: string
+          _status: Database["public"]["Enums"]["member_status"]
+        }
+        Returns: string
+      }
+      lookup_member_cadastro_by_demolay_id: {
+        Args: { _demolay_id: string }
+        Returns: Json
+      }
+      submit_member_cadastro_update: {
+        Args: {
+          _address?: Json
+          _cpf?: string
+          _demolay_id: string
+          _email?: string
+          _guardians?: Json
+          _phone?: string
+          _rg?: string
+        }
+        Returns: Json
+      }
       decrypt_pii: { Args: { _cipher: string }; Returns: string }
       encrypt_pii: { Args: { _plain: string }; Returns: string }
       has_any_role: {
@@ -1849,43 +1842,28 @@ export type Database = {
         Returns: string
       }
       shares_chapter_with: { Args: { _other_user: string }; Returns: boolean }
-      update_member_with_pii:
-        | {
-            Args: {
-              _address: Json
-              _birth_date: string
-              _cpf: string
-              _email: string
-              _exam_grau_demolay?: string
-              _exam_grau_iniciatico?: string
-              _full_name: string
-              _guardians?: Json
-              _member_id: string
-              _phone: string
-              _rg: string
-              _status: Database["public"]["Enums"]["member_status"]
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _address: Json
-              _birth_date: string
-              _cpf: string
-              _email: string
-              _exam_grau_demolay?: string
-              _exam_grau_iniciatico?: string
-              _full_name: string
-              _guardians?: Json
-              _iniciacao_grau_demolay?: string
-              _iniciacao_ordem?: string
-              _member_id: string
-              _phone: string
-              _rg: string
-              _status: Database["public"]["Enums"]["member_status"]
-            }
-            Returns: string
-          }
+      update_member_with_pii: {
+        Args: {
+          _address: Json
+          _birth_date: string
+          _cpf: string
+          _demolay_id?: string
+          _email: string
+          _exam_grau_demolay?: string
+          _exam_grau_iniciatico?: string
+          _full_name: string
+          _guardians?: Json
+          _iniciacao_grau_demolay?: string
+          _iniciacao_ordem?: string
+          _kind: Database["public"]["Enums"]["member_kind"]
+          _masonic_id?: string
+          _member_id: string
+          _phone: string
+          _rg: string
+          _status: Database["public"]["Enums"]["member_status"]
+        }
+        Returns: string
+      }
     }
     Enums: {
       attendance_status: "presente" | "ausente"
@@ -1906,7 +1884,8 @@ export type Database = {
         | "aprovada"
         | "reprovada"
         | "arquivada"
-      member_status: "ativo" | "inativo" | "senior" | "macom"
+      member_kind: "demolay_ativo" | "senior" | "macom"
+      member_status: "regular" | "irregular"
       minute_signer_role:
         | "presidente_conselho"
         | "mestre_conselheiro"
@@ -2061,7 +2040,8 @@ export const Constants = {
         "reprovada",
         "arquivada",
       ],
-      member_status: ["ativo", "inativo", "senior", "macom"],
+      member_kind: ["demolay_ativo", "senior", "macom"],
+      member_status: ["regular", "irregular"],
       minute_signer_role: [
         "presidente_conselho",
         "mestre_conselheiro",

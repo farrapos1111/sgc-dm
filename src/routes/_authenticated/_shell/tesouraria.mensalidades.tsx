@@ -99,7 +99,7 @@ function Mensalidades() {
     <div>
       <PageHeader
         title="Mensalidades"
-        subtitle="Cobrança apenas de membros ativos — Senior DeMolay e Maçom são isentos."
+        subtitle="Cobrança apenas de Demolay Ativo regulares — Senior Demolay e Maçom são isentos."
       />
 
       <div className="mb-4 flex flex-wrap items-end gap-2">
