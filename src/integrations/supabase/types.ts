@@ -1793,6 +1793,22 @@ export type Database = {
         }
         Returns: string
       }
+      lookup_member_cadastro_by_demolay_id: {
+        Args: { _demolay_id: string }
+        Returns: Json
+      }
+      submit_member_cadastro_update: {
+        Args: {
+          _address?: Json
+          _cpf?: string
+          _demolay_id: string
+          _email?: string
+          _guardians?: Json
+          _phone?: string
+          _rg?: string
+        }
+        Returns: Json
+      }
       decrypt_pii: { Args: { _cipher: string }; Returns: string }
       encrypt_pii: { Args: { _plain: string }; Returns: string }
       has_any_role: {

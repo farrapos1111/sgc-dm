@@ -72,7 +72,7 @@ export const getMember = createServerFn({ method: "POST" })
         .order("signed_at", { ascending: false }),
       context.supabase
         .from("audit_logs")
-        .select("id, action, new_value, user_id, created_at")
+        .select("id, action, old_value, new_value, user_id, created_at")
         .eq("table_name", "members")
         .eq("record_id", data.id)
         .order("created_at", { ascending: false })

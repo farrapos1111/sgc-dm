@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AtualizarCadastroRouteImport } from './routes/atualizar-cadastro'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DocumentacaoRouteRouteImport } from './routes/documentacao/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
@@ -50,6 +51,11 @@ import { Route as AuthenticatedShellMembrosIdEditarRouteImport } from './routes/
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AtualizarCadastroRoute = AtualizarCadastroRouteImport.update({
+  id: '/atualizar-cadastro',
+  path: '/atualizar-cadastro',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -267,6 +273,7 @@ const AuthenticatedShellMembrosIdEditarRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
+  '/atualizar-cadastro': typeof AtualizarCadastroRoute
   '/auth': typeof AuthRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
@@ -303,6 +310,7 @@ export interface FileRoutesByFullPath {
   '/membros/$id/editar': typeof AuthenticatedShellMembrosIdEditarRoute
 }
 export interface FileRoutesByTo {
+  '/atualizar-cadastro': typeof AtualizarCadastroRoute
   '/auth': typeof AuthRoute
   '/': typeof AuthenticatedIndexRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
@@ -343,6 +351,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
+  '/atualizar-cadastro': typeof AtualizarCadastroRoute
   '/auth': typeof AuthRoute
   '/_authenticated/_shell': typeof AuthenticatedShellRouteRouteWithChildren
   '/_authenticated/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
@@ -385,6 +394,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/documentacao'
+    | '/atualizar-cadastro'
     | '/auth'
     | '/selecionar-capitulo'
     | '/documentacao/guia'
@@ -421,6 +431,7 @@ export interface FileRouteTypes {
     | '/membros/$id/editar'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/atualizar-cadastro'
     | '/auth'
     | '/'
     | '/selecionar-capitulo'
@@ -460,6 +471,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authenticated'
     | '/documentacao'
+    | '/atualizar-cadastro'
     | '/auth'
     | '/_authenticated/_shell'
     | '/_authenticated/selecionar-capitulo'
@@ -501,6 +513,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   DocumentacaoRouteRoute: typeof DocumentacaoRouteRouteWithChildren
+  AtualizarCadastroRoute: typeof AtualizarCadastroRoute
   AuthRoute: typeof AuthRoute
 }
 
@@ -511,6 +524,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/atualizar-cadastro': {
+      id: '/atualizar-cadastro'
+      path: '/atualizar-cadastro'
+      fullPath: '/atualizar-cadastro'
+      preLoaderRoute: typeof AtualizarCadastroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -890,6 +910,7 @@ const DocumentacaoRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   DocumentacaoRouteRoute: DocumentacaoRouteRouteWithChildren,
+  AtualizarCadastroRoute: AtualizarCadastroRoute,
   AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport

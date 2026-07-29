@@ -546,15 +546,33 @@ function MembroPerfil() {
             {audit.length === 0 ? (
               <div className="text-sm text-muted-foreground">Nenhum evento registrado ainda.</div>
             ) : (
-              <ul className="space-y-2 text-sm">
+              <ul className="space-y-3 text-sm">
                 {audit.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between border-b border-border pb-2 last:border-b-0">
-                    <span>
-                      {a.action === "pii_reveal"
-                        ? `Revelação de ${(a.new_value as any)?.field?.toUpperCase() ?? "PII"}`
-                        : a.action}
-                    </span>
-                    <span className="text-muted-foreground">{formatDateTimeBR(a.created_at)}</span>
+                  <li key={a.id} className="border-b border-border pb-3 last:border-b-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-1">
+                        <div className="font-medium">{auditActionLabel(a.action)}</div>
+                        {a.action === "member_cadastro_self_update" && (
+                          <AuditCadastroDiff
+                            oldValue={(a as { old_value?: unknown }).old_value}
+                            newValue={a.new_value}
+                          />
+                        )}
+                        {a.action === "pii_reveal" && (
+                          <div className="text-xs text-muted-foreground">
+                            Campo: {(a.new_value as { field?: string } | null)?.field?.toUpperCase() ?? "—"}
+                          </div>
+                        )}
+                        {a.action === "member_update" && (
+                          <div className="text-xs text-muted-foreground">
+                            Atualização interna pela secretaria/admin.
+                          </div>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {formatDateTimeBR(a.created_at)}
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -764,6 +782,92 @@ const COMMISSION_ROLE_LABELS: Record<string, string> = {
   membro: "Membro",
   auxiliar_senior: "Auxiliar Sênior",
 };
+
+function auditActionLabel(action: string): string {
+  switch (action) {
+    case "pii_reveal":
+      return "Revelação de PII";
+    case "member_update":
+      return "Atualização cadastral (secretaria)";
+    case "member_cadastro_self_update":
+      return "Atualização cadastral (pelo membro)";
+    default:
+      return action;
+  }
+}
+
+function formatAuditScalar(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "—";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
+function AuditCadastroDiff({
+  oldValue,
+  newValue,
+}: {
+  oldValue: unknown;
+  newValue: unknown;
+}) {
+  const oldObj = (oldValue && typeof oldValue === "object" ? oldValue : {}) as Record<
+    string,
+    unknown
+  >;
+  const newObj = (newValue && typeof newValue === "object" ? newValue : {}) as Record<
+    string,
+    unknown
+  >;
+  const labels: Record<string, string> = {
+    phone: "Telefone",
+    email: "Email",
+    address: "Endereço",
+    cpf_last2: "CPF (final)",
+    rg_last2: "RG (final)",
+    guardians: "Responsáveis",
+  };
+  const keys = Object.keys(newObj).filter(
+    (k) => !["demolay_id", "full_name", "source"].includes(k),
+  );
+  if (keys.length === 0) {
+    return <div className="text-xs text-muted-foreground">Sem detalhe de alterações.</div>;
+  }
+  return (
+    <ul className="space-y-1 text-xs text-muted-foreground">
+      {keys.map((k) => {
+        if (k === "guardians" && Array.isArray(newObj.guardians)) {
+          return (
+            <li key={k}>
+              <span className="font-medium text-foreground">Responsáveis:</span>
+              <ul className="mt-0.5 list-inside list-disc pl-1">
+                {(newObj.guardians as { full_name?: string; changes?: Record<string, { old?: unknown; new?: unknown }> }[]).map(
+                  (g, i) => (
+                    <li key={i}>
+                      {g.full_name ?? "Responsável"}
+                      {g.changes
+                        ? ` — ${Object.entries(g.changes)
+                            .map(
+                              ([ck, cv]) =>
+                                `${ck}: ${formatAuditScalar(cv?.old)} → ${formatAuditScalar(cv?.new)}`,
+                            )
+                            .join("; ")}`
+                        : ""}
+                    </li>
+                  ),
+                )}
+              </ul>
+            </li>
+          );
+        }
+        return (
+          <li key={k}>
+            <span className="font-medium text-foreground">{labels[k] ?? k}:</span>{" "}
+            {formatAuditScalar(oldObj[k])} → {formatAuditScalar(newObj[k])}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
