@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { STATUS_LABELS, KIND_LABELS } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/_shell/regional/membros")({
   component: RegionalMembers,
@@ -30,13 +31,6 @@ export const Route = createFileRoute("/_authenticated/_shell/regional/membros")(
   }),
 });
 
-const STATUS_LABEL: Record<string, string> = {
-  ativo: "Ativo",
-  inativo: "Inativo",
-  senior: "Senior",
-  macom: "Maçom",
-};
-
 function RegionalMembers() {
   return (
     <ScopeGuard>
@@ -49,7 +43,8 @@ function MembersContent() {
   const { activeScope } = useOrgScope();
   const scope = activeScope!;
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<"all" | "ativo" | "inativo" | "senior" | "macom">("all");
+  const [status, setStatus] = useState<"all" | "regular" | "irregular">("all");
+  const [kind, setKind] = useState<"all" | "demolay_ativo" | "senior" | "macom">("all");
   const [chapterId, setChapterId] = useState<string | null>(null);
 
   const { data: chapters } = useQuery({
@@ -60,8 +55,8 @@ function MembersContent() {
   const ids = chapterId ? [chapterId] : chapterList.map((c) => c.id);
 
   const { data: members, isLoading } = useQuery({
-    queryKey: ["scope-members", scope.key, ids.join(","), search, status],
-    queryFn: () => listScopeMembers({ data: { chapterIds: ids, search, status } }),
+    queryKey: ["scope-members", scope.key, ids.join(","), search, status, kind],
+    queryFn: () => listScopeMembers({ data: { chapterIds: ids, search, status, kind } }),
     enabled: ids.length > 0,
   });
 
@@ -85,7 +80,7 @@ function MembersContent() {
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          {(["all", "ativo", "senior", "macom", "inativo"] as const).map((s) => (
+          {(["all", "regular", "irregular"] as const).map((s) => (
             <Button
               key={s}
               size="sm"
@@ -93,7 +88,20 @@ function MembersContent() {
               className="h-8 rounded-full text-xs"
               onClick={() => setStatus(s)}
             >
-              {s === "all" ? "Todos" : STATUS_LABEL[s]}
+              {s === "all" ? "Todos status" : STATUS_LABELS[s]}
+            </Button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(["all", "demolay_ativo", "senior", "macom"] as const).map((k) => (
+            <Button
+              key={k}
+              size="sm"
+              variant={kind === k ? "default" : "outline"}
+              className="h-8 rounded-full text-xs"
+              onClick={() => setKind(k)}
+            >
+              {k === "all" ? "Todos tipos" : KIND_LABELS[k]}
             </Button>
           ))}
         </div>
@@ -131,6 +139,7 @@ function MembersContent() {
       <div className="space-y-2">
         {rows.map((m) => {
           const chapter = chapterList.find((c) => c.id === m.chapter_id);
+          const memberKind = (m as { kind?: string }).kind;
           return (
             <Card key={m.id} className="flex items-center gap-3 rounded-[12px] p-3">
               <div
@@ -146,9 +155,14 @@ function MembersContent() {
                   {m.phone ? ` · ${m.phone}` : ""}
                 </div>
               </div>
-              <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                {STATUS_LABEL[m.status] ?? m.status}
-              </span>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {STATUS_LABELS[m.status] ?? m.status}
+                </span>
+                <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {(memberKind && KIND_LABELS[memberKind]) || memberKind || "—"}
+                </span>
+              </div>
             </Card>
           );
         })}

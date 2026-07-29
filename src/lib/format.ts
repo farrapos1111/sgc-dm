@@ -75,15 +75,24 @@ export function maskCepInput(v: string): string {
 }
 
 export const STATUS_LABELS: Record<string, string> = {
-  ativo: "Ativo",
-  inativo: "Inativo",
-  senior: "Senior DeMolay",
+  regular: "Regular",
+  irregular: "Irregular",
+};
+
+export const KIND_LABELS: Record<string, string> = {
+  demolay_ativo: "Demolay Ativo",
+  senior: "Senior Demolay",
   macom: "Maçom",
 };
 
 export function statusLabel(status: string | null | undefined): string {
   if (!status) return "—";
   return STATUS_LABELS[status] ?? status;
+}
+
+export function kindLabel(kind: string | null | undefined): string {
+  if (!kind) return "—";
+  return KIND_LABELS[kind] ?? kind;
 }
 
 export function ageFrom(birthDate: string | null | undefined): number | null {
@@ -114,15 +123,16 @@ export type MemberGrauInfo = {
   iniciacao_grau_demolay?: string | null;
 };
 
-/** Grau atual do membro a partir das datas de iniciação/exame. */
+/** Grau atual do membro. Sem iniciação à Ordem, não é considerado DeMolay. */
 export function grauOf(m: MemberGrauInfo): { code: "DM" | "GI" | null; label: string } {
+  if (!m.iniciacao_ordem) return { code: null, label: "Não DeMolay" };
   if (m.iniciacao_grau_demolay || m.exam_grau_demolay) return { code: "DM", label: "DM — DeMolay" };
-  if (m.iniciacao_ordem || m.exam_grau_iniciatico)
+  if (m.exam_grau_iniciatico || m.iniciacao_ordem)
     return { code: "GI", label: "GI — Grau Iniciático" };
   return { code: null, label: "Sem grau" };
 }
 
-/** Fez o exame de grau iniciático mas ainda não foi iniciado no Grau DeMolay. */
+/** Iniciado na Ordem, fez exame GI, ainda sem iniciação no Grau DeMolay. */
 export function isAptoGrauDemolay(m: MemberGrauInfo): boolean {
-  return Boolean(m.exam_grau_iniciatico) && !m.iniciacao_grau_demolay;
+  return Boolean(m.iniciacao_ordem) && Boolean(m.exam_grau_iniciatico) && !m.iniciacao_grau_demolay;
 }

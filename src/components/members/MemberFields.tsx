@@ -2,10 +2,11 @@ import { useRef, useState, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { digitsOnly, maskCepInput, maskCpfInput, maskPhoneInput } from "@/lib/format";
+import { digitsOnly, is21OrOlder, isUnder21, maskCepInput, maskCpfInput, maskPhoneInput } from "@/lib/format";
 import { Loader2 } from "lucide-react";
 
-export type MemberStatus = "ativo" | "inativo" | "senior" | "macom";
+export type MemberStatus = "regular" | "irregular";
+export type MemberKind = "demolay_ativo" | "senior" | "macom";
 
 export type MemberFormData = {
   full_name: string;
@@ -14,7 +15,10 @@ export type MemberFormData = {
   exam_grau_iniciatico: string;
   iniciacao_grau_demolay: string;
   exam_grau_demolay: string;
+  demolay_id: string;
+  masonic_id: string;
   status: MemberStatus;
+  kind: MemberKind;
   cpf: string;
   rg: string;
   phone: string;
@@ -44,7 +48,10 @@ export const emptyMember: MemberFormData = {
   exam_grau_iniciatico: "",
   iniciacao_grau_demolay: "",
   exam_grau_demolay: "",
-  status: "ativo",
+  demolay_id: "",
+  masonic_id: "",
+  status: "regular",
+  kind: "demolay_ativo",
   cpf: "",
   rg: "",
   phone: "",
@@ -159,47 +166,114 @@ export function MemberDataFields({
       <Field label="Nome completo *">
         <Input value={value.full_name} onChange={(e) => onChange({ full_name: e.target.value })} maxLength={120} />
       </Field>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Data de nascimento">
-          <Input type="date" value={value.birth_date} onChange={(e) => onChange({ birth_date: e.target.value })} />
+
+      <div
+        className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${
+          value.kind === "macom" ? "lg:grid-cols-5" : "lg:grid-cols-4"
+        }`}
+      >
+        <Field label="Nascimento">
+          <Input
+            type="date"
+            value={value.birth_date}
+            onChange={(e) => {
+              const birth_date = e.target.value;
+              const patch: Partial<MemberFormData> = { birth_date };
+              if (is21OrOlder(birth_date) && value.kind !== "macom") {
+                patch.kind = "senior";
+              } else if (isUnder21(birth_date) && value.kind === "senior") {
+                patch.kind = "demolay_ativo";
+              }
+              onChange(patch);
+            }}
+          />
         </Field>
+        <Field label="ID DeMolay">
+          <Input
+            value={value.demolay_id}
+            placeholder="Número de identificação"
+            onChange={(e) => onChange({ demolay_id: e.target.value.slice(0, 40) })}
+          />
+        </Field>
+        {value.kind === "macom" && (
+          <Field label="ID maçônica">
+            <Input
+              value={value.masonic_id}
+              placeholder="Número de identificação"
+              onChange={(e) => onChange({ masonic_id: e.target.value.slice(0, 40) })}
+            />
+          </Field>
+        )}
         <Field label="Status">
           <Select value={value.status} onValueChange={(v) => onChange({ status: v as MemberStatus })}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ativo">Ativo</SelectItem>
-              <SelectItem value="inativo">Inativo</SelectItem>
-              <SelectItem value="senior">Senior DeMolay</SelectItem>
+              <SelectItem value="regular">Regular</SelectItem>
+              <SelectItem value="irregular">Irregular</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Tipo">
+          <Select
+            value={value.kind}
+            onValueChange={(v) => {
+              let kind = v as MemberKind;
+              if (kind === "demolay_ativo" && is21OrOlder(value.birth_date)) kind = "senior";
+              onChange({ kind });
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="demolay_ativo" disabled={is21OrOlder(value.birth_date)}>
+                Demolay Ativo
+              </SelectItem>
+              <SelectItem value="senior">Senior Demolay</SelectItem>
               <SelectItem value="macom">Maçom</SelectItem>
             </SelectContent>
           </Select>
         </Field>
       </div>
+      {is21OrOlder(value.birth_date) && value.kind === "senior" && (
+        <p className="text-xs text-muted-foreground">
+          Com 21 anos ou mais, o tipo Demolay Ativo passa automaticamente a Senior Demolay.
+        </p>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Iniciação à Ordem DeMolay">
+        <Field label="Iniciação Ordem DeMolay">
           <Input
             type="date"
             value={value.iniciacao_ordem}
             onChange={(e) => onChange({ iniciacao_ordem: e.target.value })}
           />
         </Field>
-        <Field label="Exame de Grau Iniciático">
+        <Field label="Exame Grau Iniciático">
           <Input
             type="date"
             value={value.exam_grau_iniciatico}
             onChange={(e) => onChange({ exam_grau_iniciatico: e.target.value })}
           />
         </Field>
-        <Field label="Iniciação ao Grau DeMolay">
+      </div>
+      {!value.iniciacao_ordem && (
+        <p className="text-xs text-muted-foreground">
+          Sem data de iniciação à Ordem, o membro é considerado não DeMolay.
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Iniciação Grau DeMolay">
           <Input
             type="date"
             value={value.iniciacao_grau_demolay}
             onChange={(e) => onChange({ iniciacao_grau_demolay: e.target.value })}
           />
         </Field>
-        <Field label="Exame de Grau DeMolay">
+        <Field label="Exame Grau DeMolay">
           <Input
             type="date"
             value={value.exam_grau_demolay}
@@ -207,7 +281,7 @@ export function MemberDataFields({
           />
         </Field>
       </div>
-      {value.exam_grau_iniciatico && !value.iniciacao_grau_demolay && (
+      {value.iniciacao_ordem && value.exam_grau_iniciatico && !value.iniciacao_grau_demolay && (
         <p className="text-xs font-medium text-primary">
           Apto a G∴D∴ — exame de Grau Iniciático concluído, aguardando iniciação no Grau DeMolay.
         </p>

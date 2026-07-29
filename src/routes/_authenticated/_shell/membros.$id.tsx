@@ -51,6 +51,7 @@ import {
   formatDateBR,
   formatDateTimeBR,
   statusLabel,
+  kindLabel,
   grauOf,
   isAptoGrauDemolay,
 } from "@/lib/format";
@@ -199,7 +200,12 @@ function MembroPerfil() {
     <div>
       <PageHeader
         title={member.full_name}
-        subtitle={`${statusLabel(member.status)} · ${grauOf(member).label}`}
+        subtitle={(() => {
+          const kind = (member as { kind?: string }).kind;
+          const parts = [statusLabel(member.status), kindLabel(kind)];
+          if (kind !== "senior" && kind !== "macom") parts.push(grauOf(member).label);
+          return parts.join(" · ");
+        })()}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="ghost" onClick={() => navigate({ to: "/membros" })}>
@@ -246,10 +252,22 @@ function MembroPerfil() {
                   }
                 />
                 <Row k="Iniciação à Ordem DeMolay" v={formatDateBR(member.iniciacao_ordem)} />
+                <Row k="ID DeMolay" v={(member as any).demolay_id || "—"} />
                 <Row k="Exame de Grau Iniciático" v={formatDateBR(member.exam_grau_iniciatico)} />
                 <Row k="Iniciação ao Grau DeMolay" v={formatDateBR(member.iniciacao_grau_demolay)} />
                 <Row k="Exame de Grau DeMolay" v={formatDateBR(member.exam_grau_demolay)} />
+                {(member as { kind?: string }).kind === "macom" && (
+                  <Row k="ID maçônica" v={(member as any).masonic_id || "—"} />
+                )}
                 <Row k="Status" v={<Badge variant="secondary">{statusLabel(member.status)}</Badge>} />
+                <Row
+                  k="Tipo"
+                  v={
+                    <Badge variant="outline">
+                      {kindLabel((member as { kind?: string }).kind)}
+                    </Badge>
+                  }
+                />
                 <div className="flex items-center justify-between gap-3">
                   <dt className="text-muted-foreground">CPF</dt>
                   <dd className="flex items-center gap-2 font-mono">
