@@ -194,9 +194,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           />
         )}
 
-        <main className="relative flex-1 px-4 pb-24 pt-4 sm:px-6 lg:px-10 lg:pb-10 lg:pt-8">
+        <main className="relative flex-1 px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8 xl:px-10">
           <div
-            className={`mx-auto w-full max-w-6xl transition-opacity duration-150 ${
+            className={`mx-auto w-full transition-opacity duration-150 ${
+              pathname.startsWith("/tesouraria/mensalidades")
+                ? "max-w-[1680px]"
+                : "max-w-6xl"
+            } ${
               isNavigating || pendingTo ? "pointer-events-none opacity-60" : "opacity-100"
             }`}
           >

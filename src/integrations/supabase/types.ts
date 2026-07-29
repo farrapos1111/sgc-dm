@@ -1130,6 +1130,172 @@ export type Database = {
           },
         ]
       }
+      member_dues_manual_inclusions: {
+        Row: {
+          id: string
+          chapter_id: string
+          member_id: string
+          year: number
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          chapter_id: string
+          member_id: string
+          year: number
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          chapter_id?: string
+          member_id?: string
+          year?: number
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_dues_manual_inclusions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_dues_manual_inclusions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_away_periods: {
+        Row: {
+          id: string
+          member_id: string
+          chapter_id: string
+          started_on: string
+          ended_on: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          member_id: string
+          chapter_id: string
+          started_on: string
+          ended_on?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          member_id?: string
+          chapter_id?: string
+          started_on?: string
+          ended_on?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_away_periods_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_away_periods_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_charges: {
+        Row: {
+          amount: number
+          cash_entry_id: string | null
+          category: string
+          chapter_id: string
+          created_at: string
+          created_by: string | null
+          description: string
+          due_date: string
+          id: string
+          kind: Database["public"]["Enums"]["cash_entry_kind"]
+          member_id: string
+          notes: string | null
+          paid_at: string | null
+          status: Database["public"]["Enums"]["due_status"]
+          subcategory: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          cash_entry_id?: string | null
+          category?: string
+          chapter_id: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          due_date?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["cash_entry_kind"]
+          member_id: string
+          notes?: string | null
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["due_status"]
+          subcategory?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          cash_entry_id?: string | null
+          category?: string
+          chapter_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          due_date?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["cash_entry_kind"]
+          member_id?: string
+          notes?: string | null
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["due_status"]
+          subcategory?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_charges_cash_entry_id_fkey"
+            columns: ["cash_entry_id"]
+            isOneToOne: false
+            referencedRelation: "cash_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_charges_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_charges_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_positions: {
         Row: {
           chapter_id: string
@@ -1793,6 +1959,10 @@ export type Database = {
         }
         Returns: string
       }
+      desligar_open_dues_from: {
+        Args: { _from: string; _member_id: string }
+        Returns: number
+      }
       lookup_member_cadastro_by_demolay_id: {
         Args: { _demolay_id: string }
         Returns: Json
@@ -1876,7 +2046,7 @@ export type Database = {
       cash_entry_kind: "entrada" | "saida"
       checkin_method: "qr" | "nome"
       commission_role: "presidente" | "vice" | "membro" | "auxiliar_senior"
-      due_status: "em_aberto" | "pago" | "isento"
+      due_status: "em_aberto" | "pago" | "isento" | "desligado"
       event_status: "rascunho" | "publicado" | "encerrado"
       investigation_status:
         | "aberta"
@@ -2031,7 +2201,7 @@ export const Constants = {
       cash_entry_kind: ["entrada", "saida"],
       checkin_method: ["qr", "nome"],
       commission_role: ["presidente", "vice", "membro", "auxiliar_senior"],
-      due_status: ["em_aberto", "pago", "isento"],
+      due_status: ["em_aberto", "pago", "isento", "desligado"],
       event_status: ["rascunho", "publicado", "encerrado"],
       investigation_status: [
         "aberta",

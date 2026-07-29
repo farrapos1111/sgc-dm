@@ -59,7 +59,7 @@ export const getMember = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!member) throw new Error("Membro não encontrado");
 
-    const [guardiansRes, consentsRes, auditRes] = await Promise.all([
+    const [guardiansRes, consentsRes, auditRes, awayRes] = await Promise.all([
       context.supabase
         .from("guardians")
         .select("id, full_name, relationship, phone, email, cpf_last2, is_primary")
@@ -77,14 +77,24 @@ export const getMember = createServerFn({ method: "POST" })
         .eq("record_id", data.id)
         .order("created_at", { ascending: false })
         .limit(50),
+      context.supabase
+        .from("member_away_periods")
+        .select("id, started_on, ended_on, created_at")
+        .eq("member_id", data.id)
+        .order("started_on", { ascending: false }),
     ]);
     if (guardiansRes.error) throw new Error(guardiansRes.error.message);
     if (consentsRes.error) throw new Error(consentsRes.error.message);
+    if (awayRes.error) throw new Error(awayRes.error.message);
+    const awayPeriods = awayRes.data ?? [];
+    const openAway = awayPeriods.find((p) => p.ended_on == null) ?? null;
     return {
       member,
       guardians: guardiansRes.data ?? [],
       consents: consentsRes.data ?? [],
       audit: auditRes.data ?? [],
+      awayPeriods,
+      irregularSince: openAway?.started_on ?? null,
     };
   });
 
@@ -135,6 +145,8 @@ const createInput = z.object({
   address: addressSchema,
   status: statusEnum.default("regular"),
   kind: kindEnum.default("demolay_ativo"),
+  /** Data efetiva do status irregular (obrigatória se status = irregular). */
+  status_effective_on: z.string().optional().nullable(),
   guardians: z.array(guardianSchema).max(2).optional().default([]),
   consent_text_version: z.string().default("v1-2026-07"),
 });
@@ -143,6 +155,9 @@ export const createMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => createInput.parse(raw))
   .handler(async ({ data, context }) => {
+    if (data.status === "irregular" && !data.status_effective_on) {
+      throw new Error("Informe a data em que o membro se tornou irregular");
+    }
     const [first, second] = data.guardians ?? [];
     const kind = resolveAutoKind(data.kind, data.birth_date);
     const args = {
@@ -176,6 +191,17 @@ export const createMember = createServerFn({ method: "POST" })
       if (gErr) throw new Error(gErr.message);
     }
 
+    if (data.status === "irregular" && data.status_effective_on) {
+      const { error: awayErr } = await context.supabase.from("member_away_periods").insert({
+        member_id: id as string,
+        chapter_id: data.chapter_id,
+        started_on: data.status_effective_on,
+        ended_on: null,
+        created_by: context.userId,
+      });
+      if (awayErr) throw new Error(awayErr.message);
+    }
+
     return { id: id as string };
   });
 
@@ -196,6 +222,13 @@ const updateInput = z.object({
   address: addressSchema,
   status: statusEnum,
   kind: kindEnum,
+  /**
+   * Data efetiva da mudança de status:
+   * - regular → irregular: início do afastamento
+   * - irregular → regular: data do retorno
+   * - irregular → irregular: ajusta started_on do período aberto
+   */
+  status_effective_on: z.string().optional().nullable(),
   guardians: z.array(guardianSchema).max(2).optional().default([]),
 });
 
@@ -203,6 +236,31 @@ export const updateMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => updateInput.parse(raw))
   .handler(async ({ data, context }) => {
+    const { data: current, error: curErr } = await context.supabase
+      .from("members")
+      .select("id, chapter_id, status")
+      .eq("id", data.id)
+      .single();
+    if (curErr) throw new Error(curErr.message);
+
+    const prevStatus = current.status as "regular" | "irregular";
+    const nextStatus = data.status;
+    const statusChanged = prevStatus !== nextStatus;
+    const today = new Date().toISOString().slice(0, 10);
+    const effectiveOn = data.status_effective_on || today;
+
+    if (statusChanged || (nextStatus === "irregular" && data.status_effective_on)) {
+      if (!data.status_effective_on && statusChanged) {
+        // default today already in effectiveOn
+      }
+    }
+    if (nextStatus === "irregular" && statusChanged && !effectiveOn) {
+      throw new Error("Informe a data em que o membro se tornou irregular");
+    }
+    if (prevStatus === "irregular" && nextStatus === "regular" && !effectiveOn) {
+      throw new Error("Informe a data do retorno à regularidade");
+    }
+
     const kind = resolveAutoKind(data.kind, data.birth_date);
     const args = {
       _member_id: data.id,
@@ -225,6 +283,65 @@ export const updateMember = createServerFn({ method: "POST" })
     } as unknown as Parameters<typeof context.supabase.rpc<"update_member_with_pii">>[1];
     const { error } = await context.supabase.rpc("update_member_with_pii", args);
     if (error) throw new Error(error.message);
+
+    // Sync períodos de afastamento + mensalidades
+    if (prevStatus === "regular" && nextStatus === "irregular") {
+      const { error: awayErr } = await context.supabase.from("member_away_periods").insert({
+        member_id: data.id,
+        chapter_id: current.chapter_id,
+        started_on: effectiveOn,
+        ended_on: null,
+        created_by: context.userId,
+      });
+      if (awayErr) throw new Error(awayErr.message);
+
+      const { error: duesErr } = await context.supabase.rpc("desligar_open_dues_from", {
+        _member_id: data.id,
+        _from: effectiveOn,
+      });
+      if (duesErr) throw new Error(duesErr.message);
+    } else if (prevStatus === "irregular" && nextStatus === "regular") {
+      const { data: openPeriod, error: openErr } = await context.supabase
+        .from("member_away_periods")
+        .select("id, started_on")
+        .eq("member_id", data.id)
+        .is("ended_on", null)
+        .maybeSingle();
+      if (openErr) throw new Error(openErr.message);
+
+      if (openPeriod) {
+        const { error: closeErr } = await context.supabase
+          .from("member_away_periods")
+          .update({ ended_on: effectiveOn })
+          .eq("id", openPeriod.id);
+        if (closeErr) throw new Error(closeErr.message);
+      }
+      // Legado sem período: só atualiza status; meses passados não são auto-desligados
+    } else if (
+      prevStatus === "irregular" &&
+      nextStatus === "irregular" &&
+      data.status_effective_on
+    ) {
+      const { data: openPeriod } = await context.supabase
+        .from("member_away_periods")
+        .select("id")
+        .eq("member_id", data.id)
+        .is("ended_on", null)
+        .maybeSingle();
+      if (openPeriod) {
+        const { error: updErr } = await context.supabase
+          .from("member_away_periods")
+          .update({ started_on: data.status_effective_on })
+          .eq("id", openPeriod.id);
+        if (updErr) throw new Error(updErr.message);
+        const { error: duesErr } = await context.supabase.rpc("desligar_open_dues_from", {
+          _member_id: data.id,
+          _from: data.status_effective_on,
+        });
+        if (duesErr) throw new Error(duesErr.message);
+      }
+    }
+
     return { id: data.id };
   });
 

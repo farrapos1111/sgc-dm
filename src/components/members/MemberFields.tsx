@@ -19,6 +19,8 @@ export type MemberFormData = {
   masonic_id: string;
   status: MemberStatus;
   kind: MemberKind;
+  /** Data efetiva: irregular desde / retorno à regularidade. */
+  status_effective_on: string;
   cpf: string;
   rg: string;
   phone: string;
@@ -52,6 +54,7 @@ export const emptyMember: MemberFormData = {
   masonic_id: "",
   status: "regular",
   kind: "demolay_ativo",
+  status_effective_on: "",
   cpf: "",
   rg: "",
   phone: "",
@@ -110,10 +113,13 @@ export function MemberDataFields({
   value,
   onChange,
   showPiiHint,
+  initialStatus,
 }: {
   value: MemberFormData;
   onChange: (patch: Partial<MemberFormData>) => void;
   showPiiHint?: boolean;
+  /** Status ao abrir o formulário (para rótulo de retorno). */
+  initialStatus?: MemberStatus;
 }) {
   const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "error" | "ok">("idle");
   const [cepError, setCepError] = useState("");
@@ -205,7 +211,17 @@ export function MemberDataFields({
           </Field>
         )}
         <Field label="Status">
-          <Select value={value.status} onValueChange={(v) => onChange({ status: v as MemberStatus })}>
+          <Select
+            value={value.status}
+            onValueChange={(v) => {
+              const status = v as MemberStatus;
+              const patch: Partial<MemberFormData> = { status };
+              if (!value.status_effective_on) {
+                patch.status_effective_on = new Date().toISOString().slice(0, 10);
+              }
+              onChange(patch);
+            }}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -237,6 +253,27 @@ export function MemberDataFields({
           </Select>
         </Field>
       </div>
+      {(value.status === "irregular" ||
+        (initialStatus === "irregular" && value.status === "regular")) && (
+        <Field
+          label={
+            value.status === "irregular"
+              ? "Irregular desde *"
+              : "Retorno à regularidade *"
+          }
+        >
+          <Input
+            type="date"
+            value={value.status_effective_on}
+            onChange={(e) => onChange({ status_effective_on: e.target.value })}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            {value.status === "irregular"
+              ? "Mensalidades em aberto a partir deste mês passam a Desligado."
+              : "A partir deste mês as mensalidades voltam a ser cobradas; o período afastado permanece Desligado."}
+          </p>
+        </Field>
+      )}
       {is21OrOlder(value.birth_date) && value.kind === "senior" && (
         <p className="text-xs text-muted-foreground">
           Com 21 anos ou mais, o tipo Demolay Ativo passa automaticamente a Senior Demolay.

@@ -49,8 +49,7 @@ BEGIN
   v_token := nullif(v_settings->>'cash_share_token', '');
 
   IF v_token IS NULL OR _regenerate THEN
-    -- Token opaco sem depender de pgcrypto/gen_random_bytes
-    v_token := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
+    v_token := encode(gen_random_bytes(32), 'hex');
     UPDATE public.chapters
     SET settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object('cash_share_token', v_token)
     WHERE id = _chapter_id;

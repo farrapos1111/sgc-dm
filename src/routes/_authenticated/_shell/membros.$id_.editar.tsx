@@ -58,6 +58,10 @@ function EditarMembro() {
     masonic_id: (data.member as any).masonic_id ?? "",
     status: rawStatus === "irregular" ? "irregular" : "regular",
     kind: initialKind,
+    status_effective_on:
+      rawStatus === "irregular"
+        ? (data.irregularSince ?? new Date().toISOString().slice(0, 10))
+        : new Date().toISOString().slice(0, 10),
     cpf: "",
     rg: "",
     phone: data.member.phone ?? "",
@@ -103,6 +107,19 @@ function EditarMembro() {
       if (menor && guardians.length === 0) {
         throw new Error("Membros com menos de 21 anos precisam de ao menos um responsável");
       }
+      const statusChanging = dados.status !== (rawStatus === "irregular" ? "irregular" : "regular");
+      if (
+        (dados.status === "irregular" ||
+          (rawStatus === "irregular" && dados.status === "regular")) &&
+        (statusChanging || dados.status === "irregular") &&
+        !dados.status_effective_on
+      ) {
+        throw new Error(
+          dados.status === "irregular"
+            ? "Informe a data em que o membro se tornou irregular"
+            : "Informe a data do retorno à regularidade",
+        );
+      }
       return updateMember({
         data: {
           id,
@@ -130,6 +147,7 @@ function EditarMembro() {
           },
           status: dados.status,
           kind: dados.kind,
+          status_effective_on: dados.status_effective_on || null,
           guardians,
         },
       });
@@ -138,6 +156,7 @@ function EditarMembro() {
       toast.success("Cadastro atualizado");
       await qc.invalidateQueries({ queryKey: ["member", id] });
       await qc.invalidateQueries({ queryKey: ["members"] });
+      await qc.invalidateQueries({ queryKey: ["dues-year"] });
       navigate({ to: "/membros/$id", params: { id } });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
@@ -159,6 +178,7 @@ function EditarMembro() {
           value={dados}
           onChange={(p) => setDados((d) => ({ ...d, ...p }))}
           showPiiHint
+          initialStatus={rawStatus === "irregular" ? "irregular" : "regular"}
         />
 
         <div className="space-y-4">
