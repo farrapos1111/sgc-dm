@@ -20,6 +20,7 @@ import { Route as DocumentacaoIndexRouteImport } from './routes/documentacao/ind
 import { Route as DocumentacaoGuiaRouteImport } from './routes/documentacao/guia'
 import { Route as DocumentacaoOpenSourceRouteImport } from './routes/documentacao/open-source'
 import { Route as DocumentacaoTecnicaRouteImport } from './routes/documentacao/tecnica'
+import { Route as FluxoCaixaTokenRouteImport } from './routes/fluxo-caixa.$token'
 import { Route as MensalidadesTokenRouteImport } from './routes/mensalidades.$token'
 import { Route as AuthenticatedShellAtasRouteImport } from './routes/_authenticated/_shell/atas'
 import { Route as AuthenticatedShellCalendarioRouteImport } from './routes/_authenticated/_shell/calendario'
@@ -104,6 +105,11 @@ const DocumentacaoTecnicaRoute = DocumentacaoTecnicaRouteImport.update({
   id: '/tecnica',
   path: '/tecnica',
   getParentRoute: () => DocumentacaoRouteRoute,
+} as any)
+const FluxoCaixaTokenRoute = FluxoCaixaTokenRouteImport.update({
+  id: '/fluxo-caixa/$token',
+  path: '/fluxo-caixa/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MensalidadesTokenRoute = MensalidadesTokenRouteImport.update({
   id: '/mensalidades/$token',
@@ -292,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
+  '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
   '/documentacao/': typeof DocumentacaoIndexRoute
   '/atas': typeof AuthenticatedShellAtasRoute
@@ -332,6 +339,7 @@ export interface FileRoutesByTo {
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
+  '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
   '/documentacao': typeof DocumentacaoIndexRoute
   '/atas': typeof AuthenticatedShellAtasRoute
@@ -375,6 +383,7 @@ export interface FileRoutesById {
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
+  '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/documentacao/': typeof DocumentacaoIndexRoute
@@ -419,6 +428,7 @@ export interface FileRouteTypes {
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
+    | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
     | '/documentacao/'
     | '/atas'
@@ -459,6 +469,7 @@ export interface FileRouteTypes {
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
+    | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
     | '/documentacao'
     | '/atas'
@@ -501,6 +512,7 @@ export interface FileRouteTypes {
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
+    | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
     | '/_authenticated/'
     | '/documentacao/'
@@ -540,6 +552,7 @@ export interface RootRouteChildren {
   DocumentacaoRouteRoute: typeof DocumentacaoRouteRouteWithChildren
   AtualizarCadastroRoute: typeof AtualizarCadastroRoute
   AuthRoute: typeof AuthRoute
+  FluxoCaixaTokenRoute: typeof FluxoCaixaTokenRoute
   MensalidadesTokenRoute: typeof MensalidadesTokenRoute
 }
 
@@ -621,6 +634,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/documentacao/tecnica'
       preLoaderRoute: typeof DocumentacaoTecnicaRouteImport
       parentRoute: typeof DocumentacaoRouteRoute
+    }
+    '/fluxo-caixa/$token': {
+      id: '/fluxo-caixa/$token'
+      path: '/fluxo-caixa/$token'
+      fullPath: '/fluxo-caixa/$token'
+      preLoaderRoute: typeof FluxoCaixaTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/mensalidades/$token': {
       id: '/mensalidades/$token'
@@ -955,6 +975,7 @@ const rootRouteChildren: RootRouteChildren = {
   DocumentacaoRouteRoute: DocumentacaoRouteRouteWithChildren,
   AtualizarCadastroRoute: AtualizarCadastroRoute,
   AuthRoute: AuthRoute,
+  FluxoCaixaTokenRoute: FluxoCaixaTokenRoute,
   MensalidadesTokenRoute: MensalidadesTokenRoute,
 }
 export const routeTree = rootRouteImport
