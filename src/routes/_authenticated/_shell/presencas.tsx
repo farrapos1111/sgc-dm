@@ -23,6 +23,8 @@ import { ClipboardList } from "lucide-react";
 import {
   PresencasChartsTab,
   PresencasOverviewTab,
+  type AttendanceRec,
+  type CalItem,
 } from "@/components/presencas/PresencasAnalytics";
 
 export const Route = createFileRoute("/_authenticated/_shell/presencas")({
@@ -61,6 +63,7 @@ type PresencasFilters = {
   dateSort: "desc" | "asc";
   tab: "itens" | "frequencia" | "graficos" | "visao";
   freq: string;
+  semester: 1 | 2;
 };
 
 function defaultPresencasFilters(): PresencasFilters {
@@ -72,12 +75,19 @@ function defaultPresencasFilters(): PresencasFilters {
     dateSort: "desc",
     tab: "itens",
     freq: String(year),
+    semester: new Date().getMonth() < 6 ? 1 : 2,
   };
 }
 
 const MAND_VALUES = new Set(["all", "obrigatorio", "facultativo"]);
 const SORT_VALUES = new Set(["desc", "asc"]);
 const TAB_VALUES = new Set(["itens", "frequencia", "graficos", "visao"]);
+const FREQ_MONTHS = new Set(["m:3", "m:6", "m:12"]);
+
+function isValidFreq(freq: string): boolean {
+  if (FREQ_MONTHS.has(freq)) return true;
+  return /^\d{4}$/.test(freq) && Number.isFinite(Number(freq));
+}
 
 function filtersKey(chapterId: string) {
   return `sgcdm:presencas-filters:${chapterId}`;
@@ -99,6 +109,7 @@ function loadFilters(chapterId: string): PresencasFilters {
         (CALENDAR_TYPES as readonly string[]).includes(parsed.typeFilter))
         ? parsed.typeFilter
         : "all";
+    const freqRaw = typeof parsed.freq === "string" ? parsed.freq : "";
     return {
       year,
       typeFilter,
@@ -111,7 +122,8 @@ function loadFilters(chapterId: string): PresencasFilters {
       tab: TAB_VALUES.has(parsed.tab ?? "")
         ? (parsed.tab as PresencasFilters["tab"])
         : "itens",
-      freq: typeof parsed.freq === "string" ? parsed.freq : String(year),
+      freq: isValidFreq(freqRaw) ? freqRaw : String(year),
+      semester: parsed.semester === 1 || parsed.semester === 2 ? parsed.semester : defaults.semester,
     };
   } catch {
     return defaults;
@@ -127,11 +139,14 @@ function saveFilters(chapterId: string, filters: PresencasFilters) {
 }
 
 function parseFrequencyRange(value: string): FrequencyRange {
-  if (value.startsWith("m:")) {
-    const months = Number(value.slice(2)) as 3 | 6 | 12;
-    return { kind: "months", months };
+  if (value === "m:3" || value === "m:6" || value === "m:12") {
+    return { kind: "months", months: Number(value.slice(2)) as 3 | 6 | 12 };
   }
-  return { kind: "year", year: Number(value) };
+  const year = Number(value);
+  return {
+    kind: "year",
+    year: Number.isFinite(year) ? year : new Date().getFullYear(),
+  };
 }
 
 function periodStart(months: number, today = new Date()) {
@@ -148,9 +163,9 @@ function PresencasFrequencyTab({
   freq,
   onFreqChange,
 }: {
-  items: any[];
-  members: any[];
-  records: any[];
+  items: CalItem[];
+  members: DueMemberLite[];
+  records: AttendanceRec[];
   availableYears: number[];
   freq: string;
   onFreqChange: (freq: string) => void;
@@ -169,7 +184,7 @@ function PresencasFrequencyTab({
       recordByKey.set(`${r.member_id}:${r.calendar_event_id}`, r.status);
     }
 
-    return (members as DueMemberLite[])
+    return members
       .filter((m) => m.status === "regular" && (m.kind === "demolay_ativo" || m.kind === "senior"))
       .map((m) => {
         let total = 0;
@@ -274,7 +289,7 @@ function PresencasPage() {
     saveFilters(chapterId, filters);
   }, [chapterId, filters]);
 
-  const { year, typeFilter, mandFilter, dateSort, tab, freq } = filters;
+  const { year, typeFilter, mandFilter, dateSort, tab, freq, semester } = filters;
 
   const allowed = canManageAttendance(active?.role.name);
 
@@ -286,9 +301,17 @@ function PresencasPage() {
     return years;
   }, [active?.chapter]);
 
+  useEffect(() => {
+    if (availableYears.length === 0) return;
+    setFilters((f) => {
+      if (availableYears.includes(f.year)) return f;
+      return { ...f, year: availableYears[0]! };
+    });
+  }, [availableYears, chapterId]);
+
   const items = useMemo(
     () =>
-      (data.items as any[])
+      (data.items as CalItem[])
         .filter((it) => {
           if (eventYear(it.start_at) !== year) return false;
           if (typeFilter !== "all" && it.event_type !== typeFilter) return false;
@@ -305,8 +328,8 @@ function PresencasPage() {
   );
 
   const byEvent = useMemo(() => {
-    const m = new Map<string, any[]>();
-    for (const r of data.records as any[]) {
+    const m = new Map<string, AttendanceRec[]>();
+    for (const r of data.records as AttendanceRec[]) {
       const arr = m.get(r.calendar_event_id) ?? [];
       arr.push(r);
       m.set(r.calendar_event_id, arr);
@@ -459,9 +482,9 @@ function PresencasPage() {
         <TabsContent value="frequencia">
           {tab === "frequencia" && (
             <PresencasFrequencyTab
-              items={data.items as any[]}
-              members={data.members as any[]}
-              records={data.records as any[]}
+              items={data.items as CalItem[]}
+              members={data.members as DueMemberLite[]}
+              records={data.records as AttendanceRec[]}
               availableYears={availableYears}
               freq={freq}
               onFreqChange={(next) => setFilters((f) => ({ ...f, freq: next }))}
@@ -472,12 +495,14 @@ function PresencasPage() {
         <TabsContent value="visao">
           {tab === "visao" && (
             <PresencasOverviewTab
-              items={data.items as any[]}
-              members={data.members as any[]}
-              records={data.records as any[]}
+              items={data.items as CalItem[]}
+              members={data.members as DueMemberLite[]}
+              records={data.records as AttendanceRec[]}
               year={year}
               availableYears={availableYears}
               onYearChange={(y) => setFilters((f) => ({ ...f, year: y }))}
+              semester={semester}
+              onSemesterChange={(s) => setFilters((f) => ({ ...f, semester: s }))}
               chapterId={chapterId}
             />
           )}
@@ -486,9 +511,9 @@ function PresencasPage() {
         <TabsContent value="graficos">
           {tab === "graficos" && (
             <PresencasChartsTab
-              items={data.items as any[]}
-              members={data.members as any[]}
-              records={data.records as any[]}
+              items={data.items as CalItem[]}
+              members={data.members as DueMemberLite[]}
+              records={data.records as AttendanceRec[]}
               year={year}
               availableYears={availableYears}
               onYearChange={(y) => setFilters((f) => ({ ...f, year: y }))}

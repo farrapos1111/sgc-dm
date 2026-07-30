@@ -14,6 +14,7 @@ import { useChapterLogo, LOGO_BUCKET } from "@/lib/chapter-logo";
 import { can } from "@/lib/permissions";
 import { listLodges, saveLodge, deleteLodge, updateChapterProfile, updateChapterAccentColor } from "@/lib/chapter.functions";
 import { saveDefaultDuesAmount } from "@/lib/finance.functions";
+import { getChapterDefaultDuesAmount } from "@/lib/dues-rules";
 import { ImagePlus, Loader2, Trash2, Building2, Landmark, PlusCircle, Save, Sun, Moon, MonitorSmartphone, Palette, RotateCcw, Check, Receipt } from "lucide-react";
 import { useTheme, type ThemeMode } from "@/context/ThemeContext";
 import { ChaveTemplateCard } from "@/components/settings/ChaveTemplateCard";
@@ -403,14 +404,9 @@ function DefaultDuesCard() {
   const qc = useQueryClient();
   const allowed =
     can(active?.role.name, "tesouraria") || can(active?.role.name, "admin");
-  const savedRaw = (active?.chapter as { settings?: Record<string, unknown> } | undefined)
-    ?.settings?.default_dues_amount;
-  const saved =
-    typeof savedRaw === "number"
-      ? savedRaw
-      : Number.isFinite(Number(savedRaw))
-        ? Number(savedRaw)
-        : 50;
+  const saved = getChapterDefaultDuesAmount(
+    active?.chapter as { settings?: Record<string, unknown> } | undefined,
+  );
   const [amount, setAmount] = useState(saved);
 
   useEffect(() => {

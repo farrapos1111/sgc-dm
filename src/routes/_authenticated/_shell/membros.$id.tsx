@@ -24,7 +24,7 @@ import { getMemberAttendance } from "@/lib/attendance.functions";
 import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
 import { can } from "@/lib/permissions";
 import { getMemberFinance } from "@/lib/finance.functions";
-import { MONTH_SHORT, isDueOverdue, autoDueExemptTip, type DueMemberLite } from "@/lib/dues-rules";
+import { MONTH_SHORT, isDueOverdue, autoDueExemptTip, isFutureMonth, type DueMemberLite } from "@/lib/dues-rules";
 import { Progress } from "@/components/ui/progress";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { PageHeader } from "@/components/PageHeader";
@@ -644,14 +644,6 @@ const DUE_STATUS_LABEL: Record<string, string> = {
   isento: "Isento",
   desligado: "Desligado",
 };
-
-function isFutureMonth(year: number, month: number, today = new Date()) {
-  const cy = today.getFullYear();
-  const cm = today.getMonth() + 1;
-  if (year > cy) return true;
-  if (year < cy) return false;
-  return month > cm;
-}
 
 function MemberFinanceTab({
   finance,

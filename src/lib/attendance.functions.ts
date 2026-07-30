@@ -111,11 +111,6 @@ export const setAttendance = createServerFn({ method: "POST" })
     if (mErr) throw new Error(mErr.message);
     if (!event) throw new Error("Evento não encontrado");
     if (!member) throw new Error("Membro não encontrado");
-    if (!memberEligibleForAttendance(member as DueMemberLite, event.start_at)) {
-      throw new Error(
-        "Membro fora da regra de presença neste evento (iniciação ou Senior).",
-      );
-    }
 
     if (data.status === null) {
       const { error } = await context.supabase
@@ -126,6 +121,12 @@ export const setAttendance = createServerFn({ method: "POST" })
         .eq("chapter_id", data.chapterId);
       if (error) throw new Error(error.message);
       return { ok: true, cleared: true };
+    }
+
+    if (!memberEligibleForAttendance(member as DueMemberLite, event.start_at)) {
+      throw new Error(
+        "Membro fora da regra de presença neste evento (iniciação ou Senior).",
+      );
     }
 
     const { error } = await context.supabase.from("attendance_records").upsert(

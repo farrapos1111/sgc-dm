@@ -614,9 +614,7 @@ export const saveDefaultDuesAmount = createServerFn({ method: "POST" })
       .update({ amount: data.amount })
       .eq("chapter_id", data.chapterId)
       .neq("status", "pago");
-    if (syncErr) {
-      console.error("saveDefaultDuesAmount sync amounts:", syncErr.message);
-    }
+    if (syncErr) throw new Error(syncErr.message);
 
     return { amount: data.amount };
   });
@@ -2010,9 +2008,7 @@ export const getMemberFinance = createServerFn({ method: "POST" })
       const status = d.status as string;
       // Pago mantém o valor efetivo; demais usam o padrão atual do capítulo
       const amount =
-        status === "pago" && Number.isFinite(stored) && stored > 0
-          ? stored
-          : defaultAmount;
+        status === "pago" && Number.isFinite(stored) ? stored : defaultAmount;
       return {
         id: d.id,
         year: d.competence_year,

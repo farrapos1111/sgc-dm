@@ -61,6 +61,8 @@ import {
   MONTH_LONG,
   MONTH_SHORT,
   autoDueExemptTip,
+  isFutureMonth,
+  getChapterDefaultDuesAmount,
   type DueMemberLite,
 } from "@/lib/dues-rules";
 
@@ -121,14 +123,6 @@ const STATUS_DOT: Record<DueStatus, string> = {
   isento: "bg-slate-400",
   desligado: "bg-stone-500",
 };
-
-function isFutureMonth(year: number, month: number, today = new Date()) {
-  const cy = today.getFullYear();
-  const cm = today.getMonth() + 1;
-  if (year > cy) return true;
-  if (year < cy) return false;
-  return month > cm;
-}
 
 function cellClass(status: DueStatus, year: number, month: number) {
   if (status === "em_aberto" && isFutureMonth(year, month)) return FUTURE_OPEN_STYLE;
@@ -202,8 +196,6 @@ function patchDueInCache(
 }
 
 type StatusCellProps = {
-  memberId: string;
-  memberName: string;
   member: DueMemberLite;
   month: number;
   year: number;
@@ -215,8 +207,6 @@ type StatusCellProps = {
 };
 
 const StatusCell = memo(function StatusCell({
-  memberId,
-  memberName,
   member,
   month,
   year,
@@ -226,6 +216,8 @@ const StatusCell = memo(function StatusCell({
   compact = false,
   onSetStatus,
 }: StatusCellProps) {
+  const memberId = member.id;
+  const memberName = member.full_name;
   const future = isFutureMonth(year, month);
   const overdue = !future && isDueOverdue(year, month, status);
   const exemptTip =
@@ -310,12 +302,9 @@ function Mensalidades() {
   const qc = useQueryClient();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
-  const [defaultAmount, setDefaultAmount] = useState(() => {
-    const raw = (active?.chapter as { settings?: Record<string, unknown> } | undefined)
-      ?.settings?.default_dues_amount;
-    const n = typeof raw === "number" ? raw : Number(raw);
-    return Number.isFinite(n) && n >= 0 ? n : 50;
-  });
+  const [defaultAmount, setDefaultAmount] = useState(() =>
+    getChapterDefaultDuesAmount(active?.chapter as { settings?: Record<string, unknown> } | undefined),
+  );
   const [paidAt, setPaidAt] = useState(now.toISOString().slice(0, 10));
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -682,11 +671,7 @@ function Mensalidades() {
     onSuccess: async () => {
       toast.success("Mensalidade padrão salva nas configurações do capítulo");
       await refetch();
-      if (chapterId) {
-        qc.setQueryData<YearDuesData>(duesYearKey(chapterId, year), (prev) =>
-          prev ? { ...prev, defaultAmount } : prev,
-        );
-      }
+      await qc.invalidateQueries({ queryKey: ["dues-year"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
@@ -1214,8 +1199,6 @@ function Mensalidades() {
                           return (
                             <td key={month} className="px-1.5 py-2 text-center">
                               <StatusCell
-                                memberId={m.id}
-                                memberName={m.full_name}
                                 member={m}
                                 month={month}
                                 year={year}
@@ -1326,8 +1309,6 @@ function Mensalidades() {
                       return (
                         <StatusCell
                           key={month}
-                          memberId={m.id}
-                          memberName={m.full_name}
                           member={m}
                           month={month}
                           year={year}

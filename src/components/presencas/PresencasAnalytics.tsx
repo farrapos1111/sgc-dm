@@ -45,7 +45,7 @@ import { formatDateBR } from "@/lib/format";
 import { attendanceOverviewKey } from "@/lib/query-keys";
 import { termLabel } from "@/lib/terms";
 
-type CalItem = {
+export type CalItem = {
   id: string;
   title: string;
   event_type: string;
@@ -53,7 +53,7 @@ type CalItem = {
   start_at: string;
 };
 
-type AttendanceRec = {
+export type AttendanceRec = {
   member_id: string;
   calendar_event_id: string;
   status: string;
@@ -296,7 +296,7 @@ export function PresencasChartsTab({
       byTypeRows,
       byMonthRows,
       top: memberFreq.slice(0, 8),
-      bottom: [...memberFreq].reverse().slice(0, 5),
+      bottom: memberFreq.slice(8).reverse().slice(0, 5),
     };
   }, [yearItems, eligibleMembers, recordByKey]);
 
@@ -507,6 +507,7 @@ function OverviewAttendanceCell({
   busy: boolean;
   onSet: (next: "presente" | "ausente" | null) => void;
 }) {
+  const statusLabel = status === "na" ? "Não elegível" : CELL_LABEL[status];
   const tip =
     status === "ausente" && justification
       ? `Ausente · ${justification}`
@@ -523,6 +524,7 @@ function OverviewAttendanceCell({
       type="button"
       disabled={status === "na" || busy}
       title={tip}
+      aria-label={`${memberName} · ${eventTitle} · ${eventDate} · ${statusLabel}`}
       className={`inline-flex h-10 w-full items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide transition hover:ring-2 hover:ring-ring disabled:cursor-default disabled:hover:ring-0 ${CELL_STYLE[status]} ${busy ? "opacity-60" : ""}`}
     >
       {CELL_LETTER[status]}
@@ -563,6 +565,8 @@ export function PresencasOverviewTab({
   year,
   availableYears,
   onYearChange,
+  semester,
+  onSemesterChange,
   chapterId,
 }: {
   items: CalItem[];
@@ -571,13 +575,12 @@ export function PresencasOverviewTab({
   year: number;
   availableYears: number[];
   onYearChange: (y: number) => void;
+  semester: 1 | 2;
+  onSemesterChange: (s: 1 | 2) => void;
   chapterId: string;
 }) {
   const qc = useQueryClient();
   const [pendingKey, setPendingKey] = useState<string | null>(null);
-  const [semester, setSemester] = useState<1 | 2>(() =>
-    new Date().getMonth() < 6 ? 1 : 2,
-  );
 
   const semesterEvents = useMemo(
     () =>
@@ -680,7 +683,7 @@ export function PresencasOverviewTab({
         </Select>
         <Select
           value={String(semester)}
-          onValueChange={(v) => setSemester(Number(v) as 1 | 2)}
+          onValueChange={(v) => onSemesterChange(Number(v) as 1 | 2)}
         >
           <SelectTrigger className="h-9 w-[200px] text-xs">
             <SelectValue placeholder="Semestre" />
