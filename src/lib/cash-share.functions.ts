@@ -43,6 +43,7 @@ export type PublicCashFlowPayload = {
   month: number | null;
   entries: PublicCashEntry[];
   opening: { balance: number; previousYear: number };
+  totals?: { income: number; expense: number; balance: number };
   bank: { income: number; expense: number; balance: number };
   signers: Array<{ role: string; name: string }>;
   logoDataUrl: string | null;

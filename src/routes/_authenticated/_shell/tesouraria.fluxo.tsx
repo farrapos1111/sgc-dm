@@ -155,6 +155,8 @@ function FluxoCaixa() {
   const entries = data?.entries ?? [];
   const opening = data?.opening ?? { balance: 0, previousYear: year - 1 };
   const openingBalance = Number(opening.balance) || 0;
+  const bank = data?.bank ?? { income: 0, expense: 0, balance: 0 };
+  const currentCashBalance = Number(bank.balance) || 0;
 
   const { data: catData } = useQuery({
     queryKey: ["cash-categories", active?.chapter_id],
@@ -264,6 +266,17 @@ function FluxoCaixa() {
 
 
   const periodTotals = useMemo(() => {
+    const hasClientFilters =
+      selectedCategories.length > 0 || selectedSubcategories.length > 0;
+    // Sem filtro de categoria: usar agregação completa do servidor
+    // (evita totais incompletos quando a lista de lançamentos é limitada).
+    if (!hasClientFilters && data?.totals) {
+      return {
+        income: Number(data.totals.income) || 0,
+        expense: Number(data.totals.expense) || 0,
+        balance: Number(data.totals.balance) || 0,
+      };
+    }
     let income = 0;
     let expense = 0;
     for (const e of filteredEntries) {
@@ -271,11 +284,17 @@ function FluxoCaixa() {
       else expense += Number(e.amount);
     }
     return { income, expense, balance: income - expense };
-  }, [filteredEntries]);
-
-  const closingBalance = openingBalance + periodTotals.balance;
+  }, [filteredEntries, selectedCategories.length, selectedSubcategories.length, data?.totals]);
 
   const periodLabel = month ? `${monthName(month)} de ${year}` : `Ano de ${year}`;
+
+  const isPastYear = year < now.getFullYear();
+  const periodClosingBalance = openingBalance + periodTotals.balance;
+  const cashBalanceValue = isPastYear ? periodClosingBalance : currentCashBalance;
+  const cashBalanceLabel = isPastYear ? "Saldo final do caixa" : "Saldo Atual do Caixa";
+  const cashBalanceHint = isPastYear
+    ? `Restante ${opening.previousYear} + período`
+    : "Soma de todos os lançamentos";
 
   const entriesByMonth = useMemo(() => {
     if (month !== null) return null;
@@ -328,16 +347,22 @@ function FluxoCaixa() {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   }
 
-  // Em Geral: só o mês atual aberto por padrão ao mudar o ano (se for o ano corrente)
+  // Em Geral: por padrão só o mês atual do ano presente fica aberto; demais fechados.
+  const openMonthsPeriodRef = useRef<string>("");
   useEffect(() => {
     if (month !== null) return;
+    if (isLoading) return;
+    const periodKey = `${active?.chapter_id ?? ""}:${year}`;
+    if (openMonthsPeriodRef.current === periodKey) return;
+    openMonthsPeriodRef.current = periodKey;
+
     const today = new Date();
     if (year === today.getFullYear()) {
       setOpenMonths(new Set([today.getMonth() + 1]));
     } else {
       setOpenMonths(new Set());
     }
-  }, [year, month]);
+  }, [year, month, active?.chapter_id, isLoading]);
 
   function toggleMonth(m: number) {
     setOpenMonths((prev) => {
@@ -411,8 +436,14 @@ function FluxoCaixa() {
   const remove = useMutation({
     mutationFn: (id: string) => deleteCashEntry({ data: { id } }),
     onSuccess: async () => {
-      toast.success("Lançamento excluído");
+      toast.success("Lançamento excluído — cobrança/mensalidade vinculada atualizada");
       await invalidate();
+      await qc.invalidateQueries({ queryKey: ["member-charges"] });
+      await qc.invalidateQueries({ queryKey: ["charge-payments"] });
+      await qc.invalidateQueries({ queryKey: ["dues"] });
+      await qc.invalidateQueries({ queryKey: ["year-dues"] });
+      await qc.invalidateQueries({ queryKey: ["member-finance"] });
+      await qc.invalidateQueries({ queryKey: ["dashboard-finance"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao excluir"),
   });
@@ -445,6 +476,8 @@ function FluxoCaixa() {
         periodLabel,
         entries: [...filteredEntries].reverse(),
         totals: periodTotals,
+        cashBalance: cashBalanceValue,
+        cashBalanceLabel,
         opening: {
           balance: openingBalance,
           previousYear: opening.previousYear,
@@ -671,6 +704,8 @@ function FluxoCaixa() {
                 `fluxo-de-caixa-${month ? `${year}-${String(month).padStart(2, "0")}` : year}.xlsx`,
                 {
                   periodLabel,
+                  cashBalance: cashBalanceValue,
+                  cashBalanceLabel,
                   opening: {
                     balance: openingBalance,
                     previousYear: opening.previousYear,
@@ -713,21 +748,19 @@ function FluxoCaixa() {
       </div>
 
       {/* Indicadores */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <MetricCard
-          label={
-            month === null
-              ? `Restante de ${opening.previousYear}`
-              : "Saldo inicial do período"
-          }
-          value={formatBRL(openingBalance)}
-          hint={
-            month === null
-              ? "Caixa transferido do ano anterior"
-              : `Inclui restante de ${opening.previousYear} e meses anteriores`
-          }
-          icon={<Landmark className="h-5 w-5 text-muted-foreground" />}
-        />
+      <div
+        className={`mb-6 grid grid-cols-2 gap-4 ${
+          month === null ? "lg:grid-cols-5" : "lg:grid-cols-3"
+        }`}
+      >
+        {month === null && (
+          <MetricCard
+            label={`Restante de ${opening.previousYear}`}
+            value={formatBRL(openingBalance)}
+            hint="Caixa transferido do ano anterior"
+            icon={<Landmark className="h-5 w-5 text-muted-foreground" />}
+          />
+        )}
         <MetricCard
           label="Total de entradas"
           value={formatBRL(periodTotals.income)}
@@ -747,13 +780,15 @@ function FluxoCaixa() {
           tone={periodTotals.balance < 0 ? "text-rose-600 dark:text-rose-400" : undefined}
           icon={<Wallet className="h-5 w-5 text-muted-foreground" />}
         />
-        <MetricCard
-          label="Saldo final"
-          value={formatBRL(closingBalance)}
-          hint={`Restante ${opening.previousYear} + período`}
-          tone={closingBalance < 0 ? "text-rose-600 dark:text-rose-400" : undefined}
-          icon={<Landmark className="h-5 w-5 text-muted-foreground" />}
-        />
+        {month === null && (
+          <MetricCard
+            label={cashBalanceLabel}
+            value={formatBRL(cashBalanceValue)}
+            hint={cashBalanceHint}
+            tone={cashBalanceValue < 0 ? "text-rose-600 dark:text-rose-400" : undefined}
+            icon={<Landmark className="h-5 w-5 text-muted-foreground" />}
+          />
+        )}
       </div>
 
       {/* Lista */}
@@ -835,6 +870,10 @@ function FluxoCaixa() {
                     />
                     <h3 className="text-sm font-semibold capitalize">
                       {monthName(group.month)} de {year}
+                      <span className="ml-2 font-normal text-muted-foreground">
+                        ({group.entries.length}{" "}
+                        {group.entries.length === 1 ? "lançamento" : "lançamentos"})
+                      </span>
                     </h3>
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs sm:text-sm">

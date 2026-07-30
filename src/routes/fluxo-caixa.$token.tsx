@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ChevronDown,
   FileSpreadsheet,
@@ -15,6 +15,7 @@ import { getPublicCashFlow, type PublicCashEntry } from "@/lib/cash-share.functi
 import { exportCashPdf } from "@/lib/finance-pdf";
 import { exportCashXlsx } from "@/lib/finance-xlsx";
 import { formatBRL, formatDateBR } from "@/lib/format";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -61,6 +62,7 @@ function PublicCashFlowPage() {
   const [openMonths, setOpenMonths] = useState<Set<number>>(
     () => new Set([now.getMonth() + 1]),
   );
+  const openMonthsPeriodRef = useRef<string>("");
   const [exportingPdf, setExportingPdf] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
@@ -74,7 +76,24 @@ function PublicCashFlowPage() {
   const entries = data?.entries ?? [];
   const opening = data?.opening ?? { balance: 0, previousYear: year - 1 };
   const openingBalance = Number(opening.balance) || 0;
+  const bank = data?.bank ?? { income: 0, expense: 0, balance: 0 };
+  const currentCashBalance = Number(bank.balance) || 0;
   const chapter = data?.chapter;
+
+  useEffect(() => {
+    if (month !== null) return;
+    if (isLoading) return;
+    const periodKey = `${token}:${year}`;
+    if (openMonthsPeriodRef.current === periodKey) return;
+    openMonthsPeriodRef.current = periodKey;
+
+    const today = new Date();
+    if (year === today.getFullYear()) {
+      setOpenMonths(new Set([today.getMonth() + 1]));
+    } else {
+      setOpenMonths(new Set());
+    }
+  }, [year, month, token, isLoading]);
 
   const availableYears = useMemo(() => {
     const currentYear = now.getFullYear();
@@ -130,6 +149,15 @@ function PublicCashFlowPage() {
   }
 
   const periodTotals = useMemo(() => {
+    const hasClientFilters =
+      selectedCategories.length > 0 || selectedSubcategories.length > 0;
+    if (!hasClientFilters && data?.totals) {
+      return {
+        income: Number(data.totals.income) || 0,
+        expense: Number(data.totals.expense) || 0,
+        balance: Number(data.totals.balance) || 0,
+      };
+    }
     let income = 0;
     let expense = 0;
     for (const e of filteredEntries) {
@@ -137,10 +165,14 @@ function PublicCashFlowPage() {
       else expense += Number(e.amount);
     }
     return { income, expense, balance: income - expense };
-  }, [filteredEntries]);
+  }, [filteredEntries, selectedCategories.length, selectedSubcategories.length, data?.totals]);
 
-  const closingBalance = openingBalance + periodTotals.balance;
   const periodLabel = month ? `${monthName(month)} de ${year}` : `Ano de ${year}`;
+
+  const isPastYear = year < now.getFullYear();
+  const periodClosingBalance = openingBalance + periodTotals.balance;
+  const cashBalanceValue = isPastYear ? periodClosingBalance : currentCashBalance;
+  const cashBalanceLabel = isPastYear ? "Saldo final do caixa" : "Saldo Atual do Caixa";
 
   const entriesByMonth = useMemo(() => {
     if (month !== null) return null;
@@ -185,6 +217,8 @@ function PublicCashFlowPage() {
         periodLabel,
         entries: [...filteredEntries].reverse(),
         totals: periodTotals,
+        cashBalance: cashBalanceValue,
+        cashBalanceLabel,
         opening: {
           balance: openingBalance,
           previousYear: opening.previousYear,
@@ -210,6 +244,8 @@ function PublicCashFlowPage() {
       `fluxo-de-caixa-${month ? `${year}-${String(month).padStart(2, "0")}` : year}.xlsx`,
       {
         periodLabel,
+        cashBalance: cashBalanceValue,
+        cashBalanceLabel,
         opening: {
           balance: openingBalance,
           previousYear: opening.previousYear,
@@ -261,7 +297,8 @@ function PublicCashFlowPage() {
               <p className="text-sm text-muted-foreground">{chapter.city}</p>
             ) : null}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <ThemeToggle className="h-9 w-9 shrink-0" />
             <Button variant="outline" size="sm" onClick={handleXlsx} disabled={!data || isLoading}>
               <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
             </Button>
@@ -412,16 +449,18 @@ function PublicCashFlowPage() {
           </div>
         ) : (
           <>
-            <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
-              <Metric
-                label={
-                  month === null
-                    ? `Restante de ${opening.previousYear}`
-                    : "Saldo inicial do período"
-                }
-                value={formatBRL(openingBalance)}
-                icon={<Landmark className="h-4 w-4 text-muted-foreground" />}
-              />
+            <div
+              className={`mb-6 grid grid-cols-2 gap-3 ${
+                month === null ? "lg:grid-cols-5" : "lg:grid-cols-3"
+              }`}
+            >
+              {month === null && (
+                <Metric
+                  label={`Restante de ${opening.previousYear}`}
+                  value={formatBRL(openingBalance)}
+                  icon={<Landmark className="h-4 w-4 text-muted-foreground" />}
+                />
+              )}
               <Metric
                 label="Entradas"
                 value={formatBRL(periodTotals.income)}
@@ -440,12 +479,14 @@ function PublicCashFlowPage() {
                 tone={periodTotals.balance < 0 ? "text-rose-600" : undefined}
                 icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
               />
-              <Metric
-                label="Saldo final"
-                value={formatBRL(closingBalance)}
-                tone={closingBalance < 0 ? "text-rose-600" : undefined}
-                icon={<Landmark className="h-4 w-4 text-muted-foreground" />}
-              />
+              {month === null && (
+                <Metric
+                  label={cashBalanceLabel}
+                  value={formatBRL(cashBalanceValue)}
+                  tone={cashBalanceValue < 0 ? "text-rose-600" : undefined}
+                  icon={<Landmark className="h-4 w-4 text-muted-foreground" />}
+                />
+              )}
             </div>
 
             {month === null && entriesByMonth ? (
@@ -511,6 +552,10 @@ function PublicCashFlowPage() {
                             />
                             <h3 className="text-sm font-semibold capitalize">
                               {monthName(group.month)} de {year}
+                              <span className="ml-2 font-normal text-muted-foreground">
+                                ({group.entries.length}{" "}
+                                {group.entries.length === 1 ? "lançamento" : "lançamentos"})
+                              </span>
                             </h3>
                           </div>
                           <div className="flex flex-wrap gap-3 text-xs sm:text-sm">

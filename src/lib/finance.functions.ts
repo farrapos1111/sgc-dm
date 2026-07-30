@@ -13,6 +13,53 @@ const chapterInput = z.object({ chapterId: z.string().uuid() });
 
 export { competenceLabel };
 
+/** Início do mês seguinte (YYYY-MM-01), sem depender de fuso do `Date`. */
+function periodEndDate(year: number, month: number | null): string {
+  if (month == null) return `${year + 1}-01-01`;
+  if (month === 12) return `${year + 1}-01-01`;
+  return `${year}-${String(month + 1).padStart(2, "0")}-01`;
+}
+
+type CashAggRow = { kind: string; amount: number | string };
+
+/** Soma entradas/saídas paginando para não cortar no limite padrão do PostgREST. */
+async function aggregateCashAmounts(
+  supabase: { from: (t: string) => any },
+  chapterId: string,
+  opts: { from?: string; until?: string } = {},
+): Promise<{ income: number; expense: number; balance: number }> {
+  const pageSize = 1000;
+  let offset = 0;
+  let income = 0;
+  let expense = 0;
+
+  for (;;) {
+    let q = supabase
+      .from("cash_entries")
+      .select("kind, amount")
+      .eq("chapter_id", chapterId)
+      .order("entry_date", { ascending: true })
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (opts.from) q = q.gte("entry_date", opts.from);
+    if (opts.until) q = q.lt("entry_date", opts.until);
+
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const rows = (data ?? []) as CashAggRow[];
+    for (const r of rows) {
+      const amount = Number(r.amount) || 0;
+      if (r.kind === "entrada") income += amount;
+      else expense += amount;
+    }
+    if (rows.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return { income, expense, balance: income - expense };
+}
+
 async function loadAwayPeriodsByMember(
   supabase: { from: (t: string) => any },
   chapterId: string,
@@ -129,6 +176,46 @@ async function applyAutoStatusesForOpenDues(
 
 /* ----------------------------- Fluxo de caixa ---------------------------- */
 
+/** Lista todos os lançamentos do período, paginando além do limite padrão do PostgREST. */
+async function listCashEntriesRows(
+  supabase: { from: (t: string) => any },
+  chapterId: string,
+  periodStart: string,
+  periodEnd: string,
+) {
+  const pageSize = 1000;
+  let offset = 0;
+  const all: Array<{
+    id: string;
+    kind: string;
+    category: string;
+    subcategory: string | null;
+    description: string;
+    amount: number | string;
+    entry_date: string;
+    created_at: string;
+  }> = [];
+
+  for (;;) {
+    const { data, error } = await supabase
+      .from("cash_entries")
+      .select("id, kind, category, subcategory, description, amount, entry_date, created_at")
+      .eq("chapter_id", chapterId)
+      .gte("entry_date", periodStart)
+      .lt("entry_date", periodEnd)
+      .order("entry_date", { ascending: false })
+      .order("id", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw new Error(error.message);
+    const rows = data ?? [];
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return all;
+}
+
 /**
  * Lista lançamentos do mês ou de todo o ano (`month: null`) e devolve
  * totais do banco, além do saldo de abertura (caixa remanescente do ano anterior /
@@ -145,59 +232,27 @@ export const listCashEntries = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    let query = context.supabase
-      .from("cash_entries")
-      .select("id, kind, category, subcategory, description, amount, entry_date, created_at")
-      .eq("chapter_id", data.chapterId);
-
     const periodStart = data.month
       ? `${data.year}-${String(data.month).padStart(2, "0")}-01`
       : `${data.year}-01-01`;
+    const periodEnd = periodEndDate(data.year, data.month);
 
-    if (data.month) {
-      const end = new Date(data.year, data.month, 1).toISOString().slice(0, 10);
-      query = query.gte("entry_date", periodStart).lt("entry_date", end);
-    } else {
-      const end = `${data.year + 1}-01-01`;
-      query = query.gte("entry_date", periodStart).lt("entry_date", end);
-    }
-
-    const [rows, all, prior] = await Promise.all([
-      query.order("entry_date", { ascending: false }).limit(2000),
-      context.supabase
-        .from("cash_entries")
-        .select("kind, amount")
-        .eq("chapter_id", data.chapterId)
-        .limit(10000),
-      context.supabase
-        .from("cash_entries")
-        .select("kind, amount")
-        .eq("chapter_id", data.chapterId)
-        .lt("entry_date", periodStart)
-        .limit(10000),
+    const [entries, openingAgg, periodAgg, bankAgg] = await Promise.all([
+      listCashEntriesRows(context.supabase, data.chapterId, periodStart, periodEnd),
+      aggregateCashAmounts(context.supabase, data.chapterId, { until: periodStart }),
+      aggregateCashAmounts(context.supabase, data.chapterId, {
+        from: periodStart,
+        until: periodEnd,
+      }),
+      aggregateCashAmounts(context.supabase, data.chapterId),
     ]);
-    if (rows.error) throw new Error(rows.error.message);
-    if (all.error) throw new Error(all.error.message);
-    if (prior.error) throw new Error(prior.error.message);
-
-    let bankIn = 0;
-    let bankOut = 0;
-    for (const r of all.data ?? []) {
-      if (r.kind === "entrada") bankIn += Number(r.amount);
-      else bankOut += Number(r.amount);
-    }
-
-    let openingBalance = 0;
-    for (const r of prior.data ?? []) {
-      if (r.kind === "entrada") openingBalance += Number(r.amount);
-      else openingBalance -= Number(r.amount);
-    }
 
     return {
-      entries: rows.data ?? [],
-      bank: { income: bankIn, expense: bankOut, balance: bankIn - bankOut },
+      entries,
+      totals: periodAgg,
+      bank: bankAgg,
       opening: {
-        balance: openingBalance,
+        balance: openingAgg.balance,
         previousYear: data.year - 1,
       },
     };
@@ -289,11 +344,110 @@ export const deleteCashEntry = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
+    // Reverte pagamento de cobrança vinculado a este lançamento
+    const { data: linkedPays } = await context.supabase
+      .from("member_charge_payments" as never)
+      .select("id, charge_id, chapter_id")
+      .eq("cash_entry_id", data.id);
+
+    for (const pay of (linkedPays as Array<{
+      id: string;
+      charge_id: string;
+      chapter_id: string;
+    }> | null) ?? []) {
+      await context.supabase
+        .from("member_charge_payments" as never)
+        .delete()
+        .eq("id", pay.id);
+      await recalcMemberChargeStatus(context.supabase, pay.chapter_id, pay.charge_id);
+    }
+
+    // Cobrança legada com cash_entry_id direto (sem linha de pagamento)
+    const { data: linkedCharges } = await context.supabase
+      .from("member_charges")
+      .select("id, chapter_id, amount, status")
+      .eq("cash_entry_id", data.id);
+    for (const ch of linkedCharges ?? []) {
+      const { data: pays } = await context.supabase
+        .from("member_charge_payments" as never)
+        .select("id")
+        .eq("charge_id", ch.id)
+        .limit(1);
+      if (!pays?.length) {
+        await context.supabase
+          .from("member_charges")
+          .update({
+            status: ch.status === "isento" ? "isento" : "em_aberto",
+            paid_at: null,
+            cash_entry_id: null,
+          })
+          .eq("id", ch.id);
+      } else {
+        await context.supabase
+          .from("member_charges")
+          .update({ cash_entry_id: null })
+          .eq("id", ch.id);
+        await recalcMemberChargeStatus(context.supabase, ch.chapter_id, ch.id);
+      }
+    }
+
+    // Mensalidade vinculada: reabre competência
+    await context.supabase
+      .from("member_dues")
+      .update({ status: "em_aberto", paid_at: null, cash_entry_id: null })
+      .eq("cash_entry_id", data.id);
+
     const { error } = await context.supabase.from("cash_entries").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
+async function recalcMemberChargeStatus(
+  supabase: { from: (t: string) => any },
+  chapterId: string,
+  chargeId: string,
+) {
+  const { data: charge, error: chErr } = await supabase
+    .from("member_charges")
+    .select("id, amount, status, cash_entry_id")
+    .eq("id", chargeId)
+    .eq("chapter_id", chapterId)
+    .maybeSingle();
+  if (chErr) throw new Error(chErr.message);
+  if (!charge || charge.status === "isento") return;
+
+  const totalDue = Number(charge.amount) || 0;
+  const { data: pays, error: payErr } = await supabase
+    .from("member_charge_payments" as never)
+    .select("amount, paid_at, cash_entry_id")
+    .eq("charge_id", chargeId);
+  if (payErr) throw new Error(payErr.message);
+
+  const rows = (pays ?? []) as Array<{
+    amount: number | string;
+    paid_at: string;
+    cash_entry_id: string | null;
+  }>;
+  const paid = rows.reduce((s, p) => s + Number(p.amount), 0);
+  const fullyPaid = totalDue > 0 && paid + 0.001 >= totalDue;
+  const lastPaidAt = rows
+    .map((p) => p.paid_at)
+    .filter(Boolean)
+    .sort()
+    .at(-1) ?? null;
+  const lastCashId =
+    rows.filter((p) => p.cash_entry_id).at(-1)?.cash_entry_id ?? null;
+
+  const { error } = await supabase
+    .from("member_charges")
+    .update({
+      status: fullyPaid ? "pago" : "em_aberto",
+      paid_at: fullyPaid ? lastPaidAt : null,
+      cash_entry_id: fullyPaid ? lastCashId : null,
+    })
+    .eq("id", chargeId);
+  if (error) throw new Error(error.message);
+}
 /** Importação em lote (planilha revisada pelo usuário). */
 export const importCashEntries = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -1249,11 +1403,292 @@ export const listMemberCharges = createServerFn({ method: "POST" })
     if (data.status !== "all") query = query.eq("status", data.status);
     const { data: rows, error } = await query;
     if (error) throw new Error(error.message);
-    return (rows ?? []).map((r: any) => ({
-      ...r,
-      member_name: r.members?.full_name ?? "",
-      members: undefined,
-    }));
+
+    const chargeIds = (rows ?? []).map((r: any) => r.id as string);
+    const paidByCharge = new Map<string, number>();
+    if (chargeIds.length) {
+      const { data: payments, error: payErr } = await context.supabase
+        .from("member_charge_payments" as never)
+        .select("charge_id, amount")
+        .eq("chapter_id", data.chapterId)
+        .in("charge_id", chargeIds);
+      if (payErr) {
+        // Tabela pode ainda não existir se a migration não foi aplicada
+        console.error("listMemberCharges payments:", payErr.message);
+      } else {
+        for (const p of (payments as Array<{ charge_id: string; amount: number | string }>) ?? []) {
+          paidByCharge.set(
+            p.charge_id,
+            (paidByCharge.get(p.charge_id) ?? 0) + Number(p.amount),
+          );
+        }
+      }
+    }
+
+    return (rows ?? []).map((r: any) => {
+      const amount = Number(r.amount) || 0;
+      let amountPaid = paidByCharge.get(r.id) ?? 0;
+      // Legacy: pago com cash_entry e sem linhas de pagamento
+      if (amountPaid === 0 && r.status === "pago" && r.cash_entry_id) {
+        amountPaid = amount;
+      }
+      return {
+        ...r,
+        member_name: r.members?.full_name ?? "",
+        members: undefined,
+        amount_paid: Math.min(amountPaid, amount),
+      };
+    });
+  });
+
+export const listChargePayments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z.object({ chargeId: z.string().uuid() }).parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("member_charge_payments" as never)
+      .select("id, amount, paid_at, cash_entry_id, notes, created_at")
+      .eq("charge_id", data.chargeId)
+      .order("paid_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const addChargePayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    chapterInput
+      .extend({
+        chargeId: z.string().uuid(),
+        amount: z.number().positive(),
+        paidAt: z.string().min(1),
+        notes: z.string().trim().max(300).optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: charge, error: chargeErr } = await context.supabase
+      .from("member_charges")
+      .select(
+        "id, chapter_id, kind, category, subcategory, description, amount, status, cash_entry_id",
+      )
+      .eq("id", data.chargeId)
+      .eq("chapter_id", data.chapterId)
+      .single();
+    if (chargeErr) throw new Error(chargeErr.message);
+    if (charge.status === "isento") {
+      throw new Error("Cobrança isenta não recebe pagamentos");
+    }
+
+    const totalDue = Number(charge.amount) || 0;
+
+    const { data: existingPays, error: payListErr } = await context.supabase
+      .from("member_charge_payments" as never)
+      .select("amount")
+      .eq("charge_id", data.chargeId);
+    if (payListErr) throw new Error(payListErr.message);
+
+    let alreadyPaid = (
+      (existingPays as Array<{ amount: number | string }>) ?? []
+    ).reduce((s, p) => s + Number(p.amount), 0);
+
+    // Legacy: pago integral sem linhas de pagamento
+    if (
+      alreadyPaid === 0 &&
+      charge.status === "pago" &&
+      charge.cash_entry_id
+    ) {
+      alreadyPaid = totalDue;
+    }
+
+    const remaining = Math.max(0, totalDue - alreadyPaid);
+    if (remaining <= 0) throw new Error("Cobrança já está quitada");
+    if (data.amount > remaining + 0.001) {
+      throw new Error(
+        `Valor excede o saldo em aberto (${remaining.toFixed(2)})`,
+      );
+    }
+
+    const { data: entry, error: entryErr } = await context.supabase
+      .from("cash_entries")
+      .insert({
+        chapter_id: data.chapterId,
+        kind: charge.kind,
+        category: charge.category,
+        subcategory: charge.subcategory,
+        description: charge.description,
+        amount: data.amount,
+        entry_date: data.paidAt,
+        created_by: context.userId,
+      })
+      .select("id")
+      .single();
+    if (entryErr) throw new Error(entryErr.message);
+
+    const { error: payErr } = await context.supabase
+      .from("member_charge_payments" as never)
+      .insert({
+        chapter_id: data.chapterId,
+        charge_id: data.chargeId,
+        amount: data.amount,
+        paid_at: data.paidAt,
+        cash_entry_id: entry.id,
+        notes: data.notes ?? null,
+        created_by: context.userId,
+      } as never);
+    if (payErr) {
+      await context.supabase.from("cash_entries").delete().eq("id", entry.id);
+      throw new Error(payErr.message);
+    }
+
+    const newPaid = alreadyPaid + data.amount;
+    const fullyPaid = newPaid + 0.001 >= totalDue;
+    const { error: updErr } = await context.supabase
+      .from("member_charges")
+      .update({
+        status: fullyPaid ? "pago" : "em_aberto",
+        paid_at: fullyPaid ? data.paidAt : null,
+        cash_entry_id: fullyPaid ? entry.id : charge.cash_entry_id,
+      })
+      .eq("id", data.chargeId);
+    if (updErr) throw new Error(updErr.message);
+
+    return {
+      ok: true,
+      amountPaid: newPaid,
+      remaining: Math.max(0, totalDue - newPaid),
+      fullyPaid,
+    };
+  });
+
+/** Atualiza valor/data de um pagamento e sincroniza o lançamento no fluxo. */
+export const updateChargePayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    chapterInput
+      .extend({
+        paymentId: z.string().uuid(),
+        amount: z.number().positive(),
+        paidAt: z.string().min(1),
+        notes: z.string().trim().max(300).optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: payment, error: payErr } = await context.supabase
+      .from("member_charge_payments" as never)
+      .select("id, charge_id, amount, cash_entry_id, chapter_id")
+      .eq("id", data.paymentId)
+      .eq("chapter_id", data.chapterId)
+      .single();
+    if (payErr) throw new Error(payErr.message);
+
+    const pay = payment as {
+      id: string;
+      charge_id: string;
+      amount: number | string;
+      cash_entry_id: string | null;
+      chapter_id: string;
+    };
+
+    const { data: charge, error: chErr } = await context.supabase
+      .from("member_charges")
+      .select("id, amount, status, kind, category, subcategory, description")
+      .eq("id", pay.charge_id)
+      .single();
+    if (chErr) throw new Error(chErr.message);
+
+    const totalDue = Number(charge.amount) || 0;
+    const { data: otherPays, error: listErr } = await context.supabase
+      .from("member_charge_payments" as never)
+      .select("id, amount")
+      .eq("charge_id", pay.charge_id);
+    if (listErr) throw new Error(listErr.message);
+
+    const othersPaid = (
+      (otherPays as Array<{ id: string; amount: number | string }>) ?? []
+    )
+      .filter((p) => p.id !== pay.id)
+      .reduce((s, p) => s + Number(p.amount), 0);
+
+    const remainingForThis = Math.max(0, totalDue - othersPaid);
+    if (data.amount > remainingForThis + 0.001) {
+      throw new Error(
+        `Valor excede o saldo disponível (${remainingForThis.toFixed(2)})`,
+      );
+    }
+
+    const { error: updPayErr } = await context.supabase
+      .from("member_charge_payments" as never)
+      .update({
+        amount: data.amount,
+        paid_at: data.paidAt,
+        notes: data.notes ?? null,
+      } as never)
+      .eq("id", pay.id);
+    if (updPayErr) throw new Error(updPayErr.message);
+
+    if (pay.cash_entry_id) {
+      const { error: cashErr } = await context.supabase
+        .from("cash_entries")
+        .update({
+          amount: data.amount,
+          entry_date: data.paidAt,
+          description: charge.description,
+          category: charge.category,
+          subcategory: charge.subcategory,
+          kind: charge.kind,
+        })
+        .eq("id", pay.cash_entry_id);
+      if (cashErr) throw new Error(cashErr.message);
+    }
+
+    await recalcMemberChargeStatus(context.supabase, data.chapterId, pay.charge_id);
+    return { ok: true };
+  });
+
+/** Remove pagamento da cobrança e o lançamento correspondente no fluxo. */
+export const deleteChargePayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    chapterInput
+      .extend({ paymentId: z.string().uuid() })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: payment, error: payErr } = await context.supabase
+      .from("member_charge_payments" as never)
+      .select("id, charge_id, cash_entry_id")
+      .eq("id", data.paymentId)
+      .eq("chapter_id", data.chapterId)
+      .single();
+    if (payErr) throw new Error(payErr.message);
+
+    const pay = payment as {
+      id: string;
+      charge_id: string;
+      cash_entry_id: string | null;
+    };
+
+    const { error: delPayErr } = await context.supabase
+      .from("member_charge_payments" as never)
+      .delete()
+      .eq("id", pay.id);
+    if (delPayErr) throw new Error(delPayErr.message);
+
+    if (pay.cash_entry_id) {
+      // Evita loop: limpa vínculos legados antes de apagar o lançamento
+      await context.supabase
+        .from("member_charges")
+        .update({ cash_entry_id: null })
+        .eq("cash_entry_id", pay.cash_entry_id);
+      await context.supabase.from("cash_entries").delete().eq("id", pay.cash_entry_id);
+    }
+
+    await recalcMemberChargeStatus(context.supabase, data.chapterId, pay.charge_id);
+    return { ok: true };
   });
 
 export const upsertMemberCharge = createServerFn({ method: "POST" })
@@ -1285,6 +1720,18 @@ export const upsertMemberCharge = createServerFn({ method: "POST" })
       .single();
     if (memberErr) throw new Error(memberErr.message);
 
+    // Edição: não recria fluxo automático se já houver pagamentos parciais
+    let existingPayments = 0;
+    if (data.id) {
+      const { data: pays } = await context.supabase
+        .from("member_charge_payments" as never)
+        .select("amount")
+        .eq("charge_id", data.id);
+      existingPayments = (
+        (pays as Array<{ amount: number | string }>) ?? []
+      ).reduce((s, p) => s + Number(p.amount), 0);
+    }
+
     let cashEntryId: string | null = null;
     if (data.id) {
       const { data: existing } = await context.supabase
@@ -1295,28 +1742,31 @@ export const upsertMemberCharge = createServerFn({ method: "POST" })
       cashEntryId = existing?.cash_entry_id ?? null;
     }
 
-    if (data.status !== "pago" && cashEntryId) {
-      await context.supabase.from("cash_entries").delete().eq("id", cashEntryId);
-      cashEntryId = null;
-    }
+    // Fluxo legado (pago integral sem tabela de pagamentos)
+    if (existingPayments === 0) {
+      if (data.status !== "pago" && cashEntryId) {
+        await context.supabase.from("cash_entries").delete().eq("id", cashEntryId);
+        cashEntryId = null;
+      }
 
-    if (data.status === "pago" && !cashEntryId && data.amount > 0) {
-      const { data: entry, error: entryErr } = await context.supabase
-        .from("cash_entries")
-        .insert({
-          chapter_id: data.chapterId,
-          kind: data.kind,
-          category: data.category,
-          subcategory: data.subcategory,
-          description: data.description,
-          amount: data.amount,
-          entry_date: paidAt,
-          created_by: context.userId,
-        })
-        .select("id")
-        .single();
-      if (entryErr) throw new Error(entryErr.message);
-      cashEntryId = entry.id;
+      if (data.status === "pago" && !cashEntryId && data.amount > 0) {
+        const { data: entry, error: entryErr } = await context.supabase
+          .from("cash_entries")
+          .insert({
+            chapter_id: data.chapterId,
+            kind: data.kind,
+            category: data.category,
+            subcategory: data.subcategory,
+            description: data.description,
+            amount: data.amount,
+            entry_date: paidAt,
+            created_by: context.userId,
+          })
+          .select("id")
+          .single();
+        if (entryErr) throw new Error(entryErr.message);
+        cashEntryId = entry.id;
+      }
     }
 
     const payload = {
@@ -1341,9 +1791,42 @@ export const upsertMemberCharge = createServerFn({ method: "POST" })
         .update(payload)
         .eq("id", data.id);
       if (error) throw new Error(error.message);
+      // Se marcou pago integral sem pagamentos e insert de payment falhou por falta de charge_id no insert acima
+      if (data.status === "pago" && existingPayments === 0 && cashEntryId) {
+        const { data: pays } = await context.supabase
+          .from("member_charge_payments" as never)
+          .select("id")
+          .eq("charge_id", data.id)
+          .limit(1);
+        if (!pays?.length) {
+          await context.supabase.from("member_charge_payments" as never).insert({
+            chapter_id: data.chapterId,
+            charge_id: data.id,
+            amount: data.amount,
+            paid_at: paidAt,
+            cash_entry_id: cashEntryId,
+            created_by: context.userId,
+          } as never);
+        }
+      }
     } else {
-      const { error } = await context.supabase.from("member_charges").insert(payload);
+      const { data: created, error } = await context.supabase
+        .from("member_charges")
+        .insert(payload)
+        .select("id")
+        .single();
       if (error) throw new Error(error.message);
+
+      if (data.status === "pago" && cashEntryId && created?.id) {
+        await context.supabase.from("member_charge_payments" as never).insert({
+          chapter_id: data.chapterId,
+          charge_id: created.id,
+          amount: data.amount,
+          paid_at: paidAt,
+          cash_entry_id: cashEntryId,
+          created_by: context.userId,
+        } as never);
+      }
     }
 
     return { ok: true, memberName: member.full_name };
@@ -1358,9 +1841,28 @@ export const deleteMemberCharge = createServerFn({ method: "POST" })
       .select("cash_entry_id")
       .eq("id", data.id)
       .maybeSingle();
-    if (existing?.cash_entry_id) {
-      await context.supabase.from("cash_entries").delete().eq("id", existing.cash_entry_id);
+
+    const { data: payments } = await context.supabase
+      .from("member_charge_payments" as never)
+      .select("cash_entry_id")
+      .eq("charge_id", data.id);
+
+    const cashIds = new Set<string>();
+    if (existing?.cash_entry_id) cashIds.add(existing.cash_entry_id);
+    for (const p of (payments as Array<{ cash_entry_id: string | null }>) ?? []) {
+      if (p.cash_entry_id) cashIds.add(p.cash_entry_id);
     }
+
+    // Apaga pagamentos antes (FK); depois entradas e cobrança
+    await context.supabase
+      .from("member_charge_payments" as never)
+      .delete()
+      .eq("charge_id", data.id);
+
+    for (const cashId of cashIds) {
+      await context.supabase.from("cash_entries").delete().eq("id", cashId);
+    }
+
     const { error } = await context.supabase.from("member_charges").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -1379,4 +1881,185 @@ export const listChargeMembers = createServerFn({ method: "POST" })
       .order("full_name");
     if (error) throw new Error(error.message);
     return rows ?? [];
+  });
+
+/* ---------------------- Dashboard + financeiro do membro ---------------------- */
+
+/** Resumo para o início: saldo do mês atual + mensalidades em aberto. */
+export const getDashboardFinance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => chapterInput.parse(raw))
+  .handler(async ({ data, context }) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const periodStart = `${year}-${String(month).padStart(2, "0")}-01`;
+    const periodEnd = periodEndDate(year, month);
+
+    const [monthAgg, duesRows, defaultAmount] = await Promise.all([
+      aggregateCashAmounts(context.supabase, data.chapterId, {
+        from: periodStart,
+        until: periodEnd,
+      }),
+      context.supabase
+        .from("member_dues")
+        .select("member_id, competence_month, amount, status")
+        .eq("chapter_id", data.chapterId)
+        .eq("competence_year", year)
+        .eq("status", "em_aberto")
+        .lte("competence_month", month),
+      readDefaultDuesAmount(context.supabase, data.chapterId),
+    ]);
+
+    if (duesRows.error) throw new Error(duesRows.error.message);
+
+    const memberIds = new Set<string>();
+    let pendingAmount = 0;
+    let pendingCompetences = 0;
+    for (const d of duesRows.data ?? []) {
+      memberIds.add(d.member_id);
+      pendingCompetences += 1;
+      const amt = Number(d.amount);
+      pendingAmount += Number.isFinite(amt) && amt > 0 ? amt : defaultAmount;
+    }
+
+    return {
+      year,
+      month,
+      monthBalance: monthAgg.balance,
+      monthIncome: monthAgg.income,
+      monthExpense: monthAgg.expense,
+      pendingMembers: memberIds.size,
+      pendingCompetences,
+      pendingAmount,
+      defaultAmount,
+    };
+  });
+
+/** Extrato financeiro de um membro: mensalidades + cobranças. */
+export const getMemberFinance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    chapterInput
+      .extend({
+        memberId: z.string().uuid(),
+        year: z.number().int().optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const year = data.year ?? new Date().getFullYear();
+    const now = new Date();
+    const currentMonth = now.getFullYear() === year ? now.getMonth() + 1 : 12;
+
+    const [defaultAmount, duesRes, chargesRes] = await Promise.all([
+      readDefaultDuesAmount(context.supabase, data.chapterId),
+      context.supabase
+        .from("member_dues")
+        .select(
+          "id, competence_year, competence_month, amount, status, paid_at, cash_entry_id",
+        )
+        .eq("chapter_id", data.chapterId)
+        .eq("member_id", data.memberId)
+        .eq("competence_year", year)
+        .order("competence_month", { ascending: true }),
+      context.supabase
+        .from("member_charges")
+        .select(
+          "id, kind, category, description, amount, due_date, status, paid_at, cash_entry_id, created_at",
+        )
+        .eq("chapter_id", data.chapterId)
+        .eq("member_id", data.memberId)
+        .order("due_date", { ascending: false })
+        .limit(200),
+    ]);
+
+    if (duesRes.error) throw new Error(duesRes.error.message);
+    if (chargesRes.error) throw new Error(chargesRes.error.message);
+
+    const charges = chargesRes.data ?? [];
+    const chargeIds = charges.map((c) => c.id);
+    const paidByCharge = new Map<string, number>();
+    if (chargeIds.length) {
+      const { data: payments, error: payErr } = await context.supabase
+        .from("member_charge_payments" as never)
+        .select("charge_id, amount")
+        .eq("chapter_id", data.chapterId)
+        .in("charge_id", chargeIds);
+      if (!payErr) {
+        for (const p of (payments as Array<{ charge_id: string; amount: number | string }>) ?? []) {
+          paidByCharge.set(
+            p.charge_id,
+            (paidByCharge.get(p.charge_id) ?? 0) + Number(p.amount),
+          );
+        }
+      }
+    }
+
+    const dues = (duesRes.data ?? []).map((d) => {
+      const amount = Number(d.amount);
+      const resolved =
+        Number.isFinite(amount) && amount > 0 ? amount : defaultAmount;
+      return {
+        id: d.id,
+        year: d.competence_year,
+        month: d.competence_month,
+        amount: resolved,
+        status: d.status as string,
+        paid_at: d.paid_at as string | null,
+      };
+    });
+
+    const chargesOut = charges.map((c) => {
+      const amount = Number(c.amount) || 0;
+      let amountPaid = paidByCharge.get(c.id) ?? 0;
+      if (amountPaid === 0 && c.status === "pago" && c.cash_entry_id) {
+        amountPaid = amount;
+      }
+      amountPaid = Math.min(amountPaid, amount);
+      return {
+        id: c.id,
+        kind: c.kind as string,
+        category: c.category,
+        description: c.description,
+        amount,
+        amount_paid: amountPaid,
+        remaining: Math.max(0, amount - amountPaid),
+        due_date: c.due_date as string,
+        status: c.status as string,
+        paid_at: c.paid_at as string | null,
+      };
+    });
+
+    let duesOpenAmount = 0;
+    let duesOpenCount = 0;
+    for (const d of dues) {
+      if (d.status !== "em_aberto") continue;
+      if (d.month > currentMonth && year >= now.getFullYear()) continue;
+      duesOpenCount += 1;
+      duesOpenAmount += d.amount;
+    }
+
+    let chargesOpenAmount = 0;
+    let chargesOpenCount = 0;
+    for (const c of chargesOut) {
+      if (c.status === "isento") continue;
+      if (c.remaining <= 0) continue;
+      chargesOpenCount += 1;
+      chargesOpenAmount += c.remaining;
+    }
+
+    return {
+      year,
+      defaultAmount,
+      dues,
+      charges: chargesOut,
+      summary: {
+        duesOpenCount,
+        duesOpenAmount,
+        chargesOpenCount,
+        chargesOpenAmount,
+        totalOpen: duesOpenAmount + chargesOpenAmount,
+      },
+    };
   });

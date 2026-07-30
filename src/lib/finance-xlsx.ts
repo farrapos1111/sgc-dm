@@ -117,14 +117,24 @@ export function exportCashXlsx(
       title?: string;
     } | null;
     totals?: { income: number; expense: number; balance: number };
+    /** Valor do card de saldo (atual ou final do período). */
+    cashBalance?: number | null;
+    cashBalanceLabel?: string;
   },
 ) {
   const wb = XLSX.utils.book_new();
 
-  if (options?.opening || options?.totals) {
+  if (options?.opening || options?.totals || options?.cashBalance != null) {
     const opening = options.opening;
     const totals = options.totals ?? { income: 0, expense: 0, balance: 0 };
     const openingBalance = opening?.balance ?? 0;
+    const cashBalance =
+      options.cashBalance != null
+        ? options.cashBalance
+        : opening
+          ? openingBalance + totals.balance
+          : totals.balance;
+    const cashBalanceLabel = options.cashBalanceLabel ?? "Saldo Atual do Caixa";
     const summary: Array<Array<string | number>> = [
       ["Relatório de Fluxo de Caixa"],
       [options.periodLabel ?? ""],
@@ -141,9 +151,7 @@ export function exportCashXlsx(
     summary.push(["Total de entradas", totals.income]);
     summary.push(["Total de saídas", totals.expense]);
     summary.push(["Resultado do período", totals.balance]);
-    if (opening) {
-      summary.push(["Saldo final", openingBalance + totals.balance]);
-    }
+    summary.push([cashBalanceLabel, cashBalance]);
     const wsSummary = XLSX.utils.aoa_to_sheet(summary);
     wsSummary["!cols"] = [{ wch: 55 }, { wch: 16 }];
     XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo");
