@@ -55,7 +55,7 @@ src/
   routes/            telas (roteamento por arquivo — ver src/routes/README.md)
   components/
     ui/              52 primitivos shadcn/ui — não editar à mão
-    shell/           AppShell (sidebar desktop, abas mobile, troca de escopo)
+    shell/           AppShell (sidebar desktop, abas mobile via visibleMobileTabs, troca de escopo)
     docs/            visualizador público de documentação (Markdown)
     members/ minutes/ settings/   componentes de feature
     *.tsx            EmptyState, PageHeader, PageSkeleton, QrScanner, ThemeToggle…
@@ -165,7 +165,7 @@ Os 14 arquivos em `src/lib/*.functions.ts`:
 | `org.functions.ts` | Escopo regional/estadual: panorama, calendário e membros consolidados |
 | `organization.functions.ts` | Administração de estados, regiões e capítulos (GME) |
 
-Helpers puros relevantes em `src/lib/`: `permissions.ts` (matriz de acesso), `nav.ts` (árvores de navegação), `terms.ts` (ano/semestre), `format.ts` (BRL, datas, máscaras de PII), `cash-categories.ts`, `chave-do-dia.ts`, `minute-vars.ts` (interpolação de variáveis em modelos de ata), `ics.ts`, `finance-pdf.ts`, `finance-xlsx.ts`, `minute-pdf.ts`, `chapter-logo.ts` (URLs assinadas do bucket privado), `query-keys.ts`, `error-capture.ts`, `error-page.ts`.
+Helpers puros relevantes em `src/lib/`: `permissions.ts` (matriz de acesso), `nav.ts` (árvores de navegação — `NAV_GROUPS`/`ORG_NAV_GROUPS` para o sidebar; `MOBILE_TABS`/`ORG_MOBILE_TABS` como atalhos da barra inferior; `visibleMobileTabs` filtra a aba Eventos por comissão; `/mais` reutiliza `visibleGroups`/`visibleOrgGroups` via `mobileOverflowGroups`), `terms.ts` (ano/semestre), `format.ts` (BRL, datas, máscaras de PII), `cash-categories.ts`, `chave-do-dia.ts`, `minute-vars.ts` (interpolação de variáveis em modelos de ata), `ics.ts`, `finance-pdf.ts`, `finance-xlsx.ts`, `minute-pdf.ts`, `chapter-logo.ts` (URLs assinadas do bucket privado), `query-keys.ts`, `error-capture.ts`, `error-page.ts`.
 
 ---
 
@@ -242,7 +242,7 @@ As políticas de leitura foram ampliadas para `can_read_chapter`, de modo que li
 
 ### Visibilidade por comissão
 
-Os setores de Eventos, Sindicâncias e Hospitalaria só aparecem para quem é membro da comissão correspondente (ou admin do capítulo). A regra fica em [src/hooks/useCommissionAccess.ts](../src/hooks/useCommissionAccess.ts) e é aplicada por `visibleGroups()` em [src/lib/nav.ts](../src/lib/nav.ts).
+Os setores de Eventos, Sindicâncias e Hospitalaria só aparecem para quem é membro da comissão correspondente (ou admin do capítulo). A regra fica em [src/hooks/useCommissionAccess.ts](../src/hooks/useCommissionAccess.ts) e é aplicada por `visibleGroups()` em [src/lib/nav.ts](../src/lib/nav.ts) — tanto no sidebar desktop quanto na página `/mais` no mobile. A aba Eventos da barra inferior também usa o mesmo critério via `visibleMobileTabs()`.
 
 ---
 
