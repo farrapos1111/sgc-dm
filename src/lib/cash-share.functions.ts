@@ -14,6 +14,16 @@ function getPublicSupabase() {
   });
 }
 
+const PUBLIC_RPC_ERROR = "Não foi possível concluir a solicitação.";
+
+function throwPublicRpcError(
+  error: { message: string },
+  context: string,
+): never {
+  console.error(`[cash-share] ${context}:`, error.message);
+  throw new Error(PUBLIC_RPC_ERROR);
+}
+
 const chapterInput = z.object({ chapterId: z.string().uuid() });
 
 export type PublicCashChapter = {
@@ -132,7 +142,7 @@ export const getPublicCashFlow = createServerFn({ method: "POST" })
         _month: data.month,
       } as never,
     );
-    if (error) throw new Error(error.message);
+    if (error) throwPublicRpcError(error, "getPublicCashFlow");
 
     const result = payload as Omit<PublicCashFlowPayload, "logoDataUrl">;
     const logoDataUrl = await tryLoadLogoDataUrl(result.chapter?.logo_url);

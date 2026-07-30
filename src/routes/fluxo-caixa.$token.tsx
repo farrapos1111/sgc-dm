@@ -176,6 +176,11 @@ export function PublicCashFlowView({
     return { income, expense, balance: income - expense };
   }, [filteredEntries, selectedCategories.length, selectedSubcategories.length, data?.totals]);
 
+  const usingServerPeriodTotals =
+    selectedCategories.length === 0 &&
+    selectedSubcategories.length === 0 &&
+    Boolean(data?.totals);
+
   const periodLabel = month ? `${monthName(month)} de ${year}` : `Ano de ${year}`;
 
   const isPastYear = year < now.getFullYear();
@@ -361,8 +366,10 @@ export function PublicCashFlowView({
           {data?.entries_truncated ? (
             <p className="w-full text-xs text-amber-700 dark:text-amber-300">
               Exibindo os {entries.length} lançamentos mais recentes de{" "}
-              {data.entries_total ?? "vários"} no período. Totais usam o período
-              completo.
+              {data.entries_total ?? "vários"} no período.
+              {usingServerPeriodTotals
+                ? " Totais usam o período completo."
+                : " Totais refletem apenas os lançamentos filtrados exibidos."}
             </p>
           ) : null}
           <Select
