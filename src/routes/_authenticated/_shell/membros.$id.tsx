@@ -17,14 +17,26 @@ import {
   assignCommissionMember,
   removeCommissionMember,
 } from "@/lib/organization.functions";
-import { currentTerm, termLabel, termOptions, chapterFoundedAt, type Term } from "@/lib/terms";
+import {
+  currentTerm,
+  termLabel,
+  termOptions,
+  chapterFoundedAt,
+  type Term,
+} from "@/lib/terms";
 import { TermSelect } from "@/components/TermSelect";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { getMemberAttendance } from "@/lib/attendance.functions";
 import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
 import { can } from "@/lib/permissions";
 import { getMemberFinance } from "@/lib/finance.functions";
-import { MONTH_SHORT, isDueOverdue, autoDueExemptTip, isFutureMonth, type DueMemberLite } from "@/lib/dues-rules";
+import {
+  MONTH_SHORT,
+  isDueOverdue,
+  autoDueExemptTip,
+  isFutureMonth,
+  type DueMemberLite,
+} from "@/lib/dues-rules";
 import { Progress } from "@/components/ui/progress";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { PageHeader } from "@/components/PageHeader";
@@ -99,13 +111,23 @@ function MembroPerfil() {
   const [tab, setTab] = useState("dados");
   const { active } = useActiveChapter();
   const { data } = useSuspenseQuery(memberQO(id));
-  const { member, guardians, consents, audit, awayPeriods = [], irregularSince } = data;
-  const chapterId = (member as { chapter_id?: string }).chapter_id ?? active?.chapter_id ?? "";
+  const {
+    member,
+    guardians,
+    consents,
+    audit,
+    awayPeriods = [],
+    irregularSince,
+  } = data;
+  const chapterId =
+    (member as { chapter_id?: string }).chapter_id ?? active?.chapter_id ?? "";
 
   const needsOrg = tab === "cargos";
   const needsAttendance = tab === "presencas";
   const needsFinance = tab === "financeiro";
-  const [financeYear, setFinanceYear] = useState(() => new Date().getFullYear());
+  const [financeYear, setFinanceYear] = useState(() =>
+    new Date().getFullYear(),
+  );
 
   const { data: org, isPending: orgPending } = useQuery({
     ...orgQO(id),
@@ -125,11 +147,16 @@ function MembroPerfil() {
   });
   const orgData = org ?? { positions: [] as any[], commissions: [] as any[] };
 
-  const mandatoryRecs = (attendance as any[]).filter((r) => r.calendar_event?.mandatory);
-  const mandatoryPresent = mandatoryRecs.filter((r) => r.status === "presente").length;
+  const mandatoryRecs = (attendance as any[]).filter(
+    (r) => r.calendar_event?.mandatory,
+  );
+  const mandatoryPresent = mandatoryRecs.filter(
+    (r) => r.status === "presente",
+  ).length;
   const mandatoryPct =
-    mandatoryRecs.length > 0 ? Math.round((mandatoryPresent / mandatoryRecs.length) * 100) : null;
-
+    mandatoryRecs.length > 0
+      ? Math.round((mandatoryPresent / mandatoryRecs.length) * 100)
+      : null;
 
   const [revealed, setRevealed] = useState<{ cpf?: string; rg?: string }>({});
   const reveal = useMutation({
@@ -211,14 +238,14 @@ function MembroPerfil() {
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
   const delCom = useMutation({
-    mutationFn: (rowId: string) => removeCommissionMember({ data: { id: rowId } }),
+    mutationFn: (rowId: string) =>
+      removeCommissionMember({ data: { id: rowId } }),
     onSuccess: () => {
       toast.success("Perfil atualizado: participação removida");
       refreshOrg();
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
-
 
   return (
     <div>
@@ -227,17 +254,23 @@ function MembroPerfil() {
         subtitle={(() => {
           const kind = (member as { kind?: string }).kind;
           const parts = [statusLabel(member.status), kindLabel(kind)];
-          if (kind !== "senior" && kind !== "macom") parts.push(grauOf(member).label);
+          if (kind !== "senior" && kind !== "macom")
+            parts.push(grauOf(member).label);
           return parts.join(" · ");
         })()}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={() => navigate({ to: "/membros" })}>
+            <Button
+              variant="ghost"
+              onClick={() => navigate({ to: "/membros" })}
+            >
               <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
             </Button>
             <Button
               variant="outline"
-              onClick={() => navigate({ to: "/membros/$id/editar", params: { id } })}
+              onClick={() =>
+                navigate({ to: "/membros/$id/editar", params: { id } })
+              }
             >
               <Pencil className="mr-2 h-4 w-4" /> Editar
             </Button>
@@ -258,7 +291,9 @@ function MembroPerfil() {
         <TabsContent value="dados">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Card className="rounded-[12px] p-5">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Identificação</h3>
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                Identificação
+              </h3>
               <dl className="space-y-2 text-sm">
                 <Row k="Nome" v={member.full_name} />
                 <Row k="Nascimento" v={formatDateBR(member.birth_date)} />
@@ -275,15 +310,34 @@ function MembroPerfil() {
                     </span>
                   }
                 />
-                <Row k="Iniciação à Ordem DeMolay" v={formatDateBR(member.iniciacao_ordem)} />
+                <Row
+                  k="Iniciação à Ordem DeMolay"
+                  v={formatDateBR(member.iniciacao_ordem)}
+                />
                 <Row k="ID DeMolay" v={(member as any).demolay_id || "—"} />
-                <Row k="Exame de Grau Iniciático" v={formatDateBR(member.exam_grau_iniciatico)} />
-                <Row k="Iniciação ao Grau DeMolay" v={formatDateBR(member.iniciacao_grau_demolay)} />
-                <Row k="Exame de Grau DeMolay" v={formatDateBR(member.exam_grau_demolay)} />
+                <Row
+                  k="Exame de Grau Iniciático"
+                  v={formatDateBR(member.exam_grau_iniciatico)}
+                />
+                <Row
+                  k="Iniciação ao Grau DeMolay"
+                  v={formatDateBR(member.iniciacao_grau_demolay)}
+                />
+                <Row
+                  k="Exame de Grau DeMolay"
+                  v={formatDateBR(member.exam_grau_demolay)}
+                />
                 {(member as { kind?: string }).kind === "macom" && (
                   <Row k="ID maçônica" v={(member as any).masonic_id || "—"} />
                 )}
-                <Row k="Status" v={<Badge variant="secondary">{statusLabel(member.status)}</Badge>} />
+                <Row
+                  k="Status"
+                  v={
+                    <Badge variant="secondary">
+                      {statusLabel(member.status)}
+                    </Badge>
+                  }
+                />
                 {irregularSince ? (
                   <Row k="Irregular desde" v={formatDateBR(irregularSince)} />
                 ) : null}
@@ -346,41 +400,58 @@ function MembroPerfil() {
               </dl>
             </Card>
             <Card className="rounded-[12px] p-5">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Contato</h3>
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                Contato
+              </h3>
               <dl className="space-y-2 text-sm">
                 <Row k="Telefone" v={member.phone || "—"} />
                 <Row k="Email" v={member.email || "—"} />
-                <Row k="Endereço" v={
-                  member.address && typeof member.address === "object"
-                    ? (() => {
-                        const a = member.address as Record<string, string>;
-                        const line1 = [
-                          a.street,
-                          a.number,
-                          a.complement,
-                        ].filter(Boolean).join(", ");
-                        const line2 = [
-                          a.neighborhood,
-                          a.city,
-                          a.state,
-                          a.zip,
-                          a.country,
-                        ].filter(Boolean).join(" — ");
-                        return [line1, line2].filter(Boolean).join(" · ") || "—";
-                      })()
-                    : "—"
-                } />
+                <Row
+                  k="Endereço"
+                  v={
+                    member.address && typeof member.address === "object"
+                      ? (() => {
+                          const a = member.address as Record<string, string>;
+                          const line1 = [a.street, a.number, a.complement]
+                            .filter(Boolean)
+                            .join(", ");
+                          const line2 = [
+                            a.neighborhood,
+                            a.city,
+                            a.state,
+                            a.zip,
+                            a.country,
+                          ]
+                            .filter(Boolean)
+                            .join(" — ");
+                          return (
+                            [line1, line2].filter(Boolean).join(" · ") || "—"
+                          );
+                        })()
+                      : "—"
+                  }
+                />
               </dl>
             </Card>
 
             {guardians.length > 0 && (
               <Card className="rounded-[12px] p-5 md:col-span-2">
-                <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Responsáveis</h3>
+                <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                  Responsáveis
+                </h3>
                 <ul className="space-y-3">
                   {guardians.map((g) => (
                     <li key={g.id} className="text-sm">
-                      <div className="font-medium">{g.full_name} <span className="ml-1 text-xs text-muted-foreground">({g.relationship || "—"})</span></div>
-                      <div className="text-muted-foreground">{g.phone || "—"} · {g.email || "—"} · CPF {formatCpfMask(g.cpf_last2)}</div>
+                      <div className="font-medium">
+                        {g.full_name}{" "}
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ({g.relationship || "—"})
+                        </span>
+                      </div>
+                      <div className="text-muted-foreground">
+                        {g.phone || "—"} · {g.email || "—"} · CPF{" "}
+                        {formatCpfMask(g.cpf_last2)}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -394,9 +465,14 @@ function MembroPerfil() {
                 </h3>
                 <ul className="space-y-1.5 text-sm">
                   {consents.map((c) => (
-                    <li key={c.id} className="flex items-center justify-between">
+                    <li
+                      key={c.id}
+                      className="flex items-center justify-between"
+                    >
                       <span>Versão {c.consent_text_version}</span>
-                      <span className="text-muted-foreground">{formatDateTimeBR(c.signed_at)}</span>
+                      <span className="text-muted-foreground">
+                        {formatDateTimeBR(c.signed_at)}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -409,192 +485,236 @@ function MembroPerfil() {
           {orgPending && !org ? (
             <PageSkeleton />
           ) : (
-          <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Card className="rounded-[12px] p-5">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                Cargos do capítulo e conselho
-              </h3>
-              {orgData.positions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum cargo registrado.</p>
-              ) : (
-                <ul className="divide-y divide-border text-sm">
-                  {orgData.positions.map((p) => (
-                    <li key={p.id} className="flex items-center justify-between gap-2 py-2">
-                      <span>
-                        {p.position?.label}
-                        <span className="text-muted-foreground">
-                          {" "}
-                          — {termLabel(p.term_year, p.term_semester)}
-                        </span>
-                      </span>
-                      {canEditOrg && (
-                        <Button size="icon" variant="ghost" onClick={() => delPos.mutate(p.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {canEditOrg && (
-                <NewPositionForms
-                  options={(catalog?.positions ?? []).map((p) => ({
-                    value: String(p.id),
-                    label: `${p.label} · ${p.scope === "consultivo" ? "Conselho" : "Capítulo"}`,
-                  }))}
-                  foundedAt={foundedAt}
-                  pending={addPos.isPending}
-                  onSave={(positionId, year, semester) =>
-                    addPos.mutateAsync({ positionId, year, semester })
-                  }
-                />
-              )}
-            </Card>
-            <Card className="rounded-[12px] p-5">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-muted-foreground">
-                  Histórico em comissões
-                </h3>
-                {canEditOrg && (
-                  <PickerDialog
-                    title="Adicionar em comissão"
-                    triggerLabel="Adicionar comissão"
-                    options={(catalog?.commissions ?? []).map((c) => ({
-                      value: String(c.id),
-                      label: c.label,
-                    }))}
-                    withRole
-                    withTerm
-                    foundedAt={foundedAt}
-                    defaultTerm={term}
-                    onConfirm={(v, role, t) => {
-                      if (t) setTerm(t);
-                      addCom.mutate({
-                        commissionId: Number(v),
-                        role: role ?? "membro",
-                        ...(t ? { year: t.year, semester: t.semester } : {}),
-                      });
-                    }}
-                  />
-                )}
+            <>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Card className="rounded-[12px] p-5">
+                  <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                    Cargos do capítulo e conselho
+                  </h3>
+                  {orgData.positions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum cargo registrado.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-border text-sm">
+                      {orgData.positions.map((p) => (
+                        <li
+                          key={p.id}
+                          className="flex items-center justify-between gap-2 py-2"
+                        >
+                          <span>
+                            {p.position?.label}
+                            <span className="text-muted-foreground">
+                              {" "}
+                              — {termLabel(p.term_year, p.term_semester)}
+                            </span>
+                          </span>
+                          {canEditOrg && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => delPos.mutate(p.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {canEditOrg && (
+                    <NewPositionForms
+                      options={(catalog?.positions ?? []).map((p) => ({
+                        value: String(p.id),
+                        label: `${p.label} · ${p.scope === "consultivo" ? "Conselho" : "Capítulo"}`,
+                      }))}
+                      foundedAt={foundedAt}
+                      pending={addPos.isPending}
+                      onSave={(positionId, year, semester) =>
+                        addPos.mutateAsync({ positionId, year, semester })
+                      }
+                    />
+                  )}
+                </Card>
+                <Card className="rounded-[12px] p-5">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-muted-foreground">
+                      Histórico em comissões
+                    </h3>
+                    {canEditOrg && (
+                      <PickerDialog
+                        title="Adicionar em comissão"
+                        triggerLabel="Adicionar comissão"
+                        options={(catalog?.commissions ?? []).map((c) => ({
+                          value: String(c.id),
+                          label: c.label,
+                        }))}
+                        withRole
+                        withTerm
+                        foundedAt={foundedAt}
+                        defaultTerm={term}
+                        onConfirm={(v, role, t) => {
+                          if (t) setTerm(t);
+                          addCom.mutate({
+                            commissionId: Number(v),
+                            role: role ?? "membro",
+                            ...(t
+                              ? { year: t.year, semester: t.semester }
+                              : {}),
+                          });
+                        }}
+                      />
+                    )}
+                  </div>
+                  {orgData.commissions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma participação registrada.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-border text-sm">
+                      {orgData.commissions.map((c) => (
+                        <li
+                          key={c.id}
+                          className="flex items-center justify-between gap-2 py-2"
+                        >
+                          <span>
+                            {c.commission?.label}{" "}
+                            <Badge variant="secondary" className="ml-1">
+                              {COMMISSION_ROLE_LABELS[c.role] ?? c.role}
+                            </Badge>
+                          </span>
+                          <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
+                            {termLabel(c.term_year, c.term_semester)}
+                            {canEditOrg && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => delCom.mutate(c.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Card>
               </div>
-              {orgData.commissions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma participação registrada.</p>
-              ) : (
-                <ul className="divide-y divide-border text-sm">
-                  {orgData.commissions.map((c) => (
-                    <li key={c.id} className="flex items-center justify-between gap-2 py-2">
-                      <span>
-                        {c.commission?.label}{" "}
-                        <Badge variant="secondary" className="ml-1">
-                          {COMMISSION_ROLE_LABELS[c.role] ?? c.role}
-                        </Badge>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
-                        {termLabel(c.term_year, c.term_semester)}
-                        {canEditOrg && (
-                          <Button size="icon" variant="ghost" onClick={() => delCom.mutate(c.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-          </div>
-          </>
+            </>
           )}
         </TabsContent>
 
         <TabsContent value="presencas">
-          {attendancePending && tab === "presencas" && attendance.length === 0 ? (
+          {attendancePending &&
+          tab === "presencas" &&
+          attendance.length === 0 ? (
             <PageSkeleton />
           ) : (
-          <>
-          <Card className="mb-4 rounded-[12px] p-5">
-            <div className="text-sm font-medium text-muted-foreground">
-              Frequência em itens obrigatórios
-            </div>
-            <div className="mt-2 flex items-baseline gap-3">
-              <span
-                className="text-3xl font-bold"
-                style={{
-                  color:
-                    mandatoryPct === null
-                      ? "var(--muted-foreground)"
-                      : mandatoryPct >= 75
-                        ? "#047857"
-                        : "#B91C1C",
-                }}
-              >
-                {mandatoryPct === null ? "—" : `${mandatoryPct}%`}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {mandatoryPresent} de {mandatoryRecs.length} contabilizáveis
-              </span>
-            </div>
-          </Card>
-          <Card className="rounded-[12px] p-0">
-            {(attendance as any[]).length === 0 ? (
-              <div className="p-5 text-sm text-muted-foreground">
-                Nenhum registro de presença ainda.
-              </div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {(attendance as any[]).map((r) => {
-                  const ev = r.calendar_event;
-                  const meta = ev ? TYPE_META[ev.event_type as CalendarType] : undefined;
-                  return (
-                    <li key={r.id} className="p-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium">{ev?.title ?? "Item removido"}</span>
-                        {meta && (
-                          <span
-                            className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-                            style={{ backgroundColor: meta.bg, color: meta.color }}
-                          >
-                            {meta.label}
-                          </span>
-                        )}
-                        <Badge variant={ev?.mandatory ? "default" : "secondary"}>
-                          {ev?.mandatory ? "Contabilizável" : "Facultativo"}
-                        </Badge>
-                        <span
-                          className="ml-auto text-xs font-semibold"
-                          style={{ color: r.status === "presente" ? "#047857" : "#B91C1C" }}
-                        >
-                          {r.status === "presente" ? "Presente" : "Ausente"}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {formatDateTimeBR(ev?.start_at)}
-                        {r.justification ? ` · Justificativa: ${r.justification}` : ""}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
-          </>
+            <>
+              <Card className="mb-4 rounded-[12px] p-5">
+                <div className="text-sm font-medium text-muted-foreground">
+                  Frequência em itens obrigatórios
+                </div>
+                <div className="mt-2 flex items-baseline gap-3">
+                  <span
+                    className="text-3xl font-bold"
+                    style={{
+                      color:
+                        mandatoryPct === null
+                          ? "var(--muted-foreground)"
+                          : mandatoryPct >= 75
+                            ? "#047857"
+                            : "#B91C1C",
+                    }}
+                  >
+                    {mandatoryPct === null ? "—" : `${mandatoryPct}%`}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {mandatoryPresent} de {mandatoryRecs.length} contabilizáveis
+                  </span>
+                </div>
+              </Card>
+              <Card className="rounded-[12px] p-0">
+                {(attendance as any[]).length === 0 ? (
+                  <div className="p-5 text-sm text-muted-foreground">
+                    Nenhum registro de presença ainda.
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-border">
+                    {(attendance as any[]).map((r) => {
+                      const ev = r.calendar_event;
+                      const meta = ev
+                        ? TYPE_META[ev.event_type as CalendarType]
+                        : undefined;
+                      return (
+                        <li key={r.id} className="p-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-medium">
+                              {ev?.title ?? "Item removido"}
+                            </span>
+                            {meta && (
+                              <span
+                                className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                style={{
+                                  backgroundColor: meta.bg,
+                                  color: meta.color,
+                                }}
+                              >
+                                {meta.label}
+                              </span>
+                            )}
+                            <Badge
+                              variant={ev?.mandatory ? "default" : "secondary"}
+                            >
+                              {ev?.mandatory ? "Contabilizável" : "Facultativo"}
+                            </Badge>
+                            <span
+                              className="ml-auto text-xs font-semibold"
+                              style={{
+                                color:
+                                  r.status === "presente"
+                                    ? "#047857"
+                                    : "#B91C1C",
+                              }}
+                            >
+                              {r.status === "presente" ? "Presente" : "Ausente"}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {formatDateTimeBR(ev?.start_at)}
+                            {r.justification
+                              ? ` · Justificativa: ${r.justification}`
+                              : ""}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </Card>
+            </>
           )}
         </TabsContent>
-
 
         <TabsContent value="timeline">
           <Card className="rounded-[12px] p-5">
             {audit.length === 0 ? (
-              <div className="text-sm text-muted-foreground">Nenhum evento registrado ainda.</div>
+              <div className="text-sm text-muted-foreground">
+                Nenhum evento registrado ainda.
+              </div>
             ) : (
               <ul className="space-y-3 text-sm">
                 {audit.map((a) => (
-                  <li key={a.id} className="border-b border-border pb-3 last:border-b-0">
+                  <li
+                    key={a.id}
+                    className="border-b border-border pb-3 last:border-b-0"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 space-y-1">
-                        <div className="font-medium">{auditActionLabel(a.action)}</div>
+                        <div className="font-medium">
+                          {auditActionLabel(a.action)}
+                        </div>
                         {a.action === "member_cadastro_self_update" && (
                           <AuditCadastroDiff
                             oldValue={(a as { old_value?: unknown }).old_value}
@@ -603,7 +723,10 @@ function MembroPerfil() {
                         )}
                         {a.action === "pii_reveal" && (
                           <div className="text-xs text-muted-foreground">
-                            Campo: {(a.new_value as { field?: string } | null)?.field?.toUpperCase() ?? "—"}
+                            Campo:{" "}
+                            {(
+                              a.new_value as { field?: string } | null
+                            )?.field?.toUpperCase() ?? "—"}
                           </div>
                         )}
                         {a.action === "member_update" && (
@@ -653,9 +776,7 @@ function MemberFinanceTab({
   foundedAt,
   member,
 }: {
-  finance:
-    | Awaited<ReturnType<typeof getMemberFinance>>
-    | undefined;
+  finance: Awaited<ReturnType<typeof getMemberFinance>> | undefined;
   pending: boolean;
   year: number;
   onYearChange: (y: number) => void;
@@ -692,7 +813,10 @@ function MemberFinanceTab({
             Mensalidades e cobranças atribuídas a este membro
           </p>
         </div>
-        <Select value={String(year)} onValueChange={(v) => onYearChange(Number(v))}>
+        <Select
+          value={String(year)}
+          onValueChange={(v) => onYearChange(Number(v))}
+        >
           <SelectTrigger className="w-28">
             <SelectValue />
           </SelectTrigger>
@@ -758,9 +882,9 @@ function MemberFinanceTab({
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
             {(finance?.dues ?? []).map((d) => {
-              const future = d.status === "em_aberto" && isFutureMonth(year, d.month);
-              const overdue =
-                !future && isDueOverdue(year, d.month, d.status);
+              const future =
+                d.status === "em_aberto" && isFutureMonth(year, d.month);
+              const overdue = !future && isDueOverdue(year, d.month, d.status);
               const style = future
                 ? "bg-zinc-100 text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
                 : d.status === "pago"
@@ -778,7 +902,9 @@ function MemberFinanceTab({
                   ? "Atrasado"
                   : (DUE_STATUS_LABEL[d.status] ?? d.status);
               const exemptTip =
-                d.status === "isento" ? autoDueExemptTip(member, year, d.month) : null;
+                d.status === "isento"
+                  ? autoDueExemptTip(member, year, d.month)
+                  : null;
               return (
                 <div
                   key={d.id}
@@ -813,10 +939,15 @@ function MemberFinanceTab({
                   ? Math.min(100, Math.round((c.amount_paid / c.amount) * 100))
                   : 0;
               return (
-                <li key={c.id} className="space-y-1.5 py-3 first:pt-0 last:pb-0">
+                <li
+                  key={c.id}
+                  className="space-y-1.5 py-3 first:pt-0 last:pb-0"
+                >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{c.description}</div>
+                      <div className="truncate text-sm font-medium">
+                        {c.description}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {c.category} · venc. {formatDateBR(c.due_date)}
                       </div>
@@ -826,7 +957,7 @@ function MemberFinanceTab({
                         ? "Quitada"
                         : c.amount_paid > 0
                           ? "Parcial"
-                          : DUE_STATUS_LABEL[c.status] ?? c.status}
+                          : (DUE_STATUS_LABEL[c.status] ?? c.status)}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -839,7 +970,9 @@ function MemberFinanceTab({
                       </span>
                     ) : null}
                   </div>
-                  {c.status !== "isento" && <Progress value={pct} className="h-1.5" />}
+                  {c.status !== "isento" && (
+                    <Progress value={pct} className="h-1.5" />
+                  )}
                 </li>
               );
             })}
@@ -859,7 +992,11 @@ function NewPositionForms({
   options: { value: string; label: string }[];
   foundedAt?: string | null;
   pending: boolean;
-  onSave: (positionId: number, year: number, semester: 1 | 2) => Promise<unknown>;
+  onSave: (
+    positionId: number,
+    year: number,
+    semester: 1 | 2,
+  ) => Promise<unknown>;
 }) {
   const cur = currentTerm();
   const terms = termOptions({ foundedAt });
@@ -870,11 +1007,16 @@ function NewPositionForms({
 
   function addRow() {
     const key = nextKey.current++;
-    setRows((r) => [...r, { key, positionId: "", year: cur.year, semester: cur.semester }]);
+    setRows((r) => [
+      ...r,
+      { key, positionId: "", year: cur.year, semester: cur.semester },
+    ]);
   }
 
   function updateRow(key: number, patch: Partial<(typeof rows)[number]>) {
-    setRows((r) => r.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+    setRows((r) =>
+      r.map((row) => (row.key === key ? { ...row, ...patch } : row)),
+    );
   }
 
   function removeRow(key: number) {
@@ -898,10 +1040,17 @@ function NewPositionForms({
   return (
     <div className="mt-4 space-y-3 border-t border-border pt-4">
       {rows.map((row) => (
-        <div key={row.key} className="space-y-3 rounded-[8px] border border-border p-3">
+        <div
+          key={row.key}
+          className="space-y-3 rounded-[8px] border border-border p-3"
+        >
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-medium">Novo Cargo</span>
-            <Button size="icon" variant="ghost" onClick={() => removeRow(row.key)}>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => removeRow(row.key)}
+            >
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -1002,7 +1151,9 @@ function PickerDialog({
             )}
             {withRole && (
               <div>
-                <Label className="mb-1.5 block text-sm">Cargo na comissão</Label>
+                <Label className="mb-1.5 block text-sm">
+                  Cargo na comissão
+                </Label>
                 <Select value={role} onValueChange={setRole}>
                   <SelectTrigger>
                     <SelectValue />
@@ -1021,7 +1172,11 @@ function PickerDialog({
               className="w-full"
               onClick={() => {
                 if (!value) return;
-                onConfirm(value, withRole ? role : undefined, withTerm ? term : undefined);
+                onConfirm(
+                  value,
+                  withRole ? role : undefined,
+                  withTerm ? term : undefined,
+                );
                 setOpen(false);
                 setValue("");
               }}
@@ -1034,7 +1189,6 @@ function PickerDialog({
     </Dialog>
   );
 }
-
 
 const COMMISSION_ROLE_LABELS: Record<string, string> = {
   presidente: "Presidente",
@@ -1069,14 +1223,12 @@ function AuditCadastroDiff({
   oldValue: unknown;
   newValue: unknown;
 }) {
-  const oldObj = (oldValue && typeof oldValue === "object" ? oldValue : {}) as Record<
-    string,
-    unknown
-  >;
-  const newObj = (newValue && typeof newValue === "object" ? newValue : {}) as Record<
-    string,
-    unknown
-  >;
+  const oldObj = (
+    oldValue && typeof oldValue === "object" ? oldValue : {}
+  ) as Record<string, unknown>;
+  const newObj = (
+    newValue && typeof newValue === "object" ? newValue : {}
+  ) as Record<string, unknown>;
   const labels: Record<string, string> = {
     phone: "Telefone",
     email: "Email",
@@ -1089,7 +1241,11 @@ function AuditCadastroDiff({
     (k) => !["demolay_id", "full_name", "source"].includes(k),
   );
   if (keys.length === 0) {
-    return <div className="text-xs text-muted-foreground">Sem detalhe de alterações.</div>;
+    return (
+      <div className="text-xs text-muted-foreground">
+        Sem detalhe de alterações.
+      </div>
+    );
   }
   return (
     <ul className="space-y-1 text-xs text-muted-foreground">
@@ -1099,28 +1255,33 @@ function AuditCadastroDiff({
             <li key={k}>
               <span className="font-medium text-foreground">Responsáveis:</span>
               <ul className="mt-0.5 list-inside list-disc pl-1">
-                {(newObj.guardians as { full_name?: string; changes?: Record<string, { old?: unknown; new?: unknown }> }[]).map(
-                  (g, i) => (
-                    <li key={i}>
-                      {g.full_name ?? "Responsável"}
-                      {g.changes
-                        ? ` — ${Object.entries(g.changes)
-                            .map(
-                              ([ck, cv]) =>
-                                `${ck}: ${formatAuditScalar(cv?.old)} → ${formatAuditScalar(cv?.new)}`,
-                            )
-                            .join("; ")}`
-                        : ""}
-                    </li>
-                  ),
-                )}
+                {(
+                  newObj.guardians as {
+                    full_name?: string;
+                    changes?: Record<string, { old?: unknown; new?: unknown }>;
+                  }[]
+                ).map((g, i) => (
+                  <li key={i}>
+                    {g.full_name ?? "Responsável"}
+                    {g.changes
+                      ? ` — ${Object.entries(g.changes)
+                          .map(
+                            ([ck, cv]) =>
+                              `${ck}: ${formatAuditScalar(cv?.old)} → ${formatAuditScalar(cv?.new)}`,
+                          )
+                          .join("; ")}`
+                      : ""}
+                  </li>
+                ))}
               </ul>
             </li>
           );
         }
         return (
           <li key={k}>
-            <span className="font-medium text-foreground">{labels[k] ?? k}:</span>{" "}
+            <span className="font-medium text-foreground">
+              {labels[k] ?? k}:
+            </span>{" "}
             {formatAuditScalar(oldObj[k])} → {formatAuditScalar(newObj[k])}
           </li>
         );

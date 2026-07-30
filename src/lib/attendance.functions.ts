@@ -93,25 +93,6 @@ export const setAttendance = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const [{ data: event, error: eErr }, { data: member, error: mErr }] = await Promise.all([
-      context.supabase
-        .from("calendar_events")
-        .select("id, start_at, chapter_id")
-        .eq("id", data.calendarEventId)
-        .eq("chapter_id", data.chapterId)
-        .maybeSingle(),
-      context.supabase
-        .from("members")
-        .select(MEMBER_ATTENDANCE_SELECT)
-        .eq("id", data.memberId)
-        .eq("chapter_id", data.chapterId)
-        .maybeSingle(),
-    ]);
-    if (eErr) throw new Error(eErr.message);
-    if (mErr) throw new Error(mErr.message);
-    if (!event) throw new Error("Evento não encontrado");
-    if (!member) throw new Error("Membro não encontrado");
-
     if (data.status === null) {
       const { error } = await context.supabase
         .from("attendance_records")
@@ -122,6 +103,26 @@ export const setAttendance = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       return { ok: true, cleared: true };
     }
+
+    const [{ data: event, error: eErr }, { data: member, error: mErr }] =
+      await Promise.all([
+        context.supabase
+          .from("calendar_events")
+          .select("id, start_at")
+          .eq("id", data.calendarEventId)
+          .eq("chapter_id", data.chapterId)
+          .maybeSingle(),
+        context.supabase
+          .from("members")
+          .select(MEMBER_ATTENDANCE_SELECT)
+          .eq("id", data.memberId)
+          .eq("chapter_id", data.chapterId)
+          .maybeSingle(),
+      ]);
+    if (eErr) throw new Error(eErr.message);
+    if (mErr) throw new Error(mErr.message);
+    if (!event) throw new Error("Evento não encontrado");
+    if (!member) throw new Error("Membro não encontrado");
 
     if (!memberEligibleForAttendance(member as DueMemberLite, event.start_at)) {
       throw new Error(

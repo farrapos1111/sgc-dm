@@ -5,9 +5,29 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+} from "react";
 import { toast } from "sonner";
-import { CheckCheck, ChevronDown, Copy, Link2, Plus, Receipt, RefreshCw, Search, UserMinus, X } from "lucide-react";
+import {
+  CheckCheck,
+  ChevronDown,
+  Copy,
+  Link2,
+  Plus,
+  Receipt,
+  RefreshCw,
+  Search,
+  UserMinus,
+  X,
+} from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { Card } from "@/components/ui/card";
@@ -38,6 +58,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { can } from "@/lib/permissions";
 import { chapterFoundedAt } from "@/lib/terms";
@@ -66,7 +92,9 @@ import {
   type DueMemberLite,
 } from "@/lib/dues-rules";
 
-export const Route = createFileRoute("/_authenticated/_shell/tesouraria/mensalidades")({
+export const Route = createFileRoute(
+  "/_authenticated/_shell/tesouraria/mensalidades",
+)({
   head: () => ({
     meta: [
       { title: "Mensalidades — SG-CDM" },
@@ -101,10 +129,12 @@ type YearDuesData = {
 const DUES_STALE_MS = 60_000;
 
 const STATUS_STYLE: Record<DueStatus, string> = {
-  em_aberto: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+  em_aberto:
+    "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
   pago: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-  isento: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-  desligado: "bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-300",
+  isento: "bg-[#c8e0f7] text-sky-900 dark:bg-[#c8e0f7]/25 dark:text-sky-200",
+  desligado:
+    "bg-[#d3d3d3] text-stone-700 dark:bg-[#d3d3d3]/30 dark:text-stone-200",
 };
 
 const FUTURE_OPEN_STYLE =
@@ -125,7 +155,8 @@ const STATUS_DOT: Record<DueStatus, string> = {
 };
 
 function cellClass(status: DueStatus, year: number, month: number) {
-  if (status === "em_aberto" && isFutureMonth(year, month)) return FUTURE_OPEN_STYLE;
+  if (status === "em_aberto" && isFutureMonth(year, month))
+    return FUTURE_OPEN_STYLE;
   return STATUS_STYLE[status];
 }
 
@@ -147,7 +178,11 @@ function monthFromSortKey(key: SortKey): number | null {
 }
 
 /** Ordem: pago → atrasado → aberto → futuro → isento → desligado */
-function monthStatusRank(status: DueStatus, year: number, month: number): number {
+function monthStatusRank(
+  status: DueStatus,
+  year: number,
+  month: number,
+): number {
   if (status === "pago") return 0;
   if (status === "desligado") return 5;
   if (status === "isento") return 4;
@@ -178,7 +213,11 @@ function patchDueInCache(
     (d) => d.member_id === patch.memberId && d.competence_month === patch.month,
   );
   const nextRow: DueRow = {
-    id: patch.id ?? (idx >= 0 ? prev.dues[idx].id : `optimistic-${patch.memberId}-${patch.month}`),
+    id:
+      patch.id ??
+      (idx >= 0
+        ? prev.dues[idx].id
+        : `optimistic-${patch.memberId}-${patch.month}`),
     member_id: patch.memberId,
     amount: patch.amount,
     status: patch.status,
@@ -203,7 +242,11 @@ type StatusCellProps = {
   defaultAmount: number;
   writable: boolean;
   compact?: boolean;
-  onSetStatus: (v: { memberId: string; month: number; status: DueStatus }) => void;
+  onSetStatus: (v: {
+    memberId: string;
+    month: number;
+    status: DueStatus;
+  }) => void;
 };
 
 const StatusCell = memo(function StatusCell({
@@ -225,14 +268,17 @@ const StatusCell = memo(function StatusCell({
   const label = exemptTip
     ? `${MONTH_LONG[month - 1]} — ${exemptTip}`
     : `${MONTH_LONG[month - 1]} — ${STATUS_LABEL[status]}${
-        future && status === "em_aberto" ? " (futuro)" : overdue ? " (atrasado)" : ""
+        future && status === "em_aberto"
+          ? " (futuro)"
+          : overdue
+            ? " (atrasado)"
+            : ""
       }`;
 
   const button = compact ? (
     <button
       type="button"
       disabled={!writable}
-      title={writable ? `${label} · clique para alterar` : label}
       className={`w-full rounded-md px-1 py-2 text-center transition hover:ring-2 hover:ring-ring disabled:cursor-default ${cellClass(
         status,
         year,
@@ -252,7 +298,6 @@ const StatusCell = memo(function StatusCell({
     <button
       type="button"
       disabled={!writable}
-      title={writable ? `${label} · clique para alterar` : label}
       className={`h-10 w-full rounded-md text-xs font-semibold uppercase tracking-wide transition hover:ring-2 hover:ring-ring disabled:cursor-default ${cellClass(
         status,
         year,
@@ -263,11 +308,23 @@ const StatusCell = memo(function StatusCell({
     </button>
   );
 
-  if (!writable) return button;
+  const withTip = (trigger: ReactElement) => (
+    <Tooltip delayDuration={250}>
+      <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[260px] text-center">
+        <p>{label}</p>
+        {writable ? (
+          <p className="mt-0.5 text-[10px] opacity-80">Clique para alterar</p>
+        ) : null}
+      </TooltipContent>
+    </Tooltip>
+  );
+
+  if (!writable) return withTip(button);
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>{button}</DropdownMenuTrigger>
+      {withTip(<DropdownMenuTrigger asChild>{button}</DropdownMenuTrigger>)}
       <DropdownMenuContent align="center" className="w-44">
         <DropdownMenuLabel className="font-normal">
           <div className="truncate text-xs font-medium">{memberName}</div>
@@ -281,17 +338,21 @@ const StatusCell = memo(function StatusCell({
           ) : null}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {(["em_aberto", "pago", "isento", "desligado"] as DueStatus[]).map((s) => (
-          <DropdownMenuItem
-            key={s}
-            disabled={status === s}
-            onSelect={() => onSetStatus({ memberId, month, status: s })}
-          >
-            <span className={`mr-2 inline-block h-2.5 w-2.5 rounded-sm ${STATUS_DOT[s]}`} />
-            {STATUS_LABEL[s]}
-            {status === s ? " ✓" : ""}
-          </DropdownMenuItem>
-        ))}
+        {(["em_aberto", "pago", "isento", "desligado"] as DueStatus[]).map(
+          (s) => (
+            <DropdownMenuItem
+              key={s}
+              disabled={status === s}
+              onSelect={() => onSetStatus({ memberId, month, status: s })}
+            >
+              <span
+                className={`mr-2 inline-block h-2.5 w-2.5 rounded-sm ${STATUS_DOT[s]}`}
+              />
+              {STATUS_LABEL[s]}
+              {status === s ? " ✓" : ""}
+            </DropdownMenuItem>
+          ),
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -303,7 +364,9 @@ function Mensalidades() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [defaultAmount, setDefaultAmount] = useState(() =>
-    getChapterDefaultDuesAmount(active?.chapter as { settings?: Record<string, unknown> } | undefined),
+    getChapterDefaultDuesAmount(
+      active?.chapter as { settings?: Record<string, unknown> } | undefined,
+    ),
   );
   const [paidAt, setPaidAt] = useState(now.toISOString().slice(0, 10));
   const [search, setSearch] = useState("");
@@ -338,7 +401,14 @@ function Mensalidades() {
     ensuredYears.current.clear();
   }, [chapterId]);
 
-  const { data, isLoading, isFetching, isError, error, refetch: refetchDues } = useQuery({
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch: refetchDues,
+  } = useQuery({
     queryKey: duesYearKey(chapterId ?? "", year),
     enabled: !!chapterId,
     staleTime: DUES_STALE_MS,
@@ -354,7 +424,8 @@ function Mensalidades() {
   });
 
   useEffect(() => {
-    if (data?.defaultAmount != null) setDefaultAmount(Number(data.defaultAmount));
+    if (data?.defaultAmount != null)
+      setDefaultAmount(Number(data.defaultAmount));
   }, [data?.defaultAmount]);
 
   // Prefetch anos vizinhos (sem ensure)
@@ -417,16 +488,23 @@ function Mensalidades() {
     return [...list].sort((a, b) => {
       if (sortMonth != null) {
         const sa =
-          (dueMap.get(`${a.id}:${sortMonth}`)?.status as DueStatus) ?? "em_aberto";
+          (dueMap.get(`${a.id}:${sortMonth}`)?.status as DueStatus) ??
+          "em_aberto";
         const sb =
-          (dueMap.get(`${b.id}:${sortMonth}`)?.status as DueStatus) ?? "em_aberto";
+          (dueMap.get(`${b.id}:${sortMonth}`)?.status as DueStatus) ??
+          "em_aberto";
         const cmp =
-          monthStatusRank(sa, year, sortMonth) - monthStatusRank(sb, year, sortMonth);
+          monthStatusRank(sa, year, sortMonth) -
+          monthStatusRank(sb, year, sortMonth);
         if (cmp !== 0) return cmp * mul;
         return a.full_name.localeCompare(b.full_name, "pt-BR");
       }
       if (sortKey === "name") {
-        return a.full_name.localeCompare(b.full_name, "pt-BR", { sensitivity: "base" }) * mul;
+        return (
+          a.full_name.localeCompare(b.full_name, "pt-BR", {
+            sensitivity: "base",
+          }) * mul
+        );
       }
       const oa = openByMember.get(a.id) ?? { count: 0, total: 0 };
       const ob = openByMember.get(b.id) ?? { count: 0, total: 0 };
@@ -550,7 +628,8 @@ function Mensalidades() {
     [setStatus.mutate],
   );
 
-  type BulkAction = "pay_all" | "pay_except_jan_dec" | "open_all" | "exempt_all";
+  type BulkAction =
+    "pay_all" | "pay_except_jan_dec" | "open_all" | "exempt_all";
 
   const bulkAction = useMutation({
     mutationFn: (action: BulkAction) =>
@@ -575,10 +654,7 @@ function Mensalidades() {
           if (action === "pay_all" || action === "pay_except_jan_dec") {
             if (d.status !== "em_aberto") return d;
             if (isFutureMonth(d.competence_year, d.competence_month)) return d;
-            if (
-              action === "pay_except_jan_dec" &&
-              d.competence_month === 1
-            ) {
+            if (action === "pay_except_jan_dec" && d.competence_month === 1) {
               return d;
             }
             return {
@@ -689,7 +765,9 @@ function Mensalidades() {
     queryKey: ["dues-include-candidates", chapterId, year],
     enabled: !!chapterId && includeOpen,
     queryFn: () =>
-      listDuesInclusionCandidates({ data: { chapterId: chapterId!, year } }) as Promise<{
+      listDuesInclusionCandidates({
+        data: { chapterId: chapterId!, year },
+      }) as Promise<{
         candidates: Array<{
           id: string;
           full_name: string;
@@ -716,7 +794,9 @@ function Mensalidades() {
 
   const includeEmptyHint = (() => {
     if (candidatesError) {
-      return (candidatesErr as Error)?.message ?? "Erro ao carregar candidatos.";
+      return (
+        (candidatesErr as Error)?.message ?? "Erro ao carregar candidatos."
+      );
     }
     if (!includeData) return "Carregando…";
     if (includeData.chapterMemberCount === 0) {
@@ -762,7 +842,9 @@ function Mensalidades() {
 
   const openShare = useMutation({
     mutationFn: async () => {
-      const existing = await getDuesShareToken({ data: { chapterId: chapterId! } });
+      const existing = await getDuesShareToken({
+        data: { chapterId: chapterId! },
+      });
       if (existing.token) return existing.token;
       const created = await ensureDuesShareToken({
         data: { chapterId: chapterId!, regenerate: false },
@@ -778,7 +860,9 @@ function Mensalidades() {
 
   const regenerateShare = useMutation({
     mutationFn: () =>
-      ensureDuesShareToken({ data: { chapterId: chapterId!, regenerate: true } }),
+      ensureDuesShareToken({
+        data: { chapterId: chapterId!, regenerate: true },
+      }),
     onSuccess: (r) => {
       setShareToken(r.token);
       toast.success("Novo link gerado. O anterior deixou de funcionar.");
@@ -809,6 +893,7 @@ function Mensalidades() {
   const showLoading = isLoading && !data;
 
   return (
+    <TooltipProvider delayDuration={250}>
     <div>
       <PageHeader
         title="Mensalidades"
@@ -836,8 +921,13 @@ function Mensalidades() {
       {/* Desktop: ano, busca e ações de tesouraria */}
       <div className="mb-4 hidden flex-wrap items-end gap-2 lg:flex">
         <div>
-          <Label className="mb-1.5 block text-xs text-muted-foreground">Ano</Label>
-          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+          <Label className="mb-1.5 block text-xs text-muted-foreground">
+            Ano
+          </Label>
+          <Select
+            value={String(year)}
+            onValueChange={(v) => setYear(Number(v))}
+          >
             <SelectTrigger className="w-28">
               <SelectValue />
             </SelectTrigger>
@@ -852,7 +942,9 @@ function Mensalidades() {
         </div>
 
         <div className="min-w-[200px] flex-1 sm:max-w-xs">
-          <Label className="mb-1.5 block text-xs text-muted-foreground">Buscar</Label>
+          <Label className="mb-1.5 block text-xs text-muted-foreground">
+            Buscar
+          </Label>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -937,7 +1029,9 @@ function Mensalidades() {
                 >
                   Baixar todos ({openCount})
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => runBulk("pay_except_jan_dec")}>
+                <DropdownMenuItem
+                  onSelect={() => runBulk("pay_except_jan_dec")}
+                >
                   Baixar todos (exceto janeiro)
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -952,7 +1046,9 @@ function Mensalidades() {
           </>
         )}
         {isFetching && data ? (
-          <span className="mb-2.5 text-xs text-muted-foreground">Atualizando…</span>
+          <span className="mb-2.5 text-xs text-muted-foreground">
+            Atualizando…
+          </span>
         ) : null}
       </div>
 
@@ -1025,7 +1121,9 @@ function Mensalidades() {
           </div>
         </Card>
         <Card className="rounded-[12px] p-5">
-          <div className="text-sm text-muted-foreground">Atrasado (após dia 15)</div>
+          <div className="text-sm text-muted-foreground">
+            Atrasado (após dia 15)
+          </div>
           <div className="text-xl font-bold text-rose-600 dark:text-rose-400">
             {formatBRL(totals.overdue)}
           </div>
@@ -1038,7 +1136,10 @@ function Mensalidades() {
         <EmptyState
           icon={<Receipt className="h-7 w-7" />}
           title="Erro ao carregar mensalidades"
-          description={(error as Error)?.message ?? "Não foi possível carregar o calendário."}
+          description={
+            (error as Error)?.message ??
+            "Não foi possível carregar o calendário."
+          }
           action={
             <Button
               variant="outline"
@@ -1095,13 +1196,19 @@ function Mensalidades() {
                       <button
                         type="button"
                         className={`inline-flex items-center gap-1 hover:text-foreground ${
-                          sortKey === "name" ? "text-foreground" : "text-muted-foreground"
+                          sortKey === "name"
+                            ? "text-foreground"
+                            : "text-muted-foreground"
                         }`}
                         onClick={() => toggleSort("name")}
                       >
                         Membro
                         <span className="text-[10px] opacity-70">
-                          {sortKey === "name" ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
+                          {sortKey === "name"
+                            ? sortDir === "asc"
+                              ? "↑"
+                              : "↓"
+                            : "↕"}
                         </span>
                       </button>
                     </th>
@@ -1110,18 +1217,27 @@ function Mensalidades() {
                       const key = `month_${month}` as SortKey;
                       const activeSort = sortKey === key;
                       return (
-                        <th key={label} className="px-1 py-3 text-center text-xs font-medium">
+                        <th
+                          key={label}
+                          className="px-1 py-3 text-center text-xs font-medium"
+                        >
                           <button
                             type="button"
                             title={`Ordenar por ${MONTH_LONG[i]}`}
                             className={`inline-flex items-center justify-center gap-0.5 hover:text-foreground ${
-                              activeSort ? "text-foreground" : "text-muted-foreground"
+                              activeSort
+                                ? "text-foreground"
+                                : "text-muted-foreground"
                             }`}
                             onClick={() => toggleSort(key)}
                           >
                             {label}
                             <span className="text-[9px] opacity-70">
-                              {activeSort ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
+                              {activeSort
+                                ? sortDir === "asc"
+                                  ? "↑"
+                                  : "↓"
+                                : "↕"}
                             </span>
                           </button>
                         </th>
@@ -1131,13 +1247,19 @@ function Mensalidades() {
                       <button
                         type="button"
                         className={`inline-flex items-center justify-center gap-1 hover:text-foreground ${
-                          sortKey === "open_count" ? "text-foreground" : "text-muted-foreground"
+                          sortKey === "open_count"
+                            ? "text-foreground"
+                            : "text-muted-foreground"
                         }`}
                         onClick={() => toggleSort("open_count")}
                       >
                         Abertos
                         <span className="text-[10px] opacity-70">
-                          {sortKey === "open_count" ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
+                          {sortKey === "open_count"
+                            ? sortDir === "asc"
+                              ? "↑"
+                              : "↓"
+                            : "↕"}
                         </span>
                       </button>
                     </th>
@@ -1145,13 +1267,19 @@ function Mensalidades() {
                       <button
                         type="button"
                         className={`ml-auto inline-flex items-center gap-1 hover:text-foreground ${
-                          sortKey === "open_total" ? "text-foreground" : "text-muted-foreground"
+                          sortKey === "open_total"
+                            ? "text-foreground"
+                            : "text-muted-foreground"
                         }`}
                         onClick={() => toggleSort("open_total")}
                       >
                         Total em aberto
                         <span className="text-[10px] opacity-70">
-                          {sortKey === "open_total" ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
+                          {sortKey === "open_total"
+                            ? sortDir === "asc"
+                              ? "↑"
+                              : "↓"
+                            : "↕"}
                         </span>
                       </button>
                     </th>
@@ -1159,10 +1287,19 @@ function Mensalidades() {
                 </thead>
                 <tbody>
                   {displayedMembers.map((m) => {
-                    const open = openByMember.get(m.id) ?? { count: 0, total: 0 };
+                    const open = openByMember.get(m.id) ?? {
+                      count: 0,
+                      total: 0,
+                    };
                     return (
-                      <tr key={m.id} className="border-b border-border last:border-b-0">
-                        <td className="truncate px-4 py-2.5 font-medium" title={m.full_name}>
+                      <tr
+                        key={m.id}
+                        className="border-b border-border last:border-b-0"
+                      >
+                        <td
+                          className="truncate px-4 py-2.5 font-medium"
+                          title={m.full_name}
+                        >
                           <div className="flex items-center gap-1.5">
                             <span className="truncate">{m.full_name}</span>
                             {m.manualInclude ? (
@@ -1194,8 +1331,8 @@ function Mensalidades() {
                         {Array.from({ length: 12 }, (_, i) => {
                           const month = i + 1;
                           const status =
-                            (dueMap.get(`${m.id}:${month}`)?.status as DueStatus) ??
-                            "em_aberto";
+                            (dueMap.get(`${m.id}:${month}`)
+                              ?.status as DueStatus) ?? "em_aberto";
                           return (
                             <td key={month} className="px-1.5 py-2 text-center">
                               <StatusCell
@@ -1248,13 +1385,13 @@ function Mensalidades() {
                 Futuro
               </span>
               <span>
-                <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-slate-100 text-slate-600">
+                <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-[#c8e0f7] text-sky-900">
                   I
                 </span>
                 Isento
               </span>
               <span>
-                <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-stone-200 text-stone-700">
+                <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-[#d3d3d3] text-stone-700">
                   D
                 </span>
                 Desligado
@@ -1272,7 +1409,9 @@ function Mensalidades() {
                       <div className="text-sm font-medium">{m.full_name}</div>
                       {m.manualInclude ? (
                         <div className="mt-0.5 flex items-center gap-2">
-                          <span className="text-[10px] text-muted-foreground">Inclusão manual</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            Inclusão manual
+                          </span>
                           {writable ? (
                             <button
                               type="button"
@@ -1295,7 +1434,9 @@ function Mensalidades() {
                       ) : null}
                     </div>
                     <div className="shrink-0 text-right text-xs">
-                      <div className="text-muted-foreground">{open.count} abertos</div>
+                      <div className="text-muted-foreground">
+                        {open.count} abertos
+                      </div>
                       <div className="font-semibold text-amber-700 dark:text-amber-400">
                         {formatBRL(open.total)}
                       </div>
@@ -1305,7 +1446,8 @@ function Mensalidades() {
                     {Array.from({ length: 12 }, (_, i) => {
                       const month = i + 1;
                       const status =
-                        (dueMap.get(`${m.id}:${month}`)?.status as DueStatus) ?? "em_aberto";
+                        (dueMap.get(`${m.id}:${month}`)?.status as DueStatus) ??
+                        "em_aberto";
                       return (
                         <StatusCell
                           key={month}
@@ -1339,8 +1481,9 @@ function Mensalidades() {
           <DialogHeader>
             <DialogTitle>Incluir membro em {year}</DialogTitle>
             <DialogDescription>
-              Busque pelo nome e clique no membro para incluir — inclusive irregulares,
-              seniors fora da regra e maçons. Gera os 12 meses com status automático.
+              Busque pelo nome e clique no membro para incluir — inclusive
+              irregulares, seniors fora da regra e maçons. Gera os 12 meses com
+              status automático.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -1357,7 +1500,9 @@ function Mensalidades() {
               {loadingCandidates ? (
                 <p className="text-sm text-muted-foreground">Carregando…</p>
               ) : filteredIncludeCandidates.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{includeEmptyHint}</p>
+                <p className="text-sm text-muted-foreground">
+                  {includeEmptyHint}
+                </p>
               ) : (
                 <ul className="max-h-72 divide-y divide-border overflow-auto rounded-md border border-border">
                   {filteredIncludeCandidates.map((m) => (
@@ -1368,7 +1513,9 @@ function Mensalidades() {
                         disabled={includeMember.isPending}
                         onClick={() => includeMember.mutate(m.id)}
                       >
-                        <span className="font-medium text-foreground">{m.full_name}</span>
+                        <span className="font-medium text-foreground">
+                          {m.full_name}
+                        </span>
                         <span className="text-xs text-muted-foreground">
                           {statusLabel(m.status)} · {kindLabel(m.kind)}
                         </span>
@@ -1380,7 +1527,11 @@ function Mensalidades() {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIncludeOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIncludeOpen(false)}
+            >
               Cancelar
             </Button>
           </DialogFooter>
@@ -1392,15 +1543,19 @@ function Mensalidades() {
           <DialogHeader>
             <DialogTitle>Link público de mensalidades</DialogTitle>
             <DialogDescription>
-              Qualquer pessoa com o link pode ver o calendário anual (somente leitura),
-              com busca e ordenação — sem login.
+              Qualquer pessoa com o link pode ver o calendário anual (somente
+              leitura), com busca e ordenação — sem login.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Label>URL compartilhável</Label>
             <div className="flex gap-2">
               <Input readOnly value={shareUrl} className="font-mono text-xs" />
-              <Button type="button" variant="outline" onClick={() => void copyShareLink()}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void copyShareLink()}
+              >
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
@@ -1436,5 +1591,6 @@ function Mensalidades() {
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   );
 }

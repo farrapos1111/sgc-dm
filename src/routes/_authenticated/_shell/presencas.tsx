@@ -7,11 +7,19 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { listAttendanceOverview } from "@/lib/attendance.functions";
 import { attendanceOverviewKey } from "@/lib/query-keys";
-import { TYPE_META, CALENDAR_TYPES, type CalendarType } from "@/lib/calendar-types";
+import {
+  TYPE_META,
+  CALENDAR_TYPES,
+  type CalendarType,
+} from "@/lib/calendar-types";
 import { canManageAttendance } from "@/lib/permissions";
 import { formatDateTimeBR } from "@/lib/format";
 import {
@@ -33,7 +41,8 @@ export const Route = createFileRoute("/_authenticated/_shell/presencas")({
       { title: "Presenças e frequência — SG-CDM" },
       {
         name: "description",
-        content: "Controle de presenças, ausências, justificativas e frequência dos membros.",
+        content:
+          "Controle de presenças, ausências, justificativas e frequência dos membros.",
       },
     ],
   }),
@@ -53,8 +62,7 @@ function eventYear(startAt: string): number | null {
 }
 
 type FrequencyRange =
-  | { kind: "year"; year: number }
-  | { kind: "months"; months: 3 | 6 | 12 };
+  { kind: "year"; year: number } | { kind: "months"; months: 3 | 6 | 12 };
 
 type PresencasFilters = {
   year: number;
@@ -123,7 +131,10 @@ function loadFilters(chapterId: string): PresencasFilters {
         ? (parsed.tab as PresencasFilters["tab"])
         : "itens",
       freq: isValidFreq(freqRaw) ? freqRaw : String(year),
-      semester: parsed.semester === 1 || parsed.semester === 2 ? parsed.semester : defaults.semester,
+      semester:
+        parsed.semester === 1 || parsed.semester === 2
+          ? parsed.semester
+          : defaults.semester,
     };
   } catch {
     return defaults;
@@ -185,7 +196,11 @@ function PresencasFrequencyTab({
     }
 
     return members
-      .filter((m) => m.status === "regular" && (m.kind === "demolay_ativo" || m.kind === "senior"))
+      .filter(
+        (m) =>
+          m.status === "regular" &&
+          (m.kind === "demolay_ativo" || m.kind === "senior"),
+      )
       .map((m) => {
         let total = 0;
         let present = 0;
@@ -202,12 +217,18 @@ function PresencasFrequencyTab({
         };
       })
       .filter((m) => m.total > 0)
-      .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1) || a.full_name.localeCompare(b.full_name, "pt-BR"));
+      .sort(
+        (a, b) =>
+          (b.pct ?? -1) - (a.pct ?? -1) ||
+          a.full_name.localeCompare(b.full_name, "pt-BR"),
+      );
   }, [items, members, records, freq]);
 
   const range = parseFrequencyRange(freq);
   const rangeLabel =
-    range.kind === "year" ? String(range.year) : `últimos ${range.months} meses`;
+    range.kind === "year"
+      ? String(range.year)
+      : `últimos ${range.months} meses`;
 
   return (
     <>
@@ -236,7 +257,10 @@ function PresencasFrequencyTab({
             </li>
           )}
           {frequency.map((m) => (
-            <li key={m.id} className="flex items-center justify-between gap-3 p-4">
+            <li
+              key={m.id}
+              className="flex items-center justify-between gap-3 p-4"
+            >
               <Link
                 to="/membros/$id"
                 params={{ id: m.id }}
@@ -252,7 +276,11 @@ function PresencasFrequencyTab({
                   className="text-sm font-semibold"
                   style={{
                     color:
-                      m.pct === null ? "var(--muted-foreground)" : m.pct >= 75 ? "#047857" : "#B91C1C",
+                      m.pct === null
+                        ? "var(--muted-foreground)"
+                        : m.pct >= 75
+                          ? "#047857"
+                          : "#B91C1C",
                   }}
                 >
                   {m.pct === null ? "—" : `${m.pct}%`}
@@ -263,8 +291,9 @@ function PresencasFrequencyTab({
         </ul>
       </Card>
       <p className="mt-3 text-xs text-muted-foreground">
-        Frequência ({rangeLabel}): apenas itens obrigatórios em que o membro era elegível
-        (após a iniciação e até virar Senior no aniversário de 21 anos).
+        Frequência ({rangeLabel}): apenas itens obrigatórios em que o membro era
+        elegível (após a iniciação e até virar Senior no aniversário de 21
+        anos).
       </p>
     </>
   );
@@ -289,7 +318,8 @@ function PresencasPage() {
     saveFilters(chapterId, filters);
   }, [chapterId, filters]);
 
-  const { year, typeFilter, mandFilter, dateSort, tab, freq, semester } = filters;
+  const { year, typeFilter, mandFilter, dateSort, tab, freq, semester } =
+    filters;
 
   const allowed = canManageAttendance(active?.role.name);
 
@@ -304,8 +334,15 @@ function PresencasPage() {
   useEffect(() => {
     if (availableYears.length === 0) return;
     setFilters((f) => {
-      if (availableYears.includes(f.year)) return f;
-      return { ...f, year: availableYears[0]! };
+      const year = availableYears.includes(f.year)
+        ? f.year
+        : availableYears[0]!;
+      const freqOk =
+        FREQ_MONTHS.has(f.freq) ||
+        (availableYears.includes(Number(f.freq)) && /^\d{4}$/.test(f.freq));
+      const freq = freqOk ? f.freq : String(year);
+      if (year === f.year && freq === f.freq) return f;
+      return { ...f, year, freq };
     });
   }, [availableYears, chapterId]);
 
@@ -314,7 +351,8 @@ function PresencasPage() {
       (data.items as CalItem[])
         .filter((it) => {
           if (eventYear(it.start_at) !== year) return false;
-          if (typeFilter !== "all" && it.event_type !== typeFilter) return false;
+          if (typeFilter !== "all" && it.event_type !== typeFilter)
+            return false;
           if (mandFilter === "obrigatorio" && !it.mandatory) return false;
           if (mandFilter === "facultativo" && it.mandatory) return false;
           return true;
@@ -369,7 +407,9 @@ function PresencasPage() {
           <div className="mb-4 flex flex-wrap gap-2">
             <Select
               value={String(year)}
-              onValueChange={(v) => setFilters((f) => ({ ...f, year: Number(v) }))}
+              onValueChange={(v) =>
+                setFilters((f) => ({ ...f, year: Number(v) }))
+              }
             >
               <SelectTrigger className="h-9 w-[110px] text-xs">
                 <SelectValue placeholder="Ano" />
@@ -384,7 +424,9 @@ function PresencasPage() {
             </Select>
             <Select
               value={typeFilter}
-              onValueChange={(v) => setFilters((f) => ({ ...f, typeFilter: v }))}
+              onValueChange={(v) =>
+                setFilters((f) => ({ ...f, typeFilter: v }))
+              }
             >
               <SelectTrigger className="h-9 w-[190px] text-xs">
                 <SelectValue placeholder="Tipo" />
@@ -392,7 +434,9 @@ function PresencasPage() {
               <SelectContent>
                 <SelectItem value="all">Todos os tipos</SelectItem>
                 {CALENDAR_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>{TYPE_META[t].label}</SelectItem>
+                  <SelectItem key={t} value={t}>
+                    {TYPE_META[t].label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -410,8 +454,12 @@ function PresencasPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Obrigatórios e facultativos</SelectItem>
-                <SelectItem value="obrigatorio">Somente obrigatórios</SelectItem>
-                <SelectItem value="facultativo">Somente facultativos</SelectItem>
+                <SelectItem value="obrigatorio">
+                  Somente obrigatórios
+                </SelectItem>
+                <SelectItem value="facultativo">
+                  Somente facultativos
+                </SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -435,7 +483,9 @@ function PresencasPage() {
           {items.length === 0 ? (
             <Card className="rounded-[12px] p-10 text-center">
               <ClipboardList className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-              <div className="text-sm font-medium">Nenhuma chamada em {year}.</div>
+              <div className="text-sm font-medium">
+                Nenhuma chamada em {year}.
+              </div>
             </Card>
           ) : (
             <Card className="rounded-[12px] p-0">
@@ -454,21 +504,29 @@ function PresencasPage() {
                         className="block p-4 hover:bg-muted"
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <span className="min-w-0 truncate text-sm font-medium">{it.title}</span>
+                          <span className="min-w-0 truncate text-sm font-medium">
+                            {it.title}
+                          </span>
                           <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                             <span
                               className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-                              style={{ backgroundColor: meta?.bg, color: meta?.color }}
+                              style={{
+                                backgroundColor: meta?.bg,
+                                color: meta?.color,
+                              }}
                             >
                               {meta?.label ?? it.event_type}
                             </span>
-                            <Badge variant={it.mandatory ? "default" : "secondary"}>
+                            <Badge
+                              variant={it.mandatory ? "default" : "secondary"}
+                            >
                               {it.mandatory ? "Obrigatório" : "Facultativo"}
                             </Badge>
                           </div>
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
-                          {formatDateTimeBR(it.start_at)} · {p} presentes · {a} ausentes · {j} justificativas
+                          {formatDateTimeBR(it.start_at)} · {p} presentes · {a}{" "}
+                          ausentes · {j} justificativas
                         </div>
                       </Link>
                     </li>
@@ -502,7 +560,9 @@ function PresencasPage() {
               availableYears={availableYears}
               onYearChange={(y) => setFilters((f) => ({ ...f, year: y }))}
               semester={semester}
-              onSemesterChange={(s) => setFilters((f) => ({ ...f, semester: s }))}
+              onSemesterChange={(s) =>
+                setFilters((f) => ({ ...f, semester: s }))
+              }
               chapterId={chapterId}
             />
           )}

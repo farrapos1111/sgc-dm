@@ -16,6 +16,7 @@ import { Route as DocumentacaoRouteRouteImport } from './routes/documentacao/rou
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedShellRouteRouteImport } from './routes/_authenticated/_shell/route'
 import { Route as AuthenticatedSelecionarCapituloRouteImport } from './routes/_authenticated/selecionar-capitulo'
+import { Route as CTokenRouteImport } from './routes/c.$token'
 import { Route as DocumentacaoIndexRouteImport } from './routes/documentacao/index'
 import { Route as DocumentacaoGuiaRouteImport } from './routes/documentacao/guia'
 import { Route as DocumentacaoOpenSourceRouteImport } from './routes/documentacao/open-source'
@@ -30,6 +31,11 @@ import { Route as AuthenticatedShellGestaoRouteImport } from './routes/_authenti
 import { Route as AuthenticatedShellInicioRouteImport } from './routes/_authenticated/_shell/inicio'
 import { Route as AuthenticatedShellMaisRouteImport } from './routes/_authenticated/_shell/mais'
 import { Route as AuthenticatedShellPresencasRouteImport } from './routes/_authenticated/_shell/presencas'
+import { Route as CTokenIndexRouteImport } from './routes/c.$token.index'
+import { Route as CTokenEuRouteImport } from './routes/c.$token.eu'
+import { Route as CTokenFluxoRouteImport } from './routes/c.$token.fluxo'
+import { Route as CTokenMensalidadesRouteImport } from './routes/c.$token.mensalidades'
+import { Route as CTokenPresencasRouteImport } from './routes/c.$token.presencas'
 import { Route as AuthenticatedShellEventosIndexRouteImport } from './routes/_authenticated/_shell/eventos.index'
 import { Route as AuthenticatedShellEventosIdRouteImport } from './routes/_authenticated/_shell/eventos.$id'
 import { Route as AuthenticatedShellEventosCheckinsRouteImport } from './routes/_authenticated/_shell/eventos.checkins'
@@ -86,6 +92,11 @@ const AuthenticatedSelecionarCapituloRoute =
     path: '/selecionar-capitulo',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const CTokenRoute = CTokenRouteImport.update({
+  id: '/c/$token',
+  path: '/c/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocumentacaoIndexRoute = DocumentacaoIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -162,6 +173,31 @@ const AuthenticatedShellPresencasRoute =
     path: '/presencas',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
+const CTokenIndexRoute = CTokenIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CTokenRoute,
+} as any)
+const CTokenEuRoute = CTokenEuRouteImport.update({
+  id: '/eu',
+  path: '/eu',
+  getParentRoute: () => CTokenRoute,
+} as any)
+const CTokenFluxoRoute = CTokenFluxoRouteImport.update({
+  id: '/fluxo',
+  path: '/fluxo',
+  getParentRoute: () => CTokenRoute,
+} as any)
+const CTokenMensalidadesRoute = CTokenMensalidadesRouteImport.update({
+  id: '/mensalidades',
+  path: '/mensalidades',
+  getParentRoute: () => CTokenRoute,
+} as any)
+const CTokenPresencasRoute = CTokenPresencasRouteImport.update({
+  id: '/presencas',
+  path: '/presencas',
+  getParentRoute: () => CTokenRoute,
+} as any)
 const AuthenticatedShellEventosIndexRoute =
   AuthenticatedShellEventosIndexRouteImport.update({
     id: '/eventos/',
@@ -295,6 +331,7 @@ export interface FileRoutesByFullPath {
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
   '/auth': typeof AuthRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
+  '/c/$token': typeof CTokenRouteWithChildren
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
@@ -309,6 +346,11 @@ export interface FileRoutesByFullPath {
   '/inicio': typeof AuthenticatedShellInicioRoute
   '/mais': typeof AuthenticatedShellMaisRoute
   '/presencas': typeof AuthenticatedShellPresencasRoute
+  '/c/$token/eu': typeof CTokenEuRoute
+  '/c/$token/fluxo': typeof CTokenFluxoRoute
+  '/c/$token/mensalidades': typeof CTokenMensalidadesRoute
+  '/c/$token/presencas': typeof CTokenPresencasRoute
+  '/c/$token/': typeof CTokenIndexRoute
   '/eventos/$id': typeof AuthenticatedShellEventosIdRoute
   '/eventos/checkins': typeof AuthenticatedShellEventosCheckinsRoute
   '/eventos/novo': typeof AuthenticatedShellEventosNovoRoute
@@ -350,6 +392,11 @@ export interface FileRoutesByTo {
   '/inicio': typeof AuthenticatedShellInicioRoute
   '/mais': typeof AuthenticatedShellMaisRoute
   '/presencas': typeof AuthenticatedShellPresencasRoute
+  '/c/$token/eu': typeof CTokenEuRoute
+  '/c/$token/fluxo': typeof CTokenFluxoRoute
+  '/c/$token/mensalidades': typeof CTokenMensalidadesRoute
+  '/c/$token/presencas': typeof CTokenPresencasRoute
+  '/c/$token': typeof CTokenIndexRoute
   '/eventos/$id': typeof AuthenticatedShellEventosIdRoute
   '/eventos/checkins': typeof AuthenticatedShellEventosCheckinsRoute
   '/eventos/novo': typeof AuthenticatedShellEventosNovoRoute
@@ -380,6 +427,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/_shell': typeof AuthenticatedShellRouteRouteWithChildren
   '/_authenticated/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
+  '/c/$token': typeof CTokenRouteWithChildren
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
@@ -395,6 +443,11 @@ export interface FileRoutesById {
   '/_authenticated/_shell/inicio': typeof AuthenticatedShellInicioRoute
   '/_authenticated/_shell/mais': typeof AuthenticatedShellMaisRoute
   '/_authenticated/_shell/presencas': typeof AuthenticatedShellPresencasRoute
+  '/c/$token/eu': typeof CTokenEuRoute
+  '/c/$token/fluxo': typeof CTokenFluxoRoute
+  '/c/$token/mensalidades': typeof CTokenMensalidadesRoute
+  '/c/$token/presencas': typeof CTokenPresencasRoute
+  '/c/$token/': typeof CTokenIndexRoute
   '/_authenticated/_shell/eventos/$id': typeof AuthenticatedShellEventosIdRoute
   '/_authenticated/_shell/eventos/checkins': typeof AuthenticatedShellEventosCheckinsRoute
   '/_authenticated/_shell/eventos/novo': typeof AuthenticatedShellEventosNovoRoute
@@ -425,6 +478,7 @@ export interface FileRouteTypes {
     | '/atualizar-cadastro'
     | '/auth'
     | '/selecionar-capitulo'
+    | '/c/$token'
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
@@ -439,6 +493,11 @@ export interface FileRouteTypes {
     | '/inicio'
     | '/mais'
     | '/presencas'
+    | '/c/$token/eu'
+    | '/c/$token/fluxo'
+    | '/c/$token/mensalidades'
+    | '/c/$token/presencas'
+    | '/c/$token/'
     | '/eventos/$id'
     | '/eventos/checkins'
     | '/eventos/novo'
@@ -480,6 +539,11 @@ export interface FileRouteTypes {
     | '/inicio'
     | '/mais'
     | '/presencas'
+    | '/c/$token/eu'
+    | '/c/$token/fluxo'
+    | '/c/$token/mensalidades'
+    | '/c/$token/presencas'
+    | '/c/$token'
     | '/eventos/$id'
     | '/eventos/checkins'
     | '/eventos/novo'
@@ -509,6 +573,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/_shell'
     | '/_authenticated/selecionar-capitulo'
+    | '/c/$token'
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
@@ -524,6 +589,11 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/inicio'
     | '/_authenticated/_shell/mais'
     | '/_authenticated/_shell/presencas'
+    | '/c/$token/eu'
+    | '/c/$token/fluxo'
+    | '/c/$token/mensalidades'
+    | '/c/$token/presencas'
+    | '/c/$token/'
     | '/_authenticated/_shell/eventos/$id'
     | '/_authenticated/_shell/eventos/checkins'
     | '/_authenticated/_shell/eventos/novo'
@@ -552,6 +622,7 @@ export interface RootRouteChildren {
   DocumentacaoRouteRoute: typeof DocumentacaoRouteRouteWithChildren
   AtualizarCadastroRoute: typeof AtualizarCadastroRoute
   AuthRoute: typeof AuthRoute
+  CTokenRoute: typeof CTokenRouteWithChildren
   FluxoCaixaTokenRoute: typeof FluxoCaixaTokenRoute
   MensalidadesTokenRoute: typeof MensalidadesTokenRoute
 }
@@ -606,6 +677,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/selecionar-capitulo'
       preLoaderRoute: typeof AuthenticatedSelecionarCapituloRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/c/$token': {
+      id: '/c/$token'
+      path: '/c/$token'
+      fullPath: '/c/$token'
+      preLoaderRoute: typeof CTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/documentacao/': {
       id: '/documentacao/'
@@ -704,6 +782,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/presencas'
       preLoaderRoute: typeof AuthenticatedShellPresencasRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/c/$token/': {
+      id: '/c/$token/'
+      path: '/'
+      fullPath: '/c/$token/'
+      preLoaderRoute: typeof CTokenIndexRouteImport
+      parentRoute: typeof CTokenRoute
+    }
+    '/c/$token/eu': {
+      id: '/c/$token/eu'
+      path: '/eu'
+      fullPath: '/c/$token/eu'
+      preLoaderRoute: typeof CTokenEuRouteImport
+      parentRoute: typeof CTokenRoute
+    }
+    '/c/$token/fluxo': {
+      id: '/c/$token/fluxo'
+      path: '/fluxo'
+      fullPath: '/c/$token/fluxo'
+      preLoaderRoute: typeof CTokenFluxoRouteImport
+      parentRoute: typeof CTokenRoute
+    }
+    '/c/$token/mensalidades': {
+      id: '/c/$token/mensalidades'
+      path: '/mensalidades'
+      fullPath: '/c/$token/mensalidades'
+      preLoaderRoute: typeof CTokenMensalidadesRouteImport
+      parentRoute: typeof CTokenRoute
+    }
+    '/c/$token/presencas': {
+      id: '/c/$token/presencas'
+      path: '/presencas'
+      fullPath: '/c/$token/presencas'
+      preLoaderRoute: typeof CTokenPresencasRouteImport
+      parentRoute: typeof CTokenRoute
     }
     '/_authenticated/_shell/eventos/': {
       id: '/_authenticated/_shell/eventos/'
@@ -970,11 +1083,31 @@ const DocumentacaoRouteRouteChildren: DocumentacaoRouteRouteChildren = {
 const DocumentacaoRouteRouteWithChildren =
   DocumentacaoRouteRoute._addFileChildren(DocumentacaoRouteRouteChildren)
 
+interface CTokenRouteChildren {
+  CTokenEuRoute: typeof CTokenEuRoute
+  CTokenFluxoRoute: typeof CTokenFluxoRoute
+  CTokenMensalidadesRoute: typeof CTokenMensalidadesRoute
+  CTokenPresencasRoute: typeof CTokenPresencasRoute
+  CTokenIndexRoute: typeof CTokenIndexRoute
+}
+
+const CTokenRouteChildren: CTokenRouteChildren = {
+  CTokenEuRoute: CTokenEuRoute,
+  CTokenFluxoRoute: CTokenFluxoRoute,
+  CTokenMensalidadesRoute: CTokenMensalidadesRoute,
+  CTokenPresencasRoute: CTokenPresencasRoute,
+  CTokenIndexRoute: CTokenIndexRoute,
+}
+
+const CTokenRouteWithChildren =
+  CTokenRoute._addFileChildren(CTokenRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   DocumentacaoRouteRoute: DocumentacaoRouteRouteWithChildren,
   AtualizarCadastroRoute: AtualizarCadastroRoute,
   AuthRoute: AuthRoute,
+  CTokenRoute: CTokenRouteWithChildren,
   FluxoCaixaTokenRoute: FluxoCaixaTokenRoute,
   MensalidadesTokenRoute: MensalidadesTokenRoute,
 }

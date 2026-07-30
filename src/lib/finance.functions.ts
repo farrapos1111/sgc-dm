@@ -128,10 +128,14 @@ async function applyAutoStatusesForOpenDues(
   rows: { member_id: string; competence_month: number; status: string }[],
 ) {
   const autoIsento = new Set(
-    rows.filter((r) => r.status === "isento").map((r) => `${r.member_id}:${r.competence_month}`),
+    rows
+      .filter((r) => r.status === "isento")
+      .map((r) => `${r.member_id}:${r.competence_month}`),
   );
   const autoDesligado = new Set(
-    rows.filter((r) => r.status === "desligado").map((r) => `${r.member_id}:${r.competence_month}`),
+    rows
+      .filter((r) => r.status === "desligado")
+      .map((r) => `${r.member_id}:${r.competence_month}`),
   );
   if (autoIsento.size === 0 && autoDesligado.size === 0) return;
 
@@ -173,7 +177,6 @@ async function applyAutoStatusesForOpenDues(
   }
 }
 
-
 /* ----------------------------- Fluxo de caixa ---------------------------- */
 
 /** Lista todos os lançamentos do período, paginando além do limite padrão do PostgREST. */
@@ -199,7 +202,9 @@ async function listCashEntriesRows(
   for (;;) {
     const { data, error } = await supabase
       .from("cash_entries")
-      .select("id, kind, category, subcategory, description, amount, entry_date, created_at")
+      .select(
+        "id, kind, category, subcategory, description, amount, entry_date, created_at",
+      )
       .eq("chapter_id", chapterId)
       .gte("entry_date", periodStart)
       .lt("entry_date", periodEnd)
@@ -238,8 +243,15 @@ export const listCashEntries = createServerFn({ method: "POST" })
     const periodEnd = periodEndDate(data.year, data.month);
 
     const [entries, openingAgg, periodAgg, bankAgg] = await Promise.all([
-      listCashEntriesRows(context.supabase, data.chapterId, periodStart, periodEnd),
-      aggregateCashAmounts(context.supabase, data.chapterId, { until: periodStart }),
+      listCashEntriesRows(
+        context.supabase,
+        data.chapterId,
+        periodStart,
+        periodEnd,
+      ),
+      aggregateCashAmounts(context.supabase, data.chapterId, {
+        until: periodStart,
+      }),
       aggregateCashAmounts(context.supabase, data.chapterId, {
         from: periodStart,
         until: periodEnd,
@@ -339,7 +351,6 @@ export const updateCashEntry = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-
 export const deleteCashEntry = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
@@ -359,7 +370,11 @@ export const deleteCashEntry = createServerFn({ method: "POST" })
         .from("member_charge_payments" as never)
         .delete()
         .eq("id", pay.id);
-      await recalcMemberChargeStatus(context.supabase, pay.chapter_id, pay.charge_id);
+      await recalcMemberChargeStatus(
+        context.supabase,
+        pay.chapter_id,
+        pay.charge_id,
+      );
     }
 
     // Cobrança legada com cash_entry_id direto (sem linha de pagamento)
@@ -397,7 +412,10 @@ export const deleteCashEntry = createServerFn({ method: "POST" })
       .update({ status: "em_aberto", paid_at: null, cash_entry_id: null })
       .eq("cash_entry_id", data.id);
 
-    const { error } = await context.supabase.from("cash_entries").delete().eq("id", data.id);
+    const { error } = await context.supabase
+      .from("cash_entries")
+      .delete()
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -430,11 +448,12 @@ async function recalcMemberChargeStatus(
   }>;
   const paid = rows.reduce((s, p) => s + Number(p.amount), 0);
   const fullyPaid = totalDue > 0 && paid + 0.001 >= totalDue;
-  const lastPaidAt = rows
-    .map((p) => p.paid_at)
-    .filter(Boolean)
-    .sort()
-    .at(-1) ?? null;
+  const lastPaidAt =
+    rows
+      .map((p) => p.paid_at)
+      .filter(Boolean)
+      .sort()
+      .at(-1) ?? null;
   const lastCashId =
     rows.filter((p) => p.cash_entry_id).at(-1)?.cash_entry_id ?? null;
 
@@ -526,7 +545,6 @@ export const listCashCategories = createServerFn({ method: "POST" })
     };
   });
 
-
 export const upsertCashCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
@@ -561,7 +579,10 @@ export const deleteCashCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("cash_categories").delete().eq("id", data.id);
+    const { error } = await context.supabase
+      .from("cash_categories")
+      .delete()
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -592,31 +613,15 @@ export const saveDefaultDuesAmount = createServerFn({ method: "POST" })
     chapterInput.extend({ amount: z.number().nonnegative() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { data: current, error: readErr } = await context.supabase
-      .from("chapters")
-      .select("settings")
-      .eq("id", data.chapterId)
-      .single();
-    if (readErr) throw new Error(readErr.message);
-    const settings = {
-      ...(((current?.settings as Record<string, unknown> | null) ?? {}) as Record<string, unknown>),
-      default_dues_amount: data.amount,
-    };
-    const { error } = await context.supabase
-      .from("chapters")
-      .update({ settings: settings as never })
-      .eq("id", data.chapterId);
+    const { data: amount, error } = await context.supabase.rpc(
+      "save_default_dues_amount" as never,
+      {
+        _chapter_id: data.chapterId,
+        _amount: data.amount,
+      } as never,
+    );
     if (error) throw new Error(error.message);
-
-    // Alinha competências ainda não pagas ao novo padrão do capítulo
-    const { error: syncErr } = await context.supabase
-      .from("member_dues")
-      .update({ amount: data.amount })
-      .eq("chapter_id", data.chapterId)
-      .neq("status", "pago");
-    if (syncErr) throw new Error(syncErr.message);
-
-    return { amount: data.amount };
+    return { amount: Number(amount ?? data.amount) };
   });
 
 const MEMBER_DUES_SELECT =
@@ -672,7 +677,9 @@ async function fetchYearDues(
 
     const byId = new Map(eligible.map((m) => [m.id, m]));
     const extraIds = [
-      ...new Set([...inclusionIds, ...duesMemberIds].filter((id) => !byId.has(id))),
+      ...new Set(
+        [...inclusionIds, ...duesMemberIds].filter((id) => !byId.has(id)),
+      ),
     ];
 
     if (extraIds.length > 0) {
@@ -713,7 +720,9 @@ async function fetchYearDues(
   if (duesRes.error) throw new Error(duesRes.error.message);
 
   let dues = duesRes.data ?? [];
-  const duesMemberIds = [...new Set(dues.map((d: { member_id: string }) => d.member_id))];
+  const duesMemberIds = [
+    ...new Set(dues.map((d: { member_id: string }) => d.member_id)),
+  ];
 
   let members = await resolveMembers(
     (membersRes.data ?? []) as DueMemberLite[],
@@ -867,9 +876,15 @@ export const includeMemberInYearDues = createServerFn({ method: "POST" })
         { onConflict: "chapter_id,member_id,year" },
       );
     if (incErr) {
-      if (/member_dues_manual_inclusions|does not exist|schema cache/i.test(incErr.message)) {
+      if (
+        /member_dues_manual_inclusions|does not exist|schema cache/i.test(
+          incErr.message,
+        )
+      ) {
         // Migration ainda não aplicada: segue só com as competências do ano
-        console.warn("includeMemberInYearDues: tabela de inclusões ausente — usando só member_dues");
+        console.warn(
+          "includeMemberInYearDues: tabela de inclusões ausente — usando só member_dues",
+        );
       } else {
         throw new Error(incErr.message);
       }
@@ -884,26 +899,39 @@ export const includeMemberInYearDues = createServerFn({ method: "POST" })
         .is("ended_on", null)
         .maybeSingle();
       if (!openAway) {
-        const { error: awayErr } = await context.supabase.from("member_away_periods").insert({
-          member_id: data.memberId,
-          chapter_id: data.chapterId,
-          started_on: `${data.year}-01-01`,
-          ended_on: null,
-          created_by: context.userId,
-        });
+        const { error: awayErr } = await context.supabase
+          .from("member_away_periods")
+          .insert({
+            member_id: data.memberId,
+            chapter_id: data.chapterId,
+            started_on: `${data.year}-01-01`,
+            ended_on: null,
+            created_by: context.userId,
+          });
         if (awayErr) {
-          if (!/member_away_periods|does not exist|schema cache/i.test(awayErr.message)) {
+          if (
+            !/member_away_periods|does not exist|schema cache/i.test(
+              awayErr.message,
+            )
+          ) {
             throw new Error(awayErr.message);
           }
-          console.warn("includeMemberInYearDues: tabela de afastamentos ausente");
+          console.warn(
+            "includeMemberInYearDues: tabela de afastamentos ausente",
+          );
         }
       }
     }
 
-    const defaultAmount = await readDefaultDuesAmount(context.supabase, data.chapterId);
-    const away = await loadAwayPeriodsByMember(context.supabase, data.chapterId, [
-      data.memberId,
-    ]);
+    const defaultAmount = await readDefaultDuesAmount(
+      context.supabase,
+      data.chapterId,
+    );
+    const away = await loadAwayPeriodsByMember(
+      context.supabase,
+      data.chapterId,
+      [data.memberId],
+    );
     const lite: DueMemberLite = {
       ...(member as DueMemberLite),
       awayPeriods: away.get(data.memberId) ?? [],
@@ -923,13 +951,20 @@ export const includeMemberInYearDues = createServerFn({ method: "POST" })
       };
     });
 
-    const { error: duesErr } = await context.supabase.from("member_dues").upsert(rows, {
-      onConflict: "chapter_id,member_id,competence_year,competence_month",
-      ignoreDuplicates: true,
-    });
+    const { error: duesErr } = await context.supabase
+      .from("member_dues")
+      .upsert(rows, {
+        onConflict: "chapter_id,member_id,competence_year,competence_month",
+        ignoreDuplicates: true,
+      });
     if (duesErr) throw new Error(duesErr.message);
 
-    await applyAutoStatusesForOpenDues(context.supabase, data.chapterId, data.year, rows);
+    await applyAutoStatusesForOpenDues(
+      context.supabase,
+      data.chapterId,
+      data.year,
+      rows,
+    );
 
     return { ok: true, memberId: data.memberId };
   });
@@ -954,7 +989,9 @@ export const removeMemberFromYearDues = createServerFn({ method: "POST" })
       .eq("year", data.year);
     if (
       incErr &&
-      !/member_dues_manual_inclusions|does not exist|schema cache/i.test(incErr.message)
+      !/member_dues_manual_inclusions|does not exist|schema cache/i.test(
+        incErr.message,
+      )
     ) {
       throw new Error(incErr.message);
     }
@@ -976,7 +1013,10 @@ export const listDues = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
     chapterInput
-      .extend({ year: z.number().int(), month: z.number().int().min(1).max(12) })
+      .extend({
+        year: z.number().int(),
+        month: z.number().int().min(1).max(12),
+      })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
@@ -1025,12 +1065,18 @@ export const upsertDue = createServerFn({ method: "POST" })
     let cashEntryId: string | null = existing?.cash_entry_id ?? null;
 
     if (data.status !== "pago" && cashEntryId) {
-      await context.supabase.from("cash_entries").delete().eq("id", cashEntryId);
+      await context.supabase
+        .from("cash_entries")
+        .delete()
+        .eq("id", cashEntryId);
       cashEntryId = null;
     }
 
     const needsCashEntry =
-      data.status === "pago" && !cashEntryId && data.amount > 0 && !data.skipCashEntry;
+      data.status === "pago" &&
+      !cashEntryId &&
+      data.amount > 0 &&
+      !data.skipCashEntry;
 
     if (needsCashEntry) {
       const { data: member, error: memberErr } = await context.supabase
@@ -1071,7 +1117,9 @@ export const upsertDue = createServerFn({ method: "POST" })
 
     const { data: row, error } = await context.supabase
       .from("member_dues")
-      .upsert(payload, { onConflict: "chapter_id,member_id,competence_year,competence_month" })
+      .upsert(payload, {
+        onConflict: "chapter_id,member_id,competence_year,competence_month",
+      })
       .select(
         "id, member_id, amount, status, paid_at, competence_year, competence_month, cash_entry_id",
       )
@@ -1093,7 +1141,12 @@ export const bulkYearDuesAction = createServerFn({ method: "POST" })
     chapterInput
       .extend({
         year: z.number().int(),
-        action: z.enum(["pay_all", "pay_except_jan_dec", "open_all", "exempt_all"]),
+        action: z.enum([
+          "pay_all",
+          "pay_except_jan_dec",
+          "open_all",
+          "exempt_all",
+        ]),
         amount: z.number().nonnegative().optional(),
         paidAt: z.string().optional(),
         skipCashEntry: z.boolean().optional().default(false),
@@ -1102,7 +1155,8 @@ export const bulkYearDuesAction = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const amount =
-      data.amount ?? (await readDefaultDuesAmount(context.supabase, data.chapterId));
+      data.amount ??
+      (await readDefaultDuesAmount(context.supabase, data.chapterId));
     const paidAt = data.paidAt || new Date().toISOString().slice(0, 10);
     const today = new Date();
     const currentYear = today.getFullYear();
@@ -1115,7 +1169,9 @@ export const bulkYearDuesAction = createServerFn({ method: "POST" })
 
       let q = context.supabase
         .from("member_dues")
-        .select("id, member_id, competence_month, cash_entry_id, members(full_name)")
+        .select(
+          "id, member_id, competence_month, cash_entry_id, members(full_name)",
+        )
         .eq("chapter_id", data.chapterId)
         .eq("competence_year", data.year)
         .eq("status", "em_aberto")
@@ -1223,11 +1279,14 @@ export const generateDues = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const amount =
-      data.amount ?? (await readDefaultDuesAmount(context.supabase, data.chapterId));
+      data.amount ??
+      (await readDefaultDuesAmount(context.supabase, data.chapterId));
 
     const { data: allMembers, error: mErr } = await context.supabase
       .from("members")
-      .select("id, full_name, status, kind, birth_date, iniciacao_ordem, exam_grau_iniciatico")
+      .select(
+        "id, full_name, status, kind, birth_date, iniciacao_ordem, exam_grau_iniciatico",
+      )
       .eq("chapter_id", data.chapterId)
       .eq("status", "regular")
       .in("kind", ["demolay_ativo", "senior"]);
@@ -1282,20 +1341,29 @@ export const getFinanceSigners = createServerFn({ method: "POST" })
 
     const { data: rows, error } = await context.supabase
       .from("member_positions")
-      .select("member_id, term_year, term_semester, positions(code, label), members(full_name)")
+      .select(
+        "member_id, term_year, term_semester, positions(code, label), members(full_name)",
+      )
       .eq("chapter_id", data.chapterId)
       .eq("term_year", year)
       .eq("term_semester", semester);
     if (error) throw new Error(error.message);
 
     const find = (codes: string[]) =>
-      (rows ?? []).find((r: any) => codes.includes(r.positions?.code))?.members?.full_name ?? "";
+      (rows ?? []).find((r: any) => codes.includes(r.positions?.code))?.members
+        ?.full_name ?? "";
 
     return [
-      { role: "Presidente do Conselho Consultivo", name: find(["presidente_conselho", "pcc"]) },
+      {
+        role: "Presidente do Conselho Consultivo",
+        name: find(["presidente_conselho", "pcc"]),
+      },
       { role: "Mestre Conselheiro", name: find(["mestre_conselheiro", "mc"]) },
       { role: "Tesoureiro", name: find(["tesoureiro", "tes"]) },
-      { role: "Consultor da Tesouraria", name: find(["consultor_tesouraria", "consultor"]) },
+      {
+        role: "Consultor da Tesouraria",
+        name: find(["consultor_tesouraria", "consultor"]),
+      },
     ];
   });
 
@@ -1351,22 +1419,25 @@ export const createManualDuesEntry = createServerFn({ method: "POST" })
       .single();
     if (entryErr) throw new Error(entryErr.message);
 
-    const share = data.competences.length > 0 ? data.amount / data.competences.length : 0;
-    const { error: duesErr } = await context.supabase.from("member_dues").upsert(
-      data.competences.map((c) => ({
-        chapter_id: data.chapterId,
-        member_id: data.memberId,
-        competence_year: c.year,
-        competence_month: c.month,
-        amount: Number(share.toFixed(2)),
-        status: "pago" as const,
-        paid_at: data.entry_date,
-        cash_entry_id: entry.id,
-        notes: data.notes ?? null,
-        created_by: context.userId,
-      })),
-      { onConflict: "chapter_id,member_id,competence_year,competence_month" },
-    );
+    const share =
+      data.competences.length > 0 ? data.amount / data.competences.length : 0;
+    const { error: duesErr } = await context.supabase
+      .from("member_dues")
+      .upsert(
+        data.competences.map((c) => ({
+          chapter_id: data.chapterId,
+          member_id: data.memberId,
+          competence_year: c.year,
+          competence_month: c.month,
+          amount: Number(share.toFixed(2)),
+          status: "pago" as const,
+          paid_at: data.entry_date,
+          cash_entry_id: entry.id,
+          notes: data.notes ?? null,
+          created_by: context.userId,
+        })),
+        { onConflict: "chapter_id,member_id,competence_year,competence_month" },
+      );
     if (duesErr) throw new Error(duesErr.message);
 
     return { ok: true, description };
@@ -1395,7 +1466,10 @@ export const listMemberCharges = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
     chapterInput
       .extend({
-        status: z.enum(["all", "em_aberto", "pago", "isento"]).optional().default("all"),
+        status: z
+          .enum(["all", "em_aberto", "pago", "isento"])
+          .optional()
+          .default("all"),
       })
       .parse(raw),
   )
@@ -1424,7 +1498,10 @@ export const listMemberCharges = createServerFn({ method: "POST" })
         // Tabela pode ainda não existir se a migration não foi aplicada
         console.error("listMemberCharges payments:", payErr.message);
       } else {
-        for (const p of (payments as Array<{ charge_id: string; amount: number | string }>) ?? []) {
+        for (const p of (payments as Array<{
+          charge_id: string;
+          amount: number | string;
+        }>) ?? []) {
           paidByCharge.set(
             p.charge_id,
             (paidByCharge.get(p.charge_id) ?? 0) + Number(p.amount),
@@ -1451,9 +1528,7 @@ export const listMemberCharges = createServerFn({ method: "POST" })
 
 export const listChargePayments = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) =>
-    z.object({ chargeId: z.string().uuid() }).parse(raw),
-  )
+  .inputValidator((raw) => z.object({ chargeId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("member_charge_payments" as never)
@@ -1503,11 +1578,7 @@ export const addChargePayment = createServerFn({ method: "POST" })
     ).reduce((s, p) => s + Number(p.amount), 0);
 
     // Legacy: pago integral sem linhas de pagamento
-    if (
-      alreadyPaid === 0 &&
-      charge.status === "pago" &&
-      charge.cash_entry_id
-    ) {
+    if (alreadyPaid === 0 && charge.status === "pago" && charge.cash_entry_id) {
       alreadyPaid = totalDue;
     }
 
@@ -1653,7 +1724,11 @@ export const updateChargePayment = createServerFn({ method: "POST" })
       if (cashErr) throw new Error(cashErr.message);
     }
 
-    await recalcMemberChargeStatus(context.supabase, data.chapterId, pay.charge_id);
+    await recalcMemberChargeStatus(
+      context.supabase,
+      data.chapterId,
+      pay.charge_id,
+    );
     return { ok: true };
   });
 
@@ -1661,9 +1736,7 @@ export const updateChargePayment = createServerFn({ method: "POST" })
 export const deleteChargePayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
-    chapterInput
-      .extend({ paymentId: z.string().uuid() })
-      .parse(raw),
+    chapterInput.extend({ paymentId: z.string().uuid() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
     const { data: payment, error: payErr } = await context.supabase
@@ -1692,10 +1765,17 @@ export const deleteChargePayment = createServerFn({ method: "POST" })
         .from("member_charges")
         .update({ cash_entry_id: null })
         .eq("cash_entry_id", pay.cash_entry_id);
-      await context.supabase.from("cash_entries").delete().eq("id", pay.cash_entry_id);
+      await context.supabase
+        .from("cash_entries")
+        .delete()
+        .eq("id", pay.cash_entry_id);
     }
 
-    await recalcMemberChargeStatus(context.supabase, data.chapterId, pay.charge_id);
+    await recalcMemberChargeStatus(
+      context.supabase,
+      data.chapterId,
+      pay.charge_id,
+    );
     return { ok: true };
   });
 
@@ -1753,7 +1833,10 @@ export const upsertMemberCharge = createServerFn({ method: "POST" })
     // Fluxo legado (pago integral sem tabela de pagamentos)
     if (existingPayments === 0) {
       if (data.status !== "pago" && cashEntryId) {
-        await context.supabase.from("cash_entries").delete().eq("id", cashEntryId);
+        await context.supabase
+          .from("cash_entries")
+          .delete()
+          .eq("id", cashEntryId);
         cashEntryId = null;
       }
 
@@ -1807,14 +1890,16 @@ export const upsertMemberCharge = createServerFn({ method: "POST" })
           .eq("charge_id", data.id)
           .limit(1);
         if (!pays?.length) {
-          await context.supabase.from("member_charge_payments" as never).insert({
-            chapter_id: data.chapterId,
-            charge_id: data.id,
-            amount: data.amount,
-            paid_at: paidAt,
-            cash_entry_id: cashEntryId,
-            created_by: context.userId,
-          } as never);
+          await context.supabase
+            .from("member_charge_payments" as never)
+            .insert({
+              chapter_id: data.chapterId,
+              charge_id: data.id,
+              amount: data.amount,
+              paid_at: paidAt,
+              cash_entry_id: cashEntryId,
+              created_by: context.userId,
+            } as never);
         }
       }
     } else {
@@ -1857,7 +1942,8 @@ export const deleteMemberCharge = createServerFn({ method: "POST" })
 
     const cashIds = new Set<string>();
     if (existing?.cash_entry_id) cashIds.add(existing.cash_entry_id);
-    for (const p of (payments as Array<{ cash_entry_id: string | null }>) ?? []) {
+    for (const p of (payments as Array<{ cash_entry_id: string | null }>) ??
+      []) {
       if (p.cash_entry_id) cashIds.add(p.cash_entry_id);
     }
 
@@ -1871,7 +1957,10 @@ export const deleteMemberCharge = createServerFn({ method: "POST" })
       await context.supabase.from("cash_entries").delete().eq("id", cashId);
     }
 
-    const { error } = await context.supabase.from("member_charges").delete().eq("id", data.id);
+    const { error } = await context.supabase
+      .from("member_charges")
+      .delete()
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -1994,7 +2083,10 @@ export const getMemberFinance = createServerFn({ method: "POST" })
         .eq("chapter_id", data.chapterId)
         .in("charge_id", chargeIds);
       if (!payErr) {
-        for (const p of (payments as Array<{ charge_id: string; amount: number | string }>) ?? []) {
+        for (const p of (payments as Array<{
+          charge_id: string;
+          amount: number | string;
+        }>) ?? []) {
           paidByCharge.set(
             p.charge_id,
             (paidByCharge.get(p.charge_id) ?? 0) + Number(p.amount),
