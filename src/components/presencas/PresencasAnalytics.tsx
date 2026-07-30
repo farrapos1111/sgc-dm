@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Bar,
@@ -20,14 +20,6 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -90,14 +82,26 @@ function monthKey(startAt: string): string {
 }
 
 const MONTH_SHORT = [
-  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-  "Jul", "Ago", "Set", "Out", "Nov", "Dez",
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
 ];
 
 const CELL_STYLE: Record<CellStatus, string> = {
-  presente: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
+  presente:
+    "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
   ausente: "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300",
-  pendente: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+  pendente:
+    "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
   na: "bg-zinc-100 text-zinc-400 dark:bg-zinc-800/50 dark:text-zinc-500",
 };
 
@@ -112,12 +116,6 @@ const CELL_LABEL: Record<Exclude<CellStatus, "na">, string> = {
   presente: "Presente",
   ausente: "Ausente",
   pendente: "Pendente",
-};
-
-const CELL_DOT: Record<Exclude<CellStatus, "na">, string> = {
-  presente: "bg-emerald-500",
-  ausente: "bg-rose-500",
-  pendente: "bg-amber-400",
 };
 
 function buildRecordMap(records: AttendanceRec[]) {
@@ -199,9 +197,19 @@ export function PresencasChartsTab({
 
     const byType = new Map<
       string,
-      { type: string; label: string; presentes: number; ausentes: number; pendentes: number; total: number }
+      {
+        type: string;
+        label: string;
+        presentes: number;
+        ausentes: number;
+        pendentes: number;
+        total: number;
+      }
     >();
-    const byMonth = new Map<string, { key: string; label: string; presentes: number; total: number }>();
+    const byMonth = new Map<
+      string,
+      { key: string; label: string; presentes: number; total: number }
+    >();
 
     for (const ev of yearItems) {
       const t = ev.event_type;
@@ -220,7 +228,12 @@ export function PresencasChartsTab({
       const mk = monthKey(ev.start_at);
       if (mk && !byMonth.has(mk)) {
         const m = Number(mk.slice(5, 7));
-        byMonth.set(mk, { key: mk, label: MONTH_SHORT[m - 1] ?? mk, presentes: 0, total: 0 });
+        byMonth.set(mk, {
+          key: mk,
+          label: MONTH_SHORT[m - 1] ?? mk,
+          presentes: 0,
+          total: 0,
+        });
       }
       const monthRow = mk ? byMonth.get(mk)! : null;
 
@@ -283,7 +296,11 @@ export function PresencasChartsTab({
         };
       })
       .filter((m) => m.total > 0)
-      .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1) || a.name.localeCompare(b.name, "pt-BR"));
+      .sort(
+        (a, b) =>
+          (b.pct ?? -1) - (a.pct ?? -1) ||
+          a.name.localeCompare(b.name, "pt-BR"),
+      );
 
     return {
       presentes,
@@ -296,20 +313,38 @@ export function PresencasChartsTab({
       byTypeRows,
       byMonthRows,
       top: memberFreq.slice(0, 8),
-      bottom: memberFreq.slice(8).reverse().slice(0, 5),
+      bottom: memberFreq.slice(-5).reverse(),
     };
   }, [yearItems, eligibleMembers, recordByKey]);
 
   const pieData = [
-    { key: "presentes", name: "Presentes", value: stats.presentes, fill: "#047857" },
-    { key: "ausentes", name: "Ausentes", value: stats.ausentes, fill: "#B91C1C" },
-    { key: "pendentes", name: "Pendentes", value: stats.pendentes, fill: "#D97706" },
+    {
+      key: "presentes",
+      name: "Presentes",
+      value: stats.presentes,
+      fill: "#047857",
+    },
+    {
+      key: "ausentes",
+      name: "Ausentes",
+      value: stats.ausentes,
+      fill: "#B91C1C",
+    },
+    {
+      key: "pendentes",
+      name: "Pendentes",
+      value: stats.pendentes,
+      fill: "#D97706",
+    },
   ].filter((d) => d.value > 0);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={String(year)} onValueChange={(v) => onYearChange(Number(v))}>
+        <Select
+          value={String(year)}
+          onValueChange={(v) => onYearChange(Number(v))}
+        >
           <SelectTrigger className="h-9 w-[110px] text-xs">
             <SelectValue placeholder="Ano" />
           </SelectTrigger>
@@ -322,13 +357,21 @@ export function PresencasChartsTab({
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          Somente eventos obrigatórios · {stats.events} chamada{stats.events === 1 ? "" : "s"}
+          Somente eventos obrigatórios · {stats.events} chamada
+          {stats.events === 1 ? "" : "s"}
         </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Taxa de presença" value={stats.overallPct === null ? "—" : `${stats.overallPct}%`} />
-        <Kpi label="Presentes" value={String(stats.presentes)} accent="#047857" />
+        <Kpi
+          label="Taxa de presença"
+          value={stats.overallPct === null ? "—" : `${stats.overallPct}%`}
+        />
+        <Kpi
+          label="Presentes"
+          value={String(stats.presentes)}
+          accent="#047857"
+        />
         <Kpi label="Ausentes" value={String(stats.ausentes)} accent="#B91C1C" />
         <Kpi
           label="Justificadas"
@@ -349,8 +392,15 @@ export function PresencasChartsTab({
               <p className="mb-3 text-xs text-muted-foreground">
                 Presentes, ausentes e pendentes por tipo de evento
               </p>
-              <ChartContainer config={byTypeConfig} className="aspect-[4/3] w-full">
-                <BarChart data={stats.byTypeRows} layout="vertical" margin={{ left: 8, right: 12 }}>
+              <ChartContainer
+                config={byTypeConfig}
+                className="aspect-[4/3] w-full"
+              >
+                <BarChart
+                  data={stats.byTypeRows}
+                  layout="vertical"
+                  margin={{ left: 8, right: 12 }}
+                >
                   <CartesianGrid horizontal={false} />
                   <YAxis
                     dataKey="label"
@@ -362,9 +412,23 @@ export function PresencasChartsTab({
                   />
                   <XAxis type="number" hide />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="presentes" stackId="a" fill="var(--color-presentes)" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="ausentes" stackId="a" fill="var(--color-ausentes)" />
-                  <Bar dataKey="pendentes" stackId="a" fill="var(--color-pendentes)" radius={[0, 4, 4, 0]} />
+                  <Bar
+                    dataKey="presentes"
+                    stackId="a"
+                    fill="var(--color-presentes)"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="ausentes"
+                    stackId="a"
+                    fill="var(--color-ausentes)"
+                  />
+                  <Bar
+                    dataKey="pendentes"
+                    stackId="a"
+                    fill="var(--color-pendentes)"
+                    radius={[0, 4, 4, 0]}
+                  />
                 </BarChart>
               </ChartContainer>
             </Card>
@@ -374,14 +438,28 @@ export function PresencasChartsTab({
               <p className="mb-3 text-xs text-muted-foreground">
                 Total de marcações elegíveis em {year}
               </p>
-              <ChartContainer config={pieConfig} className="mx-auto aspect-square max-h-[260px] w-full">
+              <ChartContainer
+                config={pieConfig}
+                className="mx-auto aspect-square max-h-[260px] w-full"
+              >
                 <PieChart>
-                  <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                  <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={55} strokeWidth={2}>
+                  <ChartTooltip
+                    content={<ChartTooltipContent nameKey="name" hideLabel />}
+                  />
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={55}
+                    strokeWidth={2}
+                  >
                     {pieData.map((d) => (
                       <Cell key={d.key} fill={d.fill} />
                     ))}
-                    <LabelList dataKey="value" className="fill-background text-[11px] font-medium" />
+                    <LabelList
+                      dataKey="value"
+                      className="fill-background text-[11px] font-medium"
+                    />
                   </Pie>
                 </PieChart>
               </ChartContainer>
@@ -389,26 +467,49 @@ export function PresencasChartsTab({
           </div>
 
           <Card className="rounded-[12px] p-4">
-            <h3 className="mb-1 text-sm font-medium">Taxa mensal de presença</h3>
+            <h3 className="mb-1 text-sm font-medium">
+              Taxa mensal de presença
+            </h3>
             <p className="mb-3 text-xs text-muted-foreground">
               % de presentes sobre o total elegível em cada mês
             </p>
             {stats.byMonthRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem dados mensais.</p>
+              <p className="text-sm text-muted-foreground">
+                Sem dados mensais.
+              </p>
             ) : (
-              <ChartContainer config={rateConfig} className="aspect-[21/9] w-full min-h-[200px]">
-                <BarChart data={stats.byMonthRows} margin={{ left: 0, right: 8 }}>
+              <ChartContainer
+                config={rateConfig}
+                className="aspect-[21/9] w-full min-h-[200px]"
+              >
+                <BarChart
+                  data={stats.byMonthRows}
+                  margin={{ left: 0, right: 8 }}
+                >
                   <CartesianGrid vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                  <YAxis domain={[0, 100]} tickLine={false} axisLine={false} width={32} tick={{ fontSize: 11 }} />
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    tickLine={false}
+                    axisLine={false}
+                    width={32}
+                    tick={{ fontSize: 11 }}
+                  />
                   <ChartTooltip
                     content={
-                      <ChartTooltipContent
-                        formatter={(value) => `${value}%`}
-                      />
+                      <ChartTooltipContent formatter={(value) => `${value}%`} />
                     }
                   />
-                  <Bar dataKey="pct" fill="var(--color-pct)" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="pct"
+                    fill="var(--color-pct)"
+                    radius={[4, 4, 0, 0]}
+                  />
                 </BarChart>
               </ChartContainer>
             )}
@@ -421,7 +522,10 @@ export function PresencasChartsTab({
               </div>
               <ul className="divide-y divide-border">
                 {stats.top.map((m) => (
-                  <li key={m.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                  <li
+                    key={m.id}
+                    className="flex items-center justify-between gap-3 px-4 py-2.5"
+                  >
                     <Link
                       to="/membros/$id"
                       params={{ id: m.id }}
@@ -431,7 +535,9 @@ export function PresencasChartsTab({
                     </Link>
                     <span className="shrink-0 text-xs text-muted-foreground">
                       {m.present}/{m.total} ·{" "}
-                      <span className="font-semibold text-emerald-700">{m.pct}%</span>
+                      <span className="font-semibold text-emerald-700">
+                        {m.pct}%
+                      </span>
                     </span>
                   </li>
                 ))}
@@ -443,7 +549,10 @@ export function PresencasChartsTab({
               </div>
               <ul className="divide-y divide-border">
                 {stats.bottom.map((m) => (
-                  <li key={m.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                  <li
+                    key={m.id}
+                    className="flex items-center justify-between gap-3 px-4 py-2.5"
+                  >
                     <Link
                       to="/membros/$id"
                       params={{ id: m.id }}
@@ -453,7 +562,9 @@ export function PresencasChartsTab({
                     </Link>
                     <span className="shrink-0 text-xs text-muted-foreground">
                       {m.present}/{m.total} ·{" "}
-                      <span className="font-semibold text-rose-700">{m.pct}%</span>
+                      <span className="font-semibold text-rose-700">
+                        {m.pct}%
+                      </span>
                     </span>
                   </li>
                 ))}
@@ -480,15 +591,28 @@ function Kpi({
   return (
     <Card className="rounded-[12px] p-4">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tracking-tight" style={accent ? { color: accent } : undefined}>
+      <div
+        className="mt-1 text-2xl font-semibold tracking-tight"
+        style={accent ? { color: accent } : undefined}
+      >
         {value}
       </div>
-      {hint ? <div className="mt-0.5 text-[11px] text-muted-foreground">{hint}</div> : null}
+      {hint ? (
+        <div className="mt-0.5 text-[11px] text-muted-foreground">{hint}</div>
+      ) : null}
     </Card>
   );
 }
 
 /* ─── Visão geral (matriz) ─────────────────────────────────── */
+
+function cycleAttendanceStatus(
+  status: CellStatus,
+): "presente" | "ausente" | null {
+  if (status === "presente") return "ausente";
+  if (status === "ausente") return null;
+  return "presente";
+}
 
 function OverviewAttendanceCell({
   status,
@@ -496,7 +620,6 @@ function OverviewAttendanceCell({
   memberName,
   eventTitle,
   eventDate,
-  busy,
   onSet,
 }: {
   status: CellStatus;
@@ -504,59 +627,38 @@ function OverviewAttendanceCell({
   memberName: string;
   eventTitle: string;
   eventDate: string;
-  busy: boolean;
   onSet: (next: "presente" | "ausente" | null) => void;
 }) {
   const statusLabel = status === "na" ? "Não elegível" : CELL_LABEL[status];
   const tip =
-    status === "ausente" && justification
-      ? `Ausente · ${justification}`
-      : status === "presente"
-        ? "Presente · clique para alterar"
-        : status === "ausente"
-          ? "Ausente · clique para alterar"
-          : status === "pendente"
-            ? "Pendente · clique para alterar"
-            : "Não elegível";
+    status === "na"
+      ? "Não elegível"
+      : status === "ausente" && justification
+        ? `Ausente · ${justification} · clique para ciclar`
+        : `${statusLabel} · clique: P → A → Pendente`;
 
-  const button = (
+  return (
     <button
       type="button"
-      disabled={status === "na" || busy}
+      disabled={status === "na"}
       title={tip}
       aria-label={`${memberName} · ${eventTitle} · ${eventDate} · ${statusLabel}`}
-      className={`inline-flex h-10 w-full items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide transition hover:ring-2 hover:ring-ring disabled:cursor-default disabled:hover:ring-0 ${CELL_STYLE[status]} ${busy ? "opacity-60" : ""}`}
+      onClick={() => {
+        if (status === "na") return;
+        onSet(cycleAttendanceStatus(status));
+      }}
+      className={`inline-flex h-10 w-full items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide transition hover:ring-2 hover:ring-ring disabled:cursor-default disabled:hover:ring-0 ${CELL_STYLE[status]}`}
     >
       {CELL_LETTER[status]}
     </button>
   );
-
-  if (status === "na") return button;
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>{button}</DropdownMenuTrigger>
-      <DropdownMenuContent align="center" className="w-48">
-        <DropdownMenuLabel className="font-normal">
-          <div className="truncate text-xs font-medium">{memberName}</div>
-          <div className="truncate text-[11px] text-muted-foreground">{eventTitle}</div>
-          <div className="text-[11px] text-muted-foreground">{eventDate}</div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {(["presente", "ausente", "pendente"] as const).map((s) => (
-          <DropdownMenuItem
-            key={s}
-            disabled={status === s || busy}
-            onSelect={() => onSet(s === "pendente" ? null : s)}
-          >
-            <span className={`mr-2 inline-block h-2.5 w-2.5 rounded-sm ${CELL_DOT[s]}`} />
-            {CELL_LABEL[s]}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
 }
+
+type AttendanceOverviewCache = {
+  items: CalItem[];
+  members: DueMemberLite[];
+  records: AttendanceRec[];
+};
 
 export function PresencasOverviewTab({
   items,
@@ -580,14 +682,22 @@ export function PresencasOverviewTab({
   chapterId: string;
 }) {
   const qc = useQueryClient();
-  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  /** Overlay local: UI muda no clique; sync com o servidor em background (latest-wins). */
+  const [overrides, setOverrides] = useState(
+    () => new Map<string, { status: "presente" | "ausente" | null; justification: string | null }>(),
+  );
+  const latestRef = useRef(
+    new Map<string, { status: "presente" | "ausente" | null; justification: string | null }>(),
+  );
+  const flushingRef = useRef(new Set<string>());
 
   const semesterEvents = useMemo(
     () =>
       items
         .filter(
           (i) =>
-            eventYear(i.start_at) === year && eventSemester(i.start_at) === semester,
+            eventYear(i.start_at) === year &&
+            eventSemester(i.start_at) === semester,
         )
         .sort((a, b) => a.start_at.localeCompare(b.start_at)),
     [items, year, semester],
@@ -599,7 +709,45 @@ export function PresencasOverviewTab({
     return m;
   }, [semesterEvents]);
 
-  const recordByKey = useMemo(() => buildRecordMap(records), [records]);
+  const recordByKey = useMemo(() => {
+    const m = buildRecordMap(records);
+    for (const [key, ov] of overrides) {
+      if (ov.status === null) {
+        m.delete(key);
+        continue;
+      }
+      const sep = key.indexOf(":");
+      const member_id = key.slice(0, sep);
+      const calendar_event_id = key.slice(sep + 1);
+      m.set(key, {
+        member_id,
+        calendar_event_id,
+        status: ov.status,
+        justification: ov.justification,
+      });
+    }
+    return m;
+  }, [records, overrides]);
+
+  // Limpa overrides já confirmados pelo servidor
+  useEffect(() => {
+    setOverrides((prev) => {
+      if (prev.size === 0) return prev;
+      const server = buildRecordMap(records);
+      let changed = false;
+      const next = new Map(prev);
+      for (const [key, ov] of prev) {
+        if (flushingRef.current.has(key) || latestRef.current.has(key)) continue;
+        const s = server.get(key);
+        const matches = ov.status === null ? !s : s?.status === ov.status;
+        if (matches) {
+          next.delete(key);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [records]);
 
   const rows = useMemo(() => {
     return members
@@ -612,7 +760,11 @@ export function PresencasOverviewTab({
         const cells = semesterEvents.map((ev) => {
           const st = cellStatus(m, ev, recordByKey);
           const rec = recordByKey.get(`${m.id}:${ev.id}`);
-          return { eventId: ev.id, status: st, justification: rec?.justification ?? null };
+          return {
+            eventId: ev.id,
+            status: st,
+            justification: rec?.justification ?? null,
+          };
         });
         const eligible = cells.filter((c) => c.status !== "na");
         const present = eligible.filter((c) => c.status === "presente").length;
@@ -621,55 +773,144 @@ export function PresencasOverviewTab({
           cells,
           present,
           total: eligible.length,
-          pct: eligible.length > 0 ? Math.round((present / eligible.length) * 100) : null,
+          pct:
+            eligible.length > 0
+              ? Math.round((present / eligible.length) * 100)
+              : null,
         };
       })
       .filter((r) => r.total > 0)
-      .sort((a, b) => a.member.full_name.localeCompare(b.member.full_name, "pt-BR"));
+      .sort((a, b) =>
+        a.member.full_name.localeCompare(b.member.full_name, "pt-BR"),
+      );
   }, [members, semesterEvents, recordByKey]);
 
-  const mark = useMutation({
-    mutationFn: (v: {
-      memberId: string;
-      calendarEventId: string;
-      status: "presente" | "ausente" | null;
-      justification?: string | null;
-    }) =>
-      setAttendance({
-        data: {
-          chapterId,
-          calendarEventId: v.calendarEventId,
-          memberId: v.memberId,
-          status: v.status,
-          justification: v.justification ?? null,
-        },
-      }),
-    onMutate: (v) => setPendingKey(`${v.memberId}:${v.calendarEventId}`),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: attendanceOverviewKey(chapterId) });
-    },
-    onError: (e: Error) => toast.error(e.message || "Erro ao atualizar presença"),
-    onSettled: () => setPendingKey(null),
-  });
+  function patchCache(
+    memberId: string,
+    eventId: string,
+    status: "presente" | "ausente" | null,
+    justification: string | null,
+  ) {
+    const key = attendanceOverviewKey(chapterId);
+    qc.setQueryData<AttendanceOverviewCache>(key, (old) => {
+      if (!old) return old;
+      const nextRecords = [...(old.records ?? [])];
+      const idx = nextRecords.findIndex(
+        (r) => r.member_id === memberId && r.calendar_event_id === eventId,
+      );
+      if (status === null) {
+        if (idx >= 0) nextRecords.splice(idx, 1);
+      } else if (idx >= 0) {
+        nextRecords[idx] = {
+          ...nextRecords[idx],
+          status,
+          justification,
+        };
+      } else {
+        nextRecords.push({
+          member_id: memberId,
+          calendar_event_id: eventId,
+          status,
+          justification,
+        });
+      }
+      return { ...old, records: nextRecords };
+    });
+  }
+
+  async function flushCell(cellKey: string) {
+    if (flushingRef.current.has(cellKey)) return;
+    flushingRef.current.add(cellKey);
+    const sep = cellKey.indexOf(":");
+    const memberId = cellKey.slice(0, sep);
+    const calendarEventId = cellKey.slice(sep + 1);
+
+    try {
+      while (latestRef.current.has(cellKey)) {
+        const payload = latestRef.current.get(cellKey)!;
+        latestRef.current.delete(cellKey);
+        try {
+          await setAttendance({
+            data: {
+              chapterId,
+              calendarEventId,
+              memberId,
+              status: payload.status,
+              justification: payload.justification,
+            },
+          });
+          // Só grava no cache se não houver clique mais novo nesta célula
+          if (!latestRef.current.has(cellKey)) {
+            patchCache(
+              memberId,
+              calendarEventId,
+              payload.status,
+              payload.justification,
+            );
+            setOverrides((prev) => {
+              const cur = prev.get(cellKey);
+              if (
+                !cur ||
+                cur.status !== payload.status ||
+                cur.justification !== payload.justification
+              ) {
+                return prev;
+              }
+              const next = new Map(prev);
+              next.delete(cellKey);
+              return next;
+            });
+          }
+        } catch (e) {
+          latestRef.current.delete(cellKey);
+          setOverrides((prev) => {
+            const next = new Map(prev);
+            next.delete(cellKey);
+            return next;
+          });
+          void qc.invalidateQueries({
+            queryKey: attendanceOverviewKey(chapterId),
+          });
+          toast.error(
+            e instanceof Error ? e.message : "Erro ao atualizar presença",
+          );
+          break;
+        }
+      }
+    } finally {
+      flushingRef.current.delete(cellKey);
+      if (latestRef.current.has(cellKey)) void flushCell(cellKey);
+    }
+  }
 
   function setCell(
     memberId: string,
     eventId: string,
     next: "presente" | "ausente" | null,
   ) {
-    const prev = recordByKey.get(`${memberId}:${eventId}`);
-    mark.mutate({
-      memberId,
-      calendarEventId: eventId,
-      status: next,
-      justification: next === "ausente" ? (prev?.justification ?? null) : null,
+    const cellKey = `${memberId}:${eventId}`;
+    const prev = recordByKey.get(cellKey);
+    const justification =
+      next === "ausente" ? (prev?.justification ?? null) : null;
+    const payload = { status: next, justification };
+
+    // UI imediata via overlay; servidor em background (latest-wins)
+    latestRef.current.set(cellKey, payload);
+    setOverrides((prevMap) => {
+      const map = new Map(prevMap);
+      map.set(cellKey, payload);
+      return map;
     });
+    void flushCell(cellKey);
   }
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={String(year)} onValueChange={(v) => onYearChange(Number(v))}>
+        <Select
+          value={String(year)}
+          onValueChange={(v) => onYearChange(Number(v))}
+        >
           <SelectTrigger className="h-9 w-[110px] text-xs">
             <SelectValue placeholder="Ano" />
           </SelectTrigger>
@@ -685,7 +926,7 @@ export function PresencasOverviewTab({
           value={String(semester)}
           onValueChange={(v) => onSemesterChange(Number(v) as 1 | 2)}
         >
-          <SelectTrigger className="h-9 w-[200px] text-xs">
+          <SelectTrigger className="h-9 w-[min(100%,200px)] min-w-[140px] text-xs">
             <SelectValue placeholder="Semestre" />
           </SelectTrigger>
           <SelectContent>
@@ -704,94 +945,205 @@ export function PresencasOverviewTab({
           Nenhum membro elegível nas chamadas deste semestre.
         </Card>
       ) : (
-        <Card className="overflow-hidden rounded-[12px] p-0">
-          <div className="w-full">
-            <table className="w-full table-fixed border-collapse text-sm">
-              <colgroup>
-                <col className="w-[28%]" />
-                {semesterEvents.map((ev) => (
-                  <col key={ev.id} />
-                ))}
-                <col className="w-[6%]" />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th className="px-4 py-3 text-left text-xs font-medium">Membro</th>
-                  {semesterEvents.map((ev) => {
-                    const meta = TYPE_META[ev.event_type as CalendarType];
+        <>
+          {/* Mobile / telas estreitas: um card por membro */}
+          <div className="space-y-3 lg:hidden">
+            {rows.map((row) => (
+              <Card key={row.member.id} className="rounded-[12px] p-3">
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <Link
+                    to="/membros/$id"
+                    params={{ id: row.member.id }}
+                    className="min-w-0 text-sm font-medium leading-snug hover:underline"
+                  >
+                    {row.member.full_name}
+                  </Link>
+                  <div className="shrink-0 text-right">
+                    <div className="text-sm font-semibold tabular-nums">
+                      {row.pct === null ? "—" : `${row.pct}%`}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {row.present}/{row.total}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                  {row.cells.map((cell) => {
+                    const ev = eventById.get(cell.eventId);
+                    const meta = ev
+                      ? TYPE_META[ev.event_type as CalendarType]
+                      : undefined;
                     return (
-                      <th
-                        key={ev.id}
-                        className="px-1 py-3 text-center text-[10px] font-medium text-muted-foreground"
-                        title={`${ev.title} · ${formatDateBR(ev.start_at)} · ${meta?.label ?? ev.event_type}${ev.mandatory ? " · Obrigatório" : " · Facultativo"}`}
-                      >
+                      <div key={cell.eventId} className="min-w-0 space-y-1">
                         <Link
                           to="/ongoing/$id"
-                          params={{ id: ev.id }}
-                          className="inline-flex w-full flex-col items-center gap-0.5 hover:text-foreground"
+                          params={{ id: cell.eventId }}
+                          className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-foreground"
+                          title={
+                            ev
+                              ? `${ev.title} · ${formatDateBR(ev.start_at)}`
+                              : undefined
+                          }
                         >
-                          <span>{shortHeader(ev.start_at)}</span>
+                          <span>{ev ? shortHeader(ev.start_at) : "—"}</span>
                           <span
-                            className="h-1 w-1 rounded-full"
+                            className="h-1 w-1 shrink-0 rounded-full"
                             style={{ backgroundColor: meta?.color ?? "#888" }}
                           />
                         </Link>
-                      </th>
+                        <OverviewAttendanceCell
+                          status={cell.status}
+                          justification={cell.justification}
+                          memberName={row.member.full_name}
+                          eventTitle={ev?.title ?? "Chamada"}
+                          eventDate={ev ? formatDateBR(ev.start_at) : ""}
+                          onSet={(next) =>
+                            setCell(row.member.id, cell.eventId, next)
+                          }
+                        />
+                      </div>
                     );
                   })}
-                  <th className="px-3 py-3 text-center text-xs font-medium text-muted-foreground">
-                    %
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.member.id} className="border-b border-border last:border-b-0">
-                    <td className="px-4 py-2.5 font-medium" title={row.member.full_name}>
-                      <Link
-                        to="/membros/$id"
-                        params={{ id: row.member.id }}
-                        className="block text-sm leading-snug hover:underline"
-                      >
-                        {row.member.full_name}
-                      </Link>
-                    </td>
-                    {row.cells.map((cell) => {
-                      const ev = eventById.get(cell.eventId);
+                </div>
+              </Card>
+            ))}
+            <div className="flex flex-wrap gap-3 px-1 text-xs text-muted-foreground">
+              <LegendDot
+                className={CELL_STYLE.presente}
+                letter="P"
+                label="Presente"
+              />
+              <LegendDot
+                className={CELL_STYLE.ausente}
+                letter="A"
+                label="Ausente"
+              />
+              <LegendDot
+                className={CELL_STYLE.pendente}
+                letter="·"
+                label="Pendente"
+              />
+              <LegendDot
+                className={CELL_STYLE.na}
+                letter="—"
+                label="Não elegível"
+              />
+            </div>
+          </div>
+
+          {/* Desktop: matriz em largura total (sem scroll lateral) */}
+          <Card className="hidden overflow-hidden rounded-[12px] p-0 lg:block">
+            <div className="w-full">
+              <table className="w-full table-fixed border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40">
+                    <th className="w-[16%] px-3 py-3 text-left text-xs font-medium">
+                      Membro
+                    </th>
+                    {semesterEvents.map((ev) => {
+                      const meta = TYPE_META[ev.event_type as CalendarType];
                       return (
-                        <td key={cell.eventId} className="px-1.5 py-2 text-center">
-                          <OverviewAttendanceCell
-                            status={cell.status}
-                            justification={cell.justification}
-                            memberName={row.member.full_name}
-                            eventTitle={ev?.title ?? "Chamada"}
-                            eventDate={ev ? formatDateBR(ev.start_at) : ""}
-                            busy={pendingKey === `${row.member.id}:${cell.eventId}`}
-                            onSet={(next) => setCell(row.member.id, cell.eventId, next)}
-                          />
-                        </td>
+                        <th
+                          key={ev.id}
+                          className="px-0.5 py-3 text-center text-[10px] font-medium text-muted-foreground"
+                          title={`${ev.title} · ${formatDateBR(ev.start_at)} · ${meta?.label ?? ev.event_type}${ev.mandatory ? " · Obrigatório" : " · Facultativo"}`}
+                        >
+                          <Link
+                            to="/ongoing/$id"
+                            params={{ id: ev.id }}
+                            className="inline-flex w-full flex-col items-center gap-0.5 hover:text-foreground"
+                          >
+                            <span>{shortHeader(ev.start_at)}</span>
+                            <span
+                              className="h-1 w-1 rounded-full"
+                              style={{
+                                backgroundColor: meta?.color ?? "#888",
+                              }}
+                            />
+                          </Link>
+                        </th>
                       );
                     })}
-                    <td className="px-3 py-2.5 text-center text-xs font-semibold tabular-nums">
-                      {row.pct === null ? "—" : `${row.pct}%`}
-                    </td>
+                    <th className="w-[3.5rem] px-2 py-3 text-center text-xs font-medium text-muted-foreground">
+                      %
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex flex-wrap gap-4 border-t border-border px-4 py-3 text-xs text-muted-foreground">
-            <LegendDot className={CELL_STYLE.presente} letter="P" label="Presente" />
-            <LegendDot className={CELL_STYLE.ausente} letter="A" label="Ausente" />
-            <LegendDot className={CELL_STYLE.pendente} letter="·" label="Pendente" />
-            <LegendDot className={CELL_STYLE.na} letter="—" label="Não elegível" />
-          </div>
-        </Card>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr
+                      key={row.member.id}
+                      className="border-b border-border last:border-b-0"
+                    >
+                      <td
+                        className="px-3 py-2.5 font-medium"
+                        title={row.member.full_name}
+                      >
+                        <Link
+                          to="/membros/$id"
+                          params={{ id: row.member.id }}
+                          className="block truncate text-sm leading-snug hover:underline"
+                        >
+                          {row.member.full_name}
+                        </Link>
+                      </td>
+                      {row.cells.map((cell) => {
+                        const ev = eventById.get(cell.eventId);
+                        return (
+                          <td
+                            key={cell.eventId}
+                            className="px-0.5 py-2 text-center"
+                          >
+                            <OverviewAttendanceCell
+                              status={cell.status}
+                              justification={cell.justification}
+                              memberName={row.member.full_name}
+                              eventTitle={ev?.title ?? "Chamada"}
+                              eventDate={ev ? formatDateBR(ev.start_at) : ""}
+                              onSet={(next) =>
+                                setCell(row.member.id, cell.eventId, next)
+                              }
+                            />
+                          </td>
+                        );
+                      })}
+                      <td className="px-2 py-2.5 text-center text-xs font-semibold tabular-nums">
+                        {row.pct === null ? "—" : `${row.pct}%`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex flex-wrap gap-4 border-t border-border px-4 py-3 text-xs text-muted-foreground">
+              <LegendDot
+                className={CELL_STYLE.presente}
+                letter="P"
+                label="Presente"
+              />
+              <LegendDot
+                className={CELL_STYLE.ausente}
+                letter="A"
+                label="Ausente"
+              />
+              <LegendDot
+                className={CELL_STYLE.pendente}
+                letter="·"
+                label="Pendente"
+              />
+              <LegendDot
+                className={CELL_STYLE.na}
+                letter="—"
+                label="Não elegível"
+              />
+            </div>
+          </Card>
+        </>
       )}
 
       <p className="text-xs text-muted-foreground">
-        Clique na célula para marcar presente, ausente ou pendente. Clique na data do cabeçalho
-        para abrir a chamada. 1º semestre = jan–jun · 2º = jul–dez.
+        Clique na célula para ciclar: Presente → Ausente → Pendente. Clique na
+        data para abrir a chamada. 1º semestre = jan–jun · 2º = jul–dez.
       </p>
     </div>
   );

@@ -22,7 +22,9 @@ export type DueMemberLite = {
 
 export type MonthAutoStatus = "em_aberto" | "isento" | "desligado";
 
-function parseYmd(iso: string | null | undefined): { y: number; m: number; d: number } | null {
+function parseYmd(
+  iso: string | null | undefined,
+): { y: number; m: number; d: number } | null {
   if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return null;
   return {
     y: Number(iso.slice(0, 4)),
@@ -32,7 +34,9 @@ function parseYmd(iso: string | null | undefined): { y: number; m: number; d: nu
 }
 
 /** Data em que completa 21 anos (aniversário). */
-export function turns21On(birthDate: string | null | undefined): { y: number; m: number; d: number } | null {
+export function turns21On(
+  birthDate: string | null | undefined,
+): { y: number; m: number; d: number } | null {
   const bd = parseYmd(birthDate);
   if (!bd) return null;
   return { y: bd.y + 21, m: bd.m, d: bd.d };
@@ -80,8 +84,12 @@ export function monthInAwayPeriod(
 }
 
 /** Data de iniciação: iniciacao_ordem, ou exame do grau iniciático como fallback. */
-export function initiationOn(m: DueMemberLite): { y: number; m: number; d: number } | null {
-  return parseYmd(m.iniciacao_ordem) ?? parseYmd(m.exam_grau_iniciatico ?? null);
+export function initiationOn(
+  m: DueMemberLite,
+): { y: number; m: number; d: number } | null {
+  return (
+    parseYmd(m.iniciacao_ordem) ?? parseYmd(m.exam_grau_iniciatico ?? null)
+  );
 }
 
 /**
@@ -163,7 +171,10 @@ export function autoDueStatus(
     return "desligado";
   }
   // Irregular ainda sem período registrado: não cobra mensalidade
-  if (m.status === "irregular" && !(m.awayPeriods && m.awayPeriods.length > 0)) {
+  if (
+    m.status === "irregular" &&
+    !(m.awayPeriods && m.awayPeriods.length > 0)
+  ) {
     return "desligado";
   }
 
@@ -248,16 +259,38 @@ export function getChapterDefaultDuesAmount(
   chapter?: { settings?: Record<string, unknown> | null } | null,
 ): number {
   const raw = chapter?.settings?.default_dues_amount;
+  // null/undefined são inválidos (Number(null) === 0)
+  if (raw == null) return 50;
   const n = typeof raw === "number" ? raw : Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : 50;
 }
 
 export const MONTH_SHORT = [
-  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-  "Jul", "Ago", "Set", "Out", "Nov", "Dez",
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
 ];
 
 export const MONTH_LONG = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];

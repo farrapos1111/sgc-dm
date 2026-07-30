@@ -46,16 +46,25 @@ export const Route = createFileRoute("/fluxo-caixa/$token")({
       },
     ],
   }),
-  component: PublicCashFlowPage,
+  component: function PublicCashFlowRoute() {
+    const { token } = Route.useParams();
+    return <PublicCashFlowView token={token} variant="standalone" />;
+  },
 });
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const monthName = (m: number) =>
   new Date(2000, m - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
 
-function PublicCashFlowPage() {
-  const { token } = Route.useParams();
+export function PublicCashFlowView({
+  token,
+  variant = "standalone",
+}: {
+  token: string;
+  variant?: "standalone" | "lobby";
+}) {
   const now = new Date();
+  const embedded = variant === "lobby";
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState<number | null>(null);
   const [monthOrder, setMonthOrder] = useState<"newest" | "oldest">("newest");
@@ -261,7 +270,11 @@ function PublicCashFlowPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-background px-4">
+      <div
+        className={`flex items-center justify-center bg-background px-4 ${
+          embedded ? "py-16" : "min-h-svh"
+        }`}
+      >
         <Card className="max-w-md p-8 text-center">
           <h1 className="text-lg font-semibold">Link indisponível</h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -276,29 +289,14 @@ function PublicCashFlowPage() {
   const accent = chapter?.primary_color || "#9E1B32";
 
   return (
-    <div className="min-h-svh bg-background">
-      <header
-        className="border-b border-border px-4 py-5 sm:px-6"
-        style={{ borderTop: `3px solid ${accent}` }}
-      >
-        <div className="mx-auto flex max-w-5xl flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+    <div className={embedded ? "bg-background" : "min-h-svh bg-background"}>
+      {embedded ? (
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2 px-1">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Fluxo de Caixa · visualização pública
-            </p>
-            <h1 className="text-xl font-semibold sm:text-2xl">
-              {chapter
-                ? `${chapter.name} nº ${chapter.number}`
-                : isLoading
-                  ? "Carregando…"
-                  : "Fluxo de Caixa"}
-            </h1>
-            {chapter?.city ? (
-              <p className="text-sm text-muted-foreground">{chapter.city}</p>
-            ) : null}
+            <h2 className="text-lg font-semibold">Fluxo de caixa</h2>
+            <p className="text-sm text-muted-foreground">Somente leitura</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <ThemeToggle className="h-9 w-9 shrink-0" />
             <Button variant="outline" size="sm" onClick={handleXlsx} disabled={!data || isLoading}>
               <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
             </Button>
@@ -313,9 +311,51 @@ function PublicCashFlowPage() {
             </Button>
           </div>
         </div>
-      </header>
+      ) : (
+        <header
+          className="border-b border-border px-4 py-5 sm:px-6"
+          style={{ borderTop: `3px solid ${accent}` }}
+        >
+          <div className="mx-auto flex max-w-5xl flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Fluxo de Caixa · visualização pública
+              </p>
+              <h1 className="text-xl font-semibold sm:text-2xl">
+                {chapter
+                  ? `${chapter.name} nº ${chapter.number}`
+                  : isLoading
+                    ? "Carregando…"
+                    : "Fluxo de Caixa"}
+              </h1>
+              {chapter?.city ? (
+                <p className="text-sm text-muted-foreground">{chapter.city}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <ThemeToggle className="h-9 w-9 shrink-0" />
+              <Button variant="outline" size="sm" onClick={handleXlsx} disabled={!data || isLoading}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handlePdf()}
+                disabled={!data || isLoading || exportingPdf}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                {exportingPdf ? "Gerando…" : "PDF"}
+              </Button>
+            </div>
+          </div>
+        </header>
+      )}
 
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+      <main
+        className={
+          embedded ? "py-2" : "mx-auto max-w-5xl px-4 py-6 sm:px-6"
+        }
+      >
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <Select
             value={month === null ? "all" : String(month)}

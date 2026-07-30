@@ -1,5 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useSuspenseQuery, useMutation, useQueryClient, queryOptions } from "@tanstack/react-query";
+import {
+  useSuspenseQuery,
+  useMutation,
+  useQueryClient,
+  queryOptions,
+} from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
@@ -10,16 +15,24 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getOngoing, setAttendance } from "@/lib/attendance.functions";
 import { MinutesPanel } from "@/components/minutes/MinutesPanel";
-import { TYPE_META, supportsMinutes, type CalendarType } from "@/lib/calendar-types";
+import {
+  TYPE_META,
+  supportsMinutes,
+  type CalendarType,
+} from "@/lib/calendar-types";
 import { canManageAttendance } from "@/lib/permissions";
 import { formatDateTimeBR } from "@/lib/format";
-import { ArrowLeft, Check, Loader2, Search, X } from "lucide-react";
+import { useOngoingRealtime } from "@/hooks/useOngoingRealtime";
+import { ArrowLeft, Check, Radio, Search, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/ongoing/$id")({
   head: () => ({
     meta: [
       { title: "Sessão em andamento — SG-CDM" },
-      { name: "description", content: "Chamada de presenças e ata da sessão em tempo real." },
+      {
+        name: "description",
+        content: "Chamada de presenças e ata da sessão em tempo real.",
+      },
     ],
   }),
   component: OngoingPage,
@@ -29,7 +42,6 @@ const ongoingQO = (id: string) =>
   queryOptions({
     queryKey: ["ongoing", id],
     queryFn: () => getOngoing({ data: { calendarEventId: id } }),
-    refetchInterval: 30_000,
   });
 
 function OngoingPage() {
@@ -41,13 +53,31 @@ function OngoingPage() {
   const [search, setSearch] = useState("");
 
   const allowed = canManageAttendance(active?.role.name);
-  const item = data.item as any;
+  const item = data.item as { chapter_id: string; title: string; event_type: string; start_at: string; mandatory: boolean; location: string | null; address?: string | null };
+
+  const { live } = useOngoingRealtime({
+    calendarEventId: id,
+    chapterId: item.chapter_id,
+    enabled: allowed,
+  });
 
   const recordMap = useMemo(() => {
-    const m = new Map<string, { status: string; justification: string | null }>();
+    const m = new Map<
+      string,
+      { status: string; justification: string | null }
+    >();
     for (const r of data.records as any[]) m.set(r.member_id, r);
     return m;
   }, [data.records]);
+
+  type OngoingCache = {
+    records: Array<{
+      member_id: string;
+      status: string;
+      justification: string | null;
+    }>;
+    [key: string]: unknown;
+  };
 
   const mark = useMutation({
     mutationFn: (v: {
@@ -64,11 +94,47 @@ function OngoingPage() {
           justification:
             v.status === null
               ? null
-              : (v.justification ?? recordMap.get(v.memberId)?.justification ?? null),
+              : (v.justification ??
+                recordMap.get(v.memberId)?.justification ??
+                null),
         },
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["ongoing", id] }),
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao registrar"),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: ["ongoing", id] });
+      const prev = qc.getQueryData<OngoingCache>(["ongoing", id]);
+      const justification =
+        v.status === null
+          ? null
+          : (v.justification ??
+            recordMap.get(v.memberId)?.justification ??
+            null);
+      qc.setQueryData<OngoingCache>(["ongoing", id], (old) => {
+        if (!old) return old;
+        const records = [...(old.records ?? [])];
+        const idx = records.findIndex((r) => r.member_id === v.memberId);
+        if (v.status === null) {
+          if (idx >= 0) records.splice(idx, 1);
+        } else if (idx >= 0) {
+          records[idx] = {
+            ...records[idx],
+            status: v.status,
+            justification,
+          };
+        } else {
+          records.push({
+            member_id: v.memberId,
+            status: v.status,
+            justification,
+          });
+        }
+        return { ...old, records };
+      });
+      return { prev };
+    },
+    onError: (e: Error, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["ongoing", id], ctx.prev);
+      toast.error(e.message || "Erro ao registrar");
+    },
   });
 
   function toggleMark(memberId: string, status: "presente" | "ausente") {
@@ -90,7 +156,11 @@ function OngoingPage() {
   const meta = TYPE_META[item.event_type as CalendarType];
   const hasAta = supportsMinutes(item.event_type);
   type OngoingMember = { id: string; full_name: string };
-  type OngoingRecord = { member_id: string; status: string; justification: string | null };
+  type OngoingRecord = {
+    member_id: string;
+    status: string;
+    justification: string | null;
+  };
   const allMembers = data.members as OngoingMember[];
   const allRecords = data.records as OngoingRecord[];
   const members = allMembers.filter((m) =>
@@ -111,16 +181,34 @@ function OngoingPage() {
         title={item.title}
         subtitle={`${meta?.label ?? item.event_type} · ${formatDateTimeBR(item.start_at)}${item.mandatory ? " · Obrigatório" : " · Facultativo"}`}
         actions={
-          <Button variant="outline" onClick={() => navigate({ to: "/presencas" })}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Presenças
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {live ? (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                title="Presenças e ata sincronizam em tempo real"
+              >
+                <Radio className="h-3 w-3 animate-pulse" />
+                Ao vivo
+              </span>
+            ) : null}
+            <Button
+              variant="outline"
+              onClick={() => navigate({ to: "/presencas" })}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" /> Presenças
+            </Button>
+          </div>
         }
       />
 
       <div className="mb-4 grid grid-cols-3 gap-2">
         <Counter label="Presentes" value={presentes} color="#047857" />
         <Counter label="Ausentes" value={ausentes} color="#B91C1C" />
-        <Counter label="Pendentes" value={Math.max(0, pendentes)} color="#6B6B6B" />
+        <Counter
+          label="Pendentes"
+          value={Math.max(0, pendentes)}
+          color="#6B6B6B"
+        />
       </div>
 
       <Tabs defaultValue="chamada">
@@ -148,7 +236,6 @@ function OngoingPage() {
               )}
               {members.map((m) => {
                 const rec = recordMap.get(m.id);
-                const pendingThis = mark.isPending && mark.variables?.memberId === m.id;
                 return (
                   <li
                     key={m.id}
@@ -175,20 +262,20 @@ function OngoingPage() {
                                   : "var(--border)",
                           }}
                         />
-                        <span className="min-w-0 truncate text-sm font-medium">{m.full_name}</span>
-                        {pendingThis && (
-                          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
-                        )}
+                        <span className="min-w-0 truncate text-sm font-medium">
+                          {m.full_name}
+                        </span>
                       </span>
                       <div className="flex shrink-0 gap-1.5">
                         <button
                           aria-label={
-                            rec?.status === "presente" ? "Desmarcar presente" : "Presente"
+                            rec?.status === "presente"
+                              ? "Desmarcar presente"
+                              : "Presente"
                           }
                           aria-pressed={rec?.status === "presente"}
-                          disabled={pendingThis}
                           onClick={() => toggleMark(m.id, "presente")}
-                          className="grid h-11 w-11 place-items-center rounded-[8px] border transition-all duration-200 hover:-translate-y-0.5 hover:border-[#047857] hover:bg-[#ECFDF5] hover:text-[#047857] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#047857]/40 active:translate-y-0 active:scale-95 disabled:opacity-60"
+                          className="grid h-11 w-11 place-items-center rounded-[8px] border transition-all duration-200 hover:-translate-y-0.5 hover:border-[#047857] hover:bg-[#ECFDF5] hover:text-[#047857] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#047857]/40 active:translate-y-0 active:scale-95"
                           style={
                             rec?.status === "presente"
                               ? {
@@ -197,23 +284,29 @@ function OngoingPage() {
                                   color: "#047857",
                                   boxShadow: "0 0 0 3px rgba(4,120,87,0.12)",
                                 }
-                              : { borderColor: "var(--border)", color: "var(--muted-foreground)" }
+                              : {
+                                  borderColor: "var(--border)",
+                                  color: "var(--muted-foreground)",
+                                }
                           }
                         >
                           <Check
                             className={`h-5 w-5 transition-transform duration-200 ${
-                              rec?.status === "presente" ? "scale-110" : "group-hover:scale-105"
+                              rec?.status === "presente"
+                                ? "scale-110"
+                                : "group-hover:scale-105"
                             }`}
                           />
                         </button>
                         <button
                           aria-label={
-                            rec?.status === "ausente" ? "Desmarcar ausente" : "Ausente"
+                            rec?.status === "ausente"
+                              ? "Desmarcar ausente"
+                              : "Ausente"
                           }
                           aria-pressed={rec?.status === "ausente"}
-                          disabled={pendingThis}
                           onClick={() => toggleMark(m.id, "ausente")}
-                          className="grid h-11 w-11 place-items-center rounded-[8px] border transition-all duration-200 hover:-translate-y-0.5 hover:border-[#B91C1C] hover:bg-[#FEF2F2] hover:text-[#B91C1C] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/40 active:translate-y-0 active:scale-95 disabled:opacity-60"
+                          className="grid h-11 w-11 place-items-center rounded-[8px] border transition-all duration-200 hover:-translate-y-0.5 hover:border-[#B91C1C] hover:bg-[#FEF2F2] hover:text-[#B91C1C] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/40 active:translate-y-0 active:scale-95"
                           style={
                             rec?.status === "ausente"
                               ? {
@@ -222,12 +315,17 @@ function OngoingPage() {
                                   color: "#B91C1C",
                                   boxShadow: "0 0 0 3px rgba(185,28,28,0.12)",
                                 }
-                              : { borderColor: "var(--border)", color: "var(--muted-foreground)" }
+                              : {
+                                  borderColor: "var(--border)",
+                                  color: "var(--muted-foreground)",
+                                }
                           }
                         >
                           <X
                             className={`h-5 w-5 transition-transform duration-200 ${
-                              rec?.status === "ausente" ? "scale-110" : "group-hover:scale-105"
+                              rec?.status === "ausente"
+                                ? "scale-110"
+                                : "group-hover:scale-105"
                             }`}
                           />
                         </button>
@@ -250,12 +348,12 @@ function OngoingPage() {
                   </li>
                 );
               })}
-
             </ul>
           </Card>
           {!item.mandatory && (
             <p className="mt-3 text-xs text-muted-foreground">
-              Este item é facultativo: as presenças ficam registradas, mas não impactam a frequência.
+              Este item é facultativo: as presenças ficam registradas, mas não
+              impactam a frequência.
             </p>
           )}
         </TabsContent>
@@ -269,15 +367,16 @@ function OngoingPage() {
                 title: item.title,
                 start_at: item.start_at,
                 location: item.location,
-                address: (item as any).address ?? null,
+                address: item.address ?? null,
               }}
               minutes={(data.minutes as any) ?? null}
               roleName={active?.role.name ?? null}
-              onChanged={() => qc.invalidateQueries({ queryKey: ["ongoing", id] })}
+              onChanged={() =>
+                qc.invalidateQueries({ queryKey: ["ongoing", id] })
+              }
             />
           </TabsContent>
         ) : null}
-
       </Tabs>
 
       <div className="mt-4 text-xs text-muted-foreground">
@@ -289,7 +388,15 @@ function OngoingPage() {
   );
 }
 
-function Counter({ label, value, color }: { label: string; value: number; color: string }) {
+function Counter({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
   return (
     <Card className="rounded-[12px] p-4 text-center">
       <div className="text-2xl font-bold" style={{ color }}>

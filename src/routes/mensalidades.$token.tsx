@@ -7,6 +7,7 @@ import {
   isDueOverdue,
   MONTH_LONG,
   MONTH_SHORT,
+  autoDueExemptTip,
   type DueMemberLite,
 } from "@/lib/dues-rules";
 import { formatBRL } from "@/lib/format";
@@ -33,19 +34,25 @@ export const Route = createFileRoute("/mensalidades/$token")({
       },
     ],
   }),
-  component: PublicMensalidadesPage,
+  component: function PublicMensalidadesRoute() {
+    const { token } = Route.useParams();
+    return <PublicMensalidadesView token={token} variant="standalone" />;
+  },
 });
 
 type DueStatus = "em_aberto" | "pago" | "isento" | "desligado";
 type SortKey = "name" | "open_count" | "open_total" | `month_${number}`;
 
 const STATUS_STYLE: Record<DueStatus, string> = {
-  em_aberto: "bg-amber-100 text-amber-800",
-  pago: "bg-emerald-100 text-emerald-800",
-  isento: "bg-slate-100 text-slate-600",
-  desligado: "bg-stone-200 text-stone-700",
+  em_aberto:
+    "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
+  pago: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300",
+  isento: "bg-[#c8e0f7] text-sky-900 dark:bg-[#c8e0f7]/25 dark:text-sky-200",
+  desligado:
+    "bg-[#d3d3d3] text-stone-700 dark:bg-[#d3d3d3]/30 dark:text-stone-200",
 };
-const FUTURE_OPEN_STYLE = "bg-zinc-100 text-zinc-500";
+const FUTURE_OPEN_STYLE =
+  "bg-zinc-100 text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400";
 
 function isFutureMonth(year: number, month: number, today = new Date()) {
   const cy = today.getFullYear();
@@ -84,9 +91,15 @@ function monthStatusRank(status: DueStatus, year: number, month: number) {
   return 2;
 }
 
-function PublicMensalidadesPage() {
-  const { token } = Route.useParams();
+export function PublicMensalidadesView({
+  token,
+  variant = "standalone",
+}: {
+  token: string;
+  variant?: "standalone" | "lobby";
+}) {
   const now = new Date();
+  const embedded = variant === "lobby";
   const [year, setYear] = useState(now.getFullYear());
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -195,7 +208,11 @@ function PublicMensalidadesPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-background px-4">
+      <div
+        className={`flex items-center justify-center bg-background px-4 ${
+          embedded ? "py-16" : "min-h-svh"
+        }`}
+      >
         <Card className="max-w-md p-8 text-center">
           <h1 className="text-lg font-semibold">Link indisponível</h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -210,35 +227,50 @@ function PublicMensalidadesPage() {
   const accent = chapter?.primary_color || "#9E1B32";
 
   return (
-    <div className="min-h-svh bg-background">
-      <header
-        className="border-b border-border px-4 py-5 sm:px-6"
-        style={{ borderTop: `3px solid ${accent}` }}
-      >
-        <div className="mx-auto flex max-w-[1680px] items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Mensalidades · visualização pública
-            </p>
-            <h1 className="text-xl font-semibold sm:text-2xl">
-              {chapter
-                ? `${chapter.name} nº ${chapter.number}`
-                : isLoading
-                  ? "Carregando…"
-                  : "Mensalidades"}
-            </h1>
-            {chapter?.city ? (
-              <p className="text-sm text-muted-foreground">{chapter.city}</p>
-            ) : null}
-            <p className="mt-1 text-sm text-muted-foreground">
-              Valor padrão {formatBRL(defaultAmount)} · somente leitura
-            </p>
-          </div>
-          <ThemeToggle className="h-9 w-9 shrink-0" />
+    <div className={embedded ? "bg-background" : "min-h-svh bg-background"}>
+      {embedded ? (
+        <div className="mb-2 px-1">
+          <h2 className="text-lg font-semibold">Mensalidades</h2>
+          <p className="text-sm text-muted-foreground">
+            Valor padrão {formatBRL(defaultAmount)} · somente leitura
+          </p>
         </div>
-      </header>
+      ) : (
+        <header
+          className="border-b border-border px-4 py-5 sm:px-6"
+          style={{ borderTop: `3px solid ${accent}` }}
+        >
+          <div className="mx-auto flex max-w-[1680px] items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Mensalidades · visualização pública
+              </p>
+              <h1 className="text-xl font-semibold sm:text-2xl">
+                {chapter
+                  ? `${chapter.name} nº ${chapter.number}`
+                  : isLoading
+                    ? "Carregando…"
+                    : "Mensalidades"}
+              </h1>
+              {chapter?.city ? (
+                <p className="text-sm text-muted-foreground">{chapter.city}</p>
+              ) : null}
+              <p className="mt-1 text-sm text-muted-foreground">
+                Valor padrão {formatBRL(defaultAmount)} · somente leitura
+              </p>
+            </div>
+            <ThemeToggle className="h-9 w-9 shrink-0" />
+          </div>
+        </header>
+      )}
 
-      <main className="mx-auto max-w-[1680px] px-4 py-6 sm:px-6">
+      <main
+        className={
+          embedded
+            ? "py-2"
+            : "mx-auto max-w-[1680px] px-4 py-6 sm:px-6"
+        }
+      >
         <div className="mb-4 flex flex-wrap items-end gap-2">
           <div>
             <p className="mb-1.5 text-xs text-muted-foreground">Ano</p>
@@ -305,15 +337,15 @@ function PublicMensalidadesPage() {
             <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
               <Card className="rounded-[12px] p-5">
                 <div className="text-sm text-muted-foreground">Recebido</div>
-                <div className="text-xl font-bold text-emerald-600">{formatBRL(totals.paid)}</div>
+                <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{formatBRL(totals.paid)}</div>
               </Card>
               <Card className="rounded-[12px] p-5">
                 <div className="text-sm text-muted-foreground">Em aberto</div>
-                <div className="text-xl font-bold text-amber-600">{formatBRL(totals.openAmount)}</div>
+                <div className="text-xl font-bold text-amber-600 dark:text-amber-400">{formatBRL(totals.openAmount)}</div>
               </Card>
               <Card className="rounded-[12px] p-5">
                 <div className="text-sm text-muted-foreground">Atrasado</div>
-                <div className="text-xl font-bold text-rose-600">{formatBRL(totals.overdue)}</div>
+                <div className="text-xl font-bold text-rose-600 dark:text-rose-400">{formatBRL(totals.overdue)}</div>
               </Card>
             </div>
 
@@ -411,12 +443,19 @@ function PublicMensalidadesPage() {
                           return (
                             <td key={month} className="px-1.5 py-2 text-center">
                               <div
-                                title={`${MONTH_LONG[i]} — ${status}`}
+                                title={
+                                  status === "isento"
+                                    ? `${MONTH_LONG[i]} — ${
+                                        autoDueExemptTip(m, year, month) ??
+                                        "Isento"
+                                      }`
+                                    : `${MONTH_LONG[i]} — ${status}`
+                                }
                                 className={`flex h-10 w-full items-center justify-center rounded-md text-xs font-semibold uppercase ${cellClass(
                                   status,
                                   year,
                                   month,
-                                )} ${overdue ? "ring-1 ring-rose-500" : ""}`}
+                                )} ${overdue ? "ring-1 ring-rose-500 dark:ring-rose-400/70" : ""}`}
                               >
                                 {cellLetter(status, overdue, future && status === "em_aberto")}
                               </div>
@@ -426,7 +465,7 @@ function PublicMensalidadesPage() {
                         <td className="px-3 py-2.5 text-center tabular-nums font-semibold">
                           {open.count}
                         </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-amber-700">
+                        <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-amber-700 dark:text-amber-400">
                           {formatBRL(open.total)}
                         </td>
                       </tr>
@@ -453,7 +492,7 @@ function PublicMensalidadesPage() {
                       <div className="text-sm font-medium">{m.full_name}</div>
                       <div className="text-right text-xs">
                         <div className="text-muted-foreground">{open.count} abertos</div>
-                        <div className="font-semibold text-amber-700">{formatBRL(open.total)}</div>
+                        <div className="font-semibold text-amber-700 dark:text-amber-400">{formatBRL(open.total)}</div>
                       </div>
                     </div>
                     <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
@@ -471,7 +510,7 @@ function PublicMensalidadesPage() {
                               status,
                               year,
                               month,
-                            )} ${overdue ? "ring-1 ring-rose-500" : ""}`}
+                            )} ${overdue ? "ring-1 ring-rose-500 dark:ring-rose-400/70" : ""}`}
                           >
                             <div className="text-[10px] opacity-70">{MONTH_SHORT[i]}</div>
                             <div className="text-[10px] font-semibold uppercase">

@@ -15,9 +15,22 @@ import { can } from "@/lib/permissions";
 import { listLodges, saveLodge, deleteLodge, updateChapterProfile, updateChapterAccentColor } from "@/lib/chapter.functions";
 import { saveDefaultDuesAmount } from "@/lib/finance.functions";
 import { getChapterDefaultDuesAmount } from "@/lib/dues-rules";
-import { ImagePlus, Loader2, Trash2, Building2, Landmark, PlusCircle, Save, Sun, Moon, MonitorSmartphone, Palette, RotateCcw, Check, Receipt } from "lucide-react";
+import { ImagePlus, Loader2, Trash2, Building2, Landmark, PlusCircle, Save, Sun, Moon, MonitorSmartphone, Palette, RotateCcw, Check, Receipt, Link2, Copy } from "lucide-react";
 import { useTheme, type ThemeMode } from "@/context/ThemeContext";
 import { ChaveTemplateCard } from "@/components/settings/ChaveTemplateCard";
+import {
+  ensurePublicLobbyToken,
+  getPublicLobbyToken,
+  revokePublicLobbyToken,
+} from "@/lib/lobby-share.functions";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const THEME_OPTIONS: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
   { value: "light", label: "Claro", icon: Sun },
@@ -327,6 +340,7 @@ function ConfiguracoesPage() {
       <AppearanceCard />
       <ChapterProfileCard />
       <DefaultDuesCard />
+      <PublicLobbyLinkCard />
       <LodgesCard />
       <ChaveTemplateCard />
 
@@ -468,6 +482,143 @@ function DefaultDuesCard() {
         )}
       </div>
     </Card>
+  );
+}
+
+function PublicLobbyLinkCard() {
+  const { active } = useActiveChapter();
+  const chapterId = active?.chapter_id;
+  const allowed =
+    can(active?.role.name, "tesouraria") || can(active?.role.name, "admin");
+  const [open, setOpen] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+
+  const shareUrl =
+    typeof window !== "undefined" && token
+      ? `${window.location.origin}/c/${token}`
+      : token
+        ? `/c/${token}`
+        : "";
+
+  const openShare = useMutation({
+    mutationFn: async () => {
+      const existing = await getPublicLobbyToken({ data: { chapterId: chapterId! } });
+      if (existing.token) return existing.token;
+      const created = await ensurePublicLobbyToken({
+        data: { chapterId: chapterId!, regenerate: false },
+      });
+      return created.token;
+    },
+    onSuccess: (t) => {
+      setToken(t);
+      setOpen(true);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao gerar link"),
+  });
+
+  const regenerate = useMutation({
+    mutationFn: () =>
+      ensurePublicLobbyToken({
+        data: { chapterId: chapterId!, regenerate: true },
+      }),
+    onSuccess: (r) => {
+      setToken(r.token);
+      toast.success("Novo link gerado. O anterior deixou de funcionar.");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao regenerar"),
+  });
+
+  const revoke = useMutation({
+    mutationFn: () => revokePublicLobbyToken({ data: { chapterId: chapterId! } }),
+    onSuccess: () => {
+      setToken(null);
+      setOpen(false);
+      toast.success("Link público revogado");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao revogar"),
+  });
+
+  async function copyShareLink() {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Link copiado");
+    } catch {
+      toast.error("Não foi possível copiar o link");
+    }
+  }
+
+  if (!allowed) return null;
+
+  return (
+    <>
+      <Card className="rounded-[12px] p-5">
+        <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <Link2 className="h-5 w-5" /> Link público
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Um único link com menu de mensalidades, fluxo de caixa, presenças e área do
+          membro (protegida por ID DeMolay). Os links antigos de mensalidades e fluxo
+          continuam válidos.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!chapterId || openShare.isPending}
+          onClick={() => openShare.mutate()}
+        >
+          <Link2 className="mr-2 h-4 w-4" />
+          {openShare.isPending ? "Abrindo…" : "Gerenciar link"}
+        </Button>
+      </Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Link público do capítulo</DialogTitle>
+            <DialogDescription>
+              Qualquer pessoa com o link acessa o lobby. Cobranças, cadastro e frequência
+              pessoal pedem o ID DeMolay do membro neste capítulo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>URL compartilhável</Label>
+            <div className="flex gap-2">
+              <Input readOnly value={shareUrl} className="font-mono text-xs" />
+              <Button type="button" variant="outline" onClick={() => void copyShareLink()}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Regenerar invalida o link atual. O anterior deixa de funcionar.
+            </p>
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={revoke.isPending}
+              onClick={() => revoke.mutate()}
+            >
+              {revoke.isPending ? "Revogando…" : "Revogar"}
+            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={regenerate.isPending}
+                onClick={() => regenerate.mutate()}
+              >
+                {regenerate.isPending ? "Gerando…" : "Regenerar"}
+              </Button>
+              <Button type="button" onClick={() => void copyShareLink()}>
+                Copiar link
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
