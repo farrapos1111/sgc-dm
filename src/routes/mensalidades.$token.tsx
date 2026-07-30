@@ -10,6 +10,7 @@ import {
   type DueMemberLite,
 } from "@/lib/dues-rules";
 import { formatBRL } from "@/lib/format";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -214,23 +215,26 @@ function PublicMensalidadesPage() {
         className="border-b border-border px-4 py-5 sm:px-6"
         style={{ borderTop: `3px solid ${accent}` }}
       >
-        <div className="mx-auto max-w-[1680px]">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Mensalidades · visualização pública
-          </p>
-          <h1 className="text-xl font-semibold sm:text-2xl">
-            {chapter
-              ? `${chapter.name} nº ${chapter.number}`
-              : isLoading
-                ? "Carregando…"
-                : "Mensalidades"}
-          </h1>
-          {chapter?.city ? (
-            <p className="text-sm text-muted-foreground">{chapter.city}</p>
-          ) : null}
-          <p className="mt-1 text-sm text-muted-foreground">
-            Valor padrão {formatBRL(defaultAmount)} · somente leitura
-          </p>
+        <div className="mx-auto flex max-w-[1680px] items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Mensalidades · visualização pública
+            </p>
+            <h1 className="text-xl font-semibold sm:text-2xl">
+              {chapter
+                ? `${chapter.name} nº ${chapter.number}`
+                : isLoading
+                  ? "Carregando…"
+                  : "Mensalidades"}
+            </h1>
+            {chapter?.city ? (
+              <p className="text-sm text-muted-foreground">{chapter.city}</p>
+            ) : null}
+            <p className="mt-1 text-sm text-muted-foreground">
+              Valor padrão {formatBRL(defaultAmount)} · somente leitura
+            </p>
+          </div>
+          <ThemeToggle className="h-9 w-9 shrink-0" />
         </div>
       </header>
 

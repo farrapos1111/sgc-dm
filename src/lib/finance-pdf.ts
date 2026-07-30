@@ -25,6 +25,9 @@ type FinancePdfInput = {
     title?: string;
     hint?: string;
   } | null;
+  /** Valor do card de saldo (atual ou final do período). */
+  cashBalance?: number | null;
+  cashBalanceLabel?: string;
   signers: Array<{ role: string; name: string }>;
 };
 
@@ -115,7 +118,13 @@ export async function exportCashPdf(input: FinancePdfInput) {
 
   const opening = input.opening;
   const openingBalance = opening?.balance ?? 0;
-  const closingBalance = openingBalance + input.totals.balance;
+  const cashBalance =
+    input.cashBalance != null
+      ? input.cashBalance
+      : opening
+        ? openingBalance + input.totals.balance
+        : input.totals.balance;
+  const cashBalanceLabel = input.cashBalanceLabel ?? "Saldo Atual do Caixa";
 
   if (opening) {
     const openingTitle =
@@ -297,10 +306,8 @@ export async function exportCashPdf(input: FinancePdfInput) {
       `Restante de ${opening.previousYear}:`,
       formatBRL(openingBalance),
     );
-    totalLine("Saldo final:", formatBRL(closingBalance));
-  } else {
-    totalLine("Saldo:", formatBRL(input.totals.balance));
   }
+  totalLine(`${cashBalanceLabel}:`, formatBRL(cashBalance));
 
   // Assinaturas (última página)
   doc.addPage();

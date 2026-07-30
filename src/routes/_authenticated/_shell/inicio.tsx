@@ -14,9 +14,11 @@ import { listEvents } from "@/lib/events.functions";
 import { listMembers } from "@/lib/members.functions";
 import { membersListKey } from "@/lib/query-keys";
 import { listOngoingItems } from "@/lib/attendance.functions";
+import { getDashboardFinance } from "@/lib/finance.functions";
 import { canManageAttendance } from "@/lib/permissions";
 import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
 import { formatBRL, formatDateBR, formatDateTimeBR, parseDateOnly } from "@/lib/format";
+import { MONTH_LONG } from "@/lib/dues-rules";
 
 
 export const Route = createFileRoute("/_authenticated/_shell/inicio")({
@@ -57,20 +59,32 @@ function Inicio() {
     refetchInterval: 60_000,
   });
 
+  const { data: finance } = useQuery({
+    queryKey: ["dashboard-finance", chapterId],
+    queryFn: () => getDashboardFinance({ data: { chapterId } }),
+    enabled: Boolean(chapterId),
+    staleTime: 60_000,
+  });
 
   const now = new Date();
-  const upcoming = events.filter((e) => new Date(e.starts_at) >= now).sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at))[0];
+  const upcoming = events
+    .filter((e) => new Date(e.starts_at) >= now)
+    .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at))[0];
 
   const birthdayMonth = now.getMonth();
   const birthdays = members
     .filter((m) => m.birth_date && parseDateOnly(m.birth_date)?.getMonth() === birthdayMonth)
     .slice(0, 5);
 
-  // Sem tabelas financeiras ainda: consideramos vazio quando não há eventos e não há membros
   const hasAnyData = members.length > 0 || events.length > 0;
 
   const firstName =
     (typeof window !== "undefined" && (window as any).__demolayName) || active.role.label;
+
+  const monthLabel =
+    finance != null
+      ? `${MONTH_LONG[finance.month - 1] ?? ""} de ${finance.year}`
+      : "mês atual";
 
   return (
     <div>
@@ -112,7 +126,6 @@ function Inicio() {
         </Card>
       )}
 
-
       <NextItemCard chapterId={chapterId} />
 
       {!hasAnyData ? (
@@ -135,18 +148,35 @@ function Inicio() {
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <MetricCard
-            icon={<Wallet className="h-5 w-5" />}
-            label="Saldo do mês"
-            value={formatBRL(0)}
-            hint="Em breve — integração financeira"
-          />
-          <Link to="/membros" className="block">
+          <Link to="/tesouraria/fluxo" className="block">
+            <MetricCard
+              icon={<Wallet className="h-5 w-5" />}
+              label="Saldo do mês"
+              value={formatBRL(finance?.monthBalance ?? 0)}
+              hint={`${monthLabel} · resultado do fluxo`}
+              tone={
+                (finance?.monthBalance ?? 0) < 0
+                  ? "text-rose-600 dark:text-rose-400"
+                  : (finance?.monthBalance ?? 0) > 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : undefined
+              }
+            />
+          </Link>
+          <Link to="/tesouraria/mensalidades" className="block">
             <MetricCard
               icon={<Users className="h-5 w-5" />}
               label="Mensalidades pendentes"
-              value={`${Math.max(0, Math.floor(members.length * 0.2))} membros`}
-              hint="Toque para ver a lista"
+              value={
+                finance
+                  ? `${finance.pendingMembers} ${finance.pendingMembers === 1 ? "membro" : "membros"}`
+                  : "—"
+              }
+              hint={
+                finance
+                  ? `${finance.pendingCompetences} competência${finance.pendingCompetences === 1 ? "" : "s"} · ${formatBRL(finance.pendingAmount)}`
+                  : "Carregando…"
+              }
             />
           </Link>
           <MetricCard
@@ -194,23 +224,24 @@ function MetricCard({
   label,
   value,
   hint,
+  tone,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   hint?: string;
+  tone?: string;
 }) {
   return (
-    <Card className="rounded-[12px] p-5">
+    <Card className="rounded-[12px] p-5 transition-colors hover:bg-muted/40">
       <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
         {icon} {label}
       </div>
-      <div className="mt-2 text-2xl font-bold">{value}</div>
+      <div className={`mt-2 text-2xl font-bold ${tone ?? ""}`}>{value}</div>
       {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
     </Card>
   );
 }
-
 
 function NextItemCard({ chapterId }: { chapterId: string }) {
   const { active: activeChapter } = useActiveChapter();

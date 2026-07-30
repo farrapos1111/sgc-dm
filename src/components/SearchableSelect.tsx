@@ -21,6 +21,8 @@ export function SearchableSelect({
   placeholder = "Selecione…",
   searchPlaceholder = "Buscar…",
   emptyText = "Nenhum resultado.",
+  minQueryLength = 0,
+  minQueryHint,
   className,
   disabled,
 }: {
@@ -30,6 +32,9 @@ export function SearchableSelect({
   placeholder?: string;
   searchPlaceholder?: string;
   emptyText?: string;
+  /** Só lista opções após digitar pelo menos N caracteres. */
+  minQueryLength?: number;
+  minQueryHint?: string;
   className?: string;
   disabled?: boolean;
 }) {
@@ -37,11 +42,17 @@ export function SearchableSelect({
   const [query, setQuery] = useState("");
 
   const selected = options.find((o) => o.value === value);
+  const queryReady = query.trim().length >= minQueryLength;
 
-  const filtered = useMemo(
-    () => options.filter((o) => matchesLooseSearch(o.label, query)),
-    [options, query],
-  );
+  const filtered = useMemo(() => {
+    if (!queryReady) return [];
+    return options.filter((o) => matchesLooseSearch(o.label, query));
+  }, [options, query, queryReady]);
+
+  const emptyMessage =
+    !queryReady && minQueryLength > 0
+      ? (minQueryHint ?? `Digite ao menos ${minQueryLength} letras.`)
+      : emptyText;
 
   return (
     <Popover
@@ -75,7 +86,7 @@ export function SearchableSelect({
             onValueChange={setQuery}
           />
           <CommandList>
-            <CommandEmpty>{emptyText}</CommandEmpty>
+            <CommandEmpty>{emptyMessage}</CommandEmpty>
             <CommandGroup>
               {filtered.map((o) => {
                 const isSelected = o.value === value;

@@ -73,10 +73,21 @@ export function AppShell({ children }: { children: ReactNode }) {
     ) : null;
 
   const [pendingTo, setPendingTo] = useState<string | null>(null);
+  const [openGroupId, setOpenGroupId] = useState<string | null>(null);
 
   useEffect(() => {
     setPendingTo(null);
   }, [pathname]);
+
+  const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
+
+  // Mantém aberto só o submenu da rota atual (accordion)
+  useEffect(() => {
+    const activeGroup = groups.find((g) =>
+      (g.items ?? []).some((i) => pathname === i.to || pathname.startsWith(i.to + "/")),
+    );
+    setOpenGroupId(activeGroup?.id ?? null);
+  }, [pathname, groups]);
 
   const primary = active?.chapter.primary_color || "#9E1B32";
   const chapterName = activeScope ? activeScope.label : (active?.chapter.name ?? "SG-CDM");
@@ -90,8 +101,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     window.location.assign("/auth");
   }
-
-  const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
 
   const navHighlight = (to: string) => pendingTo === to || isActive(to);
 
@@ -136,6 +145,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               primary={primary}
               isActive={isActive}
               isHighlighted={navHighlight}
+              open={openGroupId === group.id}
+              onOpenChange={(next) =>
+                setOpenGroupId(next ? group.id : openGroupId === group.id ? null : openGroupId)
+              }
               onNavigate={setPendingTo}
               onPreload={preloadRoute}
             />
@@ -245,6 +258,8 @@ function SidebarGroup({
   primary,
   isActive,
   isHighlighted,
+  open,
+  onOpenChange,
   onNavigate,
   onPreload,
 }: {
@@ -252,12 +267,13 @@ function SidebarGroup({
   primary: string;
   isActive: (to: string) => boolean;
   isHighlighted: (to: string) => boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onNavigate: (to: string) => void;
   onPreload: (to: string) => void;
 }) {
   const Icon = group.icon;
   const hasActiveChild = (group.items ?? []).some((i) => isActive(i.to));
-  const [open, setOpen] = useState(hasActiveChild);
   const expanded = open || hasActiveChild;
 
   if (group.to) {
@@ -285,42 +301,60 @@ function SidebarGroup({
     <div>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          // Grupo da rota atual permanece aberto
+          if (hasActiveChild && expanded) return;
+          onOpenChange(!open);
+        }}
         className="flex min-h-[44px] w-full items-center gap-3 rounded-[8px] px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-muted/60"
         style={{ color: hasActiveChild ? primary : "var(--foreground)" }}
+        aria-expanded={expanded}
       >
         <Icon className="h-5 w-5" />
         <span className="flex-1 truncate text-left">{group.label}</span>
         <ChevronDown
-          className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+          className={`h-4 w-4 transition-transform duration-200 ease-out ${
+            expanded ? "rotate-180" : "rotate-0"
+          }`}
         />
       </button>
-      {expanded && (
-        <div className="mt-0.5 space-y-0.5 pl-4">
-          {(group.items ?? []).map((item) => {
-            const ItemIcon = item.icon;
-            const highlighted = isHighlighted(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={() => onNavigate(item.to)}
-                onMouseEnter={() => onPreload(item.to)}
-                onFocus={() => onPreload(item.to)}
-                className="flex min-h-[44px] items-center gap-3 rounded-[8px] px-3 py-2 text-sm font-medium transition-colors"
-                style={
-                  highlighted
-                    ? { backgroundColor: `${primary}14`, color: primary }
-                    : { color: "var(--muted-foreground)" }
-                }
-              >
-                <ItemIcon className="h-4 w-4" />
-                <span className="truncate">{item.label}</span>
-              </Link>
-            );
-          })}
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div
+            className={`mt-0.5 space-y-0.5 pl-4 transition-opacity duration-200 ease-out ${
+              expanded ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            {(group.items ?? []).map((item) => {
+              const ItemIcon = item.icon;
+              const highlighted = isHighlighted(item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => onNavigate(item.to)}
+                  onMouseEnter={() => onPreload(item.to)}
+                  onFocus={() => onPreload(item.to)}
+                  className="flex min-h-[44px] items-center gap-3 rounded-[8px] px-3 py-2 text-sm font-medium transition-colors"
+                  style={
+                    highlighted
+                      ? { backgroundColor: `${primary}14`, color: primary }
+                      : { color: "var(--muted-foreground)" }
+                  }
+                  tabIndex={expanded ? 0 : -1}
+                >
+                  <ItemIcon className="h-4 w-4" />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
