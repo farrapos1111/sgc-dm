@@ -178,6 +178,36 @@ export const MOBILE_TABS: NavItem[] = [
   { to: "/mais", label: "Mais", icon: MoreHorizontal },
 ];
 
+/**
+ * Atalhos da barra inferior filtrados: a aba Eventos só aparece
+ * para quem tem acesso à comissão de eventos (mesmo critério do sidebar).
+ */
+export function visibleMobileTabs(
+  isOrgScope: boolean,
+  canViewCommission: (code: string) => boolean,
+): NavItem[] {
+  if (isOrgScope) return ORG_MOBILE_TABS;
+  return MOBILE_TABS.filter((t) => t.to !== "/eventos" || canViewCommission("eventos"));
+}
+
+/**
+ * Grupos para a página /mais: remove rotas já cobertas pela barra inferior
+ * para não duplicar atalhos.
+ */
+export function mobileOverflowGroups(groups: NavGroup[], tabs: NavItem[]): NavGroup[] {
+  const tabPaths = new Set(tabs.map((t) => t.to).filter((to) => to !== "/mais"));
+  return groups
+    .map((g) => {
+      if (g.to) {
+        return tabPaths.has(g.to) ? null : g;
+      }
+      const items = (g.items ?? []).filter((i) => !tabPaths.has(i.to));
+      if (items.length === 0) return null;
+      return { ...g, items };
+    })
+    .filter((g): g is NavGroup => g !== null);
+}
+
 export function visibleGroups(
   roleName: string | null,
   canViewCommission: (code: string) => boolean,

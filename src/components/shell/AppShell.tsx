@@ -5,12 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
 import {
-  MOBILE_TABS,
-  ORG_MOBILE_TABS,
   visibleGroups,
+  visibleMobileTabs,
   visibleOrgGroups,
   type NavGroup,
-  type NavItem,
 } from "@/lib/nav";
 import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
 import {
@@ -43,7 +41,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         : visibleGroups(active?.role.name ?? null, canView),
     [activeScope, isGme, active?.role.name, canView],
   );
-  const tabs: NavItem[] = activeScope ? ORG_MOBILE_TABS : MOBILE_TABS;
+  const tabs = useMemo(
+    () => visibleMobileTabs(Boolean(activeScope), canView),
+    [activeScope, canView],
+  );
 
   function handleScopeChange(value: string) {
     if (value === "chapter") {
@@ -103,6 +104,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   const navHighlight = (to: string) => pendingTo === to || isActive(to);
+
+  /** Aba Mais: ativa em /mais ou em qualquer rota que não seja atalho da barra. */
+  const isMaisTabHighlighted = (() => {
+    if (pendingTo === "/mais" || isActive("/mais")) return true;
+    const otherTabs = tabs.filter((t) => t.to !== "/mais");
+    const matchesTab = (path: string) =>
+      otherTabs.some((t) => path === t.to || path.startsWith(t.to + "/"));
+    if (pendingTo) return !matchesTab(pendingTo);
+    return !matchesTab(pathname);
+  })();
 
   function preloadRoute(to: string) {
     if (!PRELOAD_ROUTES.includes(to as (typeof PRELOAD_ROUTES)[number])) return;
@@ -231,7 +242,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           {tabs.map((item) => {
             const Icon = item.icon;
-            const highlighted = navHighlight(item.to);
+            const highlighted =
+              item.to === "/mais" ? isMaisTabHighlighted : navHighlight(item.to);
             return (
               <Link
                 key={item.to}
@@ -241,6 +253,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 onFocus={() => preloadRoute(item.to)}
                 className="flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium"
                 style={{ color: highlighted ? primary : "var(--muted-foreground)" }}
+                aria-current={highlighted ? "page" : undefined}
               >
                 <Icon className="h-5 w-5" />
                 <span>{item.label}</span>

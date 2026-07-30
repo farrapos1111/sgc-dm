@@ -117,7 +117,7 @@ Para quem tem cargo acima do capítulo:
 
 ### Documentação
 
-Sem precisar de permissão especial: em **Mais → Documentação**, ou pela URL `/documentacao` (também acessível sem login). Há três guias — técnico, do usuário e de contribuição open source.
+Sem precisar de permissão especial: em **Mais → Documentação**, ou pela URL `/documentacao` (também acessível sem login). Há três guias — técnico, do usuário e de contribuição open source. No celular, **Mais** também lista o menu completo do sistema (as mesmas áreas do menu lateral no computador), filtrado pelo seu cargo, comissão e escopo.
 
 ---
 
@@ -136,7 +136,7 @@ O sistema guarda dados de adolescentes, então esse ponto foi tratado com rigor:
 ## Perguntas frequentes
 
 **Funciona no celular?**
-Sim. No celular o menu vira uma barra de abas na parte de baixo da tela, com atalhos para Início, Membros, Caixa, Eventos e um botão "Mais" com o restante — inclusive o atalho para a **Documentação** (`/documentacao`), que também pode ser aberta sem login.
+Sim. No celular o menu vira uma barra de abas na parte de baixo da tela, com atalhos rápidos (Início, Membros, Caixa, Eventos quando você faz parte da comissão, e **Mais**). Em **Mais** aparece o menu completo — as mesmas áreas do computador, filtradas pelo seu cargo, comissão e escopo — além da **Documentação** (`/documentacao`, também acessível sem login) e da opção de sair.
 
 **Preciso instalar alguma coisa?**
 Não. É pelo navegador, no computador ou no celular.
