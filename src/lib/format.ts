@@ -136,3 +136,15 @@ export function grauOf(m: MemberGrauInfo): { code: "DM" | "GI" | null; label: st
 export function isAptoGrauDemolay(m: MemberGrauInfo): boolean {
   return Boolean(m.iniciacao_ordem) && Boolean(m.exam_grau_iniciatico) && !m.iniciacao_grau_demolay;
 }
+
+/** Critérios cadastrais para apto a voto (frequência ≥50% nos últimos 6 meses é avaliada à parte). */
+export function meetsVoteCadastro(
+  m: MemberGrauInfo & { status: string; kind?: string | null },
+): boolean {
+  return (
+    m.status === "regular" &&
+    m.kind === "demolay_ativo" &&
+    Boolean(m.exam_grau_iniciatico) &&
+    Boolean(m.exam_grau_demolay)
+  );
+}

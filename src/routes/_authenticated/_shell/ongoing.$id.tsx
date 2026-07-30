@@ -53,7 +53,15 @@ function OngoingPage() {
   const [search, setSearch] = useState("");
 
   const allowed = canManageAttendance(active?.role.name);
-  const item = data.item as { chapter_id: string; title: string; event_type: string; start_at: string; mandatory: boolean; location: string | null; address?: string | null };
+  const item = data.item as {
+    chapter_id: string;
+    title: string;
+    event_type: string;
+    start_at: string;
+    mandatory: boolean;
+    location: string | null;
+    address?: string | null;
+  };
 
   const { live } = useOngoingRealtime({
     calendarEventId: id,
@@ -61,21 +69,23 @@ function OngoingPage() {
     enabled: allowed,
   });
 
+  type OngoingRecord = {
+    member_id: string;
+    status: string;
+    justification: string | null;
+  };
+
   const recordMap = useMemo(() => {
     const m = new Map<
       string,
       { status: string; justification: string | null }
     >();
-    for (const r of data.records as any[]) m.set(r.member_id, r);
+    for (const r of data.records as OngoingRecord[]) m.set(r.member_id, r);
     return m;
   }, [data.records]);
 
   type OngoingCache = {
-    records: Array<{
-      member_id: string;
-      status: string;
-      justification: string | null;
-    }>;
+    records: OngoingRecord[];
     [key: string]: unknown;
   };
 
@@ -135,6 +145,9 @@ function OngoingPage() {
       if (ctx?.prev) qc.setQueryData(["ongoing", id], ctx.prev);
       toast.error(e.message || "Erro ao registrar");
     },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["ongoing", id] });
+    },
   });
 
   function toggleMark(memberId: string, status: "presente" | "ausente") {
@@ -156,11 +169,6 @@ function OngoingPage() {
   const meta = TYPE_META[item.event_type as CalendarType];
   const hasAta = supportsMinutes(item.event_type);
   type OngoingMember = { id: string; full_name: string };
-  type OngoingRecord = {
-    member_id: string;
-    status: string;
-    justification: string | null;
-  };
   const allMembers = data.members as OngoingMember[];
   const allRecords = data.records as OngoingRecord[];
   const members = allMembers.filter((m) =>

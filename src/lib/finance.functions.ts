@@ -1349,9 +1349,15 @@ export const getFinanceSigners = createServerFn({ method: "POST" })
       .eq("term_semester", semester);
     if (error) throw new Error(error.message);
 
+    type PositionRow = {
+      positions: { code: string } | null;
+      members: { full_name: string | null } | null;
+    };
+
     const find = (codes: string[]) =>
-      (rows ?? []).find((r: any) => codes.includes(r.positions?.code))?.members
-        ?.full_name ?? "";
+      ((rows ?? []) as PositionRow[]).find((r) =>
+        codes.includes(r.positions?.code ?? ""),
+      )?.members?.full_name ?? "";
 
     return [
       {

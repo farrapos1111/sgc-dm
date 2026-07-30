@@ -44,7 +44,8 @@ BEGIN
   UPDATE public.member_dues
   SET amount = _amount
   WHERE chapter_id = _chapter_id
-    AND status IS DISTINCT FROM 'pago';
+    AND status = 'em_aberto'
+    AND competence_year >= extract(year from current_date)::integer;
 
   RETURN _amount;
 END;

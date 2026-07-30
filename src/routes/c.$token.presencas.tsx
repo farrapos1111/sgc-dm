@@ -28,14 +28,15 @@ export const Route = createFileRoute("/c/$token/presencas")({
 });
 
 function eventSemester(startsAt: string): 1 | 2 {
-  const m = new Date(startsAt).getMonth();
-  return m < 6 ? 1 : 2;
+  const m = Number(startsAt.slice(5, 7));
+  if (!Number.isFinite(m) || m < 1 || m > 12) return 1;
+  return m < 7 ? 1 : 2;
 }
 
 function shortDate(startsAt: string): string {
-  const d = new Date(startsAt);
-  if (Number.isNaN(d.getTime())) return "—";
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const ymd = startsAt.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return "—";
+  return `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}`;
 }
 
 function attendanceCellClass(status: string) {
@@ -222,19 +223,19 @@ function LobbyPresencasPage() {
             ))}
           </div>
 
-          {/* Desktop: matriz em largura total (sem scroll lateral) */}
+          {/* Desktop: matriz com scroll horizontal */}
           <Card className="hidden overflow-hidden rounded-[12px] p-0 lg:block">
-            <div className="w-full">
-              <table className="w-full table-fixed border-collapse text-sm">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[640px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
-                    <th className="w-[18%] px-3 py-2 text-left font-medium">
+                    <th className="sticky left-0 z-10 w-[12rem] bg-muted/40 px-3 py-2 text-left font-medium">
                       Membro
                     </th>
                     {semesterEvents.map((ev) => (
                       <th
                         key={ev.id}
-                        className="px-0.5 py-2 text-center text-[10px] font-medium text-muted-foreground"
+                        className="min-w-[3rem] px-0.5 py-2 text-center text-[10px] font-medium text-muted-foreground"
                         title={`${ev.title} · ${typeLabel(ev.event_type)} · ${formatDateBR(ev.starts_at)}`}
                       >
                         {shortDate(ev.starts_at)}
@@ -252,7 +253,7 @@ function LobbyPresencasPage() {
                       className="border-b border-border last:border-b-0"
                     >
                       <td
-                        className="px-3 py-2 font-medium"
+                        className="sticky left-0 z-10 bg-background px-3 py-2 font-medium"
                         title={row.member.full_name}
                       >
                         <div className="truncate">{row.member.full_name}</div>

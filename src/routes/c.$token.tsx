@@ -34,7 +34,6 @@ function PublicLobbyLayout() {
   const accent = chapter?.primary_color || "#9E1B32";
 
   useEffect(() => {
-    if (!accent) return;
     document.documentElement.style.setProperty("--chapter-primary", accent);
     return () => {
       document.documentElement.style.removeProperty("--chapter-primary");

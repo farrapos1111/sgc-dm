@@ -21,6 +21,16 @@ function getPublicSupabase() {
 const chapterInput = z.object({ chapterId: z.string().uuid() });
 const tokenInput = z.string().trim().min(16).max(128);
 
+const PUBLIC_RPC_ERROR = "Não foi possível concluir a solicitação.";
+
+function throwPublicRpcError(
+  error: { message: string },
+  context: string,
+): never {
+  console.error(`[lobby-share] ${context}:`, error.message);
+  throw new Error(PUBLIC_RPC_ERROR);
+}
+
 export type PublicLobbyChapter = {
   id: string;
   name: string;
@@ -160,7 +170,7 @@ export const getPublicLobby = createServerFn({ method: "POST" })
       "get_public_lobby" as never,
       { _token: data.token } as never,
     );
-    if (error) throw new Error(error.message);
+    if (error) throwPublicRpcError(error, "getPublicLobby");
     return payload as { chapter: PublicLobbyChapter };
   });
 
@@ -180,7 +190,7 @@ export const getPublicAttendance = createServerFn({ method: "POST" })
       "get_public_attendance_overview" as never,
       { _token: data.token, _year: data.year } as never,
     );
-    if (error) throw new Error(error.message);
+    if (error) throwPublicRpcError(error, "getPublicAttendance");
     return payload as PublicAttendanceOverview;
   });
 
@@ -205,7 +215,7 @@ export const getPublicMemberPortal = createServerFn({ method: "POST" })
         _year: data.year,
       } as never,
     );
-    if (error) throw new Error(error.message);
+    if (error) throwPublicRpcError(error, "getPublicMemberPortal");
     return payload as PublicMemberPortal;
   });
 
@@ -244,7 +254,7 @@ export const lookupLobbyMemberCadastro = createServerFn({ method: "POST" })
       "lookup_lobby_member_cadastro" as never,
       { _token: data.token, _demolay_id: data.demolayId } as never,
     );
-    if (error) throw new Error(error.message);
+    if (error) throwPublicRpcError(error, "lookupLobbyMemberCadastro");
     return payload as {
       member: CadastroLookupMember;
       guardians: CadastroLookupGuardian[];
@@ -282,6 +292,6 @@ export const submitLobbyMemberCadastro = createServerFn({ method: "POST" })
         _guardians: data.guardians ?? null,
       } as never,
     );
-    if (error) throw new Error(error.message);
+    if (error) throwPublicRpcError(error, "submitLobbyMemberCadastro");
     return payload as { ok: boolean; changed: boolean; member_id: string };
   });
