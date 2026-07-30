@@ -18,8 +18,16 @@ export const CALENDAR_TYPES = Object.keys(TYPE_META) as CalendarType[];
 /** Tipos que representam sessões do capítulo. */
 export const SESSION_TYPES: CalendarType[] = ["sessao_ritualistica", "sessao_administrativa"];
 
+/** Tipos sem registro de ata (só chamada de presença). */
+export const NO_MINUTES_TYPES: CalendarType[] = ["filantropia", "entretenimento"];
+
 export function isSessionType(t: string): boolean {
   return SESSION_TYPES.includes(t as CalendarType);
+}
+
+/** Filantropia e entretenimento não têm ata. */
+export function supportsMinutes(t: string): boolean {
+  return !NO_MINUTES_TYPES.includes(t as CalendarType);
 }
 
 export function typeLabel(t: string): string {

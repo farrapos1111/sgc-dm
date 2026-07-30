@@ -24,7 +24,7 @@ import { getMemberAttendance } from "@/lib/attendance.functions";
 import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
 import { can } from "@/lib/permissions";
 import { getMemberFinance } from "@/lib/finance.functions";
-import { MONTH_SHORT } from "@/lib/dues-rules";
+import { MONTH_SHORT, isDueOverdue, autoDueExemptTip, type DueMemberLite } from "@/lib/dues-rules";
 import { Progress } from "@/components/ui/progress";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { PageHeader } from "@/components/PageHeader";
@@ -630,6 +630,7 @@ function MembroPerfil() {
             year={financeYear}
             onYearChange={setFinanceYear}
             foundedAt={chapterFoundedAt(active?.chapter)}
+            member={member as DueMemberLite}
           />
         </TabsContent>
       </Tabs>
@@ -644,12 +645,21 @@ const DUE_STATUS_LABEL: Record<string, string> = {
   desligado: "Desligado",
 };
 
+function isFutureMonth(year: number, month: number, today = new Date()) {
+  const cy = today.getFullYear();
+  const cm = today.getMonth() + 1;
+  if (year > cy) return true;
+  if (year < cy) return false;
+  return month > cm;
+}
+
 function MemberFinanceTab({
   finance,
   pending,
   year,
   onYearChange,
   foundedAt,
+  member,
 }: {
   finance:
     | Awaited<ReturnType<typeof getMemberFinance>>
@@ -658,6 +668,7 @@ function MemberFinanceTab({
   year: number;
   onYearChange: (y: number) => void;
   foundedAt?: string | null;
+  member: DueMemberLite;
 }) {
   const currentYear = new Date().getFullYear();
   const startYear = foundedAt ? Number(foundedAt.slice(0, 4)) : currentYear - 2;
@@ -740,7 +751,14 @@ function MemberFinanceTab({
       </div>
 
       <Card className="rounded-[12px] p-5">
-        <h3 className="mb-3 text-sm font-semibold">Mensalidades · {year}</h3>
+        <h3 className="mb-3 text-sm font-semibold">
+          Mensalidades · {year}
+          {finance?.defaultAmount != null ? (
+            <span className="ml-2 font-normal text-muted-foreground">
+              · padrão {formatBRL(finance.defaultAmount)}
+            </span>
+          ) : null}
+        </h3>
         {(finance?.dues.length ?? 0) === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nenhuma competência registrada neste ano.
@@ -748,25 +766,37 @@ function MemberFinanceTab({
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
             {(finance?.dues ?? []).map((d) => {
-              const style =
-                d.status === "pago"
+              const future = d.status === "em_aberto" && isFutureMonth(year, d.month);
+              const overdue =
+                !future && isDueOverdue(year, d.month, d.status);
+              const style = future
+                ? "bg-zinc-100 text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
+                : d.status === "pago"
                   ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200"
                   : d.status === "isento"
                     ? "bg-slate-100 text-slate-600 dark:bg-slate-500/20 dark:text-slate-300"
                     : d.status === "desligado"
                       ? "bg-stone-200 text-stone-700 dark:bg-stone-500/20 dark:text-stone-300"
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200";
+                      : overdue
+                        ? "bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-200"
+                        : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200";
+              const statusLabel = future
+                ? "·"
+                : overdue
+                  ? "Atrasado"
+                  : (DUE_STATUS_LABEL[d.status] ?? d.status);
+              const exemptTip =
+                d.status === "isento" ? autoDueExemptTip(member, year, d.month) : null;
               return (
                 <div
                   key={d.id}
+                  title={exemptTip ?? undefined}
                   className={`rounded-[8px] px-2 py-2 text-center ${style}`}
                 >
                   <div className="text-xs font-medium">
                     {MONTH_SHORT[d.month - 1] ?? d.month}
                   </div>
-                  <div className="text-[11px] opacity-80">
-                    {DUE_STATUS_LABEL[d.status] ?? d.status}
-                  </div>
+                  <div className="text-[11px] opacity-80">{statusLabel}</div>
                   <div className="mt-0.5 text-xs font-semibold">
                     {formatBRL(d.amount)}
                   </div>

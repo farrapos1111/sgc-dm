@@ -60,6 +60,7 @@ import {
   isDueOverdue,
   MONTH_LONG,
   MONTH_SHORT,
+  autoDueExemptTip,
   type DueMemberLite,
 } from "@/lib/dues-rules";
 
@@ -203,6 +204,7 @@ function patchDueInCache(
 type StatusCellProps = {
   memberId: string;
   memberName: string;
+  member: DueMemberLite;
   month: number;
   year: number;
   status: DueStatus;
@@ -215,6 +217,7 @@ type StatusCellProps = {
 const StatusCell = memo(function StatusCell({
   memberId,
   memberName,
+  member,
   month,
   year,
   status,
@@ -225,9 +228,13 @@ const StatusCell = memo(function StatusCell({
 }: StatusCellProps) {
   const future = isFutureMonth(year, month);
   const overdue = !future && isDueOverdue(year, month, status);
-  const label = `${MONTH_LONG[month - 1]} — ${STATUS_LABEL[status]}${
-    future && status === "em_aberto" ? " (futuro)" : overdue ? " (atrasado)" : ""
-  }`;
+  const exemptTip =
+    status === "isento" ? autoDueExemptTip(member, year, month) : null;
+  const label = exemptTip
+    ? `${MONTH_LONG[month - 1]} — ${exemptTip}`
+    : `${MONTH_LONG[month - 1]} — ${STATUS_LABEL[status]}${
+        future && status === "em_aberto" ? " (futuro)" : overdue ? " (atrasado)" : ""
+      }`;
 
   const button = compact ? (
     <button
@@ -275,6 +282,11 @@ const StatusCell = memo(function StatusCell({
           <div className="text-[11px] text-muted-foreground">
             {MONTH_LONG[month - 1]} · {formatBRL(defaultAmount)}
           </div>
+          {exemptTip ? (
+            <div className="mt-1 text-[11px] leading-snug text-muted-foreground">
+              {exemptTip}
+            </div>
+          ) : null}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {(["em_aberto", "pago", "isento", "desligado"] as DueStatus[]).map((s) => (
@@ -298,7 +310,12 @@ function Mensalidades() {
   const qc = useQueryClient();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
-  const [defaultAmount, setDefaultAmount] = useState(50);
+  const [defaultAmount, setDefaultAmount] = useState(() => {
+    const raw = (active?.chapter as { settings?: Record<string, unknown> } | undefined)
+      ?.settings?.default_dues_amount;
+    const n = typeof raw === "number" ? raw : Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : 50;
+  });
   const [paidAt, setPaidAt] = useState(now.toISOString().slice(0, 10));
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -571,7 +588,7 @@ function Mensalidades() {
             if (isFutureMonth(d.competence_year, d.competence_month)) return d;
             if (
               action === "pay_except_jan_dec" &&
-              (d.competence_month === 1 || d.competence_month === 12)
+              d.competence_month === 1
             ) {
               return d;
             }
@@ -609,7 +626,7 @@ function Mensalidades() {
     onSuccess: (r) => {
       const labels: Record<BulkAction, string> = {
         pay_all: "baixada(s)",
-        pay_except_jan_dec: "baixada(s) (sem jan/dez)",
+        pay_except_jan_dec: "baixada(s) (exceto janeiro)",
         open_all: "aberta(s)",
         exempt_all: "isentada(s)",
       };
@@ -646,8 +663,8 @@ function Mensalidades() {
         ? `Baixar ${openCount} em aberto sem registrar no fluxo de caixa?`
         : `Baixar ${openCount} em aberto e lançar no fluxo de caixa?`,
       pay_except_jan_dec: skipCashEntry
-        ? "Baixar todas em aberto (exceto jan/dez) sem fluxo de caixa?"
-        : "Baixar todas em aberto (exceto jan/dez) e lançar no fluxo?",
+        ? "Baixar todas em aberto (exceto janeiro) sem fluxo de caixa?"
+        : "Baixar todas em aberto (exceto janeiro) e lançar no fluxo?",
       open_all:
         "Reabrir TODAS as competências do ano (remove lançamentos de caixa vinculados)?",
       exempt_all:
@@ -663,8 +680,8 @@ function Mensalidades() {
         data: { chapterId: chapterId!, amount: defaultAmount },
       }),
     onSuccess: async () => {
-      toast.success("Mensalidade padrão salva");
-      refetch();
+      toast.success("Mensalidade padrão salva nas configurações do capítulo");
+      await refetch();
       if (chapterId) {
         qc.setQueryData<YearDuesData>(duesYearKey(chapterId, year), (prev) =>
           prev ? { ...prev, defaultAmount } : prev,
@@ -936,7 +953,7 @@ function Mensalidades() {
                   Baixar todos ({openCount})
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => runBulk("pay_except_jan_dec")}>
-                  Baixar todos (menos Dez, Jan)
+                  Baixar todos (exceto janeiro)
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => runBulk("open_all")}>
@@ -1199,6 +1216,7 @@ function Mensalidades() {
                               <StatusCell
                                 memberId={m.id}
                                 memberName={m.full_name}
+                                member={m}
                                 month={month}
                                 year={year}
                                 status={status}
@@ -1310,6 +1328,7 @@ function Mensalidades() {
                           key={month}
                           memberId={m.id}
                           memberName={m.full_name}
+                          member={m}
                           month={month}
                           year={year}
                           status={status}

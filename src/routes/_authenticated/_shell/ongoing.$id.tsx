@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getOngoing, setAttendance } from "@/lib/attendance.functions";
 import { MinutesPanel } from "@/components/minutes/MinutesPanel";
-import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
+import { TYPE_META, supportsMinutes, type CalendarType } from "@/lib/calendar-types";
 import { canManageAttendance } from "@/lib/permissions";
 import { formatDateTimeBR } from "@/lib/format";
 import { ArrowLeft, Check, Loader2, Search, X } from "lucide-react";
@@ -50,19 +50,34 @@ function OngoingPage() {
   }, [data.records]);
 
   const mark = useMutation({
-    mutationFn: (v: { memberId: string; status: "presente" | "ausente"; justification?: string | null }) =>
+    mutationFn: (v: {
+      memberId: string;
+      status: "presente" | "ausente" | null;
+      justification?: string | null;
+    }) =>
       setAttendance({
         data: {
           chapterId: item.chapter_id,
           calendarEventId: id,
           memberId: v.memberId,
           status: v.status,
-          justification: v.justification ?? recordMap.get(v.memberId)?.justification ?? null,
+          justification:
+            v.status === null
+              ? null
+              : (v.justification ?? recordMap.get(v.memberId)?.justification ?? null),
         },
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ongoing", id] }),
     onError: (e: any) => toast.error(e?.message ?? "Erro ao registrar"),
   });
+
+  function toggleMark(memberId: string, status: "presente" | "ausente") {
+    const current = recordMap.get(memberId)?.status;
+    mark.mutate({
+      memberId,
+      status: current === status ? null : status,
+    });
+  }
 
   if (!allowed) {
     return (
@@ -73,11 +88,17 @@ function OngoingPage() {
   }
 
   const meta = TYPE_META[item.event_type as CalendarType];
+  const hasAta = supportsMinutes(item.event_type);
   const members = (data.members as any[]).filter((m) =>
     m.full_name.toLowerCase().includes(search.trim().toLowerCase()),
   );
-  const presentes = (data.records as any[]).filter((r) => r.status === "presente").length;
-  const ausentes = (data.records as any[]).filter((r) => r.status === "ausente").length;
+  const eligibleIds = new Set((data.members as any[]).map((m) => m.id));
+  const presentes = (data.records as any[]).filter(
+    (r) => r.status === "presente" && eligibleIds.has(r.member_id),
+  ).length;
+  const ausentes = (data.records as any[]).filter(
+    (r) => r.status === "ausente" && eligibleIds.has(r.member_id),
+  ).length;
   const pendentes = (data.members as any[]).length - presentes - ausentes;
 
   return (
@@ -86,8 +107,8 @@ function OngoingPage() {
         title={item.title}
         subtitle={`${meta?.label ?? item.event_type} · ${formatDateTimeBR(item.start_at)}${item.mandatory ? " · Obrigatório" : " · Facultativo"}`}
         actions={
-          <Button variant="outline" onClick={() => navigate({ to: "/calendario" })}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Calendário
+          <Button variant="outline" onClick={() => navigate({ to: "/presencas" })}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Presenças
           </Button>
         }
       />
@@ -101,7 +122,7 @@ function OngoingPage() {
       <Tabs defaultValue="chamada">
         <TabsList className="mb-4">
           <TabsTrigger value="chamada">Chamada</TabsTrigger>
-          <TabsTrigger value="ata">Ata</TabsTrigger>
+          {hasAta ? <TabsTrigger value="ata">Ata</TabsTrigger> : null}
         </TabsList>
 
         <TabsContent value="chamada">
@@ -117,7 +138,9 @@ function OngoingPage() {
           <Card className="rounded-[12px] p-0">
             <ul className="divide-y divide-border">
               {members.length === 0 && (
-                <li className="p-5 text-sm text-muted-foreground">Nenhum membro ativo encontrado.</li>
+                <li className="p-5 text-sm text-muted-foreground">
+                  Nenhum membro elegível nesta data (iniciação / Senior).
+                </li>
               )}
               {members.map((m) => {
                 const rec = recordMap.get(m.id);
@@ -155,10 +178,12 @@ function OngoingPage() {
                       </span>
                       <div className="flex shrink-0 gap-1.5">
                         <button
-                          aria-label="Presente"
+                          aria-label={
+                            rec?.status === "presente" ? "Desmarcar presente" : "Presente"
+                          }
                           aria-pressed={rec?.status === "presente"}
                           disabled={pendingThis}
-                          onClick={() => mark.mutate({ memberId: m.id, status: "presente" })}
+                          onClick={() => toggleMark(m.id, "presente")}
                           className="grid h-11 w-11 place-items-center rounded-[8px] border transition-all duration-200 hover:-translate-y-0.5 hover:border-[#047857] hover:bg-[#ECFDF5] hover:text-[#047857] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#047857]/40 active:translate-y-0 active:scale-95 disabled:opacity-60"
                           style={
                             rec?.status === "presente"
@@ -178,10 +203,12 @@ function OngoingPage() {
                           />
                         </button>
                         <button
-                          aria-label="Ausente"
+                          aria-label={
+                            rec?.status === "ausente" ? "Desmarcar ausente" : "Ausente"
+                          }
                           aria-pressed={rec?.status === "ausente"}
                           disabled={pendingThis}
-                          onClick={() => mark.mutate({ memberId: m.id, status: "ausente" })}
+                          onClick={() => toggleMark(m.id, "ausente")}
                           className="grid h-11 w-11 place-items-center rounded-[8px] border transition-all duration-200 hover:-translate-y-0.5 hover:border-[#B91C1C] hover:bg-[#FEF2F2] hover:text-[#B91C1C] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/40 active:translate-y-0 active:scale-95 disabled:opacity-60"
                           style={
                             rec?.status === "ausente"
@@ -229,16 +256,23 @@ function OngoingPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="ata">
-          <MinutesPanel
-            chapterId={item.chapter_id}
-            calendarEventId={id}
-            item={{ title: item.title, start_at: item.start_at, location: item.location, address: (item as any).address ?? null }}
-            minutes={(data.minutes as any) ?? null}
-            roleName={active?.role.name ?? null}
-            onChanged={() => qc.invalidateQueries({ queryKey: ["ongoing", id] })}
-          />
-        </TabsContent>
+        {hasAta ? (
+          <TabsContent value="ata">
+            <MinutesPanel
+              chapterId={item.chapter_id}
+              calendarEventId={id}
+              item={{
+                title: item.title,
+                start_at: item.start_at,
+                location: item.location,
+                address: (item as any).address ?? null,
+              }}
+              minutes={(data.minutes as any) ?? null}
+              roleName={active?.role.name ?? null}
+              onChanged={() => qc.invalidateQueries({ queryKey: ["ongoing", id] })}
+            />
+          </TabsContent>
+        ) : null}
 
       </Tabs>
 

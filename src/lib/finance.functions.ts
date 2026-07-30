@@ -607,6 +607,17 @@ export const saveDefaultDuesAmount = createServerFn({ method: "POST" })
       .update({ settings: settings as never })
       .eq("id", data.chapterId);
     if (error) throw new Error(error.message);
+
+    // Alinha competências ainda não pagas ao novo padrão do capítulo
+    const { error: syncErr } = await context.supabase
+      .from("member_dues")
+      .update({ amount: data.amount })
+      .eq("chapter_id", data.chapterId)
+      .neq("status", "pago");
+    if (syncErr) {
+      console.error("saveDefaultDuesAmount sync amounts:", syncErr.message);
+    }
+
     return { amount: data.amount };
   });
 
@@ -1074,6 +1085,7 @@ export const upsertDue = createServerFn({ method: "POST" })
 /**
  * Ações em lote no calendário do ano.
  * - pay_all / pay_except_jan_dec: baixa em aberto (mês atual e anteriores)
+ *   (pay_except_jan_dec = exceto janeiro; dezembro é cobrado)
  * - open_all: reabre todas as competências do ano (remove caixa vinculado)
  * - exempt_all: isenta todas as competências do ano (remove caixa vinculado)
  */
@@ -1115,9 +1127,7 @@ export const bulkYearDuesAction = createServerFn({ method: "POST" })
       if (openErr) throw new Error(openErr.message);
 
       const toPay = (openRows ?? []).filter((d) =>
-        data.action === "pay_except_jan_dec"
-          ? d.competence_month !== 1 && d.competence_month !== 12
-          : true,
+        data.action === "pay_except_jan_dec" ? d.competence_month !== 1 : true,
       );
 
       let updated = 0;
@@ -1950,7 +1960,6 @@ export const getMemberFinance = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const year = data.year ?? new Date().getFullYear();
     const now = new Date();
-    const currentMonth = now.getFullYear() === year ? now.getMonth() + 1 : 12;
 
     const [defaultAmount, duesRes, chargesRes] = await Promise.all([
       readDefaultDuesAmount(context.supabase, data.chapterId),
@@ -1997,15 +2006,19 @@ export const getMemberFinance = createServerFn({ method: "POST" })
     }
 
     const dues = (duesRes.data ?? []).map((d) => {
-      const amount = Number(d.amount);
-      const resolved =
-        Number.isFinite(amount) && amount > 0 ? amount : defaultAmount;
+      const stored = Number(d.amount);
+      const status = d.status as string;
+      // Pago mantém o valor efetivo; demais usam o padrão atual do capítulo
+      const amount =
+        status === "pago" && Number.isFinite(stored) && stored > 0
+          ? stored
+          : defaultAmount;
       return {
         id: d.id,
         year: d.competence_year,
         month: d.competence_month,
-        amount: resolved,
-        status: d.status as string,
+        amount,
+        status,
         paid_at: d.paid_at as string | null,
       };
     });
@@ -2033,9 +2046,12 @@ export const getMemberFinance = createServerFn({ method: "POST" })
 
     let duesOpenAmount = 0;
     let duesOpenCount = 0;
+    const cy = now.getFullYear();
+    const cm = now.getMonth() + 1;
     for (const d of dues) {
       if (d.status !== "em_aberto") continue;
-      if (d.month > currentMonth && year >= now.getFullYear()) continue;
+      // Meses futuros não entram no "em aberto"
+      if (d.year > cy || (d.year === cy && d.month > cm)) continue;
       duesOpenCount += 1;
       duesOpenAmount += d.amount;
     }
