@@ -89,17 +89,21 @@ function OngoingPage() {
 
   const meta = TYPE_META[item.event_type as CalendarType];
   const hasAta = supportsMinutes(item.event_type);
-  const members = (data.members as any[]).filter((m) =>
+  type OngoingMember = { id: string; full_name: string };
+  type OngoingRecord = { member_id: string; status: string; justification: string | null };
+  const allMembers = data.members as OngoingMember[];
+  const allRecords = data.records as OngoingRecord[];
+  const members = allMembers.filter((m) =>
     m.full_name.toLowerCase().includes(search.trim().toLowerCase()),
   );
-  const eligibleIds = new Set((data.members as any[]).map((m) => m.id));
-  const presentes = (data.records as any[]).filter(
+  const eligibleIds = new Set(allMembers.map((m) => m.id));
+  const presentes = allRecords.filter(
     (r) => r.status === "presente" && eligibleIds.has(r.member_id),
   ).length;
-  const ausentes = (data.records as any[]).filter(
+  const ausentes = allRecords.filter(
     (r) => r.status === "ausente" && eligibleIds.has(r.member_id),
   ).length;
-  const pendentes = (data.members as any[]).length - presentes - ausentes;
+  const pendentes = allMembers.length - presentes - ausentes;
 
   return (
     <div>

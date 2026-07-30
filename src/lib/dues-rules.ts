@@ -124,13 +124,8 @@ export function memberEligibleForAttendance(
   if (m.kind === "macom") return false;
   if (m.kind !== "demolay_ativo" && m.kind !== "senior") return false;
 
-  const event = (() => {
-    const d = new Date(eventDateIso);
-    if (!Number.isNaN(d.getTime())) {
-      return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() };
-    }
-    return parseYmd(eventDateIso.slice(0, 10));
-  })();
+  // Prefixo ISO YYYY-MM-DD — evita fuso local (cliente vs servidor)
+  const event = parseYmd(eventDateIso.slice(0, 10));
   if (!event) return false;
 
   const init = initiationOn(m);
@@ -237,6 +232,24 @@ export function isDueOverdue(
   const dueDay = new Date(year, month - 1, 15);
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   return t >= dueDay;
+}
+
+/** Competência ainda no futuro (mês civil corrente ou posterior). */
+export function isFutureMonth(year: number, month: number, today = new Date()) {
+  const cy = today.getFullYear();
+  const cm = today.getMonth() + 1;
+  if (year > cy) return true;
+  if (year < cy) return false;
+  return month > cm;
+}
+
+/** Valor padrão de mensalidade em chapters.settings (fallback 50). */
+export function getChapterDefaultDuesAmount(
+  chapter?: { settings?: Record<string, unknown> | null } | null,
+): number {
+  const raw = chapter?.settings?.default_dues_amount;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : 50;
 }
 
 export const MONTH_SHORT = [
