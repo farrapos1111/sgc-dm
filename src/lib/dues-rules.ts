@@ -45,6 +45,17 @@ function cmpYm(y: number, m: number, y2: number, m2: number) {
   return 0;
 }
 
+/** Compara datas Y-M-D: -1 se a < b, 0 igual, 1 se a > b. */
+function cmpYmd(
+  a: { y: number; m: number; d: number },
+  b: { y: number; m: number; d: number },
+) {
+  if (a.y !== b.y) return a.y < b.y ? -1 : 1;
+  if (a.m !== b.m) return a.m < b.m ? -1 : 1;
+  if (a.d !== b.d) return a.d < b.d ? -1 : 1;
+  return 0;
+}
+
 /**
  * Mês dentro de um período de afastamento:
  * inclui o mês de started_on; exclui o mês de ended_on (retorno = volta a contar).
@@ -99,8 +110,46 @@ export function memberInYearTable(m: DueMemberLite, year: number): boolean {
 }
 
 /**
+ * Membro entra na chamada / frequência de um evento se:
+ * - Regular, Demolay Ativo ou Senior (não Maçom)
+ * - Data do evento ≥ iniciação (se houver data)
+ * - Ainda não era Senior no início do ano do evento (21º aniversário neste ano ou depois)
+ * - Se completa 21 no ano do evento: aparece até a data do aniversário (inclusive)
+ */
+export function memberEligibleForAttendance(
+  m: DueMemberLite,
+  eventDateIso: string,
+): boolean {
+  if (m.status !== "regular") return false;
+  if (m.kind === "macom") return false;
+  if (m.kind !== "demolay_ativo" && m.kind !== "senior") return false;
+
+  const event = (() => {
+    const d = new Date(eventDateIso);
+    if (!Number.isNaN(d.getTime())) {
+      return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() };
+    }
+    return parseYmd(eventDateIso.slice(0, 10));
+  })();
+  if (!event) return false;
+
+  const init = initiationOn(m);
+  if (init && cmpYmd(event, init) < 0) return false;
+
+  const t21 = turns21On(m.birth_date);
+  if (t21) {
+    // Já tinha 21 antes do ano do evento → Senior desde o início → fora
+    if (t21.y < event.y) return false;
+    // Depois do aniversário de 21 no ano → fora
+    if (cmpYmd(event, t21) > 0) return false;
+  }
+
+  return true;
+}
+
+/**
  * Status automático do mês (antes de qualquer pagamento manual):
- * - Janeiro e dezembro → isento (padrão do capítulo)
+ * - Janeiro → isento (padrão do capítulo; dezembro é cobrado)
  * - Meses em período de irregularidade → desligado
  * - Meses a partir do aniversário de 21 no ano → isento
  * - Meses anteriores à iniciação e o mês da iniciação → isento
@@ -111,7 +160,7 @@ export function autoDueStatus(
   year: number,
   month: number,
 ): MonthAutoStatus {
-  if (month === 1 || month === 12) {
+  if (month === 1) {
     return "isento";
   }
 
@@ -134,6 +183,44 @@ export function autoDueStatus(
   }
 
   return "em_aberto";
+}
+
+export type AutoExemptKind = "janeiro" | "senior" | "iniciacao";
+
+/** Motivo automático de isenção (para tip), na mesma ordem de autoDueStatus. */
+export function autoDueExemptKind(
+  m: DueMemberLite,
+  year: number,
+  month: number,
+): AutoExemptKind | null {
+  if (month === 1) return "janeiro";
+
+  const t21 = turns21On(m.birth_date);
+  if (t21 && cmpYm(year, month, t21.y, t21.m) >= 0) return "senior";
+
+  const init = initiationOn(m);
+  if (init && cmpYm(year, month, init.y, init.m) <= 0) return "iniciacao";
+
+  return null;
+}
+
+/** Texto de tip no hover para isenção automática (Senior / iniciação / janeiro). */
+export function autoDueExemptTip(
+  m: DueMemberLite,
+  year: number,
+  month: number,
+): string | null {
+  const kind = autoDueExemptKind(m, year, month);
+  if (kind === "senior") {
+    return "Isento: a partir do aniversário de 21 anos (Senior).";
+  }
+  if (kind === "iniciacao") {
+    return "Isento: mês da iniciação ou anterior à data de iniciação.";
+  }
+  if (kind === "janeiro") {
+    return "Isento: janeiro (padrão do capítulo).";
+  }
+  return null;
 }
 
 /**

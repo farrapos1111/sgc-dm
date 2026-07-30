@@ -1,9 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  memberEligibleForAttendance,
+  type DueMemberLite,
+} from "@/lib/dues-rules";
+import { supportsMinutes } from "@/lib/calendar-types";
 
 const EVENT_SELECT =
   "id, chapter_id, title, event_type, mandatory, start_at, end_at, location, address, description, related_event_id";
+
+const MEMBER_ATTENDANCE_SELECT =
+  "id, full_name, status, kind, birth_date, iniciacao_ordem, exam_grau_iniciatico";
 
 /** Itens do calendário que já começaram e ainda não terminaram (ou começaram há < 6h). */
 export const listOngoingItems = createServerFn({ method: "POST" })
@@ -38,10 +46,10 @@ export const getOngoing = createServerFn({ method: "POST" })
     const [members, records, minutes] = await Promise.all([
       context.supabase
         .from("members")
-        .select("id, full_name, status, kind")
+        .select(MEMBER_ATTENDANCE_SELECT)
         .eq("chapter_id", item.chapter_id)
         .eq("status", "regular")
-        .eq("kind", "demolay_ativo")
+        .in("kind", ["demolay_ativo", "senior"])
         .order("full_name"),
       context.supabase
         .from("attendance_records")
@@ -58,9 +66,13 @@ export const getOngoing = createServerFn({ method: "POST" })
     if (records.error) throw new Error(records.error.message);
     if (minutes.error) throw new Error(minutes.error.message);
 
+    const eligible = ((members.data ?? []) as DueMemberLite[]).filter((m) =>
+      memberEligibleForAttendance(m, item.start_at),
+    );
+
     return {
       item,
-      members: members.data ?? [],
+      members: eligible,
       records: records.data ?? [],
       minutes: minutes.data ?? null,
     };
@@ -74,12 +86,48 @@ export const setAttendance = createServerFn({ method: "POST" })
         chapterId: z.string().uuid(),
         calendarEventId: z.string().uuid(),
         memberId: z.string().uuid(),
-        status: z.enum(["presente", "ausente"]),
+        /** null = desmarca (remove o registro). */
+        status: z.enum(["presente", "ausente"]).nullable(),
         justification: z.string().nullable().optional(),
       })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const [{ data: event, error: eErr }, { data: member, error: mErr }] = await Promise.all([
+      context.supabase
+        .from("calendar_events")
+        .select("id, start_at, chapter_id")
+        .eq("id", data.calendarEventId)
+        .eq("chapter_id", data.chapterId)
+        .maybeSingle(),
+      context.supabase
+        .from("members")
+        .select(MEMBER_ATTENDANCE_SELECT)
+        .eq("id", data.memberId)
+        .eq("chapter_id", data.chapterId)
+        .maybeSingle(),
+    ]);
+    if (eErr) throw new Error(eErr.message);
+    if (mErr) throw new Error(mErr.message);
+    if (!event) throw new Error("Evento não encontrado");
+    if (!member) throw new Error("Membro não encontrado");
+    if (!memberEligibleForAttendance(member as DueMemberLite, event.start_at)) {
+      throw new Error(
+        "Membro fora da regra de presença neste evento (iniciação ou Senior).",
+      );
+    }
+
+    if (data.status === null) {
+      const { error } = await context.supabase
+        .from("attendance_records")
+        .delete()
+        .eq("calendar_event_id", data.calendarEventId)
+        .eq("member_id", data.memberId)
+        .eq("chapter_id", data.chapterId);
+      if (error) throw new Error(error.message);
+      return { ok: true, cleared: true };
+    }
+
     const { error } = await context.supabase.from("attendance_records").upsert(
       {
         chapter_id: data.chapterId,
@@ -92,7 +140,7 @@ export const setAttendance = createServerFn({ method: "POST" })
       { onConflict: "calendar_event_id,member_id" },
     );
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, cleared: false };
   });
 
 export const saveMinutes = createServerFn({ method: "POST" })
@@ -107,6 +155,18 @@ export const saveMinutes = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const { data: event, error: evErr } = await context.supabase
+      .from("calendar_events")
+      .select("id, event_type, chapter_id")
+      .eq("id", data.calendarEventId)
+      .eq("chapter_id", data.chapterId)
+      .maybeSingle();
+    if (evErr) throw new Error(evErr.message);
+    if (!event) throw new Error("Evento não encontrado");
+    if (!supportsMinutes(event.event_type)) {
+      throw new Error("Filantropia e entretenimento não possuem registro de ata.");
+    }
+
     const { data: existing, error: exErr } = await context.supabase
       .from("session_minutes")
       .select("id, status")
@@ -152,7 +212,7 @@ export const listAttendanceOverview = createServerFn({ method: "POST" })
         .limit(200),
       context.supabase
         .from("members")
-        .select("id, full_name, status, kind")
+        .select(MEMBER_ATTENDANCE_SELECT)
         .eq("chapter_id", data.chapterId)
         .order("full_name"),
     ]);

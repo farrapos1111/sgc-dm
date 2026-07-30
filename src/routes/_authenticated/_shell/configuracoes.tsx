@@ -13,7 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useChapterLogo, LOGO_BUCKET } from "@/lib/chapter-logo";
 import { can } from "@/lib/permissions";
 import { listLodges, saveLodge, deleteLodge, updateChapterProfile, updateChapterAccentColor } from "@/lib/chapter.functions";
-import { ImagePlus, Loader2, Trash2, Building2, Landmark, PlusCircle, Save, Sun, Moon, MonitorSmartphone, Palette, RotateCcw, Check } from "lucide-react";
+import { saveDefaultDuesAmount } from "@/lib/finance.functions";
+import { ImagePlus, Loader2, Trash2, Building2, Landmark, PlusCircle, Save, Sun, Moon, MonitorSmartphone, Palette, RotateCcw, Check, Receipt } from "lucide-react";
 import { useTheme, type ThemeMode } from "@/context/ThemeContext";
 import { ChaveTemplateCard } from "@/components/settings/ChaveTemplateCard";
 
@@ -324,6 +325,7 @@ function ConfiguracoesPage() {
 
       <AppearanceCard />
       <ChapterProfileCard />
+      <DefaultDuesCard />
       <LodgesCard />
       <ChaveTemplateCard />
 
@@ -393,6 +395,83 @@ function ConfiguracoesPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+function DefaultDuesCard() {
+  const { active, refetch } = useActiveChapter();
+  const qc = useQueryClient();
+  const allowed =
+    can(active?.role.name, "tesouraria") || can(active?.role.name, "admin");
+  const savedRaw = (active?.chapter as { settings?: Record<string, unknown> } | undefined)
+    ?.settings?.default_dues_amount;
+  const saved =
+    typeof savedRaw === "number"
+      ? savedRaw
+      : Number.isFinite(Number(savedRaw))
+        ? Number(savedRaw)
+        : 50;
+  const [amount, setAmount] = useState(saved);
+
+  useEffect(() => {
+    setAmount(saved);
+  }, [saved, active?.chapter_id]);
+
+  const save = useMutation({
+    mutationFn: () =>
+      saveDefaultDuesAmount({
+        data: { chapterId: active!.chapter_id, amount },
+      }),
+    onSuccess: async () => {
+      toast.success("Mensalidade padrão salva nas configurações do capítulo");
+      await refetch();
+      await qc.invalidateQueries({ queryKey: ["dues-year"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
+  });
+
+  return (
+    <Card className="rounded-[12px] p-5">
+      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        <Receipt className="h-5 w-5" /> Mensalidade padrão
+      </div>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Valor usado ao gerar competências do calendário de mensalidades. Fica salvo em
+        settings do capítulo.
+      </p>
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <Label className="mb-1 block text-xs">Valor (R$)</Label>
+          <Input
+            type="number"
+            min={0}
+            step="0.01"
+            className="w-36"
+            value={amount}
+            onChange={(e) => setAmount(Number(e.target.value))}
+            disabled={!allowed}
+          />
+        </div>
+        {allowed ? (
+          <Button
+            type="button"
+            disabled={save.isPending || !Number.isFinite(amount) || amount < 0}
+            onClick={() => save.mutate()}
+          >
+            {save.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Salvar
+          </Button>
+        ) : (
+          <p className="pb-2 text-xs text-muted-foreground">
+            Somente tesouraria ou administração podem alterar.
+          </p>
+        )}
+      </div>
+    </Card>
   );
 }
 
