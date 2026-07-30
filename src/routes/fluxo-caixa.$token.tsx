@@ -287,6 +287,7 @@ export function PublicCashFlowView({
   }
 
   const accent = chapter?.primary_color || "#9E1B32";
+  const Container = embedded ? "div" : "main";
 
   return (
     <div className={embedded ? "bg-background" : "min-h-svh bg-background"}>
@@ -351,12 +352,19 @@ export function PublicCashFlowView({
         </header>
       )}
 
-      <main
+      <Container
         className={
           embedded ? "py-2" : "mx-auto max-w-5xl px-4 py-6 sm:px-6"
         }
       >
         <div className="mb-4 flex flex-wrap items-center gap-2">
+          {data?.entries_truncated ? (
+            <p className="w-full text-xs text-amber-700 dark:text-amber-300">
+              Exibindo os {entries.length} lançamentos mais recentes de{" "}
+              {data.entries_total ?? "vários"} no período. Totais usam o período
+              completo.
+            </p>
+          ) : null}
           <Select
             value={month === null ? "all" : String(month)}
             onValueChange={(v) => setMonth(v === "all" ? null : Number(v))}
@@ -636,7 +644,7 @@ export function PublicCashFlowView({
             )}
           </>
         )}
-      </main>
+      </Container>
     </div>
   );
 }

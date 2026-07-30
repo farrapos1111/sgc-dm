@@ -42,6 +42,8 @@ export type PublicCashFlowPayload = {
   year: number;
   month: number | null;
   entries: PublicCashEntry[];
+  entries_total?: number;
+  entries_truncated?: boolean;
   opening: { balance: number; previousYear: number };
   totals?: { income: number; expense: number; balance: number };
   bank: { income: number; expense: number; balance: number };

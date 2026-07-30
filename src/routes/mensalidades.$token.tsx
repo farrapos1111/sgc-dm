@@ -225,6 +225,7 @@ export function PublicMensalidadesView({
   }
 
   const accent = chapter?.primary_color || "#9E1B32";
+  const Container = embedded ? "div" : "main";
 
   return (
     <div className={embedded ? "bg-background" : "min-h-svh bg-background"}>
@@ -264,7 +265,7 @@ export function PublicMensalidadesView({
         </header>
       )}
 
-      <main
+      <Container
         className={
           embedded
             ? "py-2"
@@ -534,7 +535,7 @@ export function PublicMensalidadesView({
             </div>
           </>
         )}
-      </main>
+      </Container>
     </div>
   );
 }

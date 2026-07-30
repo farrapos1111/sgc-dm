@@ -289,6 +289,9 @@ DECLARE
   v_period_start date;
   v_period_end date;
   v_entries jsonb;
+  v_entries_total integer := 0;
+  v_period_in numeric := 0;
+  v_period_out numeric := 0;
   v_opening numeric := 0;
   v_bank_in numeric := 0;
   v_bank_out numeric := 0;
@@ -312,6 +315,22 @@ BEGIN
     v_period_start := make_date(_year, _month, 1);
     v_period_end := (make_date(_year, _month, 1) + interval '1 month')::date;
   END IF;
+
+  SELECT count(*)::integer
+  INTO v_entries_total
+  FROM public.cash_entries
+  WHERE chapter_id = v_chapter.id
+    AND entry_date >= v_period_start
+    AND entry_date < v_period_end;
+
+  SELECT
+    coalesce(sum(CASE WHEN kind = 'entrada' THEN amount ELSE 0 END), 0),
+    coalesce(sum(CASE WHEN kind = 'saida' THEN amount ELSE 0 END), 0)
+  INTO v_period_in, v_period_out
+  FROM public.cash_entries
+  WHERE chapter_id = v_chapter.id
+    AND entry_date >= v_period_start
+    AND entry_date < v_period_end;
 
   SELECT coalesce(jsonb_agg(row_to_json(e)::jsonb ORDER BY e.entry_date DESC, e.created_at DESC), '[]'::jsonb)
   INTO v_entries
@@ -384,6 +403,13 @@ BEGIN
     'year', _year,
     'month', _month,
     'entries', v_entries,
+    'entries_total', v_entries_total,
+    'entries_truncated', v_entries_total > 2000,
+    'totals', jsonb_build_object(
+      'income', v_period_in,
+      'expense', v_period_out,
+      'balance', v_period_in - v_period_out
+    ),
     'opening', jsonb_build_object(
       'balance', v_opening,
       'previousYear', _year - 1
@@ -729,7 +755,7 @@ DECLARE
   v_rg_clean text := regexp_replace(coalesce(_rg, ''), '\D', '', 'g');
   v_phone text := nullif(trim(coalesce(_phone, '')), '');
   v_email text := nullif(trim(coalesce(_email, '')), '');
-  v_address jsonb := coalesce(_address, '{}'::jsonb);
+  v_address jsonb := _address;
   v_old jsonb := '{}'::jsonb;
   v_new jsonb := '{}'::jsonb;
   v_g jsonb;
@@ -761,19 +787,19 @@ BEGIN
     RAISE EXCEPTION 'Membro não encontrado neste capítulo' USING ERRCODE = 'P0002';
   END IF;
 
-  IF coalesce(v_member.phone, '') IS DISTINCT FROM coalesce(v_phone, '') THEN
+  IF _phone IS NOT NULL AND coalesce(v_member.phone, '') IS DISTINCT FROM coalesce(v_phone, '') THEN
     v_old := v_old || jsonb_build_object('phone', v_member.phone);
     v_new := v_new || jsonb_build_object('phone', v_phone);
     v_changed := true;
   END IF;
 
-  IF coalesce(v_member.email, '') IS DISTINCT FROM coalesce(v_email, '') THEN
+  IF _email IS NOT NULL AND coalesce(v_member.email, '') IS DISTINCT FROM coalesce(v_email, '') THEN
     v_old := v_old || jsonb_build_object('email', v_member.email);
     v_new := v_new || jsonb_build_object('email', v_email);
     v_changed := true;
   END IF;
 
-  IF coalesce(v_member.address, '{}'::jsonb) IS DISTINCT FROM v_address THEN
+  IF _address IS NOT NULL AND coalesce(v_member.address, '{}'::jsonb) IS DISTINCT FROM coalesce(v_address, '{}'::jsonb) THEN
     v_old := v_old || jsonb_build_object('address', coalesce(v_member.address, '{}'::jsonb));
     v_new := v_new || jsonb_build_object('address', v_address);
     v_changed := true;
@@ -791,16 +817,19 @@ BEGIN
     v_changed := true;
   END IF;
 
-  UPDATE public.members SET
-    phone = v_phone,
-    email = v_email,
-    address = v_address,
-    cpf_encrypted = CASE WHEN length(v_cpf_clean) > 0 THEN public.encrypt_pii(v_cpf_clean) ELSE cpf_encrypted END,
-    cpf_last2 = CASE WHEN length(v_cpf_clean) >= 2 THEN right(v_cpf_clean, 2) ELSE cpf_last2 END,
-    rg_encrypted = CASE WHEN length(v_rg_clean) > 0 THEN public.encrypt_pii(v_rg_clean) ELSE rg_encrypted END,
-    rg_last2 = CASE WHEN length(v_rg_clean) >= 2 THEN right(v_rg_clean, 2) ELSE rg_last2 END,
-    updated_at = now()
-  WHERE id = v_member.id;
+  -- Só grava campos do membro quando algo foi informado/alterado
+  IF v_old <> '{}'::jsonb THEN
+    UPDATE public.members SET
+      phone = CASE WHEN _phone IS NULL THEN phone ELSE v_phone END,
+      email = CASE WHEN _email IS NULL THEN email ELSE v_email END,
+      address = CASE WHEN _address IS NULL THEN address ELSE coalesce(v_address, '{}'::jsonb) END,
+      cpf_encrypted = CASE WHEN length(v_cpf_clean) > 0 THEN public.encrypt_pii(v_cpf_clean) ELSE cpf_encrypted END,
+      cpf_last2 = CASE WHEN length(v_cpf_clean) >= 2 THEN right(v_cpf_clean, 2) ELSE cpf_last2 END,
+      rg_encrypted = CASE WHEN length(v_rg_clean) > 0 THEN public.encrypt_pii(v_rg_clean) ELSE rg_encrypted END,
+      rg_last2 = CASE WHEN length(v_rg_clean) >= 2 THEN right(v_rg_clean, 2) ELSE rg_last2 END,
+      updated_at = now()
+    WHERE id = v_member.id;
+  END IF;
 
   IF _guardians IS NOT NULL AND jsonb_typeof(_guardians) = 'array' THEN
     FOR v_g IN SELECT * FROM jsonb_array_elements(_guardians)
@@ -861,15 +890,15 @@ BEGIN
           'full_name', v_g_row.full_name,
           'changes', v_g_changes
         ));
-      END IF;
 
-      UPDATE public.guardians SET
-        relationship = v_g_rel,
-        phone = v_g_phone,
-        email = v_g_email,
-        cpf_encrypted = CASE WHEN length(v_g_cpf) > 0 THEN public.encrypt_pii(v_g_cpf) ELSE cpf_encrypted END,
-        cpf_last2 = CASE WHEN length(v_g_cpf) >= 2 THEN right(v_g_cpf, 2) ELSE cpf_last2 END
-      WHERE id = v_g_row.id;
+        UPDATE public.guardians SET
+          relationship = CASE WHEN v_g ? 'relationship' THEN v_g_rel ELSE relationship END,
+          phone = CASE WHEN v_g ? 'phone' THEN v_g_phone ELSE phone END,
+          email = CASE WHEN v_g ? 'email' THEN v_g_email ELSE email END,
+          cpf_encrypted = CASE WHEN length(v_g_cpf) > 0 THEN public.encrypt_pii(v_g_cpf) ELSE cpf_encrypted END,
+          cpf_last2 = CASE WHEN length(v_g_cpf) >= 2 THEN right(v_g_cpf, 2) ELSE cpf_last2 END
+        WHERE id = v_g_row.id;
+      END IF;
     END LOOP;
 
     IF jsonb_array_length(v_guardians_new) > 0 THEN
@@ -932,3 +961,11 @@ GRANT EXECUTE ON FUNCTION public.resolve_lobby_chapter_by_token(text) TO service
 -- get_public_year_dues / get_public_cash_flow já têm grants; reafirmar
 GRANT EXECUTE ON FUNCTION public.get_public_year_dues(text, integer) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_public_cash_flow(text, integer, integer) TO anon, authenticated, service_role;
+
+-- Índices de expressão para resolução de tokens públicos
+CREATE INDEX IF NOT EXISTS chapters_settings_public_lobby_token_idx
+  ON public.chapters ((settings->>'public_lobby_token'));
+CREATE INDEX IF NOT EXISTS chapters_settings_dues_share_token_idx
+  ON public.chapters ((settings->>'dues_share_token'));
+CREATE INDEX IF NOT EXISTS chapters_settings_cash_share_token_idx
+  ON public.chapters ((settings->>'cash_share_token'));

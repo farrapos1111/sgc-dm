@@ -683,12 +683,14 @@ export function PresencasOverviewTab({
 }) {
   const qc = useQueryClient();
   /** Overlay local: UI muda no clique; sync com o servidor em background (latest-wins). */
+  type CellOverride = {
+    status: "presente" | "ausente" | null;
+    justification: string | null;
+  };
   const [overrides, setOverrides] = useState(
-    () => new Map<string, { status: "presente" | "ausente" | null; justification: string | null }>(),
+    () => new Map<string, CellOverride>(),
   );
-  const latestRef = useRef(
-    new Map<string, { status: "presente" | "ausente" | null; justification: string | null }>(),
-  );
+  const latestRef = useRef(new Map<string, CellOverride>());
   const flushingRef = useRef(new Set<string>());
 
   const semesterEvents = useMemo(
@@ -739,7 +741,11 @@ export function PresencasOverviewTab({
       for (const [key, ov] of prev) {
         if (flushingRef.current.has(key) || latestRef.current.has(key)) continue;
         const s = server.get(key);
-        const matches = ov.status === null ? !s : s?.status === ov.status;
+        const matches =
+          ov.status === null
+            ? !s
+            : s?.status === ov.status &&
+              (s?.justification ?? null) === (ov.justification ?? null);
         if (matches) {
           next.delete(key);
           changed = true;
@@ -1031,13 +1037,13 @@ export function PresencasOverviewTab({
             </div>
           </div>
 
-          {/* Desktop: matriz em largura total (sem scroll lateral) */}
+          {/* Desktop: matriz com scroll horizontal quando há muitos eventos */}
           <Card className="hidden overflow-hidden rounded-[12px] p-0 lg:block">
-            <div className="w-full">
-              <table className="w-full table-fixed border-collapse text-sm">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[640px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
-                    <th className="w-[16%] px-3 py-3 text-left text-xs font-medium">
+                    <th className="sticky left-0 z-10 w-[12rem] bg-muted/40 px-3 py-3 text-left text-xs font-medium">
                       Membro
                     </th>
                     {semesterEvents.map((ev) => {
@@ -1045,7 +1051,7 @@ export function PresencasOverviewTab({
                       return (
                         <th
                           key={ev.id}
-                          className="px-0.5 py-3 text-center text-[10px] font-medium text-muted-foreground"
+                          className="min-w-[3rem] px-0.5 py-3 text-center text-[10px] font-medium text-muted-foreground"
                           title={`${ev.title} · ${formatDateBR(ev.start_at)} · ${meta?.label ?? ev.event_type}${ev.mandatory ? " · Obrigatório" : " · Facultativo"}`}
                         >
                           <Link
@@ -1076,7 +1082,7 @@ export function PresencasOverviewTab({
                       className="border-b border-border last:border-b-0"
                     >
                       <td
-                        className="px-3 py-2.5 font-medium"
+                        className="sticky left-0 z-10 bg-background px-3 py-2.5 font-medium"
                         title={row.member.full_name}
                       >
                         <Link

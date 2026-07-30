@@ -31,6 +31,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const THEME_OPTIONS: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
   { value: "light", label: "Claro", icon: Sun },
@@ -492,6 +502,9 @@ function PublicLobbyLinkCard() {
     can(active?.role.name, "tesouraria") || can(active?.role.name, "admin");
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"revoke" | "regenerate" | null>(
+    null,
+  );
 
   const shareUrl =
     typeof window !== "undefined" && token
@@ -502,18 +515,30 @@ function PublicLobbyLinkCard() {
 
   const openShare = useMutation({
     mutationFn: async () => {
-      const existing = await getPublicLobbyToken({ data: { chapterId: chapterId! } });
-      if (existing.token) return existing.token;
-      const created = await ensurePublicLobbyToken({
-        data: { chapterId: chapterId!, regenerate: false },
+      const existing = await getPublicLobbyToken({
+        data: { chapterId: chapterId! },
       });
-      return created.token;
+      return existing.token;
     },
     onSuccess: (t) => {
       setToken(t);
       setOpen(true);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao gerar link"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao abrir link"),
+  });
+
+  const generate = useMutation({
+    mutationFn: () =>
+      ensurePublicLobbyToken({
+        data: { chapterId: chapterId!, regenerate: false },
+      }),
+    onSuccess: (r) => {
+      setToken(r.token);
+      toast.success("Link público gerado");
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao gerar link"),
   });
 
   const regenerate = useMutation({
@@ -523,19 +548,23 @@ function PublicLobbyLinkCard() {
       }),
     onSuccess: (r) => {
       setToken(r.token);
+      setConfirmAction(null);
       toast.success("Novo link gerado. O anterior deixou de funcionar.");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao regenerar"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao regenerar"),
   });
 
   const revoke = useMutation({
-    mutationFn: () => revokePublicLobbyToken({ data: { chapterId: chapterId! } }),
+    mutationFn: () =>
+      revokePublicLobbyToken({ data: { chapterId: chapterId! } }),
     onSuccess: () => {
       setToken(null);
-      setOpen(false);
+      setConfirmAction(null);
       toast.success("Link público revogado");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao revogar"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao revogar"),
   });
 
   async function copyShareLink() {
@@ -582,42 +611,103 @@ function PublicLobbyLinkCard() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <Label>URL compartilhável</Label>
-            <div className="flex gap-2">
-              <Input readOnly value={shareUrl} className="font-mono text-xs" />
-              <Button type="button" variant="outline" onClick={() => void copyShareLink()}>
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Regenerar invalida o link atual. O anterior deixa de funcionar.
-            </p>
+            {token ? (
+              <>
+                <Label>URL compartilhável</Label>
+                <div className="flex gap-2">
+                  <Input readOnly value={shareUrl} className="font-mono text-xs" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void copyShareLink()}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Regenerar invalida o link atual. O anterior deixa de funcionar.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum link ativo.</p>
+            )}
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={revoke.isPending}
-              onClick={() => revoke.mutate()}
-            >
-              {revoke.isPending ? "Revogando…" : "Revogar"}
-            </Button>
-            <div className="flex flex-wrap gap-2">
+            {token ? (
               <Button
                 type="button"
-                variant="outline"
-                disabled={regenerate.isPending}
-                onClick={() => regenerate.mutate()}
+                variant="destructive"
+                disabled={revoke.isPending}
+                onClick={() => setConfirmAction("revoke")}
               >
-                {regenerate.isPending ? "Gerando…" : "Regenerar"}
+                {revoke.isPending ? "Revogando…" : "Revogar"}
               </Button>
-              <Button type="button" onClick={() => void copyShareLink()}>
-                Copiar link
-              </Button>
+            ) : (
+              <span />
+            )}
+            <div className="flex flex-wrap gap-2">
+              {token ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={regenerate.isPending}
+                    onClick={() => setConfirmAction("regenerate")}
+                  >
+                    {regenerate.isPending ? "Gerando…" : "Regenerar"}
+                  </Button>
+                  <Button type="button" onClick={() => void copyShareLink()}>
+                    Copiar link
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  disabled={!chapterId || generate.isPending}
+                  onClick={() => generate.mutate()}
+                >
+                  {generate.isPending ? "Gerando…" : "Gerar link"}
+                </Button>
+              )}
             </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={confirmAction !== null}
+        onOpenChange={(o) => {
+          if (!o) setConfirmAction(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction === "revoke" ? "Revogar link?" : "Regenerar link?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction === "revoke"
+                ? "O link público deixará de funcionar imediatamente."
+                : "Um novo link será gerado e o atual deixará de funcionar."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={revoke.isPending || regenerate.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={revoke.isPending || regenerate.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirmAction === "revoke") revoke.mutate();
+                else if (confirmAction === "regenerate") regenerate.mutate();
+              }}
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -145,9 +145,24 @@ function MembroPerfil() {
       }),
     enabled: needsFinance && Boolean(chapterId),
   });
-  const orgData = org ?? { positions: [] as any[], commissions: [] as any[] };
+  const orgData = org ?? {
+    positions: [] as Array<{ id?: string }>,
+    commissions: [] as Array<{ id?: string }>,
+  };
 
-  const mandatoryRecs = (attendance as any[]).filter(
+  type MemberAttendanceRow = {
+    id?: string;
+    status: string;
+    justification?: string | null;
+    calendar_event?: {
+      mandatory?: boolean | null;
+      start_at?: string;
+      title?: string;
+      event_type?: string;
+    } | null;
+  };
+  const attendanceRows = attendance as MemberAttendanceRow[];
+  const mandatoryRecs = attendanceRows.filter(
     (r) => r.calendar_event?.mandatory,
   );
   const mandatoryPresent = mandatoryRecs.filter(
@@ -166,7 +181,8 @@ function MembroPerfil() {
       setRevealed((r) => ({ ...r, [field]: res.value }));
       toast.success(`${field.toUpperCase()} revelado (auditoria registrada)`);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Sem permissão"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Sem permissão"),
   });
 
   // --- Edição de cargos e comissões no perfil ---
@@ -204,7 +220,8 @@ function MembroPerfil() {
       toast.success("Perfil atualizado: cargo designado");
       refreshOrg();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Não foi possível designar"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Não foi possível designar"),
   });
   const delPos = useMutation({
     mutationFn: (rowId: string) => removePosition({ data: { id: rowId } }),
@@ -212,7 +229,8 @@ function MembroPerfil() {
       toast.success("Perfil atualizado: cargo removido");
       refreshOrg();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro"),
   });
   const addCom = useMutation({
     mutationFn: (v: {
@@ -235,7 +253,8 @@ function MembroPerfil() {
       toast.success("Perfil atualizado: participação registrada");
       refreshOrg();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro"),
   });
   const delCom = useMutation({
     mutationFn: (rowId: string) =>
@@ -244,7 +263,8 @@ function MembroPerfil() {
       toast.success("Perfil atualizado: participação removida");
       refreshOrg();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
   return (
@@ -314,7 +334,12 @@ function MembroPerfil() {
                   k="Iniciação à Ordem DeMolay"
                   v={formatDateBR(member.iniciacao_ordem)}
                 />
-                <Row k="ID DeMolay" v={(member as any).demolay_id || "—"} />
+                <Row
+                  k="ID DeMolay"
+                  v={
+                    (member as { demolay_id?: string | null }).demolay_id || "—"
+                  }
+                />
                 <Row
                   k="Exame de Grau Iniciático"
                   v={formatDateBR(member.exam_grau_iniciatico)}
@@ -328,7 +353,13 @@ function MembroPerfil() {
                   v={formatDateBR(member.exam_grau_demolay)}
                 />
                 {(member as { kind?: string }).kind === "macom" && (
-                  <Row k="ID maçônica" v={(member as any).masonic_id || "—"} />
+                  <Row
+                    k="ID maçônica"
+                    v={
+                      (member as { masonic_id?: string | null }).masonic_id ||
+                      "—"
+                    }
+                  />
                 )}
                 <Row
                   k="Status"
@@ -636,13 +667,13 @@ function MembroPerfil() {
                 </div>
               </Card>
               <Card className="rounded-[12px] p-0">
-                {(attendance as any[]).length === 0 ? (
+                {attendanceRows.length === 0 ? (
                   <div className="p-5 text-sm text-muted-foreground">
                     Nenhum registro de presença ainda.
                   </div>
                 ) : (
                   <ul className="divide-y divide-border">
-                    {(attendance as any[]).map((r) => {
+                    {attendanceRows.map((r) => {
                       const ev = r.calendar_event;
                       const meta = ev
                         ? TYPE_META[ev.event_type as CalendarType]
@@ -675,10 +706,16 @@ function MembroPerfil() {
                                 color:
                                   r.status === "presente"
                                     ? "#047857"
-                                    : "#B91C1C",
+                                    : r.status === "pendente"
+                                      ? "#D97706"
+                                      : "#B91C1C",
                               }}
                             >
-                              {r.status === "presente" ? "Presente" : "Ausente"}
+                              {r.status === "presente"
+                                ? "Presente"
+                                : r.status === "pendente"
+                                  ? "Pendente"
+                                  : "Ausente"}
                             </span>
                           </div>
                           <div className="mt-1 text-xs text-muted-foreground">

@@ -643,6 +643,7 @@ function MemberCadastroTab({
 
   function handleCepChange(raw: string) {
     const masked = maskCepInput(raw);
+    setDone(false);
     setAddress((a) => ({ ...a, zip: masked }));
     const digits = digitsOnly(masked);
     if (digits.length < 8) {
@@ -655,7 +656,29 @@ function MemberCadastroTab({
   }
 
   function patchGuardian(id: string, patch: Partial<EditableGuardian>) {
+    setDone(false);
     setGuardians((list) => list.map((g) => (g.id === id ? { ...g, ...patch } : g)));
+  }
+
+  function editPhone(value: string) {
+    setDone(false);
+    setPhone(value);
+  }
+  function editEmail(value: string) {
+    setDone(false);
+    setEmail(value);
+  }
+  function editCpf(value: string) {
+    setDone(false);
+    setCpf(value);
+  }
+  function editRg(value: string) {
+    setDone(false);
+    setRg(value);
+  }
+  function editAddress(patch: Partial<typeof address>) {
+    setDone(false);
+    setAddress((a) => ({ ...a, ...patch }));
   }
 
   if (lookup.isPending && !member) {
@@ -696,24 +719,28 @@ function MemberCadastroTab({
             <Input
               value={phone}
               placeholder="(00) 00000-0000"
-              onChange={(e) => setPhone(maskPhoneInput(e.target.value))}
+              onChange={(e) => editPhone(maskPhoneInput(e.target.value))}
             />
           </Field>
           <Field label="Email">
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => editEmail(e.target.value)}
+            />
           </Field>
           <Field label="CPF">
             <Input
               value={cpf}
               placeholder={formatCpfMask(member.cpf_last2)}
-              onChange={(e) => setCpf(maskCpfInput(e.target.value))}
+              onChange={(e) => editCpf(maskCpfInput(e.target.value))}
             />
           </Field>
           <Field label="RG">
             <Input
               value={rg}
               placeholder={formatRgMask(member.rg_last2)}
-              onChange={(e) => setRg(e.target.value.slice(0, 20))}
+              onChange={(e) => editRg(e.target.value.slice(0, 20))}
             />
           </Field>
         </div>
@@ -736,31 +763,31 @@ function MemberCadastroTab({
           <Field label="Endereço">
             <Input
               value={address.street}
-              onChange={(e) => setAddress((a) => ({ ...a, street: e.target.value }))}
+              onChange={(e) => editAddress({ street: e.target.value })}
             />
           </Field>
           <Field label="Número">
             <Input
               value={address.number}
-              onChange={(e) => setAddress((a) => ({ ...a, number: e.target.value }))}
+              onChange={(e) => editAddress({ number: e.target.value })}
             />
           </Field>
           <Field label="Complemento">
             <Input
               value={address.complement}
-              onChange={(e) => setAddress((a) => ({ ...a, complement: e.target.value }))}
+              onChange={(e) => editAddress({ complement: e.target.value })}
             />
           </Field>
           <Field label="Bairro">
             <Input
               value={address.neighborhood}
-              onChange={(e) => setAddress((a) => ({ ...a, neighborhood: e.target.value }))}
+              onChange={(e) => editAddress({ neighborhood: e.target.value })}
             />
           </Field>
           <Field label="Cidade">
             <Input
               value={address.city}
-              onChange={(e) => setAddress((a) => ({ ...a, city: e.target.value }))}
+              onChange={(e) => editAddress({ city: e.target.value })}
             />
           </Field>
           <Field label="UF">
@@ -768,14 +795,14 @@ function MemberCadastroTab({
               maxLength={2}
               value={address.state}
               onChange={(e) =>
-                setAddress((a) => ({ ...a, state: e.target.value.toUpperCase() }))
+                editAddress({ state: e.target.value.toUpperCase() })
               }
             />
           </Field>
           <Field label="País">
             <Input
               value={address.country}
-              onChange={(e) => setAddress((a) => ({ ...a, country: e.target.value }))}
+              onChange={(e) => editAddress({ country: e.target.value })}
             />
           </Field>
         </div>

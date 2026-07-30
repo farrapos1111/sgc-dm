@@ -11,7 +11,7 @@ const EVENT_SELECT =
   "id, chapter_id, title, event_type, mandatory, start_at, end_at, location, address, description, related_event_id";
 
 const MEMBER_ATTENDANCE_SELECT =
-  "id, full_name, status, kind, birth_date, iniciacao_ordem, exam_grau_iniciatico";
+  "id, full_name, status, kind, birth_date, iniciacao_ordem, exam_grau_iniciatico, exam_grau_demolay";
 
 /** Itens do calendário que já começaram e ainda não terminaram (ou começaram há < 6h). */
 export const listOngoingItems = createServerFn({ method: "POST" })

@@ -308,17 +308,27 @@ const StatusCell = memo(function StatusCell({
     </button>
   );
 
-  const withTip = (trigger: ReactElement) => (
-    <Tooltip delayDuration={250}>
-      <TooltipTrigger asChild>{trigger}</TooltipTrigger>
-      <TooltipContent side="top" className="max-w-[260px] text-center">
-        <p>{label}</p>
-        {writable ? (
-          <p className="mt-0.5 text-[10px] opacity-80">Clique para alterar</p>
-        ) : null}
-      </TooltipContent>
-    </Tooltip>
-  );
+  const withTip = (trigger: ReactElement) => {
+    const tipTrigger =
+      !writable ? (
+        <span tabIndex={0} className="inline-block w-full">
+          {trigger}
+        </span>
+      ) : (
+        trigger
+      );
+    return (
+      <Tooltip delayDuration={250}>
+        <TooltipTrigger asChild>{tipTrigger}</TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[260px] text-center">
+          <p>{label}</p>
+          {writable ? (
+            <p className="mt-0.5 text-[10px] opacity-80">Clique para alterar</p>
+          ) : null}
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
 
   if (!writable) return withTip(button);
 

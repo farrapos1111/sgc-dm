@@ -21,13 +21,14 @@ import {
   type CalendarType,
 } from "@/lib/calendar-types";
 import { canManageAttendance } from "@/lib/permissions";
-import { formatDateTimeBR } from "@/lib/format";
+import { formatDateTimeBR, meetsVoteCadastro } from "@/lib/format";
 import {
   memberEligibleForAttendance,
   type DueMemberLite,
 } from "@/lib/dues-rules";
 import { chapterFoundedAt } from "@/lib/terms";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Vote } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   PresencasChartsTab,
   PresencasOverviewTab,
@@ -181,8 +182,11 @@ function PresencasFrequencyTab({
   freq: string;
   onFreqChange: (freq: string) => void;
 }) {
+  const [aptosVoto, setAptosVoto] = useState(false);
+  const effectiveFreq = aptosVoto ? "m:6" : freq;
+
   const frequency = useMemo(() => {
-    const range = parseFrequencyRange(freq);
+    const range = parseFrequencyRange(effectiveFreq);
     const mandatoryItems = items.filter((i) => {
       if (!i.mandatory) return false;
       const start = new Date(i.start_at);
@@ -217,14 +221,18 @@ function PresencasFrequencyTab({
         };
       })
       .filter((m) => m.total > 0)
+      .filter((m) => {
+        if (!aptosVoto) return true;
+        return meetsVoteCadastro(m) && m.pct !== null && m.pct >= 50;
+      })
       .sort(
         (a, b) =>
           (b.pct ?? -1) - (a.pct ?? -1) ||
           a.full_name.localeCompare(b.full_name, "pt-BR"),
       );
-  }, [items, members, records, freq]);
+  }, [items, members, records, effectiveFreq, aptosVoto]);
 
-  const range = parseFrequencyRange(freq);
+  const range = parseFrequencyRange(effectiveFreq);
   const rangeLabel =
     range.kind === "year"
       ? String(range.year)
@@ -232,8 +240,12 @@ function PresencasFrequencyTab({
 
   return (
     <>
-      <div className="mb-3">
-        <Select value={freq} onValueChange={onFreqChange}>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Select
+          value={effectiveFreq}
+          onValueChange={onFreqChange}
+          disabled={aptosVoto}
+        >
           <SelectTrigger className="h-9 w-[220px] text-xs">
             <SelectValue placeholder="Período" />
           </SelectTrigger>
@@ -248,12 +260,26 @@ function PresencasFrequencyTab({
             <SelectItem value="m:3">Últimos 3 meses</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          type="button"
+          variant={aptosVoto ? "default" : "outline"}
+          size="sm"
+          className="h-9 gap-1.5 text-xs"
+          onClick={() => setAptosVoto((v) => !v)}
+          aria-pressed={aptosVoto}
+        >
+          <Vote className="h-3.5 w-3.5" />
+          Aptos a voto
+          {aptosVoto ? ` (${frequency.length})` : null}
+        </Button>
       </div>
       <Card className="rounded-[12px] p-0">
         <ul className="divide-y divide-border">
           {frequency.length === 0 && (
             <li className="p-5 text-sm text-muted-foreground">
-              Nenhum membro elegível nos eventos obrigatórios ({rangeLabel}).
+              {aptosVoto
+                ? "Nenhum membro apto a voto no momento."
+                : `Nenhum membro elegível nos eventos obrigatórios (${rangeLabel}).`}
             </li>
           )}
           {frequency.map((m) => (
@@ -278,7 +304,7 @@ function PresencasFrequencyTab({
                     color:
                       m.pct === null
                         ? "var(--muted-foreground)"
-                        : m.pct >= 75
+                        : m.pct >= (aptosVoto ? 50 : 75)
                           ? "#047857"
                           : "#B91C1C",
                   }}
@@ -291,9 +317,19 @@ function PresencasFrequencyTab({
         </ul>
       </Card>
       <p className="mt-3 text-xs text-muted-foreground">
-        Frequência ({rangeLabel}): apenas itens obrigatórios em que o membro era
-        elegível (após a iniciação e até virar Senior no aniversário de 21
-        anos).
+        {aptosVoto ? (
+          <>
+            Aptos a voto: DeMolay ativo regular, exames de Grau Iniciático e
+            Grau DeMolay apresentados, e frequência ≥ 50% nos últimos 6 meses
+            (itens obrigatórios em que era elegível).
+          </>
+        ) : (
+          <>
+            Frequência ({rangeLabel}): apenas itens obrigatórios em que o membro
+            era elegível (após a iniciação e até virar Senior no aniversário de
+            21 anos).
+          </>
+        )}
       </p>
     </>
   );
