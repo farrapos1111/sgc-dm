@@ -257,3 +257,24 @@ export const checkinTicket = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true, alreadyCheckedIn: false };
   });
+
+/** Exclui um evento (ingressos/mesas/check-ins em cascata). */
+export const deleteEvent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const { data: event, error: eErr } = await context.supabase
+      .from("events")
+      .select("id, chapter_id, name")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (eErr) throw new Error(eErr.message);
+    if (!event) throw new Error("Evento não encontrado");
+
+    const { error } = await context.supabase
+      .from("events")
+      .delete()
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true, name: event.name as string };
+  });

@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, useQuery, queryOptions } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, Users, Calendar, Cake, PlusCircle, Radio, Copy, MapPin } from "lucide-react";
+import { Wallet, Users, Calendar, Cake, PlusCircle, Radio, Copy, MapPin, Landmark, Receipt } from "lucide-react";
 import { listCalendarItems } from "@/lib/calendar.functions";
 import { buildChaveDoDia } from "@/lib/chave-do-dia";
 import { toast } from "sonner";
@@ -15,7 +16,7 @@ import { listMembers } from "@/lib/members.functions";
 import { membersListKey } from "@/lib/query-keys";
 import { listOngoingItems } from "@/lib/attendance.functions";
 import { getDashboardFinance } from "@/lib/finance.functions";
-import { canManageAttendance } from "@/lib/permissions";
+import { can, canManageAttendance } from "@/lib/permissions";
 import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
 import { formatBRL, formatDateBR, formatDateTimeBR, parseDateOnly } from "@/lib/format";
 import { MONTH_LONG } from "@/lib/dues-rules";
@@ -43,10 +44,14 @@ const membersQO = (chapterId: string) =>
     queryFn: () => listMembers({ data: { chapterId, search: "", status: "all" } }),
   });
 
+const SALDO_ROTATE_MS = 30_000;
+const MEMBROS_ROTATE_MS = 30_000;
+
 function Inicio() {
   const { active } = useActiveChapter();
   if (!active) return null;
   const chapterId = active.chapter_id;
+  const canFinance = can(active.role.name, "tesouraria");
 
   const { data: events } = useSuspenseQuery(eventsQO(chapterId));
   const { data: members } = useSuspenseQuery(membersQO(chapterId));
@@ -62,9 +67,27 @@ function Inicio() {
   const { data: finance } = useQuery({
     queryKey: ["dashboard-finance", chapterId],
     queryFn: () => getDashboardFinance({ data: { chapterId } }),
-    enabled: Boolean(chapterId),
+    enabled: Boolean(chapterId) && canFinance,
     staleTime: 60_000,
   });
+
+  const [showBank, setShowBank] = useState(false);
+  const [showReceivable, setShowReceivable] = useState(false);
+  useEffect(() => {
+    if (!canFinance) return;
+    const saldoId = window.setInterval(
+      () => setShowBank((v) => !v),
+      SALDO_ROTATE_MS,
+    );
+    const membrosId = window.setInterval(
+      () => setShowReceivable((v) => !v),
+      MEMBROS_ROTATE_MS,
+    );
+    return () => {
+      window.clearInterval(saldoId);
+      window.clearInterval(membrosId);
+    };
+  }, [canFinance]);
 
   const now = new Date();
   const upcoming = events
@@ -85,6 +108,32 @@ function Inicio() {
     finance != null
       ? `${MONTH_LONG[finance.month - 1] ?? ""} de ${finance.year}`
       : "mês atual";
+
+  const saldoValue = showBank
+    ? (finance?.bankBalance ?? 0)
+    : (finance?.monthBalance ?? 0);
+  const saldoLabel = showBank ? "Saldo do banco" : "Saldo do mês";
+  const saldoHint = showBank
+    ? "Saldo atual do caixa · todas as competências"
+    : `${monthLabel} · resultado do fluxo`;
+
+  const membrosLabel = showReceivable
+    ? "A receber"
+    : "Mensalidades pendentes";
+  const membrosValue = !finance
+    ? "—"
+    : showReceivable
+      ? formatBRL(finance.receivableTotal ?? 0)
+      : `${finance.pendingMembers} ${finance.pendingMembers === 1 ? "membro" : "membros"}`;
+  const membrosHint = !finance
+    ? "Carregando…"
+    : showReceivable
+      ? `Mensalidades ${formatBRL(finance.pendingAmount)} · cobranças ${formatBRL(finance.openChargesAmount ?? 0)}`
+      : `${finance.pendingCompetences} competência${finance.pendingCompetences === 1 ? "" : "s"} · ${formatBRL(finance.pendingAmount)}`;
+  const membrosTone =
+    showReceivable && (finance?.receivableTotal ?? 0) > 0
+      ? "text-amber-600 dark:text-amber-400"
+      : undefined;
 
   return (
     <div>
@@ -148,37 +197,48 @@ function Inicio() {
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Link to="/tesouraria/fluxo" className="block">
-            <MetricCard
-              icon={<Wallet className="h-5 w-5" />}
-              label="Saldo do mês"
-              value={formatBRL(finance?.monthBalance ?? 0)}
-              hint={`${monthLabel} · resultado do fluxo`}
-              tone={
-                (finance?.monthBalance ?? 0) < 0
-                  ? "text-rose-600 dark:text-rose-400"
-                  : (finance?.monthBalance ?? 0) > 0
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : undefined
-              }
-            />
-          </Link>
-          <Link to="/tesouraria/mensalidades" className="block">
-            <MetricCard
-              icon={<Users className="h-5 w-5" />}
-              label="Mensalidades pendentes"
-              value={
-                finance
-                  ? `${finance.pendingMembers} ${finance.pendingMembers === 1 ? "membro" : "membros"}`
-                  : "—"
-              }
-              hint={
-                finance
-                  ? `${finance.pendingCompetences} competência${finance.pendingCompetences === 1 ? "" : "s"} · ${formatBRL(finance.pendingAmount)}`
-                  : "Carregando…"
-              }
-            />
-          </Link>
+          {canFinance ? (
+            <>
+              <Link to="/tesouraria/fluxo" className="block">
+                <MetricCard
+                  icon={
+                    showBank ? (
+                      <Landmark className="h-5 w-5" />
+                    ) : (
+                      <Wallet className="h-5 w-5" />
+                    )
+                  }
+                  label={saldoLabel}
+                  value={formatBRL(saldoValue)}
+                  hint={saldoHint}
+                  tone={
+                    saldoValue < 0
+                      ? "text-rose-600 dark:text-rose-400"
+                      : saldoValue > 0
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : undefined
+                  }
+                  fadeKey={showBank ? "bank" : "month"}
+                />
+              </Link>
+              <Link to="/tesouraria/mensalidades" className="block">
+                <MetricCard
+                  icon={
+                    showReceivable ? (
+                      <Receipt className="h-5 w-5" />
+                    ) : (
+                      <Users className="h-5 w-5" />
+                    )
+                  }
+                  label={membrosLabel}
+                  value={membrosValue}
+                  hint={membrosHint}
+                  tone={membrosTone}
+                  fadeKey={showReceivable ? "receivable" : "members"}
+                />
+              </Link>
+            </>
+          ) : null}
           <MetricCard
             icon={<Calendar className="h-5 w-5" />}
             label="Próximo evento"
@@ -225,20 +285,27 @@ function MetricCard({
   value,
   hint,
   tone,
+  fadeKey,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   hint?: string;
   tone?: string;
+  fadeKey?: string;
 }) {
   return (
     <Card className="rounded-[12px] p-5 transition-colors hover:bg-muted/40">
-      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        {icon} {label}
+      <div
+        key={fadeKey ?? label}
+        className="animate-in fade-in duration-500"
+      >
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          {icon} {label}
+        </div>
+        <div className={`mt-2 text-2xl font-bold ${tone ?? ""}`}>{value}</div>
+        {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
       </div>
-      <div className={`mt-2 text-2xl font-bold ${tone ?? ""}`}>{value}</div>
-      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
     </Card>
   );
 }

@@ -114,10 +114,11 @@ function NovoMembro() {
     setStepIndex((i) => Math.min(i, Math.max(steps.length - 1, 0)));
   }, [steps.length]);
 
+  const chapterId = active?.chapter_id ?? "";
   const { data: catalog } = useQuery({
-    queryKey: ["org-catalog"],
-    queryFn: () => listCatalog(),
-    enabled: hasGrauDemolay,
+    queryKey: ["org-catalog", chapterId],
+    queryFn: () => listCatalog({ data: { chapterId } }),
+    enabled: hasGrauDemolay && Boolean(chapterId),
   });
 
   const positionOptions = useMemo(() => {

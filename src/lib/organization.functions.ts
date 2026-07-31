@@ -8,19 +8,180 @@ const termInput = z.object({
   semester: z.union([z.literal(1), z.literal(2)]),
 });
 
+const chapterInput = z.object({ chapterId: z.string().uuid() });
+
+function slugCommissionCode(label: string): string {
+  const base = label
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+  return base || "comissao";
+}
+
+async function uniqueCommissionCode(
+  supabase: {
+    from: (t: string) => any;
+  },
+  chapterId: string,
+  desired: string,
+  excludeId?: number,
+): Promise<string> {
+  let code = desired;
+  for (let i = 0; i < 50; i++) {
+    let q = supabase
+      .from("commissions")
+      .select("id")
+      .eq("chapter_id", chapterId)
+      .eq("code", code)
+      .limit(1);
+    if (excludeId != null) q = q.neq("id", excludeId);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    if (!data?.length) return code;
+    code = `${desired.slice(0, 36)}_${i + 2}`;
+  }
+  throw new Error("Não foi possível gerar um código único para a comissão");
+}
+
 export const listCatalog = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((raw) => chapterInput.parse(raw))
+  .handler(async ({ data, context }) => {
     const [pos, com] = await Promise.all([
       context.supabase
         .from("positions")
         .select("id, code, label, scope, sort_order")
         .order("sort_order"),
-      context.supabase.from("commissions").select("id, code, label, sort_order").order("sort_order"),
+      context.supabase
+        .from("commissions")
+        .select("id, code, label, sort_order, chapter_id")
+        .eq("chapter_id", data.chapterId)
+        .order("sort_order"),
     ]);
     if (pos.error) throw new Error(pos.error.message);
     if (com.error) throw new Error(com.error.message);
-    return { positions: pos.data ?? [], commissions: com.data ?? [] };
+    return {
+      positions: pos.data ?? [],
+      commissions: (com.data ?? []).map((c) => ({
+        id: c.id,
+        code: c.code,
+        label: c.label,
+        sort_order: c.sort_order,
+      })),
+    };
+  });
+
+export const createChapterCommission = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    chapterInput
+      .extend({
+        label: z.string().trim().min(2).max(80),
+        code: z
+          .string()
+          .trim()
+          .min(2)
+          .max(40)
+          .regex(/^[a-z][a-z0-9_]*$/, "Código inválido")
+          .optional(),
+        sortOrder: z.number().int().min(0).max(999).optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const desired = data.code ?? slugCommissionCode(data.label);
+    const code = await uniqueCommissionCode(
+      context.supabase,
+      data.chapterId,
+      desired,
+    );
+
+    let sortOrder = data.sortOrder;
+    if (sortOrder == null) {
+      const { data: maxRow } = await context.supabase
+        .from("commissions")
+        .select("sort_order")
+        .eq("chapter_id", data.chapterId)
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      sortOrder = (maxRow?.sort_order ?? 0) + 1;
+    }
+
+    const { data: row, error } = await context.supabase
+      .from("commissions")
+      .insert({
+        chapter_id: data.chapterId,
+        code,
+        label: data.label,
+        sort_order: sortOrder,
+      } as never)
+      .select("id, code, label, sort_order")
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const updateChapterCommission = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    chapterInput
+      .extend({
+        id: z.number().int().positive(),
+        label: z.string().trim().min(2).max(80),
+        sortOrder: z.number().int().min(0).max(999).optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: existing, error: findErr } = await context.supabase
+      .from("commissions")
+      .select("id, code, chapter_id")
+      .eq("id", data.id)
+      .eq("chapter_id", data.chapterId)
+      .maybeSingle();
+    if (findErr) throw new Error(findErr.message);
+    if (!existing) throw new Error("Comissão não encontrada neste capítulo");
+
+    const patch: Record<string, unknown> = { label: data.label };
+    if (data.sortOrder != null) patch.sort_order = data.sortOrder;
+
+    const { data: row, error } = await context.supabase
+      .from("commissions")
+      .update(patch as never)
+      .eq("id", data.id)
+      .eq("chapter_id", data.chapterId)
+      .select("id, code, label, sort_order")
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const deleteChapterCommission = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    chapterInput.extend({ id: z.number().int().positive() }).parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: existing, error: findErr } = await context.supabase
+      .from("commissions")
+      .select("id, code, chapter_id")
+      .eq("id", data.id)
+      .eq("chapter_id", data.chapterId)
+      .maybeSingle();
+    if (findErr) throw new Error(findErr.message);
+    if (!existing) throw new Error("Comissão não encontrada neste capítulo");
+
+    const { error } = await context.supabase
+      .from("commissions")
+      .delete()
+      .eq("id", data.id)
+      .eq("chapter_id", data.chapterId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const listChapterPositions = createServerFn({ method: "POST" })
@@ -94,7 +255,21 @@ export const listCommissionMembers = createServerFn({ method: "POST" })
       .eq("term_year", data.year)
       .eq("term_semester", data.semester);
     if (error) throw new Error(error.message);
-    return rows ?? [];
+
+    const roleOrder: Record<string, number> = {
+      presidente: 0,
+      vice: 1,
+      membro: 2,
+      auxiliar_senior: 3,
+    };
+    return [...(rows ?? [])].sort((a, b) => {
+      const byRole =
+        (roleOrder[a.role as string] ?? 99) - (roleOrder[b.role as string] ?? 99);
+      if (byRole !== 0) return byRole;
+      const nameA = (a.member as { full_name?: string } | null)?.full_name ?? "";
+      const nameB = (b.member as { full_name?: string } | null)?.full_name ?? "";
+      return nameA.localeCompare(nameB, "pt-BR");
+    });
   });
 
 export const assignCommissionMember = createServerFn({ method: "POST" })
@@ -109,6 +284,15 @@ export const assignCommissionMember = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const { data: commission, error: comErr } = await context.supabase
+      .from("commissions")
+      .select("id")
+      .eq("id", data.commissionId)
+      .eq("chapter_id", data.chapterId)
+      .maybeSingle();
+    if (comErr) throw new Error(comErr.message);
+    if (!commission) throw new Error("Comissão inválida para este capítulo");
+
     const { error } = await context.supabase.from("commission_members").upsert(
       {
         chapter_id: data.chapterId,

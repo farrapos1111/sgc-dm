@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, Banknote, Wallet, History, Search, X } from "lucide-react";
+import { Pencil, Plus, Trash2, Banknote, Wallet, History, Search, X, Copy } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -189,6 +189,59 @@ function Cobrancas() {
     return { openAmt, paid };
   }, [charges]);
 
+  async function copyOpenList() {
+    const byMember = new Map<string, { count: number; total: number }>();
+    for (const c of filteredCharges) {
+      if (c.status === "isento") continue;
+      const amount = Number(c.amount) || 0;
+      const amountPaid = Number(c.amount_paid) || 0;
+      const remaining = Math.max(0, amount - amountPaid);
+      if (remaining <= 0) continue;
+      const name = (c.member_name ?? "").trim() || "Sem nome";
+      const cur = byMember.get(name) ?? { count: 0, total: 0 };
+      cur.count += 1;
+      cur.total += remaining;
+      byMember.set(name, cur);
+    }
+
+    const rows = [...byMember.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }))
+      .map(([name, o]) => {
+        const itens =
+          o.count === 1 ? "1 cobrança" : `${o.count} cobranças`;
+        return `${name} - ${itens} - ${formatBRL(o.total)}`;
+      });
+
+    if (rows.length === 0) {
+      toast.message("Nenhum membro com cobrança em aberto na lista");
+      return;
+    }
+
+    const now = new Date();
+    const dateLabel = [
+      String(now.getDate()).padStart(2, "0"),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getFullYear()),
+    ].join("/");
+
+    const text = [
+      "Lista de Cobranças em Aberto:",
+      dateLabel,
+      "",
+      "*Nome - Cobranças - Total devido*",
+      ...rows,
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(
+        `Lista copiada (${rows.length} membro${rows.length === 1 ? "" : "s"})`,
+      );
+    } catch {
+      toast.error("Não foi possível copiar para a área de transferência");
+    }
+  }
+
   const save = useMutation({
     mutationFn: () =>
       upsertMemberCharge({
@@ -320,17 +373,23 @@ function Cobrancas() {
         title="Cobranças"
         subtitle="Atribua cobranças a membros, registre pagamentos parciais ou totais e acompanhe a quitação. Cada pagamento gera lançamento no fluxo de caixa."
         actions={
-          writable ? (
-            <Button
-              onClick={() => {
-                setForm(emptyForm());
-                setOpen(true);
-              }}
-              style={{ backgroundColor: active?.chapter.primary_color }}
-            >
-              <Plus className="mr-2 h-4 w-4" /> Nova cobrança
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => void copyOpenList()}>
+              <Copy className="mr-2 h-4 w-4" />
+              Copiar lista
             </Button>
-          ) : null
+            {writable ? (
+              <Button
+                onClick={() => {
+                  setForm(emptyForm());
+                  setOpen(true);
+                }}
+                style={{ backgroundColor: active?.chapter.primary_color }}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Nova cobrança
+              </Button>
+            ) : null}
+          </div>
         }
       />
 

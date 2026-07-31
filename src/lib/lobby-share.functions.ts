@@ -79,12 +79,15 @@ export type PublicMemberPortal = {
     primary_color: string | null;
   };
   year: number;
+  defaultAmount: number;
   member: {
     id: string;
     full_name: string;
     status: string;
     kind: string;
     demolay_id: string | null;
+    birth_date: string | null;
+    iniciacao_ordem: string | null;
   };
   dues: Array<{
     id: string;
@@ -216,7 +219,23 @@ export const getPublicMemberPortal = createServerFn({ method: "POST" })
       } as never,
     );
     if (error) throwPublicRpcError(error, "getPublicMemberPortal");
-    return payload as PublicMemberPortal;
+    const raw = payload as PublicMemberPortal;
+    return {
+      ...raw,
+      defaultAmount: Number(raw?.defaultAmount) || 50,
+      member: {
+        ...raw.member,
+        birth_date: raw.member?.birth_date ?? null,
+        iniciacao_ordem: raw.member?.iniciacao_ordem ?? null,
+      },
+      dues: (raw.dues ?? []).map((d) => ({
+        ...d,
+        amount:
+          d.status === "pago"
+            ? d.amount
+            : Number(raw?.defaultAmount) || Number(d.amount) || 50,
+      })),
+    } satisfies PublicMemberPortal;
   });
 
 const addressSchema = z.object({

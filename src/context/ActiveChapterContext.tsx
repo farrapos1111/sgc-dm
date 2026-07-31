@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ROLE_LABELS, type RoleName } from "@/lib/permissions";
 
 export type Membership = {
   id: string;
@@ -30,18 +31,43 @@ export type Membership = {
   };
 };
 
+/** Ordem das visões de cargo no seletor (setinhas). */
+export const ROLE_VIEW_ORDER: RoleName[] = [
+  "mestre_conselheiro",
+  "escrivao",
+  "tesoureiro",
+  "presidente_comissao",
+  "membro",
+  "consultor",
+  "presidente_conselho",
+  "admin_total",
+];
+
 type ActiveChapterContextValue = {
   memberships: Membership[];
   loading: boolean;
   activeChapterId: string | null;
   active: Membership | null;
+  /** Papel real do vínculo (sem override de visão). */
+  realRoleName: string | null;
+  /** Há múltiplos vínculos — pode alternar visão de cargo. */
+  canSwitchRoleView: boolean;
   setActiveChapterId: (id: string | null) => void;
+  cycleRoleView: () => string;
   refetch: () => void;
 };
 
 const STORAGE_KEY = "sgcdm.activeChapterId";
+const ROLE_VIEW_KEY = "sgcdm.roleView";
 
 const ActiveChapterContext = createContext<ActiveChapterContextValue | null>(null);
+
+function readStoredRoleView(): RoleName | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(ROLE_VIEW_KEY);
+  if (!raw) return null;
+  return (ROLE_VIEW_ORDER as string[]).includes(raw) ? (raw as RoleName) : null;
+}
 
 export function ActiveChapterProvider({
   userId,
@@ -66,6 +92,7 @@ export function ActiveChapterProvider({
   });
 
   const memberships = data ?? [];
+  const canSwitchRoleView = memberships.length > 1;
 
   const { data: profile } = useQuery({
     queryKey: ["profile-active-chapter", userId],
@@ -85,6 +112,15 @@ export function ActiveChapterProvider({
     if (typeof window === "undefined") return null;
     return window.localStorage.getItem(STORAGE_KEY);
   });
+
+  const [roleView, setRoleViewState] = useState<RoleName | null>(() => readStoredRoleView());
+
+  const setRoleView = useCallback((name: RoleName | null) => {
+    setRoleViewState(name);
+    if (typeof window === "undefined") return;
+    if (name) window.localStorage.setItem(ROLE_VIEW_KEY, name);
+    else window.localStorage.removeItem(ROLE_VIEW_KEY);
+  }, []);
 
   // Persistente entre dispositivos: sincroniza capítulo ativo no perfil
   const setActiveChapterId = useCallback((id: string | null) => {
@@ -132,10 +168,46 @@ export function ActiveChapterProvider({
     }
   }, [isLoading, memberships, activeChapterId, setActiveChapterId]);
 
-  const active = useMemo(
-    () => memberships.find((m) => m.chapter_id === activeChapterId) ?? null,
-    [memberships, activeChapterId]
-  );
+  // Sem múltiplos vínculos, limpa override de visão
+  useEffect(() => {
+    if (!canSwitchRoleView && roleView) setRoleView(null);
+  }, [canSwitchRoleView, roleView, setRoleView]);
+
+  const realMembership = useMemo(() => {
+    if (!activeChapterId) return null;
+    // Prefer vínculo cujo papel real coincida com a visão, se houver
+    if (roleView) {
+      const match = memberships.find(
+        (m) => m.chapter_id === activeChapterId && m.role.name === roleView,
+      );
+      if (match) return match;
+    }
+    return memberships.find((m) => m.chapter_id === activeChapterId) ?? null;
+  }, [memberships, activeChapterId, roleView]);
+
+  const realRoleName = realMembership?.role.name ?? null;
+
+  const active = useMemo(() => {
+    if (!realMembership) return null;
+    if (!canSwitchRoleView || !roleView) return realMembership;
+    const label = ROLE_LABELS[roleView] ?? roleView;
+    return {
+      ...realMembership,
+      role: {
+        ...realMembership.role,
+        name: roleView,
+        label,
+      },
+    };
+  }, [realMembership, canSwitchRoleView, roleView]);
+
+  const cycleRoleView = useCallback(() => {
+    const current = (roleView ?? realRoleName ?? "membro") as string;
+    const idx = ROLE_VIEW_ORDER.findIndex((r) => r === current);
+    const next = ROLE_VIEW_ORDER[(idx + 1) % ROLE_VIEW_ORDER.length] ?? ROLE_VIEW_ORDER[0];
+    setRoleView(next);
+    return ROLE_LABELS[next] ?? next;
+  }, [roleView, realRoleName, setRoleView]);
 
   const value = useMemo<ActiveChapterContextValue>(
     () => ({
@@ -143,10 +215,23 @@ export function ActiveChapterProvider({
       loading: isLoading,
       activeChapterId,
       active,
+      realRoleName,
+      canSwitchRoleView,
       setActiveChapterId,
+      cycleRoleView,
       refetch,
     }),
-    [memberships, isLoading, activeChapterId, active, setActiveChapterId, refetch],
+    [
+      memberships,
+      isLoading,
+      activeChapterId,
+      active,
+      realRoleName,
+      canSwitchRoleView,
+      setActiveChapterId,
+      cycleRoleView,
+      refetch,
+    ],
   );
 
   return <ActiveChapterContext.Provider value={value}>{children}</ActiveChapterContext.Provider>;

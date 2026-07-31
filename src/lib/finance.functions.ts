@@ -1999,22 +1999,31 @@ export const getDashboardFinance = createServerFn({ method: "POST" })
     const periodStart = `${year}-${String(month).padStart(2, "0")}-01`;
     const periodEnd = periodEndDate(year, month);
 
-    const [monthAgg, duesRows, defaultAmount] = await Promise.all([
-      aggregateCashAmounts(context.supabase, data.chapterId, {
-        from: periodStart,
-        until: periodEnd,
-      }),
-      context.supabase
-        .from("member_dues")
-        .select("member_id, competence_month, amount, status")
-        .eq("chapter_id", data.chapterId)
-        .eq("competence_year", year)
-        .eq("status", "em_aberto")
-        .lte("competence_month", month),
-      readDefaultDuesAmount(context.supabase, data.chapterId),
-    ]);
+    const [monthAgg, bankAgg, duesRows, defaultAmount, chargesRes] =
+      await Promise.all([
+        aggregateCashAmounts(context.supabase, data.chapterId, {
+          from: periodStart,
+          until: periodEnd,
+        }),
+        aggregateCashAmounts(context.supabase, data.chapterId),
+        context.supabase
+          .from("member_dues")
+          .select("member_id, competence_month, amount, status")
+          .eq("chapter_id", data.chapterId)
+          .eq("competence_year", year)
+          .eq("status", "em_aberto")
+          .lte("competence_month", month),
+        readDefaultDuesAmount(context.supabase, data.chapterId),
+        context.supabase
+          .from("member_charges")
+          .select("id, amount, status, cash_entry_id, kind")
+          .eq("chapter_id", data.chapterId)
+          .neq("status", "isento")
+          .limit(1000),
+      ]);
 
     if (duesRows.error) throw new Error(duesRows.error.message);
+    if (chargesRes.error) throw new Error(chargesRes.error.message);
 
     const memberIds = new Set<string>();
     let pendingAmount = 0;
@@ -2026,15 +2035,72 @@ export const getDashboardFinance = createServerFn({ method: "POST" })
       pendingAmount += Number.isFinite(amt) && amt > 0 ? amt : defaultAmount;
     }
 
+    // Mesma regra da tela de Cobranças / extrato do membro:
+    // saldo = amount − pagamentos (legado: pago + cash_entry sem linhas).
+    const allCharges = (chargesRes.data ?? []) as Array<{
+      id: string;
+      amount: number | string;
+      status: string;
+      cash_entry_id: string | null;
+      kind: string;
+    }>;
+    const chargeIds = allCharges.map((c) => c.id);
+    const paidByCharge = new Map<string, number>();
+    if (chargeIds.length > 0) {
+      const { data: payments, error: payErr } = await context.supabase
+        .from("member_charge_payments" as never)
+        .select("charge_id, amount")
+        .eq("chapter_id", data.chapterId)
+        .in("charge_id", chargeIds);
+      if (payErr) {
+        console.error("getDashboardFinance payments:", payErr.message);
+      } else {
+        for (const p of (payments as Array<{
+          charge_id: string;
+          amount: number | string;
+        }>) ?? []) {
+          paidByCharge.set(
+            p.charge_id,
+            (paidByCharge.get(p.charge_id) ?? 0) + Number(p.amount),
+          );
+        }
+      }
+    }
+
+    let openChargesAmount = 0;
+    let openChargesCount = 0;
+    for (const c of allCharges) {
+      // Só entradas contam como "a receber"
+      if (c.kind === "saida") continue;
+      const total = Number(c.amount) || 0;
+      let paid = paidByCharge.get(c.id) ?? 0;
+      if (paid === 0 && c.status === "pago" && c.cash_entry_id) {
+        paid = total;
+      }
+      paid = Math.min(paid, total);
+      const remaining = Math.max(0, total - paid);
+      if (remaining <= 0) continue;
+      openChargesAmount += remaining;
+      openChargesCount += 1;
+    }
+
+    const receivableTotal = pendingAmount + openChargesAmount;
+
     return {
       year,
       month,
       monthBalance: monthAgg.balance,
       monthIncome: monthAgg.income,
       monthExpense: monthAgg.expense,
+      bankBalance: bankAgg.balance,
+      bankIncome: bankAgg.income,
+      bankExpense: bankAgg.expense,
       pendingMembers: memberIds.size,
       pendingCompetences,
       pendingAmount,
+      openChargesAmount,
+      openChargesCount,
+      receivableTotal,
       defaultAmount,
     };
   });

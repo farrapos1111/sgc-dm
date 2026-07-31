@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
-import { ChevronDown, LogOut } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, LogOut } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
@@ -26,7 +27,7 @@ const PRELOAD_ROUTES = ["/presencas", "/gestao", "/calendario", "/atas"] as cons
 
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { active } = useActiveChapter();
+  const { active, canSwitchRoleView, cycleRoleView } = useActiveChapter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isNavigating = useRouterState({
     select: (s) => s.status === "pending" || s.isLoading === true,
@@ -55,6 +56,25 @@ export function AppShell({ children }: { children: ReactNode }) {
     setActiveScopeKey(value);
     navigate({ to: "/regional" });
   }
+
+  function handleCycleRoleView() {
+    const label = cycleRoleView();
+    toast.message(`Visão: ${label}`);
+  }
+
+  const roleSwitchButton = canSwitchRoleView ? (
+    <Button
+      type="button"
+      size="icon"
+      variant="ghost"
+      className="h-9 w-9 shrink-0"
+      onClick={handleCycleRoleView}
+      aria-label="Alternar visão de cargo"
+      title="Alternar visão de cargo"
+    >
+      <ArrowLeftRight className="h-4 w-4" />
+    </Button>
+  ) : null;
 
   const scopeSwitcher =
     scopes.length > 0 ? (
@@ -98,7 +118,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     : (active?.role.label ?? "");
 
   async function handleSignOut() {
-    if (typeof window !== "undefined") window.localStorage.removeItem("sgcdm.activeChapterId");
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("sgcdm.activeChapterId");
+      window.localStorage.removeItem("sgcdm.roleView");
+    }
     await supabase.auth.signOut();
     window.location.assign("/auth");
   }
@@ -174,6 +197,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <div className="truncate text-xs text-muted-foreground">{active.chapter.city}</div>
               </div>
             )}
+            {roleSwitchButton}
             <ThemeToggle className="shrink-0" />
           </div>
           <Button
@@ -202,6 +226,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="truncate text-xs text-muted-foreground">{headerSubtitle}</div>
             )}
           </div>
+          {roleSwitchButton}
           <ThemeToggle className="shrink-0" />
         </header>
 
