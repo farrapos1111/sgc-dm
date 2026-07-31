@@ -145,9 +145,9 @@ function MembroPerfil() {
       }),
     enabled: needsFinance && Boolean(chapterId),
   });
-  const orgData = org ?? {
-    positions: [] as Array<{ id?: string }>,
-    commissions: [] as Array<{ id?: string }>,
+  const orgData = {
+    positions: org?.positions ?? [],
+    commissions: org?.commissions ?? [],
   };
 
   type MemberAttendanceRow = {

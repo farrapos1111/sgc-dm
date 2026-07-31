@@ -316,17 +316,11 @@ BEGIN
     v_period_end := (make_date(_year, _month, 1) + interval '1 month')::date;
   END IF;
 
-  SELECT count(*)::integer
-  INTO v_entries_total
-  FROM public.cash_entries
-  WHERE chapter_id = v_chapter.id
-    AND entry_date >= v_period_start
-    AND entry_date < v_period_end;
-
   SELECT
+    count(*)::integer,
     coalesce(sum(CASE WHEN kind = 'entrada' THEN amount ELSE 0 END), 0),
     coalesce(sum(CASE WHEN kind = 'saida' THEN amount ELSE 0 END), 0)
-  INTO v_period_in, v_period_out
+  INTO v_entries_total, v_period_in, v_period_out
   FROM public.cash_entries
   WHERE chapter_id = v_chapter.id
     AND entry_date >= v_period_start
