@@ -618,24 +618,35 @@ export type Database = {
       }
       commissions: {
         Row: {
+          chapter_id: string | null
           code: string
           id: number
           label: string
           sort_order: number
         }
         Insert: {
+          chapter_id?: string | null
           code: string
-          id: number
+          id?: number
           label: string
           sort_order?: number
         }
         Update: {
+          chapter_id?: string | null
           code?: string
           id?: number
           label?: string
           sort_order?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "commissions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_tables: {
         Row: {

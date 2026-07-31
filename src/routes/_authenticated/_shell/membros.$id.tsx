@@ -194,9 +194,9 @@ function MembroPerfil() {
   const [term, setTerm] = useState(currentTerm());
 
   const { data: catalog } = useQuery({
-    queryKey: ["org-catalog"],
-    queryFn: () => listCatalog(),
-    enabled: canEditOrg,
+    queryKey: ["org-catalog", chapterId],
+    queryFn: () => listCatalog({ data: { chapterId } }),
+    enabled: canEditOrg && Boolean(chapterId),
   });
 
   function refreshOrg() {

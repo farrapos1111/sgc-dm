@@ -45,7 +45,10 @@ function MaisPage() {
   }, [activeScope, isGme, active?.role.name, canView, tabs]);
 
   async function signOut() {
-    if (typeof window !== "undefined") window.localStorage.removeItem("sgcdm.activeChapterId");
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("sgcdm.activeChapterId");
+      window.localStorage.removeItem("sgcdm.roleView");
+    }
     await supabase.auth.signOut();
     window.location.assign("/auth");
   }

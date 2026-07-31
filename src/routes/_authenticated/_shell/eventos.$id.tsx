@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import {
-  getEvent, createTicketType, sellTicket, createTable, assignSeat, checkinTicket,
+  getEvent, createTicketType, sellTicket, createTable, assignSeat, checkinTicket, deleteEvent,
 } from "@/lib/events.functions";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -19,9 +19,21 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, PlusCircle, ScanLine, Search, Ticket } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { ArrowLeft, PlusCircle, ScanLine, Search, Ticket, Trash2 } from "lucide-react";
 import { formatBRL, formatDateTimeBR } from "@/lib/format";
 import { QrScanner } from "@/components/QrScanner";
+import { can } from "@/lib/permissions";
 
 export const Route = createFileRoute("/_authenticated/_shell/eventos/$id")({
   head: () => ({ meta: [{ title: "Evento — SG-CDM" }] }),
@@ -47,6 +59,21 @@ function EventoDetalhe() {
   );
   const pct = data.event.goal_amount > 0 ? Math.min(100, (raised / Number(data.event.goal_amount)) * 100) : 0;
   const [tab, setTab] = useState("resumo");
+  const canDelete =
+    can(active?.role.name, "admin") ||
+    can(active?.role.name, "comissoes") ||
+    can(active?.role.name, "secretaria");
+
+  const remove = useMutation({
+    mutationFn: () => deleteEvent({ data: { id } }),
+    onSuccess: (r) => {
+      toast.success(`Evento “${r.name}” excluído`);
+      void qc.invalidateQueries({ queryKey: ["events"] });
+      navigate({ to: "/eventos" });
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao excluir"),
+  });
 
   return (
     <div>
@@ -54,9 +81,41 @@ function EventoDetalhe() {
         title={data.event.name}
         subtitle={`${formatDateTimeBR(data.event.starts_at)}${data.event.location ? ` · ${data.event.location}` : ""}`}
         actions={
-          <Button variant="ghost" onClick={() => navigate({ to: "/eventos" })}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {canDelete ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={remove.isPending}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {remove.isPending ? "Excluindo…" : "Excluir"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir evento?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Isso remove o evento “{data.event.name}”, ingressos, mesas e
+                      check-ins. Não dá para desfazer.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={(e) => {
+                        e.preventDefault();
+                        remove.mutate();
+                      }}
+                    >
+                      Excluir
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : null}
+            <Button variant="ghost" onClick={() => navigate({ to: "/eventos" })}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+            </Button>
+          </div>
         }
       />
 

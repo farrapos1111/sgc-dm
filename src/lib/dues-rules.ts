@@ -180,7 +180,11 @@ export function autoDueStatus(
   }
 
   const t21 = turns21On(m.birth_date);
-  if (t21 && cmpYm(year, month, t21.y, t21.m) >= 0) {
+  // Senior DeMolay: isento a partir do aniversário de 21 (sem data → isento no ano)
+  if (m.kind === "senior") {
+    if (!t21) return "isento";
+    if (cmpYm(year, month, t21.y, t21.m) >= 0) return "isento";
+  } else if (t21 && cmpYm(year, month, t21.y, t21.m) >= 0) {
     return "isento";
   }
 
@@ -203,7 +207,12 @@ export function autoDueExemptKind(
   if (month === 1) return "janeiro";
 
   const t21 = turns21On(m.birth_date);
-  if (t21 && cmpYm(year, month, t21.y, t21.m) >= 0) return "senior";
+  if (m.kind === "senior") {
+    if (!t21) return "senior";
+    if (cmpYm(year, month, t21.y, t21.m) >= 0) return "senior";
+  } else if (t21 && cmpYm(year, month, t21.y, t21.m) >= 0) {
+    return "senior";
+  }
 
   const init = initiationOn(m);
   if (init && cmpYm(year, month, init.y, init.m) <= 0) return "iniciacao";

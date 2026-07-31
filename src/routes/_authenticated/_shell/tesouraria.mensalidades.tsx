@@ -74,7 +74,6 @@ import {
   listDuesInclusionCandidates,
   listYearDues,
   removeMemberFromYearDues,
-  saveDefaultDuesAmount,
   upsertDue,
 } from "@/lib/finance.functions";
 import {
@@ -749,18 +748,43 @@ function Mensalidades() {
     bulkAction.mutate(action);
   }
 
-  const saveAmount = useMutation({
-    mutationFn: () =>
-      saveDefaultDuesAmount({
-        data: { chapterId: chapterId!, amount: defaultAmount },
-      }),
-    onSuccess: async () => {
-      toast.success("Mensalidade padrão salva nas configurações do capítulo");
-      await refetch();
-      await qc.invalidateQueries({ queryKey: ["dues-year"] });
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
-  });
+  async function copyOpenList() {
+    const rows = displayedMembers
+      .map((m) => {
+        const o = openByMember.get(m.id) ?? { count: 0, total: 0 };
+        if (o.count <= 0) return null;
+        const meses =
+          o.count === 1 ? "1 mês" : `${o.count} meses`;
+        return `${m.full_name} - ${meses} - ${formatBRL(o.total)}`;
+      })
+      .filter((line): line is string => Boolean(line));
+
+    if (rows.length === 0) {
+      toast.message("Nenhum membro com mensalidade em aberto na lista");
+      return;
+    }
+
+    const now = new Date();
+    const dateLabel = [
+      String(now.getDate()).padStart(2, "0"),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getFullYear()),
+    ].join("/");
+
+    const text = [
+      "Lista de Mensalidades em Aberto:",
+      dateLabel,
+      "",
+      "*Nome - Meses - Total devido*",
+      ...rows,
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`Lista copiada (${rows.length} membro${rows.length === 1 ? "" : "s"})`);
+    } catch {
+      toast.error("Não foi possível copiar para a área de transferência");
+    }
+  }
 
   const shareUrl = shareToken
     ? `${typeof window !== "undefined" ? window.location.origin : ""}/mensalidades/${shareToken}`
@@ -911,6 +935,10 @@ function Mensalidades() {
         actions={
           writable ? (
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => void copyOpenList()}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar lista
+              </Button>
               <Button variant="outline" onClick={() => setIncludeOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Incluir membro
@@ -924,7 +952,12 @@ function Mensalidades() {
                 {openShare.isPending ? "Abrindo…" : "Compartilhar"}
               </Button>
             </div>
-          ) : null
+          ) : (
+            <Button variant="outline" onClick={() => void copyOpenList()}>
+              <Copy className="mr-2 h-4 w-4" />
+              Copiar lista
+            </Button>
+          )
         }
       />
 
@@ -978,26 +1011,6 @@ function Mensalidades() {
 
         {writable && (
           <>
-            <div>
-              <Label className="mb-1.5 block text-xs text-muted-foreground">
-                Mensalidade padrão
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                className="w-32"
-                value={defaultAmount}
-                onChange={(e) => setDefaultAmount(Number(e.target.value))}
-              />
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => saveAmount.mutate()}
-              disabled={saveAmount.isPending}
-            >
-              Salvar padrão
-            </Button>
             <div>
               <Label className="mb-1.5 block text-xs text-muted-foreground">
                 Data do pagamento

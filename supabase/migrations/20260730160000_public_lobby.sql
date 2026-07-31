@@ -529,6 +529,7 @@ DECLARE
   v_chapter public.chapters%ROWTYPE;
   v_id text := nullif(trim(coalesce(_demolay_id, '')), '');
   v_member public.members%ROWTYPE;
+  v_default numeric;
   v_dues jsonb;
   v_charges jsonb;
   v_payments jsonb;
@@ -543,6 +544,11 @@ BEGIN
   IF _year IS NULL OR _year < 1900 OR _year > 2100 THEN
     RAISE EXCEPTION 'Ano inválido' USING ERRCODE = '22023';
   END IF;
+
+  v_default := coalesce(
+    nullif(v_chapter.settings->>'default_dues_amount', '')::numeric,
+    50
+  );
 
   SELECT * INTO v_member
   FROM public.members
@@ -559,7 +565,7 @@ BEGIN
       'id', d.id,
       'competence_year', d.competence_year,
       'competence_month', d.competence_month,
-      'amount', d.amount,
+      'amount', CASE WHEN d.status = 'pago' THEN d.amount ELSE v_default END,
       'status', d.status,
       'paid_at', d.paid_at
     ) ORDER BY d.competence_month
@@ -640,12 +646,15 @@ BEGIN
       'primary_color', v_chapter.primary_color
     ),
     'year', _year,
+    'defaultAmount', v_default,
     'member', jsonb_build_object(
       'id', v_member.id,
       'full_name', v_member.full_name,
       'status', v_member.status,
       'kind', v_member.kind,
-      'demolay_id', v_member.demolay_id
+      'demolay_id', v_member.demolay_id,
+      'birth_date', v_member.birth_date,
+      'iniciacao_ordem', v_member.iniciacao_ordem
     ),
     'dues', v_dues,
     'charges', v_charges,

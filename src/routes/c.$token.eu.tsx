@@ -15,7 +15,8 @@ import type {
   CadastroLookupMember,
 } from "@/lib/cadastro.functions";
 import { Field, GUARDIAN_RELATIONSHIPS } from "@/components/members/MemberFields";
-import { MONTH_SHORT } from "@/lib/dues-rules";
+import { MONTH_SHORT, autoDueStatus, isFutureMonth } from "@/lib/dues-rules";
+import type { DueMemberLite } from "@/lib/dues-rules";
 import {
   digitsOnly,
   formatBRL,
@@ -85,6 +86,25 @@ function LobbyMemberPortalPage() {
   });
   const [year, setYear] = useState(new Date().getFullYear());
   const [tab, setTab] = useState("cobrancas");
+
+  const portalQ = useQuery({
+    queryKey: ["public-member-portal", token, unlockedId, year],
+    queryFn: () =>
+      getPublicMemberPortal({
+        data: { token, demolayId: unlockedId, year },
+      }),
+    enabled: Boolean(unlockedId),
+    retry: false,
+  });
+
+  const memberKind = portalQ.data?.member.kind ?? "";
+  const showFrequency = memberKind === "demolay_ativo";
+  const showMensalidades =
+    memberKind === "demolay_ativo" || memberKind === "senior";
+
+  useEffect(() => {
+    if (!showFrequency && tab === "frequencia") setTab("cobrancas");
+  }, [showFrequency, tab]);
 
   const unlock = useMutation({
     mutationFn: async (id: string) => {
@@ -167,10 +187,14 @@ function LobbyMemberPortalPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-3">
+        <TabsList
+          className={`grid h-auto w-full ${showFrequency ? "grid-cols-3" : "grid-cols-2"}`}
+        >
           <TabsTrigger value="cobrancas">Cobranças</TabsTrigger>
           <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
-          <TabsTrigger value="frequencia">Frequência</TabsTrigger>
+          {showFrequency ? (
+            <TabsTrigger value="frequencia">Frequência</TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="cobrancas" className="mt-0">
@@ -180,43 +204,59 @@ function LobbyMemberPortalPage() {
             year={year}
             onYearChange={setYear}
             accent={accent}
+            showMensalidades={showMensalidades}
+            portalData={portalQ.data}
+            isLoading={portalQ.isLoading}
+            error={
+              portalQ.error instanceof Error ? portalQ.error : null
+            }
           />
         </TabsContent>
         <TabsContent value="cadastro" className="mt-0">
           <MemberCadastroTab token={token} demolayId={unlockedId} accent={accent} />
         </TabsContent>
-        <TabsContent value="frequencia" className="mt-0">
-          <MemberFrequencyTab
-            token={token}
-            demolayId={unlockedId}
-            year={year}
-            onYearChange={setYear}
-          />
-        </TabsContent>
+        {showFrequency ? (
+          <TabsContent value="frequencia" className="mt-0">
+            <MemberFrequencyTab
+              token={token}
+              demolayId={unlockedId}
+              year={year}
+              onYearChange={setYear}
+              portalData={portalQ.data}
+              isLoading={portalQ.isLoading}
+              error={
+                portalQ.error instanceof Error ? portalQ.error : null
+              }
+            />
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   );
 }
 
 function MemberChargesTab({
-  token,
-  demolayId,
+  token: _token,
+  demolayId: _demolayId,
   year,
   onYearChange,
   accent,
+  showMensalidades,
+  portalData,
+  isLoading,
+  error,
 }: {
   token: string;
   demolayId: string;
   year: number;
   onYearChange: (y: number) => void;
   accent: string;
+  showMensalidades: boolean;
+  portalData: Awaited<ReturnType<typeof getPublicMemberPortal>> | undefined;
+  isLoading: boolean;
+  error: Error | null;
 }) {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["public-member-portal", token, demolayId, year],
-    queryFn: () =>
-      getPublicMemberPortal({ data: { token, demolayId, year } }),
-    retry: false,
-  });
+  const data = portalData;
 
   const years = useMemo(() => {
     const y = new Date().getFullYear();
@@ -231,10 +271,32 @@ function MemberChargesTab({
     return map;
   }, [data?.payments]);
 
+  const defaultAmount = Number(data?.defaultAmount) || 50;
+
+  const memberLite: DueMemberLite | null = data
+    ? {
+        id: data.member.id,
+        full_name: data.member.full_name,
+        status: data.member.status,
+        kind: data.member.kind,
+        birth_date: data.member.birth_date,
+        iniciacao_ordem: data.member.iniciacao_ordem,
+      }
+    : null;
+
+  const charges = useMemo(() => {
+    const list = data?.charges ?? [];
+    // Maçom: só cobranças em aberto (não pagas)
+    if (data?.member.kind === "macom") {
+      return list.filter((c) => c.status !== "pago");
+    }
+    return list;
+  }, [data?.charges, data?.member.kind]);
+
   if (error) {
     return (
       <Card className="p-6 text-center text-sm text-muted-foreground">
-        {(error as Error).message}
+        {error.message}
       </Card>
     );
   }
@@ -268,56 +330,92 @@ function MemberChargesTab({
         </div>
       ) : (
         <>
-          <Card className="rounded-[12px] p-4">
-            <h3 className="mb-3 text-sm font-medium text-muted-foreground">Mensalidades {year}</h3>
-            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
-              {Array.from({ length: 12 }, (_, i) => {
-                const month = i + 1;
-                const due = data?.dues.find((d) => d.competence_month === month);
-                const status = due?.status ?? "em_aberto";
-                const showAmount =
-                  due != null &&
-                  (status === "pago" || status === "em_aberto") &&
-                  Number(due.amount) > 0;
-                return (
-                  <div
-                    key={month}
-                    className={`rounded-md px-1 py-2 text-center text-[10px] ${
-                      status === "pago"
-                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
-                        : status === "isento"
-                          ? "bg-[#c8e0f7] text-sky-900 dark:bg-[#c8e0f7]/25 dark:text-sky-200"
-                          : status === "desligado"
-                            ? "bg-[#d3d3d3] text-stone-700 dark:bg-[#d3d3d3]/30 dark:text-stone-200"
-                            : "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
-                    }`}
-                  >
-                    <div className="opacity-70">{MONTH_SHORT[i]}</div>
-                    <div className="font-semibold uppercase">
-                      {status === "pago"
-                        ? "Pag"
-                        : status === "isento"
-                          ? "Ise"
-                          : status === "desligado"
-                            ? "Des"
-                            : "Abe"}
+          {showMensalidades ? (
+            <Card className="rounded-[12px] p-4">
+              <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+                Mensalidades {year}
+              </h3>
+              <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+                {Array.from({ length: 12 }, (_, i) => {
+                  const month = i + 1;
+                  const due = data?.dues.find((d) => d.competence_month === month);
+                  const rawStatus = due?.status ?? "em_aberto";
+                  const auto =
+                    memberLite && rawStatus === "em_aberto"
+                      ? autoDueStatus(memberLite, year, month)
+                      : rawStatus;
+                  const status =
+                    rawStatus === "pago" || rawStatus === "desligado"
+                      ? rawStatus
+                      : auto;
+                  const future =
+                    status === "em_aberto" && isFutureMonth(year, month);
+                  const amount =
+                    status === "pago" && due
+                      ? Number(due.amount)
+                      : defaultAmount;
+                  const showAmount =
+                    (status === "pago" || status === "em_aberto") &&
+                    !future &&
+                    amount > 0;
+                  return (
+                    <div
+                      key={month}
+                      className={`rounded-md px-1 py-2 text-center text-[10px] ${
+                        status === "pago"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
+                          : status === "isento"
+                            ? "bg-[#c8e0f7] text-sky-900 dark:bg-[#c8e0f7]/25 dark:text-sky-200"
+                            : status === "desligado"
+                              ? "bg-[#d3d3d3] text-stone-700 dark:bg-[#d3d3d3]/30 dark:text-stone-200"
+                              : future
+                                ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-300"
+                                : "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                      }`}
+                    >
+                      <div className="opacity-70">{MONTH_SHORT[i]}</div>
+                      <div className="font-semibold uppercase">
+                        {status === "pago"
+                          ? "Pag"
+                          : status === "isento"
+                            ? "Ise"
+                            : status === "desligado"
+                              ? "Des"
+                              : future
+                                ? "Fut"
+                                : "Abe"}
+                      </div>
+                      {showAmount ? (
+                        <div className="mt-0.5 tabular-nums">
+                          {formatBRL(amount)}
+                        </div>
+                      ) : null}
                     </div>
-                    {showAmount ? (
-                      <div className="mt-0.5 tabular-nums">{formatBRL(Number(due.amount))}</div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Fut = competência futura · valor padrão {formatBRL(defaultAmount)}.
+                Sênior fica isento a partir do aniversário de 21 anos.
+              </p>
+            </Card>
+          ) : null}
 
           <Card className="rounded-[12px] p-4">
-            <h3 className="mb-3 text-sm font-medium text-muted-foreground">Cobranças avulsas</h3>
-            {(data?.charges ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma cobrança neste ano.</p>
+            <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+              {data?.member.kind === "macom"
+                ? "Cobranças em aberto"
+                : "Cobranças avulsas"}
+            </h3>
+            {charges.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {data?.member.kind === "macom"
+                  ? "Nenhuma cobrança em aberto."
+                  : "Nenhuma cobrança neste ano."}
+              </p>
             ) : (
               <ul className="space-y-2">
-                {(data?.charges ?? []).map((c) => {
+                {charges.map((c) => {
                   const paid = paidByCharge.get(c.id) ?? 0;
                   return (
                     <li
@@ -363,22 +461,21 @@ function MemberChargesTab({
 }
 
 function MemberFrequencyTab({
-  token,
-  demolayId,
   year,
   onYearChange,
+  portalData,
+  isLoading,
+  error,
 }: {
   token: string;
   demolayId: string;
   year: number;
   onYearChange: (y: number) => void;
+  portalData: Awaited<ReturnType<typeof getPublicMemberPortal>> | undefined;
+  isLoading: boolean;
+  error: Error | null;
 }) {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["public-member-portal", token, demolayId, year],
-    queryFn: () =>
-      getPublicMemberPortal({ data: { token, demolayId, year } }),
-    retry: false,
-  });
+  const data = portalData;
 
   const years = useMemo(() => {
     const y = new Date().getFullYear();
@@ -415,7 +512,7 @@ function MemberFrequencyTab({
   if (error) {
     return (
       <Card className="p-6 text-center text-sm text-muted-foreground">
-        {(error as Error).message}
+        {error.message}
       </Card>
     );
   }
