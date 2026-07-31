@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supportsMinutes } from "@/lib/calendar-types";
 
 export const SIGNER_ROLES = ["presidente_conselho", "mestre_conselheiro", "escrivao"] as const;
 export type SignerRole = (typeof SIGNER_ROLES)[number];
@@ -129,6 +130,42 @@ export const listChapterMinutes = createServerFn({ method: "POST" })
       ...r,
       approvals: approvals.filter((a) => a.minute_id === r.id),
     }));
+  });
+
+/** Sessões que suportam ata e ainda não têm registro em session_minutes. */
+export const listSessionsWithoutMinutes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ chapterId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const now = new Date();
+    const from = new Date(now);
+    from.setDate(from.getDate() - 60);
+    const to = new Date(now);
+    to.setDate(to.getDate() + 7);
+
+    const [eventsRes, minutesRes] = await Promise.all([
+      context.supabase
+        .from("calendar_events")
+        .select("id, title, event_type, start_at, end_at, location")
+        .eq("chapter_id", data.chapterId)
+        .gte("start_at", from.toISOString())
+        .lte("start_at", to.toISOString())
+        .order("start_at", { ascending: false }),
+      context.supabase
+        .from("session_minutes")
+        .select("calendar_event_id")
+        .eq("chapter_id", data.chapterId),
+    ]);
+    if (eventsRes.error) throw new Error(eventsRes.error.message);
+    if (minutesRes.error) throw new Error(minutesRes.error.message);
+
+    const withMinutes = new Set(
+      (minutesRes.data ?? []).map((m: { calendar_event_id: string }) => m.calendar_event_id),
+    );
+
+    return (eventsRes.data ?? []).filter(
+      (ev) => supportsMinutes(ev.event_type) && !withMinutes.has(ev.id),
+    );
   });
 
 /** Dados para resolver as variáveis dinâmicas: capítulo + oficiais da vigência atual. */

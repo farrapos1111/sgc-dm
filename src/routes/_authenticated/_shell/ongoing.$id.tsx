@@ -26,6 +26,9 @@ import { useOngoingRealtime } from "@/hooks/useOngoingRealtime";
 import { ArrowLeft, Check, Radio, Search, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/ongoing/$id")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    tab: search.tab === "ata" ? ("ata" as const) : ("chamada" as const),
+  }),
   head: () => ({
     meta: [
       { title: "Sessão em andamento — SG-CDM" },
@@ -46,11 +49,18 @@ const ongoingQO = (id: string) =>
 
 function OngoingPage() {
   const { id } = Route.useParams();
+  const { tab: searchTab } = Route.useSearch();
   const { active } = useActiveChapter();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data } = useSuspenseQuery(ongoingQO(id));
   const [search, setSearch] = useState("");
+  const hasAta = supportsMinutes(
+    (data.item as { event_type: string }).event_type,
+  );
+  const [tab, setTab] = useState<"chamada" | "ata">(() =>
+    hasAta && searchTab === "ata" ? "ata" : "chamada",
+  );
 
   const allowed = canManageAttendance(active?.role.name);
   const item = data.item as {
@@ -167,7 +177,6 @@ function OngoingPage() {
   }
 
   const meta = TYPE_META[item.event_type as CalendarType];
-  const hasAta = supportsMinutes(item.event_type);
   type OngoingMember = { id: string; full_name: string };
   const allMembers = data.members as OngoingMember[];
   const allRecords = data.records as OngoingRecord[];
@@ -219,7 +228,12 @@ function OngoingPage() {
         />
       </div>
 
-      <Tabs defaultValue="chamada">
+      <Tabs
+        value={hasAta ? tab : "chamada"}
+        onValueChange={(v) => {
+          if (v === "ata" || v === "chamada") setTab(v);
+        }}
+      >
         <TabsList className="mb-4">
           <TabsTrigger value="chamada">Chamada</TabsTrigger>
           {hasAta ? <TabsTrigger value="ata">Ata</TabsTrigger> : null}

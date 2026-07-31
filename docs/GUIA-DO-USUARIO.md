@@ -68,12 +68,11 @@ O painel de abertura. Mostra, de relance:
 
 **Membros.** O cadastro completo do capítulo. O formulário é um passo a passo — se o candidato for menor de idade, ele ganha uma etapa a mais para os dados dos responsáveis (até dois, com um definido como principal) e a coleta do consentimento de dados. Cada membro tem sua ficha com histórico de cargos, presenças e graus.
 
-**Atas.** As atas seguem um fluxo em três estágios: **rascunho → em revisão → aprovada**. Ainda no rascunho, dá para **compartilhar uma visão pública** (link + senha fixa do capítulo) para os membros lerem a ata e registrarem *aprovada* ou *reprovada* (com justificativa se reprovarem). Esse feedback aparece na tela da ata e **não substitui** as três assinaturas oficiais. Depois de **Concluir ata**, o texto trava e a ata aprovada leva três assinaturas — Presidente do Conselho, Mestre Conselheiro e Escrivão. Há modelos editáveis por capítulo, com campos que se preenchem sozinhos (data, número da sessão, nomes), e exportação em PDF.
+**Atas.** Em **Secretaria → Atas**, a aba **Atual** lista cards das atas em andamento (rascunho ou em revisão): nome da sessão, data, situação, assinaturas, PDF e **Acessar ata**. A redação e a aprovação acontecem **só na sessão** (não no hub). Use **Criar nova ata** para escolher uma sessão recente sem registro e ir direto à aba Ata. As atas seguem **rascunho → em revisão → aprovada**. Ainda no rascunho, dá para **compartilhar uma visão pública** (link + senha) para os membros lerem e registrarem *aprovada* ou *reprovada* — reprovação **exige justificativa**. Esse feedback **não substitui** as três assinaturas oficiais (Presidente do Conselho, Mestre Conselheiro e Escrivão). Há modelos editáveis por capítulo e exportação em PDF.
 
 **Presenças.** O histórico de chamada e a frequência de cada membro ao longo do tempo.
 
-**Chamada ao vivo.** Quando a sessão está acontecendo, o sistema abre uma tela de chamada: marca-se presente ou ausente (com justificativa), e a ata pode ser escrita ali mesmo, durante a sessão. Na aba Ata você salva o rascunho, compartilha a visão pública e, quando estiver pronto, conclui para as assinaturas.
-
+**Chamada ao vivo.** Quando a sessão está acontecendo, o sistema abre uma tela de chamada: marca-se presente ou ausente (com justificativa), e a ata é escrita na aba Ata da mesma tela.
 ### Tesouraria
 
 **Fluxo de Caixa.** O livro-caixa do capítulo: entradas e saídas com data, categoria, valor e descrição. Dá para ver um mês específico ou o período inteiro, e o saldo em conta aparece separado do resultado do período.

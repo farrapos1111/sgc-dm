@@ -1,5 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery, useMutation, useQueryClient, queryOptions } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+  useSuspenseQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  queryOptions,
+} from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
@@ -28,11 +34,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   listTemplates,
   saveTemplate,
   createTemplate,
   deleteTemplate,
   listChapterMinutes,
+  listSessionsWithoutMinutes,
   MINUTE_STATUS_LABELS,
   SIGNER_LABELS,
   SIGNER_ROLES,
@@ -40,7 +55,7 @@ import {
 import { AVAILABLE_VARS } from "@/lib/minute-vars";
 import { can } from "@/lib/permissions";
 import { formatDateTimeBR } from "@/lib/format";
-import { FileText, Plus, Trash2, Radio, Download } from "lucide-react";
+import { FileText, Plus, Trash2, Download } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/atas")({
   head: () => ({
@@ -49,12 +64,12 @@ export const Route = createFileRoute("/_authenticated/_shell/atas")({
       {
         name: "description",
         content:
-          "Acompanhe a ata atual, filtre atas por situação e gerencie os modelos padrão do capítulo.",
+          "Acompanhe atas em andamento, filtre por situação e gerencie os modelos padrão do capítulo.",
       },
       { property: "og:title", content: "Atas — SG-CDM" },
       {
         property: "og:description",
-        content: "Ata atual, histórico por situação e modelos editáveis do capítulo.",
+        content: "Atas em andamento, histórico por situação e modelos editáveis do capítulo.",
       },
     ],
   }),
@@ -130,6 +145,129 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function MinuteCard({ minute }: { minute: any }) {
+  const signed = SIGNER_ROLES.filter((r) =>
+    (minute.approvals ?? []).some((a: any) => a.signer_role === r),
+  );
+  const eventId = minute.calendar_event_id as string;
+
+  return (
+    <Card className="rounded-[12px] p-5">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-sm font-medium">
+              {minute.calendar_event?.title ?? "Sessão"}
+            </h3>
+            <StatusBadge status={minute.status} />
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {minute.calendar_event?.start_at
+              ? formatDateTimeBR(minute.calendar_event.start_at)
+              : formatDateTimeBR(minute.opened_at)}
+          </p>
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Assinaturas: {signed.length}/3
+        {signed.length > 0
+          ? ` · ${signed.map((r) => SIGNER_LABELS[r]).join(", ")}`
+          : " · nenhuma"}
+      </p>
+
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+        <ExportPdfButton minute={minute} size="sm" />
+        <Button asChild size="sm" style={{ backgroundColor: "var(--chapter-primary)" }}>
+          <Link to="/ongoing/$id" params={{ id: eventId }} search={{ tab: "ata" }}>
+            Acessar ata
+          </Link>
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function CreateMinuteDialog({
+  chapterId,
+  open,
+  onOpenChange,
+}: {
+  chapterId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const navigate = useNavigate();
+  const [selectedId, setSelectedId] = useState<string>("");
+
+  const sessions = useQuery({
+    queryKey: ["sessions-without-minutes", chapterId],
+    queryFn: () => listSessionsWithoutMinutes({ data: { chapterId } }),
+    enabled: open && Boolean(chapterId),
+  });
+
+  useEffect(() => {
+    if (!open) setSelectedId("");
+  }, [open]);
+
+  const rows = sessions.data ?? [];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Criar nova ata</DialogTitle>
+          <DialogDescription>
+            Escolha uma sessão recente que ainda não possui ata. Você será levado à aba de
+            redação.
+          </DialogDescription>
+        </DialogHeader>
+
+        {sessions.isLoading ? (
+          <p className="text-sm text-muted-foreground">Carregando sessões…</p>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Não há sessões abertas sem ata nos últimos 60 dias (nem nos próximos 7).
+          </p>
+        ) : (
+          <Select value={selectedId} onValueChange={setSelectedId}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecionar sessão…" />
+            </SelectTrigger>
+            <SelectContent>
+              {rows.map((ev) => (
+                <SelectItem key={ev.id} value={ev.id}>
+                  {ev.title} · {formatDateTimeBR(ev.start_at)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button
+            style={{ backgroundColor: "var(--chapter-primary)" }}
+            disabled={!selectedId}
+            onClick={() => {
+              onOpenChange(false);
+              void navigate({
+                to: "/ongoing/$id",
+                params: { id: selectedId },
+                search: { tab: "ata" },
+              });
+            }}
+          >
+            Continuar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function AtasPage() {
   const { active } = useActiveChapter();
   const chapterId = active?.chapter_id ?? "";
@@ -138,29 +276,20 @@ function AtasPage() {
   const allowed = can(active?.role.name, "secretaria") || can(active?.role.name, "admin");
 
   const [status, setStatus] = useState<string>("all");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const rows = minutes as any[];
-  const current = useMemo(() => {
-    const now = Date.now();
-    const ongoing = rows.find((r) => {
-      const ev = r.calendar_event;
-      if (!ev) return false;
-      const start = +new Date(ev.start_at);
-      const end = ev.end_at ? +new Date(ev.end_at) : start + 12 * 3600 * 1000;
-      return start <= now && now <= end;
-    });
-    return ongoing ?? rows.find((r) => r.status !== "aprovada") ?? null;
-  }, [rows]);
-
-  const filtered = rows.filter(
-    (r) => (status === "all" || r.status === status) && r.id !== current?.id,
+  const inProgress = useMemo(
+    () => rows.filter((r) => r.status !== "aprovada"),
+    [rows],
   );
+  const filtered = rows.filter((r) => status === "all" || r.status === status);
 
   return (
     <div>
       <PageHeader
         title="Atas"
-        subtitle="Ata em andamento, histórico por situação e modelos padrão do capítulo."
+        subtitle="Atas em andamento, histórico por situação e modelos padrão do capítulo."
       />
 
       <Tabs defaultValue="atual">
@@ -171,57 +300,51 @@ function AtasPage() {
         </TabsList>
 
         <TabsContent value="atual">
-          {!current ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-muted-foreground">
+              {inProgress.length === 0
+                ? "Nenhuma ata em andamento."
+                : `${inProgress.length} ata${inProgress.length === 1 ? "" : "s"} em andamento`}
+            </p>
+            <Button
+              style={{ backgroundColor: "var(--chapter-primary)" }}
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Criar nova ata
+            </Button>
+          </div>
+
+          {inProgress.length === 0 ? (
             <EmptyState
               icon={<FileText className="h-7 w-7" />}
               title="Nenhuma ata em andamento"
-              description="Ao abrir um item do calendário em andamento, a ata da sessão aparece aqui."
+              description="Crie uma nova ata a partir de uma sessão sem registro, ou acompanhe o histórico na aba Todas."
               action={
-                <Button asChild variant="outline">
-                  <Link to="/calendario">Ver calendário</Link>
+                <Button
+                  style={{ backgroundColor: "var(--chapter-primary)" }}
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Criar nova ata
                 </Button>
               }
             />
           ) : (
-            <Card className="rounded-[12px] p-5">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <Radio
-                  className="h-4 w-4 animate-pulse"
-                  style={{ color: "var(--chapter-primary)" }}
-                />
-                <span className="text-sm font-medium">
-                  {current.calendar_event?.title ?? "Sessão"}
-                </span>
-                <StatusBadge status={current.status} />
-                <span className="text-xs text-muted-foreground">
-                  {current.calendar_event?.start_at
-                    ? formatDateTimeBR(current.calendar_event.start_at)
-                    : ""}
-                </span>
-              </div>
-              <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-[8px] border border-border p-3 font-sans text-sm leading-relaxed">
-                {current.content || "Ata ainda em branco."}
-              </pre>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="mr-auto text-xs text-muted-foreground">
-                  Assinaturas:{" "}
-                  {SIGNER_ROLES.filter((r) =>
-                    (current.approvals ?? []).some((a: any) => a.signer_role === r),
-                  )
-                    .map((r) => SIGNER_LABELS[r])
-                    .join(", ") || "nenhuma"}
-                </span>
-                <ExportPdfButton minute={current} />
-                {current.calendar_event_id && (
-                  <Button asChild style={{ backgroundColor: "var(--chapter-primary)" }}>
-                    <Link to="/ongoing/$id" params={{ id: current.calendar_event_id }}>
-                      Redigir ata
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            </Card>
+            <ul className="space-y-3">
+              {inProgress.map((m) => (
+                <li key={m.id}>
+                  <MinuteCard minute={m} />
+                </li>
+              ))}
+            </ul>
           )}
+
+          <CreateMinuteDialog
+            chapterId={chapterId}
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+          />
         </TabsContent>
 
         <TabsContent value="todas">
@@ -248,11 +371,7 @@ function AtasPage() {
             <ul className="space-y-2">
               {filtered.map((m) => (
                 <li key={m.id}>
-                  <Link
-                    to="/ongoing/$id"
-                    params={{ id: m.calendar_event_id }}
-                    className="flex items-center justify-between gap-3 rounded-[12px] border border-border bg-card p-4 hover:bg-muted"
-                  >
+                  <div className="flex items-center justify-between gap-3 rounded-[12px] border border-border bg-card p-4">
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium">
                         {m.calendar_event?.title ?? "Sessão"}
@@ -268,8 +387,17 @@ function AtasPage() {
                     <div className="flex shrink-0 items-center gap-2">
                       <StatusBadge status={m.status} />
                       <ExportPdfButton minute={m} size="sm" />
+                      <Button asChild size="sm" variant="outline">
+                        <Link
+                          to="/ongoing/$id"
+                          params={{ id: m.calendar_event_id }}
+                          search={{ tab: "ata" }}
+                        >
+                          Acessar
+                        </Link>
+                      </Button>
                     </div>
-                  </Link>
+                  </div>
                 </li>
               ))}
             </ul>
