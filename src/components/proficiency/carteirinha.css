@@ -1,0 +1,422 @@
+/* ==========================================================================
+   CARTÃO CR80 — paleta SCDB. Fontes: Archivo + IBM Plex Mono (Google Fonts).
+   ========================================================================== */
+.cartao{
+  --vinho:#470C11;
+  --vinho-esc:#2C0509;
+  --vinho-clr:#6B1620;
+  --ouro:#F5C422;
+  --ouro-esc:#AA8300;
+  --tijolo:#7C1818;
+  --rubro:#CB0000;
+  --marfim:#F7F2E8;
+  --grafite:#2A1A1C;
+  --cinza:#9C9089;
+
+  /* --u no .cartao (não no :root) para impressão recalcular com --cw */
+  --cw:54mm;
+  --u:calc(var(--cw) / 54);
+
+  box-sizing:border-box;
+  position:relative;
+  width:var(--cw);
+  height:calc(var(--u) * 85.6);
+  border-radius:calc(var(--u) * 3);
+  overflow:hidden;
+  font-family:'Archivo',system-ui,sans-serif;
+  color:var(--grafite);
+  background:var(--marfim);
+  -webkit-font-smoothing:antialiased;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+.cartao *,
+.cartao *::before,
+.cartao *::after{box-sizing:border-box}
+
+/* --------------------------------------------------------------------------
+   FRENTE   topo 17 + régua 0,9 + corpo 55,7 + rodapé 12 = 85,6 mm
+   -------------------------------------------------------------------------- */
+.face-frente{display:flex;flex-direction:column;height:100%}
+
+.topo{
+  position:relative;flex:none;
+  height:calc(var(--u) * 17);
+  background:radial-gradient(120% 100% at 50% 0%,var(--vinho-clr) 0%,var(--vinho) 55%,var(--vinho-esc) 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:calc(var(--u) * 1.3);
+}
+.topo::before{                                   /* brasão gravado no fundo */
+  content:'';position:absolute;inset:0;
+  background:url(/carteirinha/brasao-fundo.png) no-repeat center center / auto calc(var(--u) * 24);
+  opacity:.10;
+}
+.topo > *{position:relative}
+
+.logo{width:calc(var(--u) * 23);display:block}
+
+.eyebrow{
+  font-size:calc(var(--u) * 2);font-weight:700;
+  letter-spacing:.3em;text-transform:uppercase;
+  color:var(--ouro);text-indent:.3em;line-height:1.2;
+}
+
+.regua{                                          /* faixa dourada oficial */
+  flex:none;height:calc(var(--u) * .9);
+  background:linear-gradient(90deg,var(--ouro-esc) 0%,var(--ouro) 22%,#FFE28A 50%,var(--ouro) 78%,var(--ouro-esc) 100%);
+}
+
+.corpo{
+  flex:1;min-height:0;
+  display:flex;flex-direction:column;align-items:center;
+  padding:calc(var(--u) * 3) calc(var(--u) * 3.6) calc(var(--u) * 2.4);
+  background:radial-gradient(80% 55% at 50% 0%,#FFFFFF 0%,var(--marfim) 70%);
+}
+
+/* foto 3×4 */
+.foto{
+  flex:none;position:relative;overflow:hidden;
+  width:calc(var(--u) * 17.6);height:calc(var(--u) * 23.5);
+  border-radius:calc(var(--u) * 1.4);
+  background:#E7DFD3;
+  box-shadow:0 0 0 calc(var(--u) * .4) var(--ouro-esc),
+             0 calc(var(--u) * .6) calc(var(--u) * 1.4) rgba(71,12,17,.22);
+}
+.foto img{width:100%;height:100%;object-fit:cover;display:block}
+.foto-vazia{
+  width:100%;height:100%;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:calc(var(--u) * .9);
+  color:var(--vinho);
+}
+.foto-vazia svg{width:calc(var(--u) * 7.5);opacity:.28}
+.foto-vazia span{font-size:calc(var(--u) * 1.6);letter-spacing:.16em;font-weight:700;opacity:.5}
+
+/* identificação */
+.nome{
+  margin-top:calc(var(--u) * 2);
+  font-size:calc(var(--u) * 4.1);font-weight:800;line-height:1.03;
+  letter-spacing:-.018em;text-transform:uppercase;text-align:center;
+  color:var(--vinho);text-wrap:balance;
+}
+.nome.longo{font-size:calc(var(--u) * 3.4)}
+.nome.muito-longo{font-size:calc(var(--u) * 2.8);line-height:1.08}
+
+.origem{
+  margin-top:calc(var(--u) * 1);text-align:center;line-height:1.3;
+  font-size:calc(var(--u) * 2.1);font-weight:500;letter-spacing:.03em;color:var(--tijolo);
+}
+.origem b{font-weight:700}
+.origem-sub{
+  margin-top:calc(var(--u) * .4);text-align:center;line-height:1.3;
+  font-size:calc(var(--u) * 1.9);font-weight:500;letter-spacing:.08em;color:var(--cinza);
+}
+
+/* ---- elemento-assinatura: os dois selos de proficiência ---- */
+.selos{
+  margin-top:auto;width:100%;
+  display:flex;gap:calc(var(--u) * 1.6);
+}
+.selo{
+  flex:1 1 0;min-width:0;text-align:center;
+  border:calc(var(--u) * .35) solid var(--ouro-esc);
+  border-radius:calc(var(--u) * 1.2);
+  background:linear-gradient(180deg,rgba(245,196,34,.14),rgba(245,196,34,.04));
+  padding:calc(var(--u) * 1.1) calc(var(--u) * .5) calc(var(--u) * 1.2);
+}
+.selo-rot{
+  display:flex;align-items:center;justify-content:center;gap:calc(var(--u) * .6);
+  font-size:calc(var(--u) * 1.8);font-weight:700;letter-spacing:.08em;line-height:1.25;
+  text-transform:uppercase;color:var(--tijolo);
+}
+.selo-rot::before{
+  content:'';flex:none;
+  width:calc(var(--u) * 1.05);height:calc(var(--u) * 1.05);border-radius:50%;
+  background:var(--ouro-esc);
+}
+.selo-data{
+  margin-top:calc(var(--u) * .7);line-height:1.15;
+  font-family:'IBM Plex Mono',ui-monospace,monospace;font-weight:600;
+  font-size:calc(var(--u) * 3);letter-spacing:-.02em;color:var(--vinho);
+}
+.selo.pendente{border-style:dashed;border-color:#C9BCAE;background:none}
+.selo.pendente .selo-rot{color:var(--cinza)}
+.selo.pendente .selo-rot::before{background:none;box-shadow:inset 0 0 0 calc(var(--u) * .26) var(--cinza)}
+.selo.pendente .selo-data{color:var(--cinza);font-weight:400}
+
+/* rodapé */
+.rodape{
+  flex:none;height:calc(var(--u) * 12);
+  background:var(--vinho);color:#F0E4D6;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:calc(var(--u) * 2);padding:0 calc(var(--u) * 3.6);
+}
+.rodape-rot{
+  font-size:calc(var(--u) * 1.65);font-weight:700;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ouro);line-height:1.2;
+}
+.rodape-val{
+  margin-top:calc(var(--u) * .5);line-height:1.15;
+  font-family:'IBM Plex Mono',ui-monospace,monospace;font-weight:600;
+  font-size:calc(var(--u) * 2.5);letter-spacing:.02em;
+}
+.rodape-sub{
+  margin-top:calc(var(--u) * .5);line-height:1.2;
+  font-family:'IBM Plex Mono',ui-monospace,monospace;
+  font-size:calc(var(--u) * 1.7);opacity:.75;
+}
+.qr{
+  flex:none;width:calc(var(--u) * 10);height:calc(var(--u) * 10);
+  background:#fff;border-radius:calc(var(--u) * .8);
+  padding:calc(var(--u) * .55);
+  display:flex;align-items:center;justify-content:center;
+}
+.qr img{width:100%;height:100%;display:block;image-rendering:pixelated}
+.qr-vazio{                                       /* marcação do slot do QR */
+  width:100%;height:100%;border-radius:calc(var(--u) * .35);
+  display:flex;align-items:center;justify-content:center;
+  border:calc(var(--u) * .3) dashed #C3B7AB;
+  font-size:calc(var(--u) * 1.5);font-weight:700;letter-spacing:.1em;
+  color:#B3A697;
+}
+
+/* --------------------------------------------------------------------------
+   VERSO
+   -------------------------------------------------------------------------- */
+.face-verso{
+  height:100%;position:relative;background:var(--marfim);
+  padding:calc(var(--u) * 5.6) calc(var(--u) * 5.4);
+  display:flex;flex-direction:column;
+}
+.face-verso::before{                             /* moldura dupla do original */
+  content:'';position:absolute;inset:calc(var(--u) * 2);
+  border:calc(var(--u) * .5) solid var(--rubro);
+  border-radius:calc(var(--u) * 1.6);pointer-events:none;
+}
+.face-verso::after{
+  content:'';position:absolute;inset:calc(var(--u) * 2.9);
+  border:calc(var(--u) * .22) solid var(--rubro);
+  border-radius:calc(var(--u) * 1);pointer-events:none;
+}
+.verso-marca{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:calc(var(--u) * 34);opacity:.055;pointer-events:none;
+}
+.verso-inner{
+  position:relative;flex:1;min-height:0;
+  display:flex;flex-direction:column;
+}
+
+.verso-eyebrow{
+  font-size:calc(var(--u) * 1.9);font-weight:800;letter-spacing:.26em;line-height:1.2;
+  text-transform:uppercase;color:var(--tijolo);text-align:center;text-indent:.26em;
+}
+.verso-cap{
+  margin-top:calc(var(--u) * .9);text-align:center;line-height:1.25;
+  font-size:calc(var(--u) * 2.15);font-weight:700;color:var(--vinho);letter-spacing:.02em;
+}
+.verso-hr{
+  width:calc(var(--u) * 22);height:calc(var(--u) * .28);
+  margin:calc(var(--u) * 2.4) auto;border-radius:99px;
+  background:var(--ouro-esc);opacity:.55;
+}
+.verso-texto{
+  margin:0;font-size:calc(var(--u) * 2.05);line-height:1.5;
+  text-align:justify;color:var(--grafite);hyphens:auto;
+}
+.verso-texto b{color:var(--vinho);font-weight:800}
+.verso-local{
+  margin-top:calc(var(--u) * 2.2);text-align:right;
+  font-size:calc(var(--u) * 1.95);font-weight:500;color:var(--tijolo);
+}
+
+.assinaturas{
+  margin-top:auto;display:flex;gap:calc(var(--u) * 2.4);
+}
+.assin{flex:1 1 0;min-width:0;text-align:center}
+.assin-linha{
+  height:calc(var(--u) * 8);
+  display:flex;align-items:flex-end;justify-content:center;
+  border-bottom:calc(var(--u) * .28) solid var(--tijolo);
+  padding-bottom:calc(var(--u) * .4);
+}
+.assin-linha img{max-height:calc(var(--u) * 7.5);max-width:100%;display:block;mix-blend-mode:multiply}
+.assin-rot{
+  margin-top:calc(var(--u) * .9);line-height:1.25;
+  font-size:calc(var(--u) * 1.65);font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--tijolo);
+}
+.verso-rodape{
+  margin-top:calc(var(--u) * 2.2);
+  font-family:'IBM Plex Mono',ui-monospace,monospace;
+  font-size:calc(var(--u) * 1.5);line-height:1.4;color:var(--cinza);
+}
+.verso-rodape .cod{
+  color:var(--tijolo);font-weight:600;text-align:right;white-space:nowrap;
+  font-size:calc(var(--u) * 1.6);margin-bottom:calc(var(--u) * .7);
+}
+.verso-rodape .cod:empty{display:none}
+
+/* ==========================================================================
+   VIEWER — carteira (flip) + impressão
+   ========================================================================== */
+.carteirinha-viewer {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+
+.carteirinha-wallet {
+  container-type: inline-size;
+  container-name: carteira;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 22rem;
+  margin-inline: auto;
+  padding: 0.75rem 1.25rem 1.5rem;
+  box-sizing: border-box;
+  background:
+    radial-gradient(70% 55% at 50% 0%, #2c0509 0%, #17090b 68%);
+}
+
+.carteirinha-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-family: Archivo, system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(200, 164, 106, 0.85);
+}
+
+.carteirinha-actions {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0.25rem 0.25rem 0;
+}
+.carteirinha-actions > button {
+  width: 100%;
+  max-width: 17rem;
+}
+
+/* Flip 3D — uma face por vez, estilo Apple/Google Wallet */
+.carteirinha-flip {
+  /* Largura com folga nas laterais (não estica até a borda) */
+  --cw: min(17rem, calc(100vw - 4.5rem));
+  --cw: min(17rem, 100cqw);
+  --u: calc(var(--cw) / 54);
+
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0 auto;
+  cursor: pointer;
+  width: var(--cw);
+  height: calc(var(--u) * 85.6);
+  perspective: 1600px;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+.carteirinha-flip:focus-visible {
+  outline: 2px solid #f5c422;
+  outline-offset: 6px;
+  border-radius: 4px;
+}
+.carteirinha-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.carteirinha-flip.is-flipped .carteirinha-flip-inner {
+  transform: rotateY(180deg);
+}
+.carteirinha-flip-face {
+  position: absolute;
+  inset: 0;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.carteirinha-flip-face.is-verso {
+  transform: rotateY(180deg);
+}
+.carteirinha-flip .cartao {
+  width: 100%;
+  height: 100%;
+  /* Mesma escala tipográfica do flip (não 100cqw do dialog) */
+  --cw: inherit;
+  --u: calc(var(--cw) / 54);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(245, 196, 34, 0.14);
+}
+
+/* Print layout: oculto na tela */
+.carteirinha-print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: 54mm 85.6mm;
+    margin: 0;
+  }
+  html,
+  body {
+    background: #fff !important;
+    margin: 0;
+    padding: 0;
+  }
+  .carteirinha-no-print,
+  .carteirinha-wallet {
+    display: none !important;
+  }
+  .carteirinha-print-only {
+    display: block;
+    margin: 0;
+    padding: 0;
+  }
+  .carteirinha-print-only .carteirinha-slot {
+    display: block;
+    margin: 0;
+    padding: 0;
+  }
+  .carteirinha-print-only .cartao {
+    --cw: 54mm;
+    --u: calc(var(--cw) / 54);
+    width: var(--cw);
+    height: calc(var(--u) * 85.6);
+    box-shadow: none;
+    border-radius: 0;
+    margin: 0;
+    break-after: page;
+    page-break-after: always;
+  }
+  .carteirinha-print-only .carteirinha-slot:last-child .cartao {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}
+
+/* Dialog wrapper (aplicado via className no DialogContent) */
+.carteirinha-dialog [data-radix-dialog-close],
+.carteirinha-dialog button.absolute {
+  color: #f0e4d6;
+  opacity: 0.85;
+}
+.carteirinha-dialog .carteirinha-dialog-title {
+  padding: 1.1rem 3rem 0.25rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #f0e4d6;
+}

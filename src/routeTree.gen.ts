@@ -31,6 +31,7 @@ import { Route as AuthenticatedShellFinanceiroRouteImport } from './routes/_auth
 import { Route as AuthenticatedShellGestaoRouteImport } from './routes/_authenticated/_shell/gestao'
 import { Route as AuthenticatedShellInicioRouteImport } from './routes/_authenticated/_shell/inicio'
 import { Route as AuthenticatedShellMaisRouteImport } from './routes/_authenticated/_shell/mais'
+import { Route as AuthenticatedShellPerfilRouteImport } from './routes/_authenticated/_shell/perfil'
 import { Route as AuthenticatedShellPresencasRouteImport } from './routes/_authenticated/_shell/presencas'
 import { Route as CTokenIndexRouteImport } from './routes/c.$token.index'
 import { Route as CTokenEuRouteImport } from './routes/c.$token.eu'
@@ -173,6 +174,12 @@ const AuthenticatedShellMaisRoute = AuthenticatedShellMaisRouteImport.update({
   path: '/mais',
   getParentRoute: () => AuthenticatedShellRouteRoute,
 } as any)
+const AuthenticatedShellPerfilRoute =
+  AuthenticatedShellPerfilRouteImport.update({
+    id: '/perfil',
+    path: '/perfil',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
 const AuthenticatedShellPresencasRoute =
   AuthenticatedShellPresencasRouteImport.update({
     id: '/presencas',
@@ -352,6 +359,7 @@ export interface FileRoutesByFullPath {
   '/gestao': typeof AuthenticatedShellGestaoRoute
   '/inicio': typeof AuthenticatedShellInicioRoute
   '/mais': typeof AuthenticatedShellMaisRoute
+  '/perfil': typeof AuthenticatedShellPerfilRoute
   '/presencas': typeof AuthenticatedShellPresencasRoute
   '/c/$token/eu': typeof CTokenEuRoute
   '/c/$token/fluxo': typeof CTokenFluxoRoute
@@ -399,6 +407,7 @@ export interface FileRoutesByTo {
   '/gestao': typeof AuthenticatedShellGestaoRoute
   '/inicio': typeof AuthenticatedShellInicioRoute
   '/mais': typeof AuthenticatedShellMaisRoute
+  '/perfil': typeof AuthenticatedShellPerfilRoute
   '/presencas': typeof AuthenticatedShellPresencasRoute
   '/c/$token/eu': typeof CTokenEuRoute
   '/c/$token/fluxo': typeof CTokenFluxoRoute
@@ -451,6 +460,7 @@ export interface FileRoutesById {
   '/_authenticated/_shell/gestao': typeof AuthenticatedShellGestaoRoute
   '/_authenticated/_shell/inicio': typeof AuthenticatedShellInicioRoute
   '/_authenticated/_shell/mais': typeof AuthenticatedShellMaisRoute
+  '/_authenticated/_shell/perfil': typeof AuthenticatedShellPerfilRoute
   '/_authenticated/_shell/presencas': typeof AuthenticatedShellPresencasRoute
   '/c/$token/eu': typeof CTokenEuRoute
   '/c/$token/fluxo': typeof CTokenFluxoRoute
@@ -502,6 +512,7 @@ export interface FileRouteTypes {
     | '/gestao'
     | '/inicio'
     | '/mais'
+    | '/perfil'
     | '/presencas'
     | '/c/$token/eu'
     | '/c/$token/fluxo'
@@ -549,6 +560,7 @@ export interface FileRouteTypes {
     | '/gestao'
     | '/inicio'
     | '/mais'
+    | '/perfil'
     | '/presencas'
     | '/c/$token/eu'
     | '/c/$token/fluxo'
@@ -600,6 +612,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/gestao'
     | '/_authenticated/_shell/inicio'
     | '/_authenticated/_shell/mais'
+    | '/_authenticated/_shell/perfil'
     | '/_authenticated/_shell/presencas'
     | '/c/$token/eu'
     | '/c/$token/fluxo'
@@ -794,6 +807,13 @@ declare module '@tanstack/react-router' {
       path: '/mais'
       fullPath: '/mais'
       preLoaderRoute: typeof AuthenticatedShellMaisRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/perfil': {
+      id: '/_authenticated/_shell/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof AuthenticatedShellPerfilRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
     '/_authenticated/_shell/presencas': {
@@ -996,6 +1016,7 @@ interface AuthenticatedShellRouteRouteChildren {
   AuthenticatedShellGestaoRoute: typeof AuthenticatedShellGestaoRoute
   AuthenticatedShellInicioRoute: typeof AuthenticatedShellInicioRoute
   AuthenticatedShellMaisRoute: typeof AuthenticatedShellMaisRoute
+  AuthenticatedShellPerfilRoute: typeof AuthenticatedShellPerfilRoute
   AuthenticatedShellPresencasRoute: typeof AuthenticatedShellPresencasRoute
   AuthenticatedShellEventosIdRoute: typeof AuthenticatedShellEventosIdRoute
   AuthenticatedShellEventosCheckinsRoute: typeof AuthenticatedShellEventosCheckinsRoute
@@ -1029,6 +1050,7 @@ const AuthenticatedShellRouteRouteChildren: AuthenticatedShellRouteRouteChildren
     AuthenticatedShellGestaoRoute: AuthenticatedShellGestaoRoute,
     AuthenticatedShellInicioRoute: AuthenticatedShellInicioRoute,
     AuthenticatedShellMaisRoute: AuthenticatedShellMaisRoute,
+    AuthenticatedShellPerfilRoute: AuthenticatedShellPerfilRoute,
     AuthenticatedShellPresencasRoute: AuthenticatedShellPresencasRoute,
     AuthenticatedShellEventosIdRoute: AuthenticatedShellEventosIdRoute,
     AuthenticatedShellEventosCheckinsRoute:

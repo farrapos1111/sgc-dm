@@ -42,8 +42,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     [activeScope, isGme, active?.role.name, canView],
   );
   const tabs = useMemo(
-    () => visibleMobileTabs(Boolean(activeScope), canView),
-    [activeScope, canView],
+    () => visibleMobileTabs(Boolean(activeScope)),
+    [activeScope],
   );
 
   function handleScopeChange(value: string) {

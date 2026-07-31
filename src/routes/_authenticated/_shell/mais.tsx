@@ -33,8 +33,8 @@ function MaisPage() {
   const primary = active?.chapter.primary_color || "var(--chapter-primary)";
 
   const tabs = useMemo(
-    () => visibleMobileTabs(Boolean(activeScope), canView),
-    [activeScope, canView],
+    () => visibleMobileTabs(Boolean(activeScope)),
+    [activeScope],
   );
 
   const groups = useMemo(() => {

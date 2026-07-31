@@ -22,12 +22,14 @@ import {
   Building2,
   LayoutGrid,
   Banknote,
+  UserRound,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { can, type Permission } from "@/lib/permissions";
 
 export type NavPath =
   | "/inicio"
+  | "/perfil"
   | "/membros"
   | "/atas"
   | "/presencas"
@@ -71,6 +73,7 @@ export type NavGroup = {
 
 export const NAV_GROUPS: NavGroup[] = [
   { id: "inicio", label: "Início", icon: Home, to: "/inicio" },
+  { id: "perfil", label: "Perfil", icon: UserRound, to: "/perfil" },
   {
     id: "secretaria",
     label: "Secretaria",
@@ -136,6 +139,7 @@ export const NAV_GROUPS: NavGroup[] = [
 /** Navegação exibida quando o usuário está em um escopo regional/estadual. */
 export const ORG_NAV_GROUPS: NavGroup[] = [
   { id: "org-panorama", label: "Panorama", icon: LayoutGrid, to: "/regional" },
+  { id: "org-perfil", label: "Perfil", icon: UserRound, to: "/perfil" },
   {
     id: "org-acompanhamento",
     label: "Acompanhamento",
@@ -164,30 +168,22 @@ export function visibleOrgGroups(isGme: boolean): NavGroup[] {
 /** Atalhos da barra inferior no mobile em escopo regional/estadual. */
 export const ORG_MOBILE_TABS: NavItem[] = [
   { to: "/regional", label: "Panorama", icon: LayoutGrid },
-  { to: "/regional/calendario", label: "Agenda", icon: CalendarDays },
-  { to: "/regional/membros", label: "Membros", icon: Users },
+  { to: "/regional/calendario", label: "Calendário", icon: CalendarDays },
+  { to: "/perfil", label: "Perfil", icon: UserRound },
   { to: "/mais", label: "Mais", icon: MoreHorizontal },
 ];
 
 /** Atalhos da barra inferior no mobile. */
 export const MOBILE_TABS: NavItem[] = [
   { to: "/inicio", label: "Início", icon: Home },
-  { to: "/membros", label: "Membros", icon: Users },
-  { to: "/tesouraria/fluxo", label: "Caixa", icon: Wallet },
-  { to: "/eventos", label: "Eventos", icon: Calendar },
+  { to: "/calendario", label: "Calendário", icon: CalendarDays },
+  { to: "/perfil", label: "Perfil", icon: UserRound },
   { to: "/mais", label: "Mais", icon: MoreHorizontal },
 ];
 
-/**
- * Atalhos da barra inferior filtrados: a aba Eventos só aparece
- * para quem tem acesso à comissão de eventos (mesmo critério do sidebar).
- */
-export function visibleMobileTabs(
-  isOrgScope: boolean,
-  canViewCommission: (code: string) => boolean,
-): NavItem[] {
-  if (isOrgScope) return ORG_MOBILE_TABS;
-  return MOBILE_TABS.filter((t) => t.to !== "/eventos" || canViewCommission("eventos"));
+/** Atalhos da barra inferior (capítulo ou org). */
+export function visibleMobileTabs(isOrgScope: boolean): NavItem[] {
+  return isOrgScope ? ORG_MOBILE_TABS : MOBILE_TABS;
 }
 
 /**
@@ -195,7 +191,9 @@ export function visibleMobileTabs(
  * para não duplicar atalhos.
  */
 export function mobileOverflowGroups(groups: NavGroup[], tabs: NavItem[]): NavGroup[] {
-  const tabPaths = new Set(tabs.map((t) => t.to).filter((to) => to !== "/mais"));
+  const tabPaths = new Set<string>(
+    tabs.map((t) => t.to).filter((to) => to !== "/mais"),
+  );
   return groups
     .map((g) => {
       if (g.to) {

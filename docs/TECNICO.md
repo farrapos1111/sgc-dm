@@ -246,7 +246,7 @@ As políticas de leitura foram ampliadas para `can_read_chapter`, de modo que li
 
 ### Visibilidade por comissão
 
-Os setores de Eventos, Sindicâncias e Hospitalaria só aparecem para quem é membro da comissão correspondente (ou admin do capítulo). A regra fica em [src/hooks/useCommissionAccess.ts](../src/hooks/useCommissionAccess.ts) e é aplicada por `visibleGroups()` em [src/lib/nav.ts](../src/lib/nav.ts) — tanto no sidebar desktop quanto na página `/mais` no mobile. A aba Eventos da barra inferior também usa o mesmo critério via `visibleMobileTabs()`.
+Os setores de Eventos, Sindicâncias e Hospitalaria só aparecem para quem é membro da comissão correspondente (ou admin do capítulo). A regra fica em [src/hooks/useCommissionAccess.ts](../src/hooks/useCommissionAccess.ts) e é aplicada por `visibleGroups()` em [src/lib/nav.ts](../src/lib/nav.ts) — tanto no sidebar desktop quanto na página `/mais` no mobile. A barra inferior mobile usa `visibleMobileTabs()` (Início · Calendário · Perfil · Mais).
 
 ---
 

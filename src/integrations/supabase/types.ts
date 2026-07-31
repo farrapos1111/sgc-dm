@@ -1691,6 +1691,104 @@ export type Database = {
           },
         ]
       }
+      proficiency_cards: {
+        Row: {
+          id: string
+          chapter_id: string
+          member_id: string
+          issued_by: string
+          issued_at: string
+          status: string
+          revoked_at: string | null
+          revoked_by: string | null
+          registro_scdb: string | null
+          photo_url: string | null
+          prof_iniciatico: string | null
+          prof_demolay: string | null
+          valid_until: string | null
+          member_signature_url: string | null
+          consultor_signature_url: string | null
+          qr_url: string | null
+          verification_code: string
+          note: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          chapter_id: string
+          member_id: string
+          issued_by: string
+          issued_at?: string
+          status?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          registro_scdb?: string | null
+          photo_url?: string | null
+          prof_iniciatico?: string | null
+          prof_demolay?: string | null
+          valid_until?: string | null
+          member_signature_url?: string | null
+          consultor_signature_url?: string | null
+          qr_url?: string | null
+          verification_code: string
+          note?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          chapter_id?: string
+          member_id?: string
+          issued_by?: string
+          issued_at?: string
+          status?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          registro_scdb?: string | null
+          photo_url?: string | null
+          prof_iniciatico?: string | null
+          prof_demolay?: string | null
+          valid_until?: string | null
+          member_signature_url?: string | null
+          consultor_signature_url?: string | null
+          qr_url?: string | null
+          verification_code?: string
+          note?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proficiency_cards_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proficiency_cards_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proficiency_cards_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proficiency_cards_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       regions: {
         Row: {
           code: string | null

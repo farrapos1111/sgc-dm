@@ -53,6 +53,12 @@ Além do cargo, as áreas das comissões (Eventos, Sindicâncias e Hospitalaria)
 
 ## Passeando pelo sistema
 
+### Perfil
+
+Área global do usuário (não muda com o capítulo selecionado). Mostra os capítulos em que o cadastro de membro está vinculado ao seu e-mail ou nome, os **IDs DeMolay e maçônico**, os graus, um espaço reservado para o **Nobre Rito da Cavalaria** (em breve) e as **carteirinhas de proficiência** ativas — com visualização frente/verso no formato CR80 e opção de imprimir ou salvar em PDF.
+
+No celular, **Perfil** fica na barra inferior; no computador, no menu lateral.
+
 ### Início
 
 O painel de abertura. Mostra, de relance:
@@ -66,7 +72,7 @@ O painel de abertura. Mostra, de relance:
 
 ### Secretaria
 
-**Membros.** O cadastro completo do capítulo. O formulário é um passo a passo — se o candidato for menor de idade, ele ganha uma etapa a mais para os dados dos responsáveis (até dois, com um definido como principal) e a coleta do consentimento de dados. Cada membro tem sua ficha com histórico de cargos, presenças e graus.
+**Membros.** O cadastro completo do capítulo. O formulário é um passo a passo — se o candidato for menor de idade, ele ganha uma etapa a mais para os dados dos responsáveis (até dois, com um definido como principal) e a coleta do consentimento de dados. Cada membro tem sua ficha com histórico de cargos, presenças e graus. O **Mestre Conselheiro** (ou Administrador Total) pode **emitir, ver e revogar** a carteirinha de proficiência CR80 na ficha do membro; o titular a encontra também em **Perfil**.
 
 **Atas.** Em **Secretaria → Atas**, a aba **Atual** lista cards das atas em andamento (rascunho ou em revisão): nome da sessão, data, situação, assinaturas, PDF e **Acessar ata**. A redação e a aprovação acontecem **só na sessão** (não no hub). Use **Criar nova ata** para escolher uma sessão recente sem registro e ir direto à aba Ata. As atas seguem **rascunho → em revisão → aprovada**. Ainda no rascunho, dá para **compartilhar uma visão pública** (link + senha) para os membros lerem e registrarem *aprovada* ou *reprovada* — reprovação **exige justificativa**. Esse feedback **não substitui** as três assinaturas oficiais (Presidente do Conselho, Mestre Conselheiro e Escrivão). Há modelos editáveis por capítulo e exportação em PDF.
 
@@ -135,7 +141,7 @@ O sistema guarda dados de adolescentes, então esse ponto foi tratado com rigor:
 ## Perguntas frequentes
 
 **Funciona no celular?**
-Sim. No celular o menu vira uma barra de abas na parte de baixo da tela, com atalhos rápidos (Início, Membros, Caixa, Eventos quando você faz parte da comissão, e **Mais**). Em **Mais** aparece o menu completo — as mesmas áreas do computador, filtradas pelo seu cargo, comissão e escopo — além da **Documentação** (`/documentacao`, também acessível sem login) e da opção de sair.
+Sim. No celular o menu vira uma barra de abas na parte de baixo da tela, com atalhos rápidos (**Início**, **Calendário**, **Perfil** e **Mais**; no escopo regional, Panorama · Calendário · Perfil · Mais). Em **Mais** aparece o menu completo — as mesmas áreas do computador, filtradas pelo seu cargo, comissão e escopo — além da **Documentação** (`/documentacao`, também acessível sem login) e da opção de sair. Eventos e demais áreas de comissão ficam em **Mais** (ou no menu lateral no computador).
 
 **Preciso instalar alguma coisa?**
 Não. É pelo navegador, no computador ou no celular.
