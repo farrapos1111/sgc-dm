@@ -1485,6 +1485,54 @@ export type Database = {
           },
         ]
       }
+      minute_public_votes: {
+        Row: {
+          chapter_id: string
+          created_at: string
+          decision: Database["public"]["Enums"]["minute_public_vote_decision"]
+          email: string
+          id: string
+          justification: string | null
+          minute_id: string
+          updated_at: string
+        }
+        Insert: {
+          chapter_id: string
+          created_at?: string
+          decision: Database["public"]["Enums"]["minute_public_vote_decision"]
+          email: string
+          id?: string
+          justification?: string | null
+          minute_id: string
+          updated_at?: string
+        }
+        Update: {
+          chapter_id?: string
+          created_at?: string
+          decision?: Database["public"]["Enums"]["minute_public_vote_decision"]
+          email?: string
+          id?: string
+          justification?: string | null
+          minute_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "minute_public_votes_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "minute_public_votes_minute_id_fkey"
+            columns: ["minute_id"]
+            isOneToOne: false
+            referencedRelation: "session_minutes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       minute_templates: {
         Row: {
           body: string
@@ -1744,6 +1792,7 @@ export type Database = {
           id: string
           opened_at: string
           opened_by: string | null
+          public_share_token: string | null
           status: Database["public"]["Enums"]["minute_status"]
           title: string | null
           updated_at: string
@@ -1756,6 +1805,7 @@ export type Database = {
           id?: string
           opened_at?: string
           opened_by?: string | null
+          public_share_token?: string | null
           status?: Database["public"]["Enums"]["minute_status"]
           title?: string | null
           updated_at?: string
@@ -1768,6 +1818,7 @@ export type Database = {
           id?: string
           opened_at?: string
           opened_by?: string | null
+          public_share_token?: string | null
           status?: Database["public"]["Enums"]["minute_status"]
           title?: string | null
           updated_at?: string
@@ -1981,9 +2032,39 @@ export type Database = {
       }
       decrypt_pii: { Args: { _cipher: string }; Returns: string }
       encrypt_pii: { Args: { _plain: string }; Returns: string }
+      can_manage_minute_public_share: {
+        Args: { _chapter_id: string }
+        Returns: boolean
+      }
+      ensure_minute_public_share_token: {
+        Args: { _minute_id: string; _regenerate?: boolean }
+        Returns: string
+      }
+      get_minute_public_share_token: {
+        Args: { _minute_id: string }
+        Returns: string
+      }
+      get_public_minute: {
+        Args: { _password: string; _token: string }
+        Returns: Json
+      }
       has_any_role: {
         Args: { _chapter_id: string; _role_names: string[] }
         Returns: boolean
+      }
+      revoke_minute_public_share_token: {
+        Args: { _minute_id: string }
+        Returns: boolean
+      }
+      submit_public_minute_vote: {
+        Args: {
+          _decision: string
+          _email: string
+          _justification?: string
+          _password: string
+          _token: string
+        }
+        Returns: Json
       }
       has_permission: {
         Args: { _chapter_id: string; _perm: string }
@@ -2056,6 +2137,7 @@ export type Database = {
         | "arquivada"
       member_kind: "demolay_ativo" | "senior" | "macom"
       member_status: "regular" | "irregular"
+      minute_public_vote_decision: "aprovada" | "reprovada"
       minute_signer_role:
         | "presidente_conselho"
         | "mestre_conselheiro"
@@ -2212,6 +2294,7 @@ export const Constants = {
       ],
       member_kind: ["demolay_ativo", "senior", "macom"],
       member_status: ["regular", "irregular"],
+      minute_public_vote_decision: ["aprovada", "reprovada"],
       minute_signer_role: [
         "presidente_conselho",
         "mestre_conselheiro",

@@ -21,10 +21,24 @@ import {
   MINUTE_STATUS_LABELS,
   type SignerRole,
 } from "@/lib/minutes.functions";
+import {
+  ensureMinutePublicShare,
+  listMinutePublicVotes,
+  MINUTE_PUBLIC_SHARE_PASSWORD,
+} from "@/lib/minutes-share.functions";
 import { applyVars, AVAILABLE_VARS } from "@/lib/minute-vars";
 import { currentTerm } from "@/lib/terms";
 import { formatDateTimeBR } from "@/lib/format";
-import { CheckCircle2, Download, FileText, Lock, RotateCcw, Signature } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  FileText,
+  Link2,
+  Lock,
+  MessageSquareText,
+  RotateCcw,
+  Signature,
+} from "lucide-react";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 
 type Props = {
@@ -76,6 +90,13 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
     enabled: Boolean(minutes?.id),
   });
 
+  const publicVotes = useQuery({
+    queryKey: ["minute-public-votes", minutes?.id],
+    queryFn: () => listMinutePublicVotes({ data: { minuteId: minutes!.id } }),
+    enabled: Boolean(minutes?.id),
+    refetchInterval: editable ? 15_000 : false,
+  });
+
   const signedRoles = useMemo(
     () => new Set(((approvals.data ?? []) as any[]).map((a) => a.signer_role)),
     [approvals.data],
@@ -84,6 +105,7 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
   const refresh = () => {
     onChanged();
     qc.invalidateQueries({ queryKey: ["minute-approvals", minutes?.id] });
+    qc.invalidateQueries({ queryKey: ["minute-public-votes", minutes?.id] });
   };
 
   const save = useMutation({
@@ -127,6 +149,31 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
     onError: (e: any) => toast.error(e?.message ?? "Erro ao assinar"),
   });
 
+  const sharePublic = useMutation({
+    mutationFn: async () => {
+      if (!ata.trim()) throw new Error("Escreva a ata antes de compartilhar");
+      const saved = await saveMinutes({
+        data: { chapterId, calendarEventId, content: ata },
+      });
+      const minuteId = (saved as any).minute.id as string;
+      const share = await ensureMinutePublicShare({ data: { minuteId } });
+      return share;
+    },
+    onSuccess: async (share) => {
+      refresh();
+      const url = `${window.location.origin}/ata/${share.token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success(`Link copiado. Senha: ${MINUTE_PUBLIC_SHARE_PASSWORD}`);
+      } catch {
+        toast.success(`Link gerado. Senha: ${MINUTE_PUBLIC_SHARE_PASSWORD}`, {
+          description: url,
+        });
+      }
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao gerar link público"),
+  });
+
   function insertTemplate(id: string) {
     setTemplateId(id);
     const tpl = ((templates.data ?? []) as any[]).find((t) => t.id === id);
@@ -143,6 +190,7 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
   }
 
   const st = STATUS_STYLE[status] ?? STATUS_STYLE.rascunho;
+  const votes = publicVotes.data ?? [];
 
   return (
     <Card className="rounded-[12px] p-5">
@@ -227,6 +275,14 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
               {save.isPending ? "Salvando…" : "Salvar rascunho"}
             </Button>
             <Button
+              variant="outline"
+              disabled={sharePublic.isPending || !ata.trim()}
+              onClick={() => sharePublic.mutate()}
+            >
+              <Link2 className="mr-2 h-4 w-4" />
+              {sharePublic.isPending ? "Gerando link…" : "Compartilhar visão pública"}
+            </Button>
+            <Button
               style={{ backgroundColor: "var(--chapter-primary)" }}
               disabled={conclude.isPending || !ata.trim()}
               onClick={() => conclude.mutate()}
@@ -239,6 +295,56 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
         <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
           <Lock className="h-3.5 w-3.5" /> Texto bloqueado. Reabra a ata para corrigir.
         </p>
+      )}
+
+      {minutes && (
+        <div className="mt-5 border-t border-border pt-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+            <MessageSquareText className="h-4 w-4" /> Feedback público
+            {votes.length > 0 && (
+              <Badge variant="secondary" className="text-[11px]">
+                {votes.length}
+              </Badge>
+            )}
+          </div>
+          {votes.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {editable
+                ? "Compartilhe o link para os membros lerem a ata e registrarem aprovada/reprovada."
+                : "Nenhum feedback registrado nesta ata."}
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {votes.map((v) => (
+                <li
+                  key={v.id}
+                  className="rounded-[8px] border border-border p-3 text-sm"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium">{v.email}</span>
+                    <Badge
+                      style={
+                        v.decision === "aprovada"
+                          ? { backgroundColor: "#D1FAE5", color: "#047857" }
+                          : { backgroundColor: "#FEE2E2", color: "#B91C1C" }
+                      }
+                    >
+                      {v.decision === "aprovada" ? "Aprovada" : "Reprovada"}
+                    </Badge>
+                  </div>
+                  {v.justification && (
+                    <p className="mt-1.5 text-xs text-muted-foreground whitespace-pre-wrap">
+                      {v.justification}
+                    </p>
+                  )}
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {formatDateTimeBR(v.updated_at)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
       {minutes && status !== "rascunho" && (

@@ -16,6 +16,7 @@ import { Route as DocumentacaoRouteRouteImport } from './routes/documentacao/rou
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedShellRouteRouteImport } from './routes/_authenticated/_shell/route'
 import { Route as AuthenticatedSelecionarCapituloRouteImport } from './routes/_authenticated/selecionar-capitulo'
+import { Route as AtaTokenRouteImport } from './routes/ata.$token'
 import { Route as CTokenRouteImport } from './routes/c.$token'
 import { Route as DocumentacaoIndexRouteImport } from './routes/documentacao/index'
 import { Route as DocumentacaoGuiaRouteImport } from './routes/documentacao/guia'
@@ -92,6 +93,11 @@ const AuthenticatedSelecionarCapituloRoute =
     path: '/selecionar-capitulo',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AtaTokenRoute = AtaTokenRouteImport.update({
+  id: '/ata/$token',
+  path: '/ata/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CTokenRoute = CTokenRouteImport.update({
   id: '/c/$token',
   path: '/c/$token',
@@ -331,6 +337,7 @@ export interface FileRoutesByFullPath {
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
   '/auth': typeof AuthRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
+  '/ata/$token': typeof AtaTokenRoute
   '/c/$token': typeof CTokenRouteWithChildren
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
@@ -378,6 +385,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/': typeof AuthenticatedIndexRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
+  '/ata/$token': typeof AtaTokenRoute
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
@@ -427,6 +435,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/_shell': typeof AuthenticatedShellRouteRouteWithChildren
   '/_authenticated/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
+  '/ata/$token': typeof AtaTokenRoute
   '/c/$token': typeof CTokenRouteWithChildren
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
@@ -478,6 +487,7 @@ export interface FileRouteTypes {
     | '/atualizar-cadastro'
     | '/auth'
     | '/selecionar-capitulo'
+    | '/ata/$token'
     | '/c/$token'
     | '/documentacao/guia'
     | '/documentacao/open-source'
@@ -525,6 +535,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/'
     | '/selecionar-capitulo'
+    | '/ata/$token'
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
@@ -573,6 +584,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/_shell'
     | '/_authenticated/selecionar-capitulo'
+    | '/ata/$token'
     | '/c/$token'
     | '/documentacao/guia'
     | '/documentacao/open-source'
@@ -622,6 +634,7 @@ export interface RootRouteChildren {
   DocumentacaoRouteRoute: typeof DocumentacaoRouteRouteWithChildren
   AtualizarCadastroRoute: typeof AtualizarCadastroRoute
   AuthRoute: typeof AuthRoute
+  AtaTokenRoute: typeof AtaTokenRoute
   CTokenRoute: typeof CTokenRouteWithChildren
   FluxoCaixaTokenRoute: typeof FluxoCaixaTokenRoute
   MensalidadesTokenRoute: typeof MensalidadesTokenRoute
@@ -677,6 +690,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/selecionar-capitulo'
       preLoaderRoute: typeof AuthenticatedSelecionarCapituloRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/ata/$token': {
+      id: '/ata/$token'
+      path: '/ata/$token'
+      fullPath: '/ata/$token'
+      preLoaderRoute: typeof AtaTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/c/$token': {
       id: '/c/$token'
@@ -1107,6 +1127,7 @@ const rootRouteChildren: RootRouteChildren = {
   DocumentacaoRouteRoute: DocumentacaoRouteRouteWithChildren,
   AtualizarCadastroRoute: AtualizarCadastroRoute,
   AuthRoute: AuthRoute,
+  AtaTokenRoute: AtaTokenRoute,
   CTokenRoute: CTokenRouteWithChildren,
   FluxoCaixaTokenRoute: FluxoCaixaTokenRoute,
   MensalidadesTokenRoute: MensalidadesTokenRoute,

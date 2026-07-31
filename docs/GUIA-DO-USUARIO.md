@@ -68,11 +68,11 @@ O painel de abertura. Mostra, de relance:
 
 **Membros.** O cadastro completo do capítulo. O formulário é um passo a passo — se o candidato for menor de idade, ele ganha uma etapa a mais para os dados dos responsáveis (até dois, com um definido como principal) e a coleta do consentimento de dados. Cada membro tem sua ficha com histórico de cargos, presenças e graus.
 
-**Atas.** As atas seguem um fluxo em três estágios: **rascunho → em revisão → aprovada**. A ata aprovada leva três assinaturas — Presidente do Conselho, Mestre Conselheiro e Escrivão. Há modelos editáveis por capítulo, com campos que se preenchem sozinhos (data, número da sessão, nomes), e exportação em PDF.
+**Atas.** As atas seguem um fluxo em três estágios: **rascunho → em revisão → aprovada**. Ainda no rascunho, dá para **compartilhar uma visão pública** (link + senha fixa do capítulo) para os membros lerem a ata e registrarem *aprovada* ou *reprovada* (com justificativa se reprovarem). Esse feedback aparece na tela da ata e **não substitui** as três assinaturas oficiais. Depois de **Concluir ata**, o texto trava e a ata aprovada leva três assinaturas — Presidente do Conselho, Mestre Conselheiro e Escrivão. Há modelos editáveis por capítulo, com campos que se preenchem sozinhos (data, número da sessão, nomes), e exportação em PDF.
 
 **Presenças.** O histórico de chamada e a frequência de cada membro ao longo do tempo.
 
-**Chamada ao vivo.** Quando a sessão está acontecendo, o sistema abre uma tela de chamada: marca-se presente ou ausente (com justificativa), e a ata pode ser escrita ali mesmo, durante a sessão.
+**Chamada ao vivo.** Quando a sessão está acontecendo, o sistema abre uma tela de chamada: marca-se presente ou ausente (com justificativa), e a ata pode ser escrita ali mesmo, durante a sessão. Na aba Ata você salva o rascunho, compartilha a visão pública e, quando estiver pronto, conclui para as assinaturas.
 
 ### Tesouraria
 
@@ -168,7 +168,7 @@ Tem, com alternância no próprio sistema.
 | **Termo / semestre** | O período de uma gestão. Cargos e comissões são organizados por termo |
 | **Competência** | O mês a que uma mensalidade se refere (ex.: "Março/2026") |
 | **Chave do dia** | O texto padrão de convocação da sessão, gerado a partir do modelo do capítulo |
-| **Ata** | O registro oficial da sessão, que passa por revisão e recebe três assinaturas |
+| **Ata** | O registro oficial da sessão: rascunho (com consulta pública opcional), revisão e três assinaturas |
 | **Sindicância** | O processo de investigação e parecer sobre um candidato |
 | **Hospitalaria** | A comissão responsável pela alimentação e recepção nas atividades |
 | **Sênior DeMolay** | Membro que já passou da idade ativa — isento de mensalidade no sistema |

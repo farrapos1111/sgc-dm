@@ -162,6 +162,7 @@ Os 14 arquivos em `src/lib/*.functions.ts`:
 | `investigations.functions.ts` | Fichas e processos de sindicância |
 | `members.functions.ts` | Membros, responsáveis, PII (`revealMemberPii`), histórico |
 | `minutes.functions.ts` | Atas, modelos e aprovações/assinaturas |
+| `minutes-share.functions.ts` | Link público da ata (senha), leitura e votos por e-mail |
 | `org.functions.ts` | Escopo regional/estadual: panorama, calendário e membros consolidados |
 | `organization.functions.ts` | Administração de estados, regiões e capítulos (GME) |
 
@@ -171,7 +172,7 @@ Helpers puros relevantes em `src/lib/`: `permissions.ts` (matriz de acesso), `na
 
 ## 6. Modelo de dados
 
-Schema definido pelas 26 migrations em [supabase/migrations/](../supabase/migrations/); tipos gerados em [src/integrations/supabase/types.ts](../src/integrations/supabase/types.ts). São 35 tabelas.
+Schema definido pelas migrations em [supabase/migrations/](../supabase/migrations/); tipos gerados em [src/integrations/supabase/types.ts](../src/integrations/supabase/types.ts).
 
 ### Identidade e multi-inquilino
 `states` → `regions` → `chapters` (nome, número, cidade, `primary_color`, `logo_url`, `settings` JSONB, campos do encarregado LGPD) · `profiles` (1:1 com `auth.users`, guarda `active_chapter_id`; criado pelo trigger `handle_new_user`) · `roles` (catálogo) · **`chapter_members`** (usuário + capítulo + cargo + ativo — é o que concede todo o acesso ao capítulo) · `org_leaderships` (usuário + `org_role` + estado **ou** região + termo) · `audit_logs`.
@@ -183,7 +184,9 @@ Schema definido pelas 26 migrations em [supabase/migrations/](../supabase/migrat
 `positions` (25 cargos semeados, de Mestre Conselheiro a Sentinela, mais cargos consultivos) ↔ `member_positions` (membro + cargo + `term_year`/`term_semester`) · `commissions` (9 semeadas: midia, novos_membros, manutencao, eventos, entretenimento, hospitalaria, auditoria, financas, sindicancias) ↔ `commission_members` (+ `commission_role` + termo) · `chapter_lodges`.
 
 ### Calendário, presenças e atas
-`calendar_events` (5 tipos, obrigatoriedade, aberto ao público, traje, local, `lodge_id` e `related_event_id` opcionais) · `attendance_records` (único por evento+membro; presente|ausente + justificativa) · `session_minutes` (1:1 com o evento de calendário; rascunho|em_revisao|aprovada) · `minute_approvals` (por papel signatário) · `minute_templates`.
+`calendar_events` (5 tipos, obrigatoriedade, aberto ao público, traje, local, `lodge_id` e `related_event_id` opcionais) · `attendance_records` (único por evento+membro; presente|ausente + justificativa) · `session_minutes` (1:1 com o evento de calendário; rascunho|em_revisao|aprovada; `public_share_token` opcional) · `minute_approvals` (por papel signatário) · `minute_public_votes` (feedback público por e-mail: aprovada|reprovada + justificativa; único por ata+e-mail) · `minute_templates`.
+
+RPCs públicas da ata (`anon`): `get_public_minute(token, password)`, `submit_public_minute_vote(...)`. Gestão autenticada: `ensure_minute_public_share_token`, `revoke_minute_public_share_token`, `get_minute_public_share_token`. Senha fixa temporária: `senha`. Rota pública: `/ata/$token` ([src/routes/ata.$token.tsx](../src/routes/ata.$token.tsx)).
 
 ### Finanças
 `cash_entries` (kind, `category` texto, `subcategory` texto — *snapshot*, `calendar_event_id`, valor, data, comprovante) · `cash_categories` (por capítulo, `is_system`, único por capítulo+nome) · `cash_subcategories` (por capítulo, escopo eventos|hospitalaria, `calendar_event_id` opcional, ativo; índice único em capítulo+escopo+coalesce(evento)+lower(nome)) · `member_dues` (único por capítulo+membro+`competence_year`+`competence_month`; status em_aberto|pago|isento; `cash_entry_id` apontando de volta para `cash_entries`).
@@ -197,7 +200,7 @@ Schema definido pelas 26 migrations em [supabase/migrations/](../supabase/migrat
 ### Convenções do schema
 Quase toda tabela de conteúdo carrega `chapter_id` (a chave de inquilino), `created_by`, `created_at` e `updated_at` — este último mantido pelo trigger `tg_set_updated_at()`.
 
-**Enums** (`types.ts`): `attendance_status`, `calendar_event_type`, `cash_entry_kind`, `checkin_method`, `commission_role`, `due_status`, `event_status`, `investigation_status`, `member_status`, `minute_signer_role`, `minute_status`, `org_role` (`gme`/`mce`/`mcr`/`oe`), `ticket_status`.
+**Enums** (`types.ts`): `attendance_status`, `calendar_event_type`, `cash_entry_kind`, `checkin_method`, `commission_role`, `due_status`, `event_status`, `investigation_status`, `member_status`, `minute_public_vote_decision`, `minute_signer_role`, `minute_status`, `org_role` (`gme`/`mce`/`mcr`/`oe`), `ticket_status`.
 
 ---
 
@@ -207,15 +210,16 @@ Quase toda tabela de conteúdo carrega `chapter_id` (a chave de inquilino), `cre
 
 1. `/auth` ([src/routes/auth.tsx](../src/routes/auth.tsx), `ssr: false`) — e-mail e senha via `supabase.auth.signInWithPassword`. Link para a documentação pública em `/documentacao`.
 2. **Rotas públicas de documentação** (fora de `_authenticated`): `/documentacao`, `/documentacao/tecnica`, `/documentacao/guia`, `/documentacao/open-source` — layout próprio em [src/routes/documentacao/](../src/routes/documentacao/), renderizam os Markdowns de `docs/` via `react-markdown` ([src/lib/docs-catalog.ts](../src/lib/docs-catalog.ts), [src/components/docs/](../src/components/docs/)).
-3. `_authenticated/route.tsx` — o `beforeLoad` chama `supabase.auth.getUser()` e redireciona para `/auth` se não houver sessão; monta `ActiveChapterProvider` e `OrgScopeProvider`.
-4. `_authenticated/index.tsx` redireciona `/` → `/inicio`.
-5. `_shell/route.tsx` resolve o escopo de trabalho:
+3. **Outras rotas públicas** (sem login): `/mensalidades/$token`, `/fluxo-caixa/$token`, `/c/$token/*` (lobby), `/ata/$token` (visão pública da ata com senha), `/atualizar-cadastro`.
+4. `_authenticated/route.tsx` — o `beforeLoad` chama `supabase.auth.getUser()` e redireciona para `/auth` se não houver sessão; monta `ActiveChapterProvider` e `OrgScopeProvider`.
+5. `_authenticated/index.tsx` redireciona `/` → `/inicio`.
+6. `_shell/route.tsx` resolve o escopo de trabalho:
    - 0 vínculos de capítulo + ≥1 liderança → entra direto no escopo regional
    - >1 vínculo e nenhum escolhido → `/selecionar-capitulo`
    - 0 de ambos → mensagem de conta não vinculada
-6. O capítulo ativo é persistido em `localStorage` (`sgcdm.activeChapterId`) **e** espelhado em `profiles.active_chapter_id` para continuidade entre dispositivos. O escopo org fica em `sgcdm.activeOrgScope`.
-7. Toda chamada de *server function* leva `Authorization: Bearer <access_token>` e é verificada no servidor com `supabase.auth.getClaims(token)`. Um middleware de CSRF protege essas requisições.
-8. O logout limpa o `localStorage`, chama `supabase.auth.signOut()` e navega com recarga completa para `/auth`.
+7. O capítulo ativo é persistido em `localStorage` (`sgcdm.activeChapterId`) **e** espelhado em `profiles.active_chapter_id` para continuidade entre dispositivos. O escopo org fica em `sgcdm.activeOrgScope`.
+8. Toda chamada de *server function* leva `Authorization: Bearer <access_token>` e é verificada no servidor com `supabase.auth.getClaims(token)`. Um middleware de CSRF protege essas requisições.
+9. O logout limpa o `localStorage`, chama `supabase.auth.signOut()` e navega com recarga completa para `/auth`.
 
 ### Autorização em duas camadas
 
