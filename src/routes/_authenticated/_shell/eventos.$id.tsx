@@ -74,6 +74,17 @@ const eventQO = (id: string) =>
     queryFn: () => getEvent({ data: { id } }),
   });
 
+type EventDetail = Awaited<ReturnType<typeof getEvent>>;
+type EventTicket = EventDetail["tickets"][number];
+type EventTicketType = EventDetail["ticketTypes"][number];
+type EventTable = EventDetail["tables"][number];
+type EventSeat = EventDetail["seats"][number];
+type EventCheckin = EventDetail["checkins"][number];
+
+function mutationErrorMessage(e: unknown, fallback: string) {
+  return e instanceof Error ? e.message : fallback;
+}
+
 function EventoDetalhe() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
@@ -248,12 +259,22 @@ function EventoDetalhe() {
   );
 }
 
-function TicketsList({ tickets, types }: { tickets: any[]; types: any[] }) {
+function TicketsList({
+  tickets,
+  types,
+}: {
+  tickets: EventTicket[];
+  types: EventTicketType[];
+}) {
   const typeMap = new Map(types.map((t) => [t.id, t.name]));
   const [qrImg, setQrImg] = useState<{ ticketId: string; url: string } | null>(
     null,
   );
-  async function showQr(ticket: any) {
+  async function showQr(ticket: EventTicket) {
+    if (!ticket.qr_code) {
+      toast.error("Ingresso sem QR code");
+      return;
+    }
     const QRCode = await import("qrcode");
     const url = await QRCode.default.toDataURL(ticket.qr_code, {
       width: 260,
@@ -277,8 +298,10 @@ function TicketsList({ tickets, types }: { tickets: any[]; types: any[] }) {
               <div className="min-w-0">
                 <div className="truncate font-medium">{t.buyer_name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {typeMap.get(t.ticket_type_id) ?? "Avulso"} ·{" "}
-                  {formatBRL(Number(t.price_paid))}
+                  {(t.ticket_type_id
+                    ? typeMap.get(t.ticket_type_id)
+                    : undefined) ?? "Avulso"}{" "}
+                  · {formatBRL(Number(t.price_paid))}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -311,7 +334,7 @@ function TicketTypesCard({
   onChanged,
 }: {
   eventId: string;
-  types: any[];
+  types: EventTicketType[];
   onChanged: () => void;
 }) {
   const [name, setName] = useState("");
@@ -334,7 +357,8 @@ function TicketTypesCard({
       setQty(0);
       onChanged();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro"),
+    onError: (e: unknown) =>
+      toast.error(mutationErrorMessage(e, "Erro")),
   });
   return (
     <Card className="rounded-[12px] p-5">
@@ -353,24 +377,42 @@ function TicketTypesCard({
         ))}
       </ul>
       <div className="space-y-2">
-        <Input
-          placeholder="Nome (ex: Pista)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+        <div>
+          <Label htmlFor="ticket-type-name" className="mb-1 block text-xs">
+            Nome
+          </Label>
+          <Input
+            id="ticket-type-name"
+            placeholder="Nome (ex: Pista)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
         <div className="grid grid-cols-2 gap-2">
-          <Input
-            type="number"
-            placeholder="Preço"
-            value={price}
-            onChange={(e) => setPrice(Number(e.target.value))}
-          />
-          <Input
-            type="number"
-            placeholder="Qtde"
-            value={qty}
-            onChange={(e) => setQty(Number(e.target.value))}
-          />
+          <div>
+            <Label htmlFor="ticket-type-price" className="mb-1 block text-xs">
+              Preço
+            </Label>
+            <Input
+              id="ticket-type-price"
+              type="number"
+              placeholder="Preço"
+              value={price}
+              onChange={(e) => setPrice(Number(e.target.value))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="ticket-type-qty" className="mb-1 block text-xs">
+              Quantidade
+            </Label>
+            <Input
+              id="ticket-type-qty"
+              type="number"
+              placeholder="Qtde"
+              value={qty}
+              onChange={(e) => setQty(Number(e.target.value))}
+            />
+          </div>
         </div>
         <Button
           size="sm"
@@ -398,7 +440,7 @@ function SellTicketCard({
   onSold,
 }: {
   eventId: string;
-  types: any[];
+  types: EventTicketType[];
   primary?: string;
   onSold: () => void;
 }) {
@@ -431,7 +473,8 @@ function SellTicketCard({
       setEmail("");
       onSold();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro"),
+    onError: (e: unknown) =>
+      toast.error(mutationErrorMessage(e, "Erro")),
   });
 
   return (
@@ -502,9 +545,9 @@ function TablesMap({
   onChanged,
 }: {
   eventId: string;
-  tables: any[];
-  seats: any[];
-  tickets: any[];
+  tables: EventTable[];
+  seats: EventSeat[];
+  tickets: EventTicket[];
   primary?: string;
   onChanged: () => void;
 }) {
@@ -521,17 +564,19 @@ function TablesMap({
       setLabel("");
       onChanged();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro"),
+    onError: (e: unknown) =>
+      toast.error(mutationErrorMessage(e, "Erro")),
   });
 
   const assignM = useMutation({
     mutationFn: (v: { seat_id: string; ticket_id: string | null }) =>
       assignSeat({ data: v }),
     onSuccess: () => onChanged(),
-    onError: (e: any) => toast.error(e?.message ?? "Erro"),
+    onError: (e: unknown) =>
+      toast.error(mutationErrorMessage(e, "Erro")),
   });
 
-  const seatsByTable = new Map<string, any[]>();
+  const seatsByTable = new Map<string, EventSeat[]>();
   for (const s of seats) {
     const arr = seatsByTable.get(s.table_id) ?? [];
     arr.push(s);
@@ -676,8 +721,8 @@ function CheckinPanel({
   onChanged,
 }: {
   eventId: string;
-  tickets: any[];
-  checkins: any[];
+  tickets: EventTicket[];
+  checkins: EventCheckin[];
   primary?: string;
   onChanged: () => void;
 }) {
@@ -720,7 +765,8 @@ function CheckinPanel({
       else toast.success("Check-in realizado");
       onChanged();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro no check-in"),
+    onError: (e: unknown) =>
+      toast.error(mutationErrorMessage(e, "Erro no check-in")),
   });
 
   const filtered = tickets.filter((t) =>

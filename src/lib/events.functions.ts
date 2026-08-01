@@ -93,7 +93,16 @@ export const getEvent = createServerFn({ method: "POST" })
     if (eventRes.error) throw new Error(eventRes.error.message);
     if (!eventRes.data) throw new Error("Evento não encontrado");
 
-    const [types, tickets, tables, seats, checkins] = await Promise.all([
+    const tablesRes = await context.supabase
+      .from("event_tables")
+      .select("*")
+      .eq("event_id", data.id)
+      .order("label");
+    if (tablesRes.error) throw new Error(tablesRes.error.message);
+    const tables = tablesRes.data ?? [];
+    const tableIds = tables.map((r) => r.id);
+
+    const [types, tickets, seats, checkins] = await Promise.all([
       context.supabase
         .from("ticket_types")
         .select("*")
@@ -106,36 +115,30 @@ export const getEvent = createServerFn({ method: "POST" })
         )
         .eq("event_id", data.id)
         .order("sold_at", { ascending: false }),
-      context.supabase
-        .from("event_tables")
-        .select("*")
-        .eq("event_id", data.id)
-        .order("label"),
-      context.supabase
-        .from("seats")
-        .select("id, table_id, seat_number, ticket_id")
-        .in(
-          "table_id",
-          (
-            await context.supabase
-              .from("event_tables")
-              .select("id")
-              .eq("event_id", data.id)
-          ).data?.map((r) => r.id) ?? [],
-        ),
+      tableIds.length > 0
+        ? context.supabase
+            .from("seats")
+            .select("id, table_id, seat_number, ticket_id")
+            .in("table_id", tableIds)
+        : Promise.resolve({ data: [] as Array<{
+            id: string;
+            table_id: string;
+            seat_number: number;
+            ticket_id: string | null;
+          }>, error: null }),
       context.supabase
         .from("checkins")
         .select("id, ticket_id, method, checked_in_at")
         .eq("event_id", data.id),
     ]);
-    for (const r of [types, tickets, tables, seats, checkins]) {
+    for (const r of [types, tickets, seats, checkins]) {
       if ("error" in r && r.error) throw new Error(r.error.message);
     }
     return {
       event: eventRes.data,
       ticketTypes: types.data ?? [],
       tickets: tickets.data ?? [],
-      tables: tables.data ?? [],
+      tables,
       seats: seats.data ?? [],
       checkins: checkins.data ?? [],
     };
@@ -211,25 +214,16 @@ export const createTable = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { data: table, error } = await context.supabase
-      .from("event_tables")
-      .insert({
-        event_id: data.event_id,
-        label: data.label,
-        capacity: data.capacity,
-      })
-      .select("id")
-      .single();
+    const { data: tableId, error } = await context.supabase.rpc(
+      "create_event_table_with_seats" as never,
+      {
+        _event_id: data.event_id,
+        _label: data.label,
+        _capacity: data.capacity,
+      } as never,
+    );
     if (error) throw new Error(error.message);
-    const seatsPayload = Array.from({ length: data.capacity }, (_, i) => ({
-      table_id: table.id,
-      seat_number: i + 1,
-    }));
-    const { error: sErr } = await context.supabase
-      .from("seats")
-      .insert(seatsPayload);
-    if (sErr) throw new Error(sErr.message);
-    return { id: table.id };
+    return { id: tableId as string };
   });
 
 export const assignSeat = createServerFn({ method: "POST" })
@@ -281,6 +275,19 @@ export const checkinTicket = createServerFn({ method: "POST" })
     }
     if (!ticketId) throw new Error("Ingresso não informado");
 
+    // Caminho por ticket_id: exige ingresso do evento e status válido
+    if (data.ticket_id) {
+      const { data: t, error } = await context.supabase
+        .from("tickets")
+        .select("id, status")
+        .eq("id", ticketId)
+        .eq("event_id", data.event_id)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!t) throw new Error("Ingresso não encontrado");
+      if (t.status !== "valido") throw new Error("Ingresso inválido");
+    }
+
     const { data: existing } = await context.supabase
       .from("checkins")
       .select("id")
@@ -303,6 +310,28 @@ export const deleteEvent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
+    const { data: event, error: eErr } = await context.supabase
+      .from("events")
+      .select("id, chapter_id, name")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (eErr) throw new Error(eErr.message);
+    if (!event) throw new Error("Evento não encontrado");
+
+    const checks = await Promise.all(
+      (["admin", "comissoes", "secretaria"] as const).map(async (perm) => {
+        const { data: ok, error } = await context.supabase.rpc(
+          "has_permission" as never,
+          { _chapter_id: event.chapter_id, _perm: perm } as never,
+        );
+        if (error) throw new Error(error.message);
+        return Boolean(ok);
+      }),
+    );
+    if (!checks.some(Boolean)) {
+      throw new Error("Sem permissão para excluir eventos neste capítulo");
+    }
+
     const { data: deleted, error } = await context.supabase
       .from("events")
       .delete()

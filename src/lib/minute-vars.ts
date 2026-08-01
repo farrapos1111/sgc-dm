@@ -107,7 +107,10 @@ export function buildVarMap(ctx: MinuteVarContext): Record<string, string> {
   const start = ctx.date ? new Date(ctx.date) : new Date();
   const parts = datePartsInAppTz(start);
   const officers = ctx.officers ?? {};
-  const capitulo = [ctx.chapterName, ctx.chapterCity ? `— ${ctx.chapterCity}` : null]
+  const capitulo = [
+    ctx.chapterName,
+    ctx.chapterCity ? `— ${ctx.chapterCity}` : null,
+  ]
     .filter(Boolean)
     .join(" ");
   const horaInicio = new Date(start.getTime() + 30 * 60 * 1000);

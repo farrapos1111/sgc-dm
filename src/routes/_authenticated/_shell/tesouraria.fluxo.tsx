@@ -478,7 +478,9 @@ function FluxoCaixa() {
       toast.error(e?.message ?? "Erro ao excluir");
     },
     onSuccess: () => {
-      toast.success("Lançamento excluído — cobrança/mensalidade vinculada atualizada");
+      toast.success(
+        "Lançamento excluído — cobrança/mensalidade vinculada atualizada",
+      );
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: ["cash-entries"] });

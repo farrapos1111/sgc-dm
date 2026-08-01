@@ -20,7 +20,7 @@ import {
 import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, PlusCircle, MapPin, Link as LinkIcon, Trash2, Pencil, Download, Copy, ExternalLink, Sparkles, Loader2 } from "lucide-react";
 import { composeEventDescription } from "@/lib/ai.functions";
 import { formatDateTimeBR } from "@/lib/format";
-import { formatTimeInAppTz, todayYmd } from "@/lib/timezone";
+import { formatTimeInAppTz, todayYmd, APP_TIMEZONE } from "@/lib/timezone";
 import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from "@/lib/ics";
 import { buildChaveDoDia } from "@/lib/chave-do-dia";
 import { TYPE_META, CALENDAR_TYPES, isSessionType, type CalendarType } from "@/lib/calendar-types";
@@ -79,18 +79,25 @@ function toLocalDateKey(iso: string): string {
   return todayYmd(iso);
 }
 
-/** Todas as datas (chaves locais) cobertas pelo item — itens que viram o dia aparecem em ambas. */
+/** Incrementa um dia em uma chave YYYY-MM-DD (aritmética de calendário). */
+function addOneDayYmd(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const next = new Date(Date.UTC(y, m - 1, d + 1));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}-${pad(next.getUTCDate())}`;
+}
+
+/** Todas as datas (chaves no fuso do app) cobertas pelo item — itens que viram o dia aparecem em ambas. */
 function itemDayKeys(it: { start_at: string; end_at: string | null }): string[] {
-  const start = new Date(it.start_at);
-  const end = it.end_at ? new Date(it.end_at) : start;
+  const startKey = todayYmd(it.start_at);
+  const endKey = todayYmd(it.end_at ?? it.start_at);
   const keys: string[] = [];
-  const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-  const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-  while (cur <= last && keys.length < 60) {
-    keys.push(toLocalDateKey(cur.toISOString()));
-    cur.setDate(cur.getDate() + 1);
+  let cur = startKey;
+  while (cur <= endKey && keys.length < 60) {
+    keys.push(cur);
+    cur = addOneDayYmd(cur);
   }
-  return keys.length ? keys : [toLocalDateKey(it.start_at)];
+  return keys.length ? keys : [startKey];
 }
 
 function occursOnDay(it: { start_at: string; end_at: string | null }, key: string) {
@@ -809,8 +816,14 @@ function CreateDialog({
     if (!startAt) return undefined;
     const d = new Date(startAt);
     if (Number.isNaN(d.getTime())) return undefined;
-    return d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }) +
-      `, às ${formatTimeInAppTz(d)}`;
+    return (
+      d.toLocaleDateString("pt-BR", {
+        timeZone: APP_TIMEZONE,
+        weekday: "long",
+        day: "2-digit",
+        month: "long",
+      }) + `, às ${formatTimeInAppTz(d)}`
+    );
   }, [startAt]);
 
   /** Gera ou complementa a descrição com IA. */

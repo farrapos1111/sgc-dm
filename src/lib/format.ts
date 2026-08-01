@@ -1,3 +1,5 @@
+import { APP_TIMEZONE } from "@/lib/timezone";
+
 export function formatCpfMask(last2: string | null | undefined): string {
   if (!last2) return "***.***.***-**";
   return `***.***.***-${last2}`;
@@ -38,7 +40,7 @@ export function formatDateTimeBR(iso: string | null | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
+    timeZone: APP_TIMEZONE,
     dateStyle: "short",
     timeStyle: "short",
   });

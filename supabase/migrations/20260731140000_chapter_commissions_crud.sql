@@ -147,6 +147,7 @@ CREATE TRIGGER chapters_seed_commissions
   FOR EACH ROW
   EXECUTE FUNCTION public.tg_seed_chapter_commissions();
 
+-- Vínculo canônico: cm.member_id ↔ membro do JWT (e-mail / perfil), não ch.user_id+nome.
 CREATE OR REPLACE FUNCTION public.is_commission_member(_chapter_id uuid, _commission_code text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
   SELECT EXISTS (
@@ -154,12 +155,20 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public'
     FROM public.commission_members cm
     JOIN public.commissions c ON c.id = cm.commission_id
     JOIN public.members m ON m.id = cm.member_id
-    JOIN public.chapter_members ch ON ch.chapter_id = cm.chapter_id AND ch.active = true
     WHERE cm.chapter_id = _chapter_id
       AND c.code = _commission_code
       AND (c.chapter_id IS NULL OR c.chapter_id = _chapter_id)
-      AND ch.user_id = auth.uid()
-      AND lower(m.full_name) = lower(coalesce((SELECT full_name FROM public.profiles WHERE id = auth.uid()), '###'))
+      AND public.is_chapter_member(_chapter_id)
+      AND (
+        (
+          m.email IS NOT NULL
+          AND length(trim(m.email)) > 0
+          AND lower(m.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+        )
+        OR lower(m.full_name) = lower(
+          coalesce((SELECT full_name FROM public.profiles WHERE id = auth.uid()), '###')
+        )
+      )
   );
 $$;
 
@@ -170,12 +179,20 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public'
     FROM public.commission_members cm
     JOIN public.commissions c ON c.id = cm.commission_id
     JOIN public.members m ON m.id = cm.member_id
-    JOIN public.chapter_members ch ON ch.chapter_id = cm.chapter_id AND ch.active = true
     WHERE cm.chapter_id = _chapter_id
       AND c.code = _commission_code
       AND (c.chapter_id IS NULL OR c.chapter_id = _chapter_id)
       AND cm.role IN ('presidente','vice')
-      AND ch.user_id = auth.uid()
-      AND lower(m.full_name) = lower(coalesce((SELECT full_name FROM public.profiles WHERE id = auth.uid()), '###'))
+      AND public.is_chapter_member(_chapter_id)
+      AND (
+        (
+          m.email IS NOT NULL
+          AND length(trim(m.email)) > 0
+          AND lower(m.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+        )
+        OR lower(m.full_name) = lower(
+          coalesce((SELECT full_name FROM public.profiles WHERE id = auth.uid()), '###')
+        )
+      )
   );
 $$;

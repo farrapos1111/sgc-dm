@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 
 const termInput = z.object({
   chapterId: z.string().uuid(),
@@ -23,7 +25,7 @@ function slugCommissionCode(label: string): string {
   return base;
 }
 
-type OrgSupabase = { from: (table: string) => any };
+type OrgSupabase = SupabaseClient<Database>;
 
 async function uniqueCommissionCode(
   supabase: OrgSupabase,
