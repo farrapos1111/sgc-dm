@@ -91,7 +91,11 @@ function InicioContent({ active }: { active: Membership }) {
     refetchInterval: 60_000,
   });
 
-  const { data: finance } = useQuery({
+  const {
+    data: finance,
+    isError: financeError,
+    error: financeErr,
+  } = useQuery({
     queryKey: ["dashboard-finance", chapterId],
     queryFn: () => getDashboardFinance({ data: { chapterId } }),
     enabled: Boolean(chapterId) && canFinance,
@@ -132,36 +136,52 @@ function InicioContent({ active }: { active: Membership }) {
 
   const hasAnyData = members.length > 0 || events.length > 0;
 
+  const demolayName =
+    typeof window !== "undefined"
+      ? (window as Window & { __demolayName?: unknown }).__demolayName
+      : undefined;
   const firstName =
-    (typeof window !== "undefined" && (window as any).__demolayName) ||
-    active.role.label;
+    (typeof demolayName === "string" && demolayName) || active.role.label;
 
   const monthLabel =
     finance != null
       ? `${MONTH_LONG[finance.month - 1] ?? ""} de ${finance.year}`
       : "mês atual";
 
-  const saldoValue = showBank
-    ? (finance?.bankBalance ?? 0)
-    : (finance?.monthBalance ?? 0);
+  const financeUnavailable = canFinance && financeError;
+  const saldoValue = financeUnavailable
+    ? null
+    : showBank
+      ? (finance?.bankBalance ?? 0)
+      : (finance?.monthBalance ?? 0);
   const saldoLabel = showBank ? "Saldo do banco" : "Saldo do mês";
-  const saldoHint = showBank
-    ? "Saldo atual do caixa · todas as competências"
-    : `${monthLabel} · resultado do fluxo`;
+  const saldoHint = financeUnavailable
+    ? financeErr instanceof Error
+      ? financeErr.message
+      : "Não foi possível carregar o financeiro"
+    : showBank
+      ? "Saldo atual do caixa · todas as competências"
+      : `${monthLabel} · resultado do fluxo`;
 
   const membrosLabel = showReceivable ? "A receber" : "Mensalidades pendentes";
-  const membrosValue = !finance
+  const membrosValue = financeUnavailable
     ? "—"
-    : showReceivable
-      ? formatBRL(finance.receivableTotal ?? 0)
-      : `${finance.pendingMembers} ${finance.pendingMembers === 1 ? "membro" : "membros"}`;
-  const membrosHint = !finance
-    ? "Carregando…"
-    : showReceivable
-      ? `Mensalidades ${formatBRL(finance.pendingAmount)} · cobranças ${formatBRL(finance.openChargesAmount ?? 0)}`
-      : `${finance.pendingCompetences} competência${finance.pendingCompetences === 1 ? "" : "s"} · ${formatBRL(finance.pendingAmount)}`;
+    : !finance
+      ? "—"
+      : showReceivable
+        ? formatBRL(finance.receivableTotal ?? 0)
+        : `${finance.pendingMembers} ${finance.pendingMembers === 1 ? "membro" : "membros"}`;
+  const membrosHint = financeUnavailable
+    ? "Erro ao carregar"
+    : !finance
+      ? "Carregando…"
+      : showReceivable
+        ? `Mensalidades ${formatBRL(finance.pendingAmount)} · cobranças ${formatBRL(finance.openChargesAmount ?? 0)}`
+        : `${finance.pendingCompetences} competência${finance.pendingCompetences === 1 ? "" : "s"} · ${formatBRL(finance.pendingAmount)}`;
   const membrosTone =
-    showReceivable && (finance?.receivableTotal ?? 0) > 0
+    !financeUnavailable &&
+    showReceivable &&
+    (finance?.receivableTotal ?? 0) > 0
       ? "text-amber-600 dark:text-amber-400"
       : undefined;
 
@@ -247,14 +267,18 @@ function InicioContent({ active }: { active: Membership }) {
                     )
                   }
                   label={saldoLabel}
-                  value={formatBRL(saldoValue)}
+                  value={
+                    saldoValue == null ? "—" : formatBRL(saldoValue)
+                  }
                   hint={saldoHint}
                   tone={
-                    saldoValue < 0
-                      ? "text-rose-600 dark:text-rose-400"
-                      : saldoValue > 0
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : undefined
+                    saldoValue == null
+                      ? undefined
+                      : saldoValue < 0
+                        ? "text-rose-600 dark:text-rose-400"
+                        : saldoValue > 0
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : undefined
                   }
                   fadeKey={showBank ? "bank" : "month"}
                 />
@@ -381,9 +405,14 @@ function NextItemCard({ chapterId }: { chapterId: string }) {
   const meta = TYPE_META[next.event_type as CalendarType];
 
   async function copyChave() {
+    const settings = activeChapter?.chapter.settings;
+    const rawTemplate =
+      settings && typeof settings === "object"
+        ? (settings as Record<string, unknown>).chave_template
+        : null;
+    const template = typeof rawTemplate === "string" ? rawTemplate : null;
     const text = buildChaveDoDia(next, {
-      template:
-        (activeChapter?.chapter as any)?.settings?.chave_template ?? null,
+      template,
       chapterName: activeChapter?.chapter.name ?? null,
     });
     try {

@@ -138,7 +138,12 @@ function MembroPerfil() {
     ...attendanceQO(id),
     enabled: needsAttendance,
   });
-  const { data: finance, isPending: financePending } = useQuery({
+  const {
+    data: finance,
+    isPending: financePending,
+    isError: financeError,
+    error: financeErr,
+  } = useQuery({
     queryKey: ["member-finance", chapterId, id, financeYear],
     queryFn: () =>
       getMemberFinance({
@@ -801,6 +806,13 @@ function MembroPerfil() {
           <MemberFinanceTab
             finance={finance}
             pending={financePending}
+            error={
+              financeError
+                ? financeErr instanceof Error
+                  ? financeErr.message
+                  : "Não foi possível carregar o financeiro"
+                : null
+            }
             year={financeYear}
             onYearChange={setFinanceYear}
             foundedAt={chapterFoundedAt(active?.chapter)}
@@ -822,6 +834,7 @@ const DUE_STATUS_LABEL: Record<string, string> = {
 function MemberFinanceTab({
   finance,
   pending,
+  error,
   year,
   onYearChange,
   foundedAt,
@@ -829,6 +842,7 @@ function MemberFinanceTab({
 }: {
   finance: Awaited<ReturnType<typeof getMemberFinance>> | undefined;
   pending: boolean;
+  error?: string | null;
   year: number;
   onYearChange: (y: number) => void;
   foundedAt?: string | null;
@@ -838,6 +852,14 @@ function MemberFinanceTab({
   const startYear = foundedAt ? Number(foundedAt.slice(0, 4)) : currentYear - 2;
   const years: number[] = [];
   for (let y = currentYear; y >= startYear; y--) years.push(y);
+
+  if (error) {
+    return (
+      <Card className="rounded-[12px] p-5 text-sm text-rose-600 dark:text-rose-400">
+        {error}
+      </Card>
+    );
+  }
 
   if (pending && !finance) {
     return (

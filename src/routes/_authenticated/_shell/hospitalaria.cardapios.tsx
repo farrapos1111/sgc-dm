@@ -54,7 +54,13 @@ function Cardapios() {
     onSuccess: async () => {
       toast.success("Cardápio salvo");
       setOpen(false);
-      setForm({ title: "", menu_date: todayYmd(), items: "", estimated_cost: 0, notes: "" });
+      setForm({
+        title: "",
+        menu_date: todayYmd(),
+        items: "",
+        estimated_cost: 0,
+        notes: "",
+      });
       await qc.invalidateQueries({ queryKey: ["hospitality-menus"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),

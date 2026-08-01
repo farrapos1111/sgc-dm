@@ -44,13 +44,9 @@ export function datePartsInAppTz(value: DateLike = new Date()): {
 
 /** Data de hoje (YYYY-MM-DD) no horário do RS — evite `toISOString().slice(0, 10)` (UTC). */
 export function todayYmd(value: DateLike = new Date()): string {
-  // en-CA → YYYY-MM-DD
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: APP_TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(asDate(value));
+  const { year, month, day } = datePartsInAppTz(asDate(value));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${year}-${pad(month)}-${pad(day)}`;
 }
 
 /** Alias explícito. */

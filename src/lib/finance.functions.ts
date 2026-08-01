@@ -29,33 +29,25 @@ async function aggregateCashAmounts(
   chapterId: string,
   opts: { from?: string; until?: string } = {},
 ): Promise<{ income: number; expense: number; balance: number }> {
-  const pageSize = 1000;
-  let offset = 0;
-  let income = 0;
-  let expense = 0;
-
-  for (;;) {
+  const rows = await fetchAllPages<CashAggRow>((from, to) => {
     let q = supabase
       .from("cash_entries")
       .select("kind, amount")
       .eq("chapter_id", chapterId)
       .order("entry_date", { ascending: true })
       .order("id", { ascending: true })
-      .range(offset, offset + pageSize - 1);
+      .range(from, to);
     if (opts.from) q = q.gte("entry_date", opts.from);
     if (opts.until) q = q.lt("entry_date", opts.until);
+    return q;
+  });
 
-    const { data, error } = await q;
-    if (error) throw new Error(error.message);
-
-    const rows = (data ?? []) as CashAggRow[];
-    for (const r of rows) {
-      const amount = Number(r.amount) || 0;
-      if (r.kind === "entrada") income += amount;
-      else expense += amount;
-    }
-    if (rows.length < pageSize) break;
-    offset += pageSize;
+  let income = 0;
+  let expense = 0;
+  for (const r of rows) {
+    const amount = Number(r.amount) || 0;
+    if (r.kind === "entrada") income += amount;
+    else expense += amount;
   }
 
   return { income, expense, balance: income - expense };
@@ -1180,7 +1172,8 @@ export const bulkYearDuesAction = createServerFn({ method: "POST" })
       data.amount ??
       (await readDefaultDuesAmount(context.supabase, data.chapterId));
     const paidAt = data.paidAt || todayYmd();
-    const { year: currentYear, month: currentMonth } = currentYearMonthInAppTz();
+    const { year: currentYear, month: currentMonth } =
+      currentYearMonthInAppTz();
     const maxMonth =
       data.year > currentYear ? 0 : data.year < currentYear ? 12 : currentMonth;
 
@@ -2016,47 +2009,47 @@ export const getDashboardFinance = createServerFn({ method: "POST" })
     const periodStart = `${year}-${String(month).padStart(2, "0")}-01`;
     const periodEnd = periodEndDate(year, month);
 
-    const [monthAgg, bankAgg, duesOpen, defaultAmount] = await Promise.all([
-      aggregateCashAmounts(context.supabase, data.chapterId, {
-        from: periodStart,
-        until: periodEnd,
-      }),
-      aggregateCashAmounts(context.supabase, data.chapterId),
-      fetchAllPages<{
-        member_id: string;
-        competence_month: number;
-        amount: number | string;
-        status: string;
-      }>((from, to) =>
-        context.supabase
-          .from("member_dues")
-          .select("member_id, competence_month, amount, status")
-          .eq("chapter_id", data.chapterId)
-          .eq("competence_year", year)
-          .eq("status", "em_aberto")
-          .lte("competence_month", month)
-          .order("member_id", { ascending: true })
-          .order("competence_month", { ascending: true })
-          .range(from, to),
-      ),
-      readDefaultDuesAmount(context.supabase, data.chapterId),
-    ]);
-
-    const allCharges = await fetchAllPages<{
-      id: string;
-      amount: number | string;
-      status: string;
-      cash_entry_id: string | null;
-      kind: string;
-    }>((from, to) =>
-      context.supabase
-        .from("member_charges")
-        .select("id, amount, status, cash_entry_id, kind")
-        .eq("chapter_id", data.chapterId)
-        .neq("status", "isento")
-        .order("id", { ascending: true })
-        .range(from, to),
-    );
+    const [monthAgg, bankAgg, duesOpen, defaultAmount, allCharges] =
+      await Promise.all([
+        aggregateCashAmounts(context.supabase, data.chapterId, {
+          from: periodStart,
+          until: periodEnd,
+        }),
+        aggregateCashAmounts(context.supabase, data.chapterId),
+        fetchAllPages<{
+          member_id: string;
+          competence_month: number;
+          amount: number | string;
+          status: string;
+        }>((from, to) =>
+          context.supabase
+            .from("member_dues")
+            .select("member_id, competence_month, amount, status")
+            .eq("chapter_id", data.chapterId)
+            .eq("competence_year", year)
+            .eq("status", "em_aberto")
+            .lte("competence_month", month)
+            .order("member_id", { ascending: true })
+            .order("competence_month", { ascending: true })
+            .range(from, to),
+        ),
+        readDefaultDuesAmount(context.supabase, data.chapterId),
+        fetchAllPages<{
+          id: string;
+          amount: number | string;
+          status: string;
+          cash_entry_id: string | null;
+          kind: string;
+        }>((from, to) =>
+          context.supabase
+            .from("member_charges")
+            .select("id, amount, status, cash_entry_id, kind")
+            .eq("chapter_id", data.chapterId)
+            .neq("status", "isento")
+            .order("id", { ascending: true })
+            .range(from, to),
+        ),
+      ]);
 
     const memberIds = new Set<string>();
     let pendingAmount = 0;
@@ -2072,7 +2065,9 @@ export const getDashboardFinance = createServerFn({ method: "POST" })
     // saldo = amount − pagamentos (legado: pago + cash_entry sem linhas).
     const chargeIds = allCharges.map((c) => c.id);
     const paidByCharge = new Map<string, number>();
-    if (chargeIds.length > 0) {
+    const CHARGE_ID_CHUNK = 200;
+    for (let i = 0; i < chargeIds.length; i += CHARGE_ID_CHUNK) {
+      const chunk = chargeIds.slice(i, i + CHARGE_ID_CHUNK);
       const payments = await fetchAllPages<{
         charge_id: string;
         amount: number | string;
@@ -2081,7 +2076,7 @@ export const getDashboardFinance = createServerFn({ method: "POST" })
           .from("member_charge_payments" as never)
           .select("charge_id, amount")
           .eq("chapter_id", data.chapterId)
-          .in("charge_id", chargeIds)
+          .in("charge_id", chunk)
           .order("charge_id", { ascending: true })
           .range(from, to) as never,
       );
@@ -2143,8 +2138,8 @@ export const getMemberFinance = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const year = data.year ?? currentYearMonthInAppTz().year;
-    const now = new Date();
+    const { year: appYear, month: appMonth } = currentYearMonthInAppTz();
+    const year = data.year ?? appYear;
 
     const [defaultAmount, duesRes, chargesRes] = await Promise.all([
       readDefaultDuesAmount(context.supabase, data.chapterId),
@@ -2231,8 +2226,8 @@ export const getMemberFinance = createServerFn({ method: "POST" })
 
     let duesOpenAmount = 0;
     let duesOpenCount = 0;
-    const cy = now.getFullYear();
-    const cm = now.getMonth() + 1;
+    const cy = appYear;
+    const cm = appMonth;
     for (const d of dues) {
       if (d.status !== "em_aberto") continue;
       // Meses futuros não entram no "em aberto"

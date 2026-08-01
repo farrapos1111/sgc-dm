@@ -55,7 +55,12 @@ function Escala() {
     onSuccess: async () => {
       toast.success("Escala registrada");
       setOpen(false);
-      setForm({ member_id: "", duty_date: todayYmd(), role_label: "Serviço", notes: "" });
+      setForm({
+        member_id: "",
+        duty_date: todayYmd(),
+        role_label: "Serviço",
+        notes: "",
+      });
       await qc.invalidateQueries({ queryKey: ["hospitality-duties"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),

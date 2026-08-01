@@ -180,8 +180,11 @@ export function ActiveChapterProvider({
       setActiveChapterId(null);
       return;
     }
-    if (memberships.length === 1) {
-      const only = memberships[0].chapter_id;
+    const distinctChapterIds = [
+      ...new Set(memberships.map((m) => m.chapter_id)),
+    ];
+    if (distinctChapterIds.length === 1) {
+      const only = distinctChapterIds[0];
       if (activeChapterId !== only) {
         setActiveChapterId(only);
       }
