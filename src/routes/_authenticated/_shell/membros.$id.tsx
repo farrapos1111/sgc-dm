@@ -37,6 +37,7 @@ import {
   isFutureMonth,
   type DueMemberLite,
 } from "@/lib/dues-rules";
+import { currentYearMonthInAppTz } from "@/lib/timezone";
 import { Progress } from "@/components/ui/progress";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { PageHeader } from "@/components/PageHeader";
@@ -126,8 +127,8 @@ function MembroPerfil() {
   const needsOrg = tab === "cargos";
   const needsAttendance = tab === "presencas";
   const needsFinance = tab === "financeiro";
-  const [financeYear, setFinanceYear] = useState(() =>
-    new Date().getFullYear(),
+  const [financeYear, setFinanceYear] = useState(
+    () => currentYearMonthInAppTz().year,
   );
 
   const { data: org, isPending: orgPending } = useQuery({
@@ -848,7 +849,7 @@ function MemberFinanceTab({
   foundedAt?: string | null;
   member: DueMemberLite;
 }) {
-  const currentYear = new Date().getFullYear();
+  const currentYear = currentYearMonthInAppTz().year;
   const startYear = foundedAt ? Number(foundedAt.slice(0, 4)) : currentYear - 2;
   const years: number[] = [];
   for (let y = currentYear; y >= startYear; y--) years.push(y);

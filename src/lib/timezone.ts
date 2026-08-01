@@ -85,3 +85,42 @@ export function formatClockInAppTz(value: DateLike = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(hour)}:${pad(minute)}:${pad(second)} - ${pad(day)}/${pad(month)}/${year}`;
 }
+
+/**
+ * Converte valor de `<input type="datetime-local">` (YYYY-MM-DDTHH:mm)
+ * interpretado como horário de parede em APP_TIMEZONE → instante UTC.
+ */
+export function fromAppTzDateTimeLocal(local: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(local.trim());
+  if (!m) return new Date(NaN);
+  const y = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const hour = Number(m[4]);
+  const minute = Number(m[5]);
+  const desiredAsUtc = Date.UTC(y, month - 1, day, hour, minute, 0);
+
+  let utcMs = desiredAsUtc;
+  for (let i = 0; i < 3; i++) {
+    const parts = datePartsInAppTz(new Date(utcMs));
+    const wallAsUtc = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+    );
+    const diff = desiredAsUtc - wallAsUtc;
+    if (diff === 0) break;
+    utcMs += diff;
+  }
+  return new Date(utcMs);
+}
+
+/** Formata um instante como valor datetime-local no fuso do app. */
+export function toAppTzDateTimeLocal(value: DateLike): string {
+  const { year, month, day, hour, minute } = datePartsInAppTz(value);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
+}
