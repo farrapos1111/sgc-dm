@@ -1,4 +1,10 @@
 import "./lib/error-capture";
+import { APP_TIMEZONE } from "./lib/timezone";
+
+// Horário padrão do RS (America/Sao_Paulo) para Date no servidor Node.
+if (typeof process !== "undefined" && process.env) {
+  process.env.TZ = APP_TIMEZONE;
+}
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, Loader2, LogOut, Search } from "lucide-react";
@@ -73,6 +73,7 @@ type BrasilApiCep = {
 
 function LobbyMemberPortalPage() {
   const { token, chapter } = usePublicLobby();
+  const qc = useQueryClient();
   const accent = chapter.primary_color || "#9E1B32";
   const storageKey = lobbyMemberStorageKey(token);
 
@@ -113,7 +114,8 @@ function LobbyMemberPortalPage() {
       });
       return portal;
     },
-    onSuccess: (_data, id) => {
+    onSuccess: (portal, id) => {
+      qc.setQueryData(["public-member-portal", token, id, year], portal);
       sessionStorage.setItem(storageKey, id);
       setUnlockedId(id);
       toast.success("Acesso liberado nesta sessão");
@@ -271,7 +273,8 @@ function MemberChargesTab({
     return map;
   }, [data?.payments]);
 
-  const defaultAmount = Number(data?.defaultAmount) || 50;
+  const parsedDefault = Number(data?.defaultAmount);
+  const defaultAmount = Number.isFinite(parsedDefault) ? parsedDefault : 50;
 
   const memberLite: DueMemberLite | null = data
     ? {

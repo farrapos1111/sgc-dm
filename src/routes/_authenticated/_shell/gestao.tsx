@@ -1,9 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery, useMutation, useQueryClient, queryOptions } from "@tanstack/react-query";
+import {
+  useSuspenseQuery,
+  useMutation,
+  useQueryClient,
+  queryOptions,
+} from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useActiveChapter } from "@/context/ActiveChapterContext";
+import {
+  useActiveChapter,
+  type Membership,
+} from "@/context/ActiveChapterContext";
 import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +53,7 @@ import {
   createChapterCommission,
   updateChapterCommission,
   deleteChapterCommission,
+  compareCommissionMembersByRoleName,
 } from "@/lib/organization.functions";
 import { listMembers } from "@/lib/members.functions";
 import { membersListKey } from "@/lib/query-keys";
@@ -52,7 +62,7 @@ import { TermSelect } from "@/components/TermSelect";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { can } from "@/lib/permissions";
 import { is21OrOlder } from "@/lib/format";
-import { Pencil, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, UserPlus, Users, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/gestao")({
   head: () => ({
@@ -74,21 +84,10 @@ const COMMISSION_ROLES = [
   { value: "auxiliar_senior", label: "Auxiliar Sênior" },
 ] as const;
 
-const COMMISSION_ROLE_ORDER: Record<string, number> = {
-  presidente: 0,
-  vice: 1,
-  membro: 2,
-  auxiliar_senior: 3,
-};
-
 type SortKey = "name_asc" | "name_desc" | "default";
 
 function normalizeSearch(s: string) {
-  return s
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .trim();
+  return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
 }
 
 function catalogQO(chapterId: string) {
@@ -100,22 +99,42 @@ function catalogQO(chapterId: string) {
 
 function GestaoPage() {
   const { active } = useActiveChapter();
+  if (!active) {
+    return (
+      <div>
+        <PageHeader
+          title="Gestão"
+          subtitle="Cargos e comissões conforme o perfil dos membros, por vigência."
+        />
+        <EmptyState
+          icon={<Users className="h-7 w-7" />}
+          title="Nenhum capítulo ativo"
+          description="Selecione um capítulo para gerenciar cargos e comissões."
+        />
+      </div>
+    );
+  }
+  return <GestaoContent active={active} />;
+}
+
+function GestaoContent({ active }: { active: Membership }) {
   const qc = useQueryClient();
   const [term, setTerm] = useState(currentTerm());
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [tab, setTab] = useState("cargos");
-  const chapterId = active?.chapter_id ?? "";
-  const foundedAt = chapterFoundedAt(active?.chapter);
+  const chapterId = active.chapter_id;
+  const foundedAt = chapterFoundedAt(active.chapter);
   const terms = useMemo(() => termOptions({ foundedAt }), [foundedAt]);
-  const canEdit = can(active?.role.name, "secretaria");
-  const canEditCommissions = can(active?.role.name, "comissoes");
+  const canEdit = can(active.role.name, "secretaria");
+  const canEditCommissions = can(active.role.name, "comissoes");
 
   const { data: catalog } = useSuspenseQuery(catalogQO(chapterId));
   const { data: members } = useSuspenseQuery(
     queryOptions({
       queryKey: membersListKey(chapterId, "", "all"),
-      queryFn: () => listMembers({ data: { chapterId, search: "", status: "all" } }),
+      queryFn: () =>
+        listMembers({ data: { chapterId, search: "", status: "all" } }),
     }),
   );
   const { data: positions } = useSuspenseQuery(
@@ -200,11 +219,14 @@ function GestaoPage() {
       return createChapterCommission({ data: { chapterId, label } });
     },
     onSuccess: () => {
-      toast.success(commissionForm.id ? "Comissão atualizada" : "Comissão criada");
+      toast.success(
+        commissionForm.id ? "Comissão atualizada" : "Comissão criada",
+      );
       setCommissionForm({ open: false, label: "" });
       invalidateCatalog();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar comissão"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar comissão"),
   });
 
   const removeCommission = useMutation({
@@ -215,7 +237,8 @@ function GestaoPage() {
       setDeleteTarget(null);
       invalidateCatalog();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao excluir"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao excluir"),
   });
 
   const byPosition = useMemo(() => {
@@ -256,9 +279,12 @@ function GestaoPage() {
     if (q) {
       list = list.filter((c) => {
         if (normalizeSearch(c.label).includes(q)) return true;
-        const rows = commissionMembers.filter((cm) => cm.commission_id === c.id);
+        const rows = commissionMembers.filter(
+          (cm) => cm.commission_id === c.id,
+        );
         return rows.some((r) => {
-          if (normalizeSearch(r.member?.full_name ?? "").includes(q)) return true;
+          if (normalizeSearch(r.member?.full_name ?? "").includes(q))
+            return true;
           const roleLabel =
             COMMISSION_ROLES.find((x) => x.value === r.role)?.label ?? r.role;
           return normalizeSearch(String(roleLabel)).includes(q);
@@ -278,31 +304,24 @@ function GestaoPage() {
   const eligibleForConselho = members.filter((m) => is21OrOlder(m.birth_date));
 
   function commissionRows(commissionId: number) {
-    let rows = commissionMembers.filter((cm) => cm.commission_id === commissionId);
+    let rows = commissionMembers.filter(
+      (cm) => cm.commission_id === commissionId,
+    );
     if (q) {
       const matchCommission = filteredCommissions.some(
-        (c) =>
-          c.id === commissionId && normalizeSearch(c.label).includes(q),
+        (c) => c.id === commissionId && normalizeSearch(c.label).includes(q),
       );
       if (!matchCommission) {
         rows = rows.filter((r) => {
-          if (normalizeSearch(r.member?.full_name ?? "").includes(q)) return true;
+          if (normalizeSearch(r.member?.full_name ?? "").includes(q))
+            return true;
           const roleLabel =
             COMMISSION_ROLES.find((x) => x.value === r.role)?.label ?? r.role;
           return normalizeSearch(String(roleLabel)).includes(q);
         });
       }
     }
-    return rows.sort((a, b) => {
-      const byRole =
-        (COMMISSION_ROLE_ORDER[a.role as string] ?? 99) -
-        (COMMISSION_ROLE_ORDER[b.role as string] ?? 99);
-      if (byRole !== 0) return byRole;
-      return (a.member?.full_name ?? "").localeCompare(
-        b.member?.full_name ?? "",
-        "pt-BR",
-      );
-    });
+    return rows.sort(compareCommissionMembersByRoleName);
   }
 
   function positionAssignees(positionId: number) {
@@ -325,7 +344,12 @@ function GestaoPage() {
         title="Gestão"
         subtitle="Cargos e comissões conforme o perfil dos membros, por vigência."
         actions={
-          <TermSelect className="w-[240px]" value={term} terms={terms} onChange={setTerm} />
+          <TermSelect
+            className="w-[240px]"
+            value={term}
+            terms={terms}
+            onChange={setTerm}
+          />
         }
       />
 
@@ -336,6 +360,7 @@ function GestaoPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar membro, cargo ou comissão…"
+            aria-label="Buscar membro, cargo ou comissão"
             className="pl-9 pr-9"
           />
           {search ? (
@@ -370,24 +395,31 @@ function GestaoPage() {
         <TabsContent value="cargos">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {(["capitulo", "consultivo"] as const).map((scope) => {
-              const scopePositions = filteredPositions.filter((p) => p.scope === scope);
+              const scopePositions = filteredPositions.filter(
+                (p) => p.scope === scope,
+              );
               return (
-              <Card key={scope} className="rounded-[12px] p-5">
-                <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                  {scope === "capitulo" ? "Cargos do Capítulo" : "Conselho Consultivo"}
-                </h3>
-                {scopePositions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum cargo correspondente à busca.
-                  </p>
-                ) : (
-                <ul className="divide-y divide-border text-sm">
-                    {scopePositions.map((p) => {
+                <Card key={scope} className="rounded-[12px] p-5">
+                  <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                    {scope === "capitulo"
+                      ? "Cargos do Capítulo"
+                      : "Conselho Consultivo"}
+                  </h3>
+                  {scopePositions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum cargo correspondente à busca.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-border text-sm">
+                      {scopePositions.map((p) => {
                         const assigned = positionAssignees(p.id);
                         const allAssigned = byPosition.get(p.id) ?? [];
                         const occupied = allAssigned.length > 0;
                         return (
-                          <li key={p.id} className="flex items-start justify-between gap-2 py-2.5">
+                          <li
+                            key={p.id}
+                            className="flex items-start justify-between gap-2 py-2.5"
+                          >
                             <div className="min-w-0">
                               <div className="font-medium">{p.label}</div>
                               {assigned.length > 0 ? (
@@ -406,14 +438,18 @@ function GestaoPage() {
                                   Ocupado (sem membro na busca)
                                 </div>
                               ) : (
-                                <div className="text-xs text-muted-foreground">Vago</div>
+                                <div className="text-xs text-muted-foreground">
+                                  Vago
+                                </div>
                               )}
                             </div>
                             {canEdit && !occupied && (
                               <AssignDialog
                                 title={`Designar ${p.label}`}
                                 members={
-                                  scope === "consultivo" ? eligibleForConselho : members
+                                  scope === "consultivo"
+                                    ? eligibleForConselho
+                                    : members
                                 }
                                 emptyHint={
                                   scope === "consultivo"
@@ -421,17 +457,20 @@ function GestaoPage() {
                                     : "Nenhum membro cadastrado."
                                 }
                                 onConfirm={(memberId) =>
-                                  assignPos.mutate({ memberId, positionId: p.id })
+                                  assignPos.mutate({
+                                    memberId,
+                                    positionId: p.id,
+                                  })
                                 }
                               />
                             )}
                           </li>
                         );
                       })}
-                </ul>
-                )}
-              </Card>
-            );
+                    </ul>
+                  )}
+                </Card>
+              );
             })}
           </div>
         </TabsContent>
@@ -452,79 +491,94 @@ function GestaoPage() {
               Nenhuma comissão correspondente à busca.
             </p>
           ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {filteredCommissions.map((c) => {
-              const rows = commissionRows(c.id);
-              return (
-                <Card key={c.id} className="rounded-[12px] p-5">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <h3 className="min-w-0 truncate text-sm font-semibold">{c.label}</h3>
-                    {canEditCommissions && (
-                      <div className="flex shrink-0 items-center gap-0.5">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label={`Editar ${c.label}`}
-                          onClick={() =>
-                            setCommissionForm({
-                              open: true,
-                              id: c.id,
-                              label: c.label,
-                            })
-                          }
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          aria-label={`Excluir ${c.label}`}
-                          onClick={() =>
-                            setDeleteTarget({ id: c.id, label: c.label })
-                          }
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <AssignDialog
-                          title={`Adicionar em ${c.label}`}
-                          members={members}
-                          withRole
-                          onConfirm={(memberId, role) =>
-                            assignCom.mutate({
-                              memberId,
-                              commissionId: c.id,
-                              role,
-                            })
-                          }
-                        />
-                      </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {filteredCommissions.map((c) => {
+                const rows = commissionRows(c.id);
+                return (
+                  <Card key={c.id} className="rounded-[12px] p-5">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <h3 className="min-w-0 truncate text-sm font-semibold">
+                        {c.label}
+                      </h3>
+                      {canEditCommissions && (
+                        <div className="flex shrink-0 items-center gap-0.5">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Editar ${c.label}`}
+                            onClick={() =>
+                              setCommissionForm({
+                                open: true,
+                                id: c.id,
+                                label: c.label,
+                              })
+                            }
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            aria-label={`Excluir ${c.label}`}
+                            onClick={() =>
+                              setDeleteTarget({ id: c.id, label: c.label })
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          <AssignDialog
+                            title={`Adicionar em ${c.label}`}
+                            members={members}
+                            withRole
+                            onConfirm={(memberId, role) =>
+                              assignCom.mutate({
+                                memberId,
+                                commissionId: c.id,
+                                role,
+                              })
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {rows.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum participante nesta vigência.
+                      </p>
+                    ) : (
+                      <ul className="divide-y divide-border text-sm">
+                        {rows.map((r) => (
+                          <li
+                            key={r.id}
+                            className="flex items-center justify-between gap-2 py-2"
+                          >
+                            <span className="min-w-0 truncate">
+                              {r.member?.full_name}
+                            </span>
+                            <span className="flex shrink-0 items-center gap-2">
+                              <Badge variant="secondary">
+                                {COMMISSION_ROLES.find(
+                                  (x) => x.value === r.role,
+                                )?.label ?? r.role}
+                              </Badge>
+                              {canEditCommissions && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => delCom.mutate(r.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     )}
-                  </div>
-                  {rows.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhum participante nesta vigência.</p>
-                  ) : (
-                    <ul className="divide-y divide-border text-sm">
-                      {rows.map((r) => (
-                        <li key={r.id} className="flex items-center justify-between gap-2 py-2">
-                          <span className="min-w-0 truncate">{r.member?.full_name}</span>
-                          <span className="flex shrink-0 items-center gap-2">
-                            <Badge variant="secondary">
-                              {COMMISSION_ROLES.find((x) => x.value === r.role)?.label ?? r.role}
-                            </Badge>
-                            {canEditCommissions && (
-                              <Button size="icon" variant="ghost" onClick={() => delCom.mutate(r.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Card>
-              );
-            })}
-          </div>
+                  </Card>
+                );
+              })}
+            </div>
           )}
         </TabsContent>
       </Tabs>
@@ -532,7 +586,11 @@ function GestaoPage() {
       <Dialog
         open={commissionForm.open}
         onOpenChange={(open) =>
-          setCommissionForm((prev) => ({ ...prev, open, ...(open ? {} : { id: undefined, label: "" }) }))
+          setCommissionForm((prev) => ({
+            ...prev,
+            open,
+            ...(open ? {} : { id: undefined, label: "" }),
+          }))
         }
       >
         <DialogContent>
@@ -547,7 +605,10 @@ function GestaoPage() {
               <Input
                 value={commissionForm.label}
                 onChange={(e) =>
-                  setCommissionForm((prev) => ({ ...prev, label: e.target.value }))
+                  setCommissionForm((prev) => ({
+                    ...prev,
+                    label: e.target.value,
+                  }))
                 }
                 placeholder="Ex.: Captação de recursos"
                 autoFocus
@@ -555,7 +616,10 @@ function GestaoPage() {
             </div>
             <Button
               className="w-full"
-              disabled={!commissionForm.label.trim() || saveCommission.isPending}
+              disabled={
+                commissionForm.label.trim().length < 2 ||
+                saveCommission.isPending
+              }
               onClick={() => saveCommission.mutate()}
             >
               {commissionForm.id ? "Salvar" : "Criar"}
@@ -574,8 +638,8 @@ function GestaoPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir comissão?</AlertDialogTitle>
             <AlertDialogDescription>
-              A comissão “{deleteTarget?.label}” e todas as participações vinculadas serão
-              removidas. Esta ação não pode ser desfeita.
+              A comissão “{deleteTarget?.label}” e todas as participações
+              vinculadas serão removidas. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -625,7 +689,9 @@ function AssignDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         {members.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{emptyHint ?? "Nenhum membro elegível."}</p>
+          <p className="text-sm text-muted-foreground">
+            {emptyHint ?? "Nenhum membro elegível."}
+          </p>
         ) : (
           <div className="space-y-4">
             <div>
@@ -640,7 +706,9 @@ function AssignDialog({
             </div>
             {withRole && (
               <div>
-                <Label className="mb-1.5 block text-sm">Cargo na comissão</Label>
+                <Label className="mb-1.5 block text-sm">
+                  Cargo na comissão
+                </Label>
                 <Select value={role} onValueChange={setRole}>
                   <SelectTrigger>
                     <SelectValue />

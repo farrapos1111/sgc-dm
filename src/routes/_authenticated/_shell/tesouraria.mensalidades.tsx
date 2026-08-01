@@ -68,6 +68,7 @@ import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { can } from "@/lib/permissions";
 import { chapterFoundedAt } from "@/lib/terms";
 import { formatBRL, kindLabel, statusLabel } from "@/lib/format";
+import { todayYmd } from "@/lib/timezone";
 import {
   bulkYearDuesAction,
   includeMemberInYearDues,
@@ -308,14 +309,13 @@ const StatusCell = memo(function StatusCell({
   );
 
   const withTip = (trigger: ReactElement) => {
-    const tipTrigger =
-      !writable ? (
-        <span tabIndex={0} className="inline-block w-full">
-          {trigger}
-        </span>
-      ) : (
-        trigger
-      );
+    const tipTrigger = !writable ? (
+      <span tabIndex={0} className="inline-block w-full">
+        {trigger}
+      </span>
+    ) : (
+      trigger
+    );
     return (
       <Tooltip delayDuration={250}>
         <TooltipTrigger asChild>{tipTrigger}</TooltipTrigger>
@@ -377,7 +377,7 @@ function Mensalidades() {
       active?.chapter as { settings?: Record<string, unknown> } | undefined,
     ),
   );
-  const [paidAt, setPaidAt] = useState(now.toISOString().slice(0, 10));
+  const [paidAt, setPaidAt] = useState(todayYmd());
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -753,8 +753,7 @@ function Mensalidades() {
       .map((m) => {
         const o = openByMember.get(m.id) ?? { count: 0, total: 0 };
         if (o.count <= 0) return null;
-        const meses =
-          o.count === 1 ? "1 mês" : `${o.count} meses`;
+        const meses = o.count === 1 ? "1 mês" : `${o.count} meses`;
         return `${m.full_name} - ${meses} - ${formatBRL(o.total)}`;
       })
       .filter((line): line is string => Boolean(line));
@@ -780,7 +779,9 @@ function Mensalidades() {
     ].join("\n");
     try {
       await navigator.clipboard.writeText(text);
-      toast.success(`Lista copiada (${rows.length} membro${rows.length === 1 ? "" : "s"})`);
+      toast.success(
+        `Lista copiada (${rows.length} membro${rows.length === 1 ? "" : "s"})`,
+      );
     } catch {
       toast.error("Não foi possível copiar para a área de transferência");
     }
@@ -928,71 +929,160 @@ function Mensalidades() {
 
   return (
     <TooltipProvider delayDuration={250}>
-    <div>
-      <PageHeader
-        title="Mensalidades"
-        subtitle={`Calendário anual · valor único ${formatBRL(defaultAmount)}. Clique no mês para Em aberto, Pago, Isento ou Desligado.`}
-        actions={
-          writable ? (
-            <div className="flex flex-wrap gap-2">
+      <div>
+        <PageHeader
+          title="Mensalidades"
+          subtitle={`Calendário anual · valor único ${formatBRL(defaultAmount)}. Clique no mês para Em aberto, Pago, Isento ou Desligado.`}
+          actions={
+            writable ? (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => void copyOpenList()}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copiar lista
+                </Button>
+                <Button variant="outline" onClick={() => setIncludeOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Incluir membro
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => openShare.mutate()}
+                  disabled={openShare.isPending}
+                >
+                  <Link2 className="mr-2 h-4 w-4" />
+                  {openShare.isPending ? "Abrindo…" : "Compartilhar"}
+                </Button>
+              </div>
+            ) : (
               <Button variant="outline" onClick={() => void copyOpenList()}>
                 <Copy className="mr-2 h-4 w-4" />
                 Copiar lista
               </Button>
-              <Button variant="outline" onClick={() => setIncludeOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Incluir membro
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => openShare.mutate()}
-                disabled={openShare.isPending}
-              >
-                <Link2 className="mr-2 h-4 w-4" />
-                {openShare.isPending ? "Abrindo…" : "Compartilhar"}
-              </Button>
-            </div>
-          ) : (
-            <Button variant="outline" onClick={() => void copyOpenList()}>
-              <Copy className="mr-2 h-4 w-4" />
-              Copiar lista
-            </Button>
-          )
-        }
-      />
+            )
+          }
+        />
 
-      {/* Desktop: ano, busca e ações de tesouraria */}
-      <div className="mb-4 hidden flex-wrap items-end gap-2 lg:flex">
-        <div>
-          <Label className="mb-1.5 block text-xs text-muted-foreground">
-            Ano
-          </Label>
-          <Select
-            value={String(year)}
-            onValueChange={(v) => setYear(Number(v))}
-          >
-            <SelectTrigger className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Desktop: ano, busca e ações de tesouraria */}
+        <div className="mb-4 hidden flex-wrap items-end gap-2 lg:flex">
+          <div>
+            <Label className="mb-1.5 block text-xs text-muted-foreground">
+              Ano
+            </Label>
+            <Select
+              value={String(year)}
+              onValueChange={(v) => setYear(Number(v))}
+            >
+              <SelectTrigger className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableYears.map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="min-w-[200px] flex-1 sm:max-w-xs">
+            <Label className="mb-1.5 block text-xs text-muted-foreground">
+              Buscar
+            </Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-8 pr-8"
+                placeholder="Nome do membro…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search ? (
+                <button
+                  type="button"
+                  aria-label="Limpar busca"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  onClick={() => setSearch("")}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {writable && (
+            <>
+              <div>
+                <Label className="mb-1.5 block text-xs text-muted-foreground">
+                  Data do pagamento
+                </Label>
+                <Input
+                  type="date"
+                  className="w-44"
+                  value={paidAt}
+                  onChange={(e) => setPaidAt(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end gap-2 pb-2">
+                <label
+                  htmlFor="skip-cash"
+                  className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground"
+                >
+                  <Switch
+                    checked={skipCashEntry}
+                    onCheckedChange={setSkipCashEntry}
+                    id="skip-cash"
+                  />
+                  Sem fluxo de caixa
+                </label>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" disabled={bulkAction.isPending}>
+                    <CheckCheck className="mr-2 h-4 w-4" />
+                    {bulkAction.isPending ? "Aplicando…" : "Ações em lote"}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel>Mensalidades do ano</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={openCount === 0}
+                    onSelect={() => runBulk("pay_all")}
+                  >
+                    Baixar todos ({openCount})
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => runBulk("pay_except_jan_dec")}
+                  >
+                    Baixar todos (exceto janeiro)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => runBulk("open_all")}>
+                    Abrir todos
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => runBulk("exempt_all")}>
+                    Isentar todos
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+          {isFetching && data ? (
+            <span className="mb-2.5 text-xs text-muted-foreground">
+              Atualizando…
+            </span>
+          ) : null}
         </div>
 
-        <div className="min-w-[200px] flex-1 sm:max-w-xs">
-          <Label className="mb-1.5 block text-xs text-muted-foreground">
-            Buscar
-          </Label>
+        {/* Mobile: só pesquisa e ordenação */}
+        <div className="mb-4 flex flex-col gap-2 lg:hidden">
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-8 pr-8"
-              placeholder="Nome do membro…"
+              placeholder="Pesquisar membro…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -1007,334 +1097,352 @@ function Mensalidades() {
               </button>
             ) : null}
           </div>
-        </div>
-
-        {writable && (
-          <>
-            <div>
-              <Label className="mb-1.5 block text-xs text-muted-foreground">
-                Data do pagamento
-              </Label>
-              <Input
-                type="date"
-                className="w-44"
-                value={paidAt}
-                onChange={(e) => setPaidAt(e.target.value)}
-              />
-            </div>
-            <div className="flex items-end gap-2 pb-2">
-              <label
-                htmlFor="skip-cash"
-                className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground"
-              >
-                <Switch
-                  checked={skipCashEntry}
-                  onCheckedChange={setSkipCashEntry}
-                  id="skip-cash"
-                />
-                Sem fluxo de caixa
-              </label>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="secondary" disabled={bulkAction.isPending}>
-                  <CheckCheck className="mr-2 h-4 w-4" />
-                  {bulkAction.isPending ? "Aplicando…" : "Ações em lote"}
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuLabel>Mensalidades do ano</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  disabled={openCount === 0}
-                  onSelect={() => runBulk("pay_all")}
-                >
-                  Baixar todos ({openCount})
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => runBulk("pay_except_jan_dec")}
-                >
-                  Baixar todos (exceto janeiro)
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => runBulk("open_all")}>
-                  Abrir todos
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => runBulk("exempt_all")}>
-                  Isentar todos
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
-        )}
-        {isFetching && data ? (
-          <span className="mb-2.5 text-xs text-muted-foreground">
-            Atualizando…
-          </span>
-        ) : null}
-      </div>
-
-      {/* Mobile: só pesquisa e ordenação */}
-      <div className="mb-4 flex flex-col gap-2 lg:hidden">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-8 pr-8"
-            placeholder="Pesquisar membro…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {search ? (
-            <button
-              type="button"
-              aria-label="Limpar busca"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
-              onClick={() => setSearch("")}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          ) : null}
-        </div>
-        <Select
-          value={
-            sortKey === "name" && sortDir === "asc"
-              ? "name:asc"
-              : sortKey === "name" && sortDir === "desc"
-                ? "name:desc"
-                : sortKey === "open_total" && sortDir === "desc"
-                  ? "open_total:desc"
-                  : "name:asc"
-          }
-          onValueChange={(v) => {
-            if (v === "name:asc") {
-              setSortKey("name");
-              setSortDir("asc");
-            } else if (v === "name:desc") {
-              setSortKey("name");
-              setSortDir("desc");
-            } else {
-              setSortKey("open_total");
-              setSortDir("desc");
+          <Select
+            value={
+              sortKey === "name" && sortDir === "asc"
+                ? "name:asc"
+                : sortKey === "name" && sortDir === "desc"
+                  ? "name:desc"
+                  : sortKey === "open_total" && sortDir === "desc"
+                    ? "open_total:desc"
+                    : "name:asc"
             }
-          }}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Ordenar" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="name:asc">A–Z</SelectItem>
-            <SelectItem value="name:desc">Z–A</SelectItem>
-            <SelectItem value="open_total:desc">Maiores em aberto</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+            onValueChange={(v) => {
+              if (v === "name:asc") {
+                setSortKey("name");
+                setSortDir("asc");
+              } else if (v === "name:desc") {
+                setSortKey("name");
+                setSortDir("desc");
+              } else {
+                setSortKey("open_total");
+                setSortDir("desc");
+              }
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Ordenar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name:asc">A–Z</SelectItem>
+              <SelectItem value="name:desc">Z–A</SelectItem>
+              <SelectItem value="open_total:desc">Maiores em aberto</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <Card className="rounded-[12px] p-5">
-          <div className="text-sm text-muted-foreground">Recebido</div>
-          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-            {formatBRL(totals.paid)}
-          </div>
-        </Card>
-        <Card className="rounded-[12px] p-5">
-          <div className="text-sm text-muted-foreground">Em aberto</div>
-          <div className="text-xl font-bold text-amber-600 dark:text-amber-400">
-            {formatBRL(totals.openAmount)}
-          </div>
-        </Card>
-        <Card className="rounded-[12px] p-5">
-          <div className="text-sm text-muted-foreground">
-            Atrasado (após dia 15)
-          </div>
-          <div className="text-xl font-bold text-rose-600 dark:text-rose-400">
-            {formatBRL(totals.overdue)}
-          </div>
-        </Card>
-      </div>
+        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
+          <Card className="rounded-[12px] p-5">
+            <div className="text-sm text-muted-foreground">Recebido</div>
+            <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+              {formatBRL(totals.paid)}
+            </div>
+          </Card>
+          <Card className="rounded-[12px] p-5">
+            <div className="text-sm text-muted-foreground">Em aberto</div>
+            <div className="text-xl font-bold text-amber-600 dark:text-amber-400">
+              {formatBRL(totals.openAmount)}
+            </div>
+          </Card>
+          <Card className="rounded-[12px] p-5">
+            <div className="text-sm text-muted-foreground">
+              Atrasado (após dia 15)
+            </div>
+            <div className="text-xl font-bold text-rose-600 dark:text-rose-400">
+              {formatBRL(totals.overdue)}
+            </div>
+          </Card>
+        </div>
 
-      {showLoading ? (
-        <div className="text-sm text-muted-foreground">Carregando…</div>
-      ) : isError ? (
-        <EmptyState
-          icon={<Receipt className="h-7 w-7" />}
-          title="Erro ao carregar mensalidades"
-          description={
-            (error as Error)?.message ??
-            "Não foi possível carregar o calendário."
-          }
-          action={
-            <Button
-              variant="outline"
-              onClick={() => {
-                ensuredYears.current.delete(year);
-                void refetchDues();
-              }}
-            >
-              Tentar de novo
-            </Button>
-          }
-        />
-      ) : members.length === 0 ? (
-        <EmptyState
-          icon={<Receipt className="h-7 w-7" />}
-          title="Nenhum membro neste ano"
-          description="Entram Demolays regulares iniciados até o ano e que ainda não eram Senior no início dele. Use “Incluir membro” para seniors fora da regra, irregulares ou maçons."
-          action={
-            writable ? (
-              <Button type="button" onClick={() => setIncludeOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Incluir membro
+        {showLoading ? (
+          <div className="text-sm text-muted-foreground">Carregando…</div>
+        ) : isError ? (
+          <EmptyState
+            icon={<Receipt className="h-7 w-7" />}
+            title="Erro ao carregar mensalidades"
+            description={
+              (error as Error)?.message ??
+              "Não foi possível carregar o calendário."
+            }
+            action={
+              <Button
+                variant="outline"
+                onClick={() => {
+                  ensuredYears.current.delete(year);
+                  void refetchDues();
+                }}
+              >
+                Tentar de novo
               </Button>
-            ) : undefined
-          }
-        />
-      ) : displayedMembers.length === 0 ? (
-        <EmptyState
-          icon={<Search className="h-7 w-7" />}
-          title="Nenhum membro encontrado"
-          description="Ajuste o termo de busca."
-          action={
-            <Button variant="outline" onClick={() => setSearch("")}>
-              Limpar busca
-            </Button>
-          }
-        />
-      ) : (
-        <>
-          <Card className="hidden overflow-hidden rounded-[12px] lg:block">
-            <div className="w-full">
-              <table className="w-full table-fixed border-collapse text-sm">
-                <colgroup>
-                  <col className="w-[18%]" />
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <col key={i} className="w-[5.5%]" />
-                  ))}
-                  <col className="w-[7%]" />
-                  <col className="w-[9%]" />
-                </colgroup>
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th className="px-4 py-3 text-left font-medium">
-                      <button
-                        type="button"
-                        className={`inline-flex items-center gap-1 hover:text-foreground ${
-                          sortKey === "name"
-                            ? "text-foreground"
-                            : "text-muted-foreground"
-                        }`}
-                        onClick={() => toggleSort("name")}
-                      >
-                        Membro
-                        <span className="text-[10px] opacity-70">
-                          {sortKey === "name"
-                            ? sortDir === "asc"
-                              ? "↑"
-                              : "↓"
-                            : "↕"}
-                        </span>
-                      </button>
-                    </th>
-                    {MONTH_SHORT.map((label, i) => {
-                      const month = i + 1;
-                      const key = `month_${month}` as SortKey;
-                      const activeSort = sortKey === key;
-                      return (
-                        <th
-                          key={label}
-                          className="px-1 py-3 text-center text-xs font-medium"
+            }
+          />
+        ) : members.length === 0 ? (
+          <EmptyState
+            icon={<Receipt className="h-7 w-7" />}
+            title="Nenhum membro neste ano"
+            description="Entram Demolays regulares iniciados até o ano e que ainda não eram Senior no início dele. Use “Incluir membro” para seniors fora da regra, irregulares ou maçons."
+            action={
+              writable ? (
+                <Button type="button" onClick={() => setIncludeOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Incluir membro
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : displayedMembers.length === 0 ? (
+          <EmptyState
+            icon={<Search className="h-7 w-7" />}
+            title="Nenhum membro encontrado"
+            description="Ajuste o termo de busca."
+            action={
+              <Button variant="outline" onClick={() => setSearch("")}>
+                Limpar busca
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <Card className="hidden overflow-hidden rounded-[12px] lg:block">
+              <div className="w-full">
+                <table className="w-full table-fixed border-collapse text-sm">
+                  <colgroup>
+                    <col className="w-[18%]" />
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <col key={i} className="w-[5.5%]" />
+                    ))}
+                    <col className="w-[7%]" />
+                    <col className="w-[9%]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40">
+                      <th className="px-4 py-3 text-left font-medium">
+                        <button
+                          type="button"
+                          className={`inline-flex items-center gap-1 hover:text-foreground ${
+                            sortKey === "name"
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                          }`}
+                          onClick={() => toggleSort("name")}
                         >
-                          <button
-                            type="button"
-                            title={`Ordenar por ${MONTH_LONG[i]}`}
-                            className={`inline-flex items-center justify-center gap-0.5 hover:text-foreground ${
-                              activeSort
-                                ? "text-foreground"
-                                : "text-muted-foreground"
-                            }`}
-                            onClick={() => toggleSort(key)}
+                          Membro
+                          <span className="text-[10px] opacity-70">
+                            {sortKey === "name"
+                              ? sortDir === "asc"
+                                ? "↑"
+                                : "↓"
+                              : "↕"}
+                          </span>
+                        </button>
+                      </th>
+                      {MONTH_SHORT.map((label, i) => {
+                        const month = i + 1;
+                        const key = `month_${month}` as SortKey;
+                        const activeSort = sortKey === key;
+                        return (
+                          <th
+                            key={label}
+                            className="px-1 py-3 text-center text-xs font-medium"
                           >
-                            {label}
-                            <span className="text-[9px] opacity-70">
-                              {activeSort
-                                ? sortDir === "asc"
-                                  ? "↑"
-                                  : "↓"
-                                : "↕"}
-                            </span>
-                          </button>
-                        </th>
+                            <button
+                              type="button"
+                              title={`Ordenar por ${MONTH_LONG[i]}`}
+                              className={`inline-flex items-center justify-center gap-0.5 hover:text-foreground ${
+                                activeSort
+                                  ? "text-foreground"
+                                  : "text-muted-foreground"
+                              }`}
+                              onClick={() => toggleSort(key)}
+                            >
+                              {label}
+                              <span className="text-[9px] opacity-70">
+                                {activeSort
+                                  ? sortDir === "asc"
+                                    ? "↑"
+                                    : "↓"
+                                  : "↕"}
+                              </span>
+                            </button>
+                          </th>
+                        );
+                      })}
+                      <th className="px-3 py-3 text-center text-xs font-medium">
+                        <button
+                          type="button"
+                          className={`inline-flex items-center justify-center gap-1 hover:text-foreground ${
+                            sortKey === "open_count"
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                          }`}
+                          onClick={() => toggleSort("open_count")}
+                        >
+                          Abertos
+                          <span className="text-[10px] opacity-70">
+                            {sortKey === "open_count"
+                              ? sortDir === "asc"
+                                ? "↑"
+                                : "↓"
+                              : "↕"}
+                          </span>
+                        </button>
+                      </th>
+                      <th className="px-3 py-3 text-right text-xs font-medium">
+                        <button
+                          type="button"
+                          className={`ml-auto inline-flex items-center gap-1 hover:text-foreground ${
+                            sortKey === "open_total"
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                          }`}
+                          onClick={() => toggleSort("open_total")}
+                        >
+                          Total em aberto
+                          <span className="text-[10px] opacity-70">
+                            {sortKey === "open_total"
+                              ? sortDir === "asc"
+                                ? "↑"
+                                : "↓"
+                              : "↕"}
+                          </span>
+                        </button>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedMembers.map((m) => {
+                      const open = openByMember.get(m.id) ?? {
+                        count: 0,
+                        total: 0,
+                      };
+                      return (
+                        <tr
+                          key={m.id}
+                          className="border-b border-border last:border-b-0"
+                        >
+                          <td
+                            className="truncate px-4 py-2.5 font-medium"
+                            title={m.full_name}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span className="truncate">{m.full_name}</span>
+                              {m.manualInclude ? (
+                                <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] font-normal text-muted-foreground">
+                                  manual
+                                </span>
+                              ) : null}
+                              {writable && m.manualInclude ? (
+                                <button
+                                  type="button"
+                                  title="Remover inclusão manual"
+                                  className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
+                                  disabled={removeManual.isPending}
+                                  onClick={() => {
+                                    if (
+                                      !window.confirm(
+                                        `Remover ${m.full_name} deste calendário? As competências de ${year} serão apagadas (lançamentos no fluxo de caixa, se houver, permanecem).`,
+                                      )
+                                    )
+                                      return;
+                                    removeManual.mutate(m.id);
+                                  }}
+                                >
+                                  <UserMinus className="h-3.5 w-3.5" />
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const month = i + 1;
+                            const status =
+                              (dueMap.get(`${m.id}:${month}`)
+                                ?.status as DueStatus) ?? "em_aberto";
+                            return (
+                              <td
+                                key={month}
+                                className="px-1.5 py-2 text-center"
+                              >
+                                <StatusCell
+                                  member={m}
+                                  month={month}
+                                  year={year}
+                                  status={status}
+                                  defaultAmount={defaultAmount}
+                                  writable={writable}
+                                  onSetStatus={onSetStatus}
+                                />
+                              </td>
+                            );
+                          })}
+                          <td className="px-3 py-2.5 text-center tabular-nums font-semibold">
+                            {open.count}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-amber-700 dark:text-amber-400">
+                            {formatBRL(open.total)}
+                          </td>
+                        </tr>
                       );
                     })}
-                    <th className="px-3 py-3 text-center text-xs font-medium">
-                      <button
-                        type="button"
-                        className={`inline-flex items-center justify-center gap-1 hover:text-foreground ${
-                          sortKey === "open_count"
-                            ? "text-foreground"
-                            : "text-muted-foreground"
-                        }`}
-                        onClick={() => toggleSort("open_count")}
-                      >
-                        Abertos
-                        <span className="text-[10px] opacity-70">
-                          {sortKey === "open_count"
-                            ? sortDir === "asc"
-                              ? "↑"
-                              : "↓"
-                            : "↕"}
-                        </span>
-                      </button>
-                    </th>
-                    <th className="px-3 py-3 text-right text-xs font-medium">
-                      <button
-                        type="button"
-                        className={`ml-auto inline-flex items-center gap-1 hover:text-foreground ${
-                          sortKey === "open_total"
-                            ? "text-foreground"
-                            : "text-muted-foreground"
-                        }`}
-                        onClick={() => toggleSort("open_total")}
-                      >
-                        Total em aberto
-                        <span className="text-[10px] opacity-70">
-                          {sortKey === "open_total"
-                            ? sortDir === "asc"
-                              ? "↑"
-                              : "↓"
-                            : "↕"}
-                        </span>
-                      </button>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedMembers.map((m) => {
-                    const open = openByMember.get(m.id) ?? {
-                      count: 0,
-                      total: 0,
-                    };
-                    return (
-                      <tr
-                        key={m.id}
-                        className="border-b border-border last:border-b-0"
-                      >
-                        <td
-                          className="truncate px-4 py-2.5 font-medium"
-                          title={m.full_name}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate">{m.full_name}</span>
-                            {m.manualInclude ? (
-                              <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] font-normal text-muted-foreground">
-                                manual
-                              </span>
-                            ) : null}
-                            {writable && m.manualInclude ? (
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex flex-wrap gap-4 border-t border-border px-4 py-3 text-xs text-muted-foreground">
+                <span>
+                  <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-emerald-100 text-emerald-800">
+                    P
+                  </span>
+                  Pago
+                </span>
+                <span>
+                  <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-amber-100 text-amber-800">
+                    O
+                  </span>
+                  Em aberto
+                </span>
+                <span>
+                  <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-amber-100 text-amber-800 ring-1 ring-rose-500">
+                    A
+                  </span>
+                  Atrasado
+                </span>
+                <span>
+                  <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-zinc-100 text-zinc-500">
+                    ·
+                  </span>
+                  Futuro
+                </span>
+                <span>
+                  <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-[#c8e0f7] text-sky-900">
+                    I
+                  </span>
+                  Isento
+                </span>
+                <span>
+                  <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-[#d3d3d3] text-stone-700">
+                    D
+                  </span>
+                  Desligado
+                </span>
+              </div>
+            </Card>
+
+            <div className="space-y-3 lg:hidden">
+              {displayedMembers.map((m) => {
+                const open = openByMember.get(m.id) ?? { count: 0, total: 0 };
+                return (
+                  <Card key={m.id} className="rounded-[12px] p-3">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{m.full_name}</div>
+                        {m.manualInclude ? (
+                          <div className="mt-0.5 flex items-center gap-2">
+                            <span className="text-[10px] text-muted-foreground">
+                              Inclusão manual
+                            </span>
+                            {writable ? (
                               <button
                                 type="button"
-                                title="Remover inclusão manual"
-                                className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
+                                className="text-[10px] text-destructive underline"
                                 disabled={removeManual.isPending}
                                 onClick={() => {
                                   if (
@@ -1346,274 +1454,174 @@ function Mensalidades() {
                                   removeManual.mutate(m.id);
                                 }}
                               >
-                                <UserMinus className="h-3.5 w-3.5" />
+                                Remover
                               </button>
                             ) : null}
                           </div>
-                        </td>
-                        {Array.from({ length: 12 }, (_, i) => {
-                          const month = i + 1;
-                          const status =
-                            (dueMap.get(`${m.id}:${month}`)
-                              ?.status as DueStatus) ?? "em_aberto";
-                          return (
-                            <td key={month} className="px-1.5 py-2 text-center">
-                              <StatusCell
-                                member={m}
-                                month={month}
-                                year={year}
-                                status={status}
-                                defaultAmount={defaultAmount}
-                                writable={writable}
-                                onSetStatus={onSetStatus}
-                              />
-                            </td>
-                          );
-                        })}
-                        <td className="px-3 py-2.5 text-center tabular-nums font-semibold">
-                          {open.count}
-                        </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-amber-700 dark:text-amber-400">
-                          {formatBRL(open.total)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div className="flex flex-wrap gap-4 border-t border-border px-4 py-3 text-xs text-muted-foreground">
-              <span>
-                <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-emerald-100 text-emerald-800">
-                  P
-                </span>
-                Pago
-              </span>
-              <span>
-                <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-amber-100 text-amber-800">
-                  O
-                </span>
-                Em aberto
-              </span>
-              <span>
-                <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-amber-100 text-amber-800 ring-1 ring-rose-500">
-                  A
-                </span>
-                Atrasado
-              </span>
-              <span>
-                <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-zinc-100 text-zinc-500">
-                  ·
-                </span>
-                Futuro
-              </span>
-              <span>
-                <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-[#c8e0f7] text-sky-900">
-                  I
-                </span>
-                Isento
-              </span>
-              <span>
-                <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-[#d3d3d3] text-stone-700">
-                  D
-                </span>
-                Desligado
-              </span>
-            </div>
-          </Card>
-
-          <div className="space-y-3 lg:hidden">
-            {displayedMembers.map((m) => {
-              const open = openByMember.get(m.id) ?? { count: 0, total: 0 };
-              return (
-                <Card key={m.id} className="rounded-[12px] p-3">
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">{m.full_name}</div>
-                      {m.manualInclude ? (
-                        <div className="mt-0.5 flex items-center gap-2">
-                          <span className="text-[10px] text-muted-foreground">
-                            Inclusão manual
-                          </span>
-                          {writable ? (
-                            <button
-                              type="button"
-                              className="text-[10px] text-destructive underline"
-                              disabled={removeManual.isPending}
-                              onClick={() => {
-                                if (
-                                  !window.confirm(
-                                    `Remover ${m.full_name} deste calendário? As competências de ${year} serão apagadas (lançamentos no fluxo de caixa, se houver, permanecem).`,
-                                  )
-                                )
-                                  return;
-                                removeManual.mutate(m.id);
-                              }}
-                            >
-                              Remover
-                            </button>
-                          ) : null}
+                        ) : null}
+                      </div>
+                      <div className="shrink-0 text-right text-xs">
+                        <div className="text-muted-foreground">
+                          {open.count} abertos
                         </div>
-                      ) : null}
-                    </div>
-                    <div className="shrink-0 text-right text-xs">
-                      <div className="text-muted-foreground">
-                        {open.count} abertos
-                      </div>
-                      <div className="font-semibold text-amber-700 dark:text-amber-400">
-                        {formatBRL(open.total)}
+                        <div className="font-semibold text-amber-700 dark:text-amber-400">
+                          {formatBRL(open.total)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
-                    {Array.from({ length: 12 }, (_, i) => {
-                      const month = i + 1;
-                      const status =
-                        (dueMap.get(`${m.id}:${month}`)?.status as DueStatus) ??
-                        "em_aberto";
-                      return (
-                        <StatusCell
-                          key={month}
-                          member={m}
-                          month={month}
-                          year={year}
-                          status={status}
-                          defaultAmount={defaultAmount}
-                          writable={writable}
-                          compact
-                          onSetStatus={onSetStatus}
-                        />
-                      );
-                    })}
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      <Dialog
-        open={includeOpen}
-        onOpenChange={(o) => {
-          setIncludeOpen(o);
-          if (!o) setIncludeSearch("");
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Incluir membro em {year}</DialogTitle>
-            <DialogDescription>
-              Busque pelo nome e clique no membro para incluir — inclusive
-              irregulares, seniors fora da regra e maçons. Gera os 12 meses com
-              status automático.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="mb-1.5 block text-sm">Buscar</Label>
-              <Input
-                autoFocus
-                placeholder="Digite o nome do membro…"
-                value={includeSearch}
-                onChange={(e) => setIncludeSearch(e.target.value)}
-              />
+                    <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+                      {Array.from({ length: 12 }, (_, i) => {
+                        const month = i + 1;
+                        const status =
+                          (dueMap.get(`${m.id}:${month}`)
+                            ?.status as DueStatus) ?? "em_aberto";
+                        return (
+                          <StatusCell
+                            key={month}
+                            member={m}
+                            month={month}
+                            year={year}
+                            status={status}
+                            defaultAmount={defaultAmount}
+                            writable={writable}
+                            compact
+                            onSetStatus={onSetStatus}
+                          />
+                        );
+                      })}
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
-            <div>
-              {loadingCandidates ? (
-                <p className="text-sm text-muted-foreground">Carregando…</p>
-              ) : filteredIncludeCandidates.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {includeEmptyHint}
-                </p>
-              ) : (
-                <ul className="max-h-72 divide-y divide-border overflow-auto rounded-md border border-border">
-                  {filteredIncludeCandidates.map((m) => (
-                    <li key={m.id}>
-                      <button
-                        type="button"
-                        className="flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted disabled:opacity-50"
-                        disabled={includeMember.isPending}
-                        onClick={() => includeMember.mutate(m.id)}
-                      >
-                        <span className="font-medium text-foreground">
-                          {m.full_name}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {statusLabel(m.status)} · {kindLabel(m.kind)}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIncludeOpen(false)}
-            >
-              Cancelar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        )}
 
-      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Link público de mensalidades</DialogTitle>
-            <DialogDescription>
-              Qualquer pessoa com o link pode ver o calendário anual (somente
-              leitura), com busca e ordenação — sem login.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Label>URL compartilhável</Label>
-            <div className="flex gap-2">
-              <Input readOnly value={shareUrl} className="font-mono text-xs" />
+        <Dialog
+          open={includeOpen}
+          onOpenChange={(o) => {
+            setIncludeOpen(o);
+            if (!o) setIncludeSearch("");
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Incluir membro em {year}</DialogTitle>
+              <DialogDescription>
+                Busque pelo nome e clique no membro para incluir — inclusive
+                irregulares, seniors fora da regra e maçons. Gera os 12 meses
+                com status automático.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="mb-1.5 block text-sm">Buscar</Label>
+                <Input
+                  autoFocus
+                  placeholder="Digite o nome do membro…"
+                  value={includeSearch}
+                  onChange={(e) => setIncludeSearch(e.target.value)}
+                />
+              </div>
+              <div>
+                {loadingCandidates ? (
+                  <p className="text-sm text-muted-foreground">Carregando…</p>
+                ) : filteredIncludeCandidates.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {includeEmptyHint}
+                  </p>
+                ) : (
+                  <ul className="max-h-72 divide-y divide-border overflow-auto rounded-md border border-border">
+                    {filteredIncludeCandidates.map((m) => (
+                      <li key={m.id}>
+                        <button
+                          type="button"
+                          className="flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted disabled:opacity-50"
+                          disabled={includeMember.isPending}
+                          onClick={() => includeMember.mutate(m.id)}
+                        >
+                          <span className="font-medium text-foreground">
+                            {m.full_name}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {statusLabel(m.status)} · {kindLabel(m.kind)}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => void copyShareLink()}
+                onClick={() => setIncludeOpen(false)}
               >
-                <Copy className="h-4 w-4" />
+                Cancelar
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Link público de mensalidades</DialogTitle>
+              <DialogDescription>
+                Qualquer pessoa com o link pode ver o calendário anual (somente
+                leitura), com busca e ordenação — sem login.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Label>URL compartilhável</Label>
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={shareUrl}
+                  className="font-mono text-xs"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void copyShareLink()}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Regenerar invalida o link atual. O anterior deixa de funcionar.
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Regenerar invalida o link atual. O anterior deixa de funcionar.
-            </p>
-          </div>
-          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => revokeShare.mutate()}
-              disabled={revokeShare.isPending}
-            >
-              Revogar link
-            </Button>
-            <div className="flex gap-2">
+            <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => regenerateShare.mutate()}
-                disabled={regenerateShare.isPending}
+                variant="destructive"
+                onClick={() => revokeShare.mutate()}
+                disabled={revokeShare.isPending}
               >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Regenerar
+                Revogar link
               </Button>
-              <Button type="button" onClick={() => void copyShareLink()}>
-                <Copy className="mr-2 h-4 w-4" />
-                Copiar
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => regenerateShare.mutate()}
+                  disabled={regenerateShare.isPending}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Regenerar
+                </Button>
+                <Button type="button" onClick={() => void copyShareLink()}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copiar
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </TooltipProvider>
   );
 }

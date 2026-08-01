@@ -17,6 +17,7 @@ import {
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
 import { formatDateBR } from "@/lib/format";
+import { todayYmd } from "@/lib/timezone";
 import {
   createProcess, deleteProcess, listFiles, listProcesses, updateProcess,
 } from "@/lib/investigations.functions";
@@ -48,7 +49,7 @@ function Processos() {
   const [form, setForm] = useState({
     title: "",
     file_id: "",
-    opened_at: new Date().toISOString().slice(0, 10),
+    opened_at: todayYmd(),
     opinion: "",
   });
 
@@ -78,7 +79,7 @@ function Processos() {
     onSuccess: async () => {
       toast.success("Processo aberto");
       setOpen(false);
-      setForm({ title: "", file_id: "", opened_at: new Date().toISOString().slice(0, 10), opinion: "" });
+      setForm({ title: "", file_id: "", opened_at: todayYmd(), opinion: "" });
       await qc.invalidateQueries({ queryKey: ["investigation-processes"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),

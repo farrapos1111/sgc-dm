@@ -1,7 +1,10 @@
+import { currentYearMonthInAppTz } from "@/lib/timezone";
+
 export type Term = { year: number; semester: 1 | 2 };
 
 export function currentTerm(now = new Date()): Term {
-  return { year: now.getFullYear(), semester: now.getMonth() < 6 ? 1 : 2 };
+  const { year, month } = currentYearMonthInAppTz(now);
+  return { year, semester: month <= 6 ? 1 : 2 };
 }
 
 export function termLabel(year: number, semester: number): string {

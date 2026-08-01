@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { isUnder21, is21OrOlder, maskCepInput } from "@/lib/format";
+import { todayYmd } from "@/lib/timezone";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import {
   MemberDataFields,
@@ -60,8 +61,8 @@ function EditarMembro() {
     kind: initialKind,
     status_effective_on:
       rawStatus === "irregular"
-        ? (data.irregularSince ?? new Date().toISOString().slice(0, 10))
-        : new Date().toISOString().slice(0, 10),
+        ? (data.irregularSince ?? todayYmd())
+        : todayYmd(),
     cpf: "",
     rg: "",
     phone: data.member.phone ?? "",

@@ -220,9 +220,11 @@ export const getPublicMemberPortal = createServerFn({ method: "POST" })
     );
     if (error) throwPublicRpcError(error, "getPublicMemberPortal");
     const raw = payload as PublicMemberPortal;
+    const parsedDefault = Number(raw?.defaultAmount);
+    const defaultAmount = Number.isFinite(parsedDefault) ? parsedDefault : 50;
     return {
       ...raw,
-      defaultAmount: Number(raw?.defaultAmount) || 50,
+      defaultAmount,
       member: {
         ...raw.member,
         birth_date: raw.member?.birth_date ?? null,
@@ -230,10 +232,7 @@ export const getPublicMemberPortal = createServerFn({ method: "POST" })
       },
       dues: (raw.dues ?? []).map((d) => ({
         ...d,
-        amount:
-          d.status === "pago"
-            ? d.amount
-            : Number(raw?.defaultAmount) || Number(d.amount) || 50,
+        amount: d.status === "pago" ? d.amount : defaultAmount,
       })),
     } satisfies PublicMemberPortal;
   });

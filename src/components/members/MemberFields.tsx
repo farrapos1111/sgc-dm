@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { digitsOnly, is21OrOlder, isUnder21, maskCepInput, maskCpfInput, maskPhoneInput } from "@/lib/format";
+import { todayYmd } from "@/lib/timezone";
 import { Loader2 } from "lucide-react";
 
 export type MemberStatus = "regular" | "irregular";
@@ -217,7 +218,7 @@ export function MemberDataFields({
               const status = v as MemberStatus;
               const patch: Partial<MemberFormData> = { status };
               if (!value.status_effective_on) {
-                patch.status_effective_on = new Date().toISOString().slice(0, 10);
+                patch.status_effective_on = todayYmd();
               }
               onChange(patch);
             }}

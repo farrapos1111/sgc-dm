@@ -1,11 +1,22 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useSuspenseQuery, useMutation, useQueryClient, queryOptions } from "@tanstack/react-query";
+import {
+  useSuspenseQuery,
+  useMutation,
+  useQueryClient,
+  queryOptions,
+} from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import {
-  getEvent, createTicketType, sellTicket, createTable, assignSeat, checkinTicket, deleteEvent,
+  getEvent,
+  createTicketType,
+  sellTicket,
+  createTable,
+  assignSeat,
+  checkinTicket,
+  deleteEvent,
 } from "@/lib/events.functions";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -16,9 +27,19 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +51,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, PlusCircle, ScanLine, Search, Ticket, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  PlusCircle,
+  ScanLine,
+  Search,
+  Ticket,
+  Trash2,
+} from "lucide-react";
 import { formatBRL, formatDateTimeBR } from "@/lib/format";
 import { QrScanner } from "@/components/QrScanner";
 import { can } from "@/lib/permissions";
@@ -54,10 +82,16 @@ function EventoDetalhe() {
   const { data } = useSuspenseQuery(eventQO(id));
 
   const raised = useMemo(
-    () => data.tickets.filter((t) => t.status !== "cancelado").reduce((s, t) => s + Number(t.price_paid ?? 0), 0),
+    () =>
+      data.tickets
+        .filter((t) => t.status !== "cancelado")
+        .reduce((s, t) => s + Number(t.price_paid ?? 0), 0),
     [data.tickets],
   );
-  const pct = data.event.goal_amount > 0 ? Math.min(100, (raised / Number(data.event.goal_amount)) * 100) : 0;
+  const pct =
+    data.event.goal_amount > 0
+      ? Math.min(100, (raised / Number(data.event.goal_amount)) * 100)
+      : 0;
   const [tab, setTab] = useState("resumo");
   const canDelete =
     can(active?.role.name, "admin") ||
@@ -94,8 +128,8 @@ function EventoDetalhe() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Excluir evento?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Isso remove o evento “{data.event.name}”, ingressos, mesas e
-                      check-ins. Não dá para desfazer.
+                      Isso remove o evento “{data.event.name}”, ingressos, mesas
+                      e check-ins. Não dá para desfazer.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -112,7 +146,10 @@ function EventoDetalhe() {
                 </AlertDialogContent>
               </AlertDialog>
             ) : null}
-            <Button variant="ghost" onClick={() => navigate({ to: "/eventos" })}>
+            <Button
+              variant="ghost"
+              onClick={() => navigate({ to: "/eventos" })}
+            >
               <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
             </Button>
           </div>
@@ -136,7 +173,9 @@ function EventoDetalhe() {
                 <div className="mt-3">
                   <div className="mb-1 flex justify-between text-xs text-muted-foreground">
                     <span>{pct.toFixed(0)}% da meta</span>
-                    <span>Meta: {formatBRL(Number(data.event.goal_amount))}</span>
+                    <span>
+                      Meta: {formatBRL(Number(data.event.goal_amount))}
+                    </span>
                   </div>
                   <Progress value={pct} className="h-1.5" />
                 </div>
@@ -144,7 +183,9 @@ function EventoDetalhe() {
             </Card>
             <Card className="rounded-[12px] p-5">
               <div className="text-sm text-muted-foreground">Ingressos</div>
-              <div className="mt-1 text-2xl font-bold">{data.tickets.length}</div>
+              <div className="mt-1 text-2xl font-bold">
+                {data.tickets.length}
+              </div>
               <div className="mt-1 text-xs text-muted-foreground">
                 {data.checkins.length} check-ins realizados
               </div>
@@ -161,7 +202,13 @@ function EventoDetalhe() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
             <TicketsList tickets={data.tickets} types={data.ticketTypes} />
             <div className="space-y-4">
-              <TicketTypesCard eventId={id} types={data.ticketTypes} onChanged={() => qc.invalidateQueries({ queryKey: ["event", id] })} />
+              <TicketTypesCard
+                eventId={id}
+                types={data.ticketTypes}
+                onChanged={() =>
+                  qc.invalidateQueries({ queryKey: ["event", id] })
+                }
+              />
               <SellTicketCard
                 eventId={id}
                 types={data.ticketTypes}
@@ -190,7 +237,9 @@ function EventoDetalhe() {
               tickets={data.tickets}
               checkins={data.checkins}
               primary={active?.chapter.primary_color}
-              onChanged={() => qc.invalidateQueries({ queryKey: ["event", id] })}
+              onChanged={() =>
+                qc.invalidateQueries({ queryKey: ["event", id] })
+              }
             />
           )}
         </TabsContent>
@@ -199,32 +248,43 @@ function EventoDetalhe() {
   );
 }
 
-function TicketsList({
-  tickets, types,
-}: { tickets: any[]; types: any[] }) {
+function TicketsList({ tickets, types }: { tickets: any[]; types: any[] }) {
   const typeMap = new Map(types.map((t) => [t.id, t.name]));
-  const [qrImg, setQrImg] = useState<{ ticketId: string; url: string } | null>(null);
+  const [qrImg, setQrImg] = useState<{ ticketId: string; url: string } | null>(
+    null,
+  );
   async function showQr(ticket: any) {
     const QRCode = await import("qrcode");
-    const url = await QRCode.default.toDataURL(ticket.qr_code, { width: 260, margin: 1 });
+    const url = await QRCode.default.toDataURL(ticket.qr_code, {
+      width: 260,
+      margin: 1,
+    });
     setQrImg({ ticketId: ticket.id, url });
   }
   return (
     <Card className="rounded-[12px] p-0">
       {tickets.length === 0 ? (
-        <div className="p-6 text-sm text-muted-foreground">Nenhum ingresso vendido ainda.</div>
+        <div className="p-6 text-sm text-muted-foreground">
+          Nenhum ingresso vendido ainda.
+        </div>
       ) : (
         <ul className="divide-y divide-border">
           {tickets.map((t) => (
-            <li key={t.id} className="flex items-center justify-between gap-3 p-4">
+            <li
+              key={t.id}
+              className="flex items-center justify-between gap-3 p-4"
+            >
               <div className="min-w-0">
                 <div className="truncate font-medium">{t.buyer_name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {typeMap.get(t.ticket_type_id) ?? "Avulso"} · {formatBRL(Number(t.price_paid))}
+                  {typeMap.get(t.ticket_type_id) ?? "Avulso"} ·{" "}
+                  {formatBRL(Number(t.price_paid))}
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="capitalize">{t.status}</Badge>
+                <Badge variant="secondary" className="capitalize">
+                  {t.status}
+                </Badge>
                 <Button size="sm" variant="ghost" onClick={() => showQr(t)}>
                   <Ticket className="mr-1 h-4 w-4" /> QR
                 </Button>
@@ -246,38 +306,82 @@ function TicketsList({
 }
 
 function TicketTypesCard({
-  eventId, types, onChanged,
-}: { eventId: string; types: any[]; onChanged: () => void }) {
+  eventId,
+  types,
+  onChanged,
+}: {
+  eventId: string;
+  types: any[];
+  onChanged: () => void;
+}) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState(0);
   const [qty, setQty] = useState(0);
   const m = useMutation({
-    mutationFn: () => createTicketType({ data: { event_id: eventId, name, price: Number(price), quantity_total: Number(qty) } }),
-    onSuccess: () => { toast.success("Tipo de ingresso criado"); setName(""); setPrice(0); setQty(0); onChanged(); },
+    mutationFn: () =>
+      createTicketType({
+        data: {
+          event_id: eventId,
+          name,
+          price: Number(price),
+          quantity_total: Number(qty),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Tipo de ingresso criado");
+      setName("");
+      setPrice(0);
+      setQty(0);
+      onChanged();
+    },
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
   return (
     <Card className="rounded-[12px] p-5">
       <h3 className="mb-3 text-sm font-semibold">Tipos de ingresso</h3>
       <ul className="mb-3 space-y-1 text-sm">
-        {types.length === 0 && <li className="text-muted-foreground">Nenhum tipo cadastrado.</li>}
+        {types.length === 0 && (
+          <li className="text-muted-foreground">Nenhum tipo cadastrado.</li>
+        )}
         {types.map((t) => (
           <li key={t.id} className="flex items-center justify-between">
             <span>{t.name}</span>
-            <span className="text-muted-foreground">{formatBRL(Number(t.price))}</span>
+            <span className="text-muted-foreground">
+              {formatBRL(Number(t.price))}
+            </span>
           </li>
         ))}
       </ul>
       <div className="space-y-2">
-        <Input placeholder="Nome (ex: Pista)" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input
+          placeholder="Nome (ex: Pista)"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
         <div className="grid grid-cols-2 gap-2">
-          <Input type="number" placeholder="Preço" value={price} onChange={(e) => setPrice(Number(e.target.value))} />
-          <Input type="number" placeholder="Qtde" value={qty} onChange={(e) => setQty(Number(e.target.value))} />
+          <Input
+            type="number"
+            placeholder="Preço"
+            value={price}
+            onChange={(e) => setPrice(Number(e.target.value))}
+          />
+          <Input
+            type="number"
+            placeholder="Qtde"
+            value={qty}
+            onChange={(e) => setQty(Number(e.target.value))}
+          />
         </div>
         <Button
           size="sm"
           variant="outline"
-          onClick={() => { if (!name.trim()) { toast.error("Informe o nome"); return; } m.mutate(); }}
+          onClick={() => {
+            if (!name.trim()) {
+              toast.error("Informe o nome");
+              return;
+            }
+            m.mutate();
+          }}
           disabled={m.isPending}
         >
           <PlusCircle className="mr-2 h-4 w-4" /> Adicionar tipo
@@ -288,8 +392,16 @@ function TicketTypesCard({
 }
 
 function SellTicketCard({
-  eventId, types, primary, onSold,
-}: { eventId: string; types: any[]; primary?: string; onSold: () => void }) {
+  eventId,
+  types,
+  primary,
+  onSold,
+}: {
+  eventId: string;
+  types: any[];
+  primary?: string;
+  onSold: () => void;
+}) {
   const [buyer, setBuyer] = useState("");
   const [email, setEmail] = useState("");
   const [typeId, setTypeId] = useState<string>("");
@@ -303,16 +415,22 @@ function SellTicketCard({
   }, [typeId, types]);
 
   const m = useMutation({
-    mutationFn: () => sellTicket({
-      data: {
-        event_id: eventId,
-        ticket_type_id: typeId || null,
-        buyer_name: buyer,
-        buyer_email: email,
-        price_paid: Number(price),
-      },
-    }),
-    onSuccess: () => { toast.success("Ingresso vendido"); setBuyer(""); setEmail(""); onSold(); },
+    mutationFn: () =>
+      sellTicket({
+        data: {
+          event_id: eventId,
+          ticket_type_id: typeId || null,
+          buyer_name: buyer,
+          buyer_email: email,
+          price_paid: Number(price),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Ingresso vendido");
+      setBuyer("");
+      setEmail("");
+      onSold();
+    },
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
 
@@ -325,27 +443,49 @@ function SellTicketCard({
       </div>
       <div>
         <Label className="mb-1 block text-xs">Email</Label>
-        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
           <Label className="mb-1 block text-xs">Tipo</Label>
           <Select value={typeId} onValueChange={setTypeId}>
-            <SelectTrigger><SelectValue placeholder="Avulso" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Avulso" />
+            </SelectTrigger>
             <SelectContent>
-              {types.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+              {types.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
         <div>
           <Label className="mb-1 block text-xs">Valor pago</Label>
-          <Input type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(Number(e.target.value))} />
+          <Input
+            type="number"
+            min={0}
+            step="0.01"
+            value={price}
+            onChange={(e) => setPrice(Number(e.target.value))}
+          />
         </div>
       </div>
       <Button
         style={{ backgroundColor: primary }}
         disabled={m.isPending}
-        onClick={() => { if (!buyer.trim()) { toast.error("Informe o comprador"); return; } m.mutate(); }}
+        onClick={() => {
+          if (!buyer.trim()) {
+            toast.error("Informe o comprador");
+            return;
+          }
+          m.mutate();
+        }}
       >
         {m.isPending ? "Vendendo…" : "Registrar venda"}
       </Button>
@@ -354,19 +494,39 @@ function SellTicketCard({
 }
 
 function TablesMap({
-  eventId, tables, seats, tickets, primary, onChanged,
-}: { eventId: string; tables: any[]; seats: any[]; tickets: any[]; primary?: string; onChanged: () => void }) {
+  eventId,
+  tables,
+  seats,
+  tickets,
+  primary,
+  onChanged,
+}: {
+  eventId: string;
+  tables: any[];
+  seats: any[];
+  tickets: any[];
+  primary?: string;
+  onChanged: () => void;
+}) {
   const [label, setLabel] = useState("");
   const [cap, setCap] = useState(8);
 
   const createM = useMutation({
-    mutationFn: () => createTable({ data: { event_id: eventId, label, capacity: Number(cap) } }),
-    onSuccess: () => { toast.success("Mesa criada"); setLabel(""); onChanged(); },
+    mutationFn: () =>
+      createTable({
+        data: { event_id: eventId, label, capacity: Number(cap) },
+      }),
+    onSuccess: () => {
+      toast.success("Mesa criada");
+      setLabel("");
+      onChanged();
+    },
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
 
   const assignM = useMutation({
-    mutationFn: (v: { seat_id: string; ticket_id: string | null }) => assignSeat({ data: v }),
+    mutationFn: (v: { seat_id: string; ticket_id: string | null }) =>
+      assignSeat({ data: v }),
     onSuccess: () => onChanged(),
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
@@ -374,10 +534,15 @@ function TablesMap({
   const seatsByTable = new Map<string, any[]>();
   for (const s of seats) {
     const arr = seatsByTable.get(s.table_id) ?? [];
-    arr.push(s); seatsByTable.set(s.table_id, arr);
+    arr.push(s);
+    seatsByTable.set(s.table_id, arr);
   }
-  const assignedTicketIds = new Set(seats.filter((s) => s.ticket_id).map((s) => s.ticket_id));
-  const freeTickets = tickets.filter((t) => t.status !== "cancelado" && !assignedTicketIds.has(t.id));
+  const assignedTicketIds = new Set(
+    seats.filter((s) => s.ticket_id).map((s) => s.ticket_id),
+  );
+  const freeTickets = tickets.filter(
+    (t) => t.status !== "cancelado" && !assignedTicketIds.has(t.id),
+  );
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -389,7 +554,9 @@ function TablesMap({
         )}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {tables.map((t) => {
-            const ts = (seatsByTable.get(t.id) ?? []).sort((a, b) => a.seat_number - b.seat_number);
+            const ts = (seatsByTable.get(t.id) ?? []).sort(
+              (a, b) => a.seat_number - b.seat_number,
+            );
             return (
               <Card key={t.id} className="rounded-[12px] p-5">
                 <div className="mb-3 flex items-center justify-between">
@@ -402,12 +569,19 @@ function TablesMap({
                   {ts.map((s) => {
                     const ticket = tickets.find((tk) => tk.id === s.ticket_id);
                     return (
-                      <div key={s.id} className="flex flex-col items-center gap-1">
+                      <div
+                        key={s.id}
+                        className="flex flex-col items-center gap-1"
+                      >
                         <div
                           className="grid h-10 w-10 place-items-center rounded-full text-xs font-semibold"
                           style={{
-                            backgroundColor: s.ticket_id ? primary : "var(--muted)",
-                            color: s.ticket_id ? "#fff" : "var(--muted-foreground)",
+                            backgroundColor: s.ticket_id
+                              ? primary
+                              : "var(--muted)",
+                            color: s.ticket_id
+                              ? "#fff"
+                              : "var(--muted-foreground)",
                           }}
                         >
                           {s.seat_number}
@@ -418,19 +592,31 @@ function TablesMap({
                         {s.ticket_id ? (
                           <button
                             className="text-[10px] underline text-muted-foreground"
-                            onClick={() => assignM.mutate({ seat_id: s.id, ticket_id: null })}
+                            onClick={() =>
+                              assignM.mutate({ seat_id: s.id, ticket_id: null })
+                            }
                           >
                             Liberar
                           </button>
                         ) : (
-                          <Select onValueChange={(v) => assignM.mutate({ seat_id: s.id, ticket_id: v })}>
-                            <SelectTrigger className="h-6 px-2 text-[10px]"><SelectValue placeholder="Atribuir" /></SelectTrigger>
+                          <Select
+                            onValueChange={(v) =>
+                              assignM.mutate({ seat_id: s.id, ticket_id: v })
+                            }
+                          >
+                            <SelectTrigger className="h-6 px-2 text-[10px]">
+                              <SelectValue placeholder="Atribuir" />
+                            </SelectTrigger>
                             <SelectContent>
                               {freeTickets.length === 0 && (
-                                <div className="px-3 py-2 text-xs text-muted-foreground">Sem ingressos livres</div>
+                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                  Sem ingressos livres
+                                </div>
                               )}
                               {freeTickets.map((tk) => (
-                                <SelectItem key={tk.id} value={tk.id}>{tk.buyer_name}</SelectItem>
+                                <SelectItem key={tk.id} value={tk.id}>
+                                  {tk.buyer_name}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -448,15 +634,31 @@ function TablesMap({
         <h3 className="text-sm font-semibold">Nova mesa</h3>
         <div>
           <Label className="mb-1 block text-xs">Nome</Label>
-          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex: Mesa 1" />
+          <Input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Ex: Mesa 1"
+          />
         </div>
         <div>
           <Label className="mb-1 block text-xs">Capacidade</Label>
-          <Input type="number" min={1} max={30} value={cap} onChange={(e) => setCap(Number(e.target.value))} />
+          <Input
+            type="number"
+            min={1}
+            max={30}
+            value={cap}
+            onChange={(e) => setCap(Number(e.target.value))}
+          />
         </div>
         <Button
           style={{ backgroundColor: primary }}
-          onClick={() => { if (!label.trim()) { toast.error("Informe o nome"); return; } createM.mutate(); }}
+          onClick={() => {
+            if (!label.trim()) {
+              toast.error("Informe o nome");
+              return;
+            }
+            createM.mutate();
+          }}
           disabled={createM.isPending}
         >
           <PlusCircle className="mr-2 h-4 w-4" /> Criar mesa
@@ -467,30 +669,52 @@ function TablesMap({
 }
 
 function CheckinPanel({
-  eventId, tickets, checkins, primary, onChanged,
-}: { eventId: string; tickets: any[]; checkins: any[]; primary?: string; onChanged: () => void }) {
+  eventId,
+  tickets,
+  checkins,
+  primary,
+  onChanged,
+}: {
+  eventId: string;
+  tickets: any[];
+  checkins: any[];
+  primary?: string;
+  onChanged: () => void;
+}) {
   const [useCamera, setUseCamera] = useState(false);
   const [search, setSearch] = useState("");
   const [liveCount, setLiveCount] = useState(checkins.length);
   const [lastScanned, setLastScanned] = useState<string | null>(null);
 
-  useEffect(() => { setLiveCount(checkins.length); }, [checkins.length]);
+  useEffect(() => {
+    setLiveCount(checkins.length);
+  }, [checkins.length]);
 
   useEffect(() => {
     const channel = supabase
       .channel(`checkins-${eventId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "checkins", filter: `event_id=eq.${eventId}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "checkins",
+          filter: `event_id=eq.${eventId}`,
+        },
         () => setLiveCount((c) => c + 1),
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [eventId]);
 
   const m = useMutation({
-    mutationFn: (v: { qr?: string; ticket_id?: string; method: "qr" | "nome" }) =>
-      checkinTicket({ data: { event_id: eventId, ...v } }),
+    mutationFn: (v: {
+      qr?: string;
+      ticket_id?: string;
+      method: "qr" | "nome";
+    }) => checkinTicket({ data: { event_id: eventId, ...v } }),
     onSuccess: (res) => {
       if (res.alreadyCheckedIn) toast.info("Ingresso já havia entrado");
       else toast.success("Check-in realizado");
@@ -499,7 +723,9 @@ function CheckinPanel({
     onError: (e: any) => toast.error(e?.message ?? "Erro no check-in"),
   });
 
-  const filtered = tickets.filter((t) => t.buyer_name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = tickets.filter((t) =>
+    t.buyer_name.toLowerCase().includes(search.toLowerCase()),
+  );
   const checkedTicketIds = new Set(checkins.map((c) => c.ticket_id));
 
   return (
@@ -507,16 +733,23 @@ function CheckinPanel({
       <Card className="rounded-[12px] p-5">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <div className="text-sm text-muted-foreground">Check-ins realizados</div>
-            <div className="text-3xl font-bold" style={{ color: primary }}>{liveCount}</div>
-            <div className="text-xs text-muted-foreground">de {tickets.length} ingressos</div>
+            <div className="text-sm text-muted-foreground">
+              Check-ins realizados
+            </div>
+            <div className="text-3xl font-bold" style={{ color: primary }}>
+              {liveCount}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              de {tickets.length} ingressos
+            </div>
           </div>
           <Button
             variant={useCamera ? "default" : "outline"}
             onClick={() => setUseCamera((v) => !v)}
             style={useCamera ? { backgroundColor: primary } : undefined}
           >
-            <ScanLine className="mr-2 h-4 w-4" /> {useCamera ? "Parar câmera" : "Ler QR"}
+            <ScanLine className="mr-2 h-4 w-4" />{" "}
+            {useCamera ? "Parar câmera" : "Ler QR"}
           </Button>
         </div>
         {useCamera && (
@@ -542,11 +775,16 @@ function CheckinPanel({
           />
         </div>
         <ul className="max-h-[420px] space-y-2 overflow-y-auto">
-          {filtered.length === 0 && <li className="text-sm text-muted-foreground">Nenhum resultado.</li>}
+          {filtered.length === 0 && (
+            <li className="text-sm text-muted-foreground">Nenhum resultado.</li>
+          )}
           {filtered.map((t) => {
             const already = checkedTicketIds.has(t.id);
             return (
-              <li key={t.id} className="flex items-center justify-between gap-2 rounded-[8px] border border-border px-3 py-2">
+              <li
+                key={t.id}
+                className="flex items-center justify-between gap-2 rounded-[8px] border border-border px-3 py-2"
+              >
                 <span className="min-w-0 truncate text-sm">{t.buyer_name}</span>
                 {already ? (
                   <Badge variant="secondary">Presente</Badge>
@@ -554,7 +792,9 @@ function CheckinPanel({
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => m.mutate({ ticket_id: t.id, method: "nome" })}
+                    onClick={() =>
+                      m.mutate({ ticket_id: t.id, method: "nome" })
+                    }
                     disabled={m.isPending}
                   >
                     Registrar

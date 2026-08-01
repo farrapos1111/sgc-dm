@@ -49,6 +49,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS commissions_chapter_code_uidx
   ON public.commissions (chapter_id, code)
   WHERE chapter_id IS NOT NULL;
 
+-- Alinha a sequence antes do clone para não colidir com ids existentes
+SELECT setval(
+  'public.commissions_id_seq',
+  GREATEST(COALESCE((SELECT MAX(id) FROM public.commissions), 1), 1)
+);
+
 -- 4) Clona templates para cada capítulo
 INSERT INTO public.commissions (code, label, sort_order, chapter_id)
 SELECT t.code, t.label, t.sort_order, ch.id
@@ -62,7 +68,7 @@ WHERE t.chapter_id IS NULL
       AND x.code = t.code
   );
 
--- Alinha a sequence ao maior id (ex.: 27 após clones)
+-- Reforço: alinha a sequence ao maior id após clones
 SELECT setval(
   'public.commissions_id_seq',
   GREATEST(COALESCE((SELECT MAX(id) FROM public.commissions), 1), 1)
@@ -164,10 +170,12 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public'
     FROM public.commission_members cm
     JOIN public.commissions c ON c.id = cm.commission_id
     JOIN public.members m ON m.id = cm.member_id
+    JOIN public.chapter_members ch ON ch.chapter_id = cm.chapter_id AND ch.active = true
     WHERE cm.chapter_id = _chapter_id
       AND c.code = _commission_code
       AND (c.chapter_id IS NULL OR c.chapter_id = _chapter_id)
       AND cm.role IN ('presidente','vice')
+      AND ch.user_id = auth.uid()
       AND lower(m.full_name) = lower(coalesce((SELECT full_name FROM public.profiles WHERE id = auth.uid()), '###'))
   );
 $$;

@@ -1,5 +1,7 @@
 /** Resolução das variáveis dinâmicas entre colchetes nos modelos de ata. */
 
+import { datePartsInAppTz, formatTimeInAppTz } from "@/lib/timezone";
+
 export type MinuteVarContext = {
   chapterName?: string | null;
   chapterCity?: string | null;
@@ -10,18 +12,67 @@ export type MinuteVarContext = {
 };
 
 const MESES = [
-  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
 ];
 
-const UNIDADES = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
-const DEZ_A_DEZENOVE = [
-  "dez", "onze", "doze", "treze", "catorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove",
+const UNIDADES = [
+  "",
+  "um",
+  "dois",
+  "três",
+  "quatro",
+  "cinco",
+  "seis",
+  "sete",
+  "oito",
+  "nove",
 ];
-const DEZENAS = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+const DEZ_A_DEZENOVE = [
+  "dez",
+  "onze",
+  "doze",
+  "treze",
+  "catorze",
+  "quinze",
+  "dezesseis",
+  "dezessete",
+  "dezoito",
+  "dezenove",
+];
+const DEZENAS = [
+  "",
+  "",
+  "vinte",
+  "trinta",
+  "quarenta",
+  "cinquenta",
+  "sessenta",
+  "setenta",
+  "oitenta",
+  "noventa",
+];
 const CENTENAS = [
-  "", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos",
-  "seiscentos", "setecentos", "oitocentos", "novecentos",
+  "",
+  "cento",
+  "duzentos",
+  "trezentos",
+  "quatrocentos",
+  "quinhentos",
+  "seiscentos",
+  "setecentos",
+  "oitocentos",
+  "novecentos",
 ];
 
 function abaixoDeMil(n: number): string {
@@ -53,22 +104,26 @@ export function anoPorExtenso(ano: number): string {
 }
 
 export function buildVarMap(ctx: MinuteVarContext): Record<string, string> {
-  const d = ctx.date ? new Date(ctx.date) : new Date();
+  const start = ctx.date ? new Date(ctx.date) : new Date();
+  const parts = datePartsInAppTz(start);
   const officers = ctx.officers ?? {};
   const capitulo = [ctx.chapterName, ctx.chapterCity ? `— ${ctx.chapterCity}` : null]
     .filter(Boolean)
     .join(" ");
+  const horaInicio = new Date(start.getTime() + 30 * 60 * 1000);
+  const horaFim = new Date(start.getTime() + (2 * 60 + 30) * 60 * 1000);
+
   return {
-    dia: String(d.getDate()).padStart(2, "0"),
-    mês: MESES[d.getMonth()],
-    mes: MESES[d.getMonth()],
-    "ano por extenso": anoPorExtenso(d.getFullYear()),
-    ano: String(d.getFullYear()),
+    dia: String(parts.day).padStart(2, "0"),
+    mês: MESES[parts.month - 1],
+    mes: MESES[parts.month - 1],
+    "ano por extenso": anoPorExtenso(parts.year),
+    ano: String(parts.year),
     "nome da loja/capítulo": capitulo || "[nome da loja/capítulo]",
     local: ctx.location || "[local]",
     Local: ctx.location || "[Local]",
     endereco: ctx.address || "[endereco]",
-    "endereço": ctx.address || "[endereço]",
+    endereço: ctx.address || "[endereço]",
     "endereço completo": ctx.address || ctx.location || "[endereço completo]",
     Membro_MC: officers.mestre_conselheiro ?? "[Membro_MC]",
     Membro_1C: officers.primeiro_conselheiro ?? "[Membro_1C]",
@@ -77,6 +132,8 @@ export function buildVarMap(ctx: MinuteVarContext): Record<string, string> {
     Membro_Tesoureiro: officers.tesoureiro ?? "[Membro_Tesoureiro]",
     Membro_Presidente: officers.presidente_conselho_consultivo ?? "[Membro_Presidente]",
     "nome do escrivão": officers.escrivao ?? "[nome do escrivão]",
+    hora_inicio: formatTimeInAppTz(horaInicio),
+    hora_fim: formatTimeInAppTz(horaFim),
   };
 }
 
@@ -104,4 +161,6 @@ export const AVAILABLE_VARS = [
   "[Membro_Escrivao]",
   "[Membro_Tesoureiro]",
   "[Membro_Presidente]",
+  "[hora_inicio]",
+  "[hora_fim]",
 ];

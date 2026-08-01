@@ -2,7 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, Banknote, Wallet, History, Search, X, Copy } from "lucide-react";
+import {
+  Pencil,
+  Plus,
+  Trash2,
+  Banknote,
+  Wallet,
+  History,
+  Search,
+  X,
+  Copy,
+} from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -30,6 +40,7 @@ import {
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { can } from "@/lib/permissions";
 import { formatBRL, formatDateBR } from "@/lib/format";
+import { todayYmd } from "@/lib/timezone";
 import { FIXED_CATEGORIES } from "@/lib/cash-categories";
 import {
   addChargePayment,
@@ -43,7 +54,9 @@ import {
   upsertMemberCharge,
 } from "@/lib/finance.functions";
 
-export const Route = createFileRoute("/_authenticated/_shell/tesouraria/cobrancas")({
+export const Route = createFileRoute(
+  "/_authenticated/_shell/tesouraria/cobrancas",
+)({
   head: () => ({
     meta: [
       { title: "Cobranças — SG-CDM" },
@@ -88,7 +101,8 @@ function chargeBucket(c: ChargeRow): ListFilter | "isento" {
   if (c.status === "isento") return "isento";
   const amount = Number(c.amount) || 0;
   const amountPaid = Number(c.amount_paid) || 0;
-  if (c.status === "pago" || (amount > 0 && amountPaid + 0.001 >= amount)) return "baixada";
+  if (c.status === "pago" || (amount > 0 && amountPaid + 0.001 >= amount))
+    return "baixada";
   if (amountPaid > 0) return "parcial";
   return "em_aberto";
 }
@@ -104,7 +118,7 @@ function Cobrancas() {
   const [payOpen, setPayOpen] = useState(false);
   const [payCharge, setPayCharge] = useState<ChargeRow | null>(null);
   const [payAmount, setPayAmount] = useState("");
-  const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
+  const [payDate, setPayDate] = useState(todayYmd());
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyCharge, setHistoryCharge] = useState<ChargeRow | null>(null);
   const [editingPayment, setEditingPayment] = useState<{
@@ -125,13 +139,15 @@ function Cobrancas() {
   const { data: members = [] } = useQuery({
     queryKey: ["charge-members", active?.chapter_id],
     enabled: !!active && open,
-    queryFn: () => listChargeMembers({ data: { chapterId: active!.chapter_id } }),
+    queryFn: () =>
+      listChargeMembers({ data: { chapterId: active!.chapter_id } }),
   });
 
   const { data: catData } = useQuery({
     queryKey: ["cash-categories", active?.chapter_id],
     enabled: !!active && open,
-    queryFn: () => listCashCategories({ data: { chapterId: active!.chapter_id } }),
+    queryFn: () =>
+      listCashCategories({ data: { chapterId: active!.chapter_id } }),
   });
 
   const { data: payHistory = [] } = useQuery({
@@ -161,14 +177,19 @@ function Cobrancas() {
       const bucket = chargeBucket(c);
       if (statusFilter !== "all" && bucket !== statusFilter) return false;
       if (!q) return true;
-      const hay = `${c.member_name ?? ""} ${c.description ?? ""} ${c.category ?? ""}`.toLowerCase();
+      const hay =
+        `${c.member_name ?? ""} ${c.description ?? ""} ${c.category ?? ""}`.toLowerCase();
       return hay.includes(q);
     });
     return [...list].sort((a, b) => {
       if (sortKey === "name_asc" || sortKey === "name_desc") {
-        const cmp = (a.member_name ?? "").localeCompare(b.member_name ?? "", "pt-BR", {
-          sensitivity: "base",
-        });
+        const cmp = (a.member_name ?? "").localeCompare(
+          b.member_name ?? "",
+          "pt-BR",
+          {
+            sensitivity: "base",
+          },
+        );
         return sortKey === "name_asc" ? cmp : -cmp;
       }
       const diff = (Number(a.amount) || 0) - (Number(b.amount) || 0);
@@ -190,7 +211,10 @@ function Cobrancas() {
   }, [charges]);
 
   async function copyOpenList() {
-    const byMember = new Map<string, { count: number; total: number }>();
+    const byMember = new Map<
+      string,
+      { name: string; count: number; total: number }
+    >();
     for (const c of filteredCharges) {
       if (c.status === "isento") continue;
       const amount = Number(c.amount) || 0;
@@ -198,18 +222,20 @@ function Cobrancas() {
       const remaining = Math.max(0, amount - amountPaid);
       if (remaining <= 0) continue;
       const name = (c.member_name ?? "").trim() || "Sem nome";
-      const cur = byMember.get(name) ?? { count: 0, total: 0 };
+      const cur = byMember.get(c.member_id) ?? { name, count: 0, total: 0 };
+      cur.name = name;
       cur.count += 1;
       cur.total += remaining;
-      byMember.set(name, cur);
+      byMember.set(c.member_id, cur);
     }
 
-    const rows = [...byMember.entries()]
-      .sort(([a], [b]) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }))
-      .map(([name, o]) => {
-        const itens =
-          o.count === 1 ? "1 cobrança" : `${o.count} cobranças`;
-        return `${name} - ${itens} - ${formatBRL(o.total)}`;
+    const rows = [...byMember.values()]
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
+      )
+      .map((o) => {
+        const itens = o.count === 1 ? "1 cobrança" : `${o.count} cobranças`;
+        return `${o.name} - ${itens} - ${formatBRL(o.total)}`;
       });
 
     if (rows.length === 0) {
@@ -253,9 +279,9 @@ function Cobrancas() {
           category: form.category,
           description: form.description.trim(),
           amount: Number(String(form.amount).replace(",", ".")) || 0,
-          dueDate: new Date().toISOString().slice(0, 10),
+          dueDate: todayYmd(),
           status: form.id ? form.status : "em_aberto",
-          paidAt: new Date().toISOString().slice(0, 10),
+          paidAt: todayYmd(),
         },
       }),
     onSuccess: async () => {
@@ -291,7 +317,8 @@ function Cobrancas() {
       await qc.invalidateQueries({ queryKey: ["charge-payments"] });
       await qc.invalidateQueries({ queryKey: ["cash-entries"] });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao registrar pagamento"),
+    onError: (e: any) =>
+      toast.error(e?.message ?? "Erro ao registrar pagamento"),
   });
 
   const savePaymentEdit = useMutation({
@@ -311,7 +338,8 @@ function Cobrancas() {
       await qc.invalidateQueries({ queryKey: ["charge-payments"] });
       await qc.invalidateQueries({ queryKey: ["cash-entries"] });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao atualizar pagamento"),
+    onError: (e: any) =>
+      toast.error(e?.message ?? "Erro ao atualizar pagamento"),
   });
 
   const removePayment = useMutation({
@@ -357,7 +385,7 @@ function Cobrancas() {
     const remaining = Math.max(0, amount - amountPaid);
     setPayCharge(c);
     setPayAmount(remaining > 0 ? String(remaining) : "");
-    setPayDate(new Date().toISOString().slice(0, 10));
+    setPayDate(todayYmd());
     setPayOpen(true);
   }
 
@@ -443,11 +471,15 @@ function Cobrancas() {
       <div className="mb-6 grid grid-cols-2 gap-4">
         <Card className="rounded-[12px] p-5">
           <div className="text-sm text-muted-foreground">Recebido</div>
-          <div className="text-xl font-bold text-emerald-600">{formatBRL(totals.paid)}</div>
+          <div className="text-xl font-bold text-emerald-600">
+            {formatBRL(totals.paid)}
+          </div>
         </Card>
         <Card className="rounded-[12px] p-5">
           <div className="text-sm text-muted-foreground">Em aberto</div>
-          <div className="text-xl font-bold text-amber-600">{formatBRL(totals.openAmt)}</div>
+          <div className="text-xl font-bold text-amber-600">
+            {formatBRL(totals.openAmt)}
+          </div>
         </Card>
       </div>
 
@@ -482,7 +514,9 @@ function Cobrancas() {
             const amount = Number(c.amount) || 0;
             const amountPaid = Number(c.amount_paid) || 0;
             const pct =
-              amount > 0 ? Math.min(100, Math.round((amountPaid / amount) * 100)) : 0;
+              amount > 0
+                ? Math.min(100, Math.round((amountPaid / amount) * 100))
+                : 0;
             const remaining = Math.max(0, amount - amountPaid);
             const overdue =
               c.status === "em_aberto" &&
@@ -518,7 +552,9 @@ function Cobrancas() {
                   {c.status !== "isento" && (
                     <div className="max-w-xs space-y-1">
                       <Progress value={pct} className="h-1.5" />
-                      <div className="text-[11px] text-muted-foreground">{pct}% quitado</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {pct}% quitado
+                      </div>
                     </div>
                   )}
                 </div>
@@ -592,9 +628,12 @@ function Cobrancas() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{form.id ? "Editar cobrança" : "Nova cobrança"}</DialogTitle>
+            <DialogTitle>
+              {form.id ? "Editar cobrança" : "Nova cobrança"}
+            </DialogTitle>
             <DialogDescription>
-              Busque o membro (mín. 2 letras). Pagamentos são registrados depois, na lista.
+              Busque o membro (mín. 2 letras). Pagamentos são registrados
+              depois, na lista.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -615,7 +654,9 @@ function Cobrancas() {
               <Label className="mb-1.5 block text-sm">Descrição *</Label>
               <Input
                 value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, description: e.target.value }))
+                }
               />
             </div>
             <div>
@@ -643,7 +684,9 @@ function Cobrancas() {
                 min={0}
                 step="0.01"
                 value={form.amount}
-                onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, amount: e.target.value }))
+                }
               />
             </div>
           </div>
@@ -687,7 +730,9 @@ function Cobrancas() {
                 const amountPaid = Number(payCharge.amount_paid) || 0;
                 const remaining = Math.max(0, amount - amountPaid);
                 const pct =
-                  amount > 0 ? Math.min(100, Math.round((amountPaid / amount) * 100)) : 0;
+                  amount > 0
+                    ? Math.min(100, Math.round((amountPaid / amount) * 100))
+                    : 0;
                 return (
                   <div className="space-y-1.5 rounded-md border border-border p-3">
                     <div className="flex justify-between text-sm">
@@ -704,7 +749,9 @@ function Cobrancas() {
                 );
               })()}
               <div>
-                <Label className="mb-1.5 block text-sm">Valor do pagamento (R$)</Label>
+                <Label className="mb-1.5 block text-sm">
+                  Valor do pagamento (R$)
+                </Label>
                 <Input
                   type="number"
                   min={0.01}
@@ -785,7 +832,9 @@ function Cobrancas() {
                 const amount = Number(historyCharge.amount) || 0;
                 const amountPaid = Number(historyCharge.amount_paid) || 0;
                 const pct =
-                  amount > 0 ? Math.min(100, Math.round((amountPaid / amount) * 100)) : 0;
+                  amount > 0
+                    ? Math.min(100, Math.round((amountPaid / amount) * 100))
+                    : 0;
                 return (
                   <div className="space-y-1.5 rounded-md border border-border p-3">
                     <div className="flex justify-between text-sm">
@@ -800,7 +849,9 @@ function Cobrancas() {
               })()}
 
               {payHistory.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum pagamento registrado.</p>
+                <p className="text-sm text-muted-foreground">
+                  Nenhum pagamento registrado.
+                </p>
               ) : (
                 <ul className="max-h-72 space-y-2 overflow-y-auto">
                   {payHistory.map((p: any) => {
@@ -810,11 +861,13 @@ function Cobrancas() {
                         key={p.id}
                         className="rounded-md border border-border p-3"
                       >
-                        {isEditing ? (
+                        {isEditing && editingPayment ? (
                           <div className="space-y-2">
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <Label className="mb-1 block text-xs">Valor (R$)</Label>
+                                <Label className="mb-1 block text-xs">
+                                  Valor (R$)
+                                </Label>
                                 <Input
                                   type="number"
                                   min={0.01}
@@ -822,19 +875,25 @@ function Cobrancas() {
                                   value={editingPayment.amount}
                                   onChange={(e) =>
                                     setEditingPayment((ep) =>
-                                      ep ? { ...ep, amount: e.target.value } : ep,
+                                      ep
+                                        ? { ...ep, amount: e.target.value }
+                                        : ep,
                                     )
                                   }
                                 />
                               </div>
                               <div>
-                                <Label className="mb-1 block text-xs">Data</Label>
+                                <Label className="mb-1 block text-xs">
+                                  Data
+                                </Label>
                                 <Input
                                   type="date"
                                   value={editingPayment.paidAt}
                                   onChange={(e) =>
                                     setEditingPayment((ep) =>
-                                      ep ? { ...ep, paidAt: e.target.value } : ep,
+                                      ep
+                                        ? { ...ep, paidAt: e.target.value }
+                                        : ep,
                                     )
                                   }
                                 />
@@ -845,7 +904,10 @@ function Cobrancas() {
                                 size="sm"
                                 disabled={savePaymentEdit.isPending}
                                 onClick={() => savePaymentEdit.mutate()}
-                                style={{ backgroundColor: active?.chapter.primary_color }}
+                                style={{
+                                  backgroundColor:
+                                    active?.chapter.primary_color,
+                                }}
                               >
                                 Salvar
                               </Button>
@@ -914,7 +976,8 @@ function Cobrancas() {
 
               {writable &&
                 historyCharge.status !== "isento" &&
-                Number(historyCharge.amount_paid) < Number(historyCharge.amount) && (
+                Number(historyCharge.amount_paid) <
+                  Number(historyCharge.amount) && (
                   <Button
                     variant="outline"
                     className="w-full"

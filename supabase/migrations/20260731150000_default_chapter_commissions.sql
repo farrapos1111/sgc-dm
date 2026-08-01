@@ -12,39 +12,18 @@ WHERE chapter_id IS NULL
     'auditoria'
   );
 
-UPDATE public.commissions AS c
-SET
-  label = v.label,
-  sort_order = v.sort_order
-FROM (
-  VALUES
-    ('novos_membros', 'Novos Membros', 1),
-    ('entretenimento', 'Entretenimento', 2),
-    ('hospitalaria', 'Hospitalaria', 3),
-    ('financas', 'Finanças', 4),
-    ('eventos', 'Eventos', 5),
-    ('auditoria', 'Auditoria', 6)
-) AS v(code, label, sort_order)
-WHERE c.chapter_id IS NULL
-  AND c.code = v.code;
-
 INSERT INTO public.commissions (code, label, sort_order, chapter_id)
-SELECT v.code, v.label, v.sort_order, NULL
-FROM (
-  VALUES
-    ('novos_membros', 'Novos Membros', 1),
-    ('entretenimento', 'Entretenimento', 2),
-    ('hospitalaria', 'Hospitalaria', 3),
-    ('financas', 'Finanças', 4),
-    ('eventos', 'Eventos', 5),
-    ('auditoria', 'Auditoria', 6)
-) AS v(code, label, sort_order)
-WHERE NOT EXISTS (
-  SELECT 1
-  FROM public.commissions c
-  WHERE c.chapter_id IS NULL
-    AND c.code = v.code
-);
+VALUES
+  ('novos_membros', 'Novos Membros', 1, NULL),
+  ('entretenimento', 'Entretenimento', 2, NULL),
+  ('hospitalaria', 'Hospitalária', 3, NULL),
+  ('financas', 'Finanças', 4, NULL),
+  ('eventos', 'Eventos', 5, NULL),
+  ('auditoria', 'Auditoria', 6, NULL)
+ON CONFLICT (code) WHERE (chapter_id IS NULL)
+DO UPDATE SET
+  label = EXCLUDED.label,
+  sort_order = EXCLUDED.sort_order;
 
 SELECT setval(
   'public.commissions_id_seq',
