@@ -13,7 +13,7 @@ DECLARE
   v_table_id uuid;
   v_i integer;
 BEGIN
-  IF _capacity IS NULL OR _capacity < 1 OR _capacity > 500 THEN
+  IF _capacity IS NULL OR _capacity < 1 OR _capacity > 30 THEN
     RAISE EXCEPTION 'Capacidade inválida';
   END IF;
 
@@ -52,7 +52,25 @@ CREATE POLICY events_delete ON public.events
     OR public.has_permission(chapter_id, 'secretaria')
   );
 
--- Comissões: vínculo canônico via is_linked_member(cm.member_id).
+-- Vínculo inequívoco auth ↔ membro: apenas e-mail do JWT (sem fallback por nome).
+CREATE OR REPLACE FUNCTION public.is_linked_member(_member_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.members m
+    WHERE m.id = _member_id
+      AND m.email IS NOT NULL
+      AND length(trim(m.email)) > 0
+      AND lower(m.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  );
+$$;
+
+-- Comissões: apenas is_linked_member (e-mail) + capítulo/comissão/cargo.
 CREATE OR REPLACE FUNCTION public.is_commission_member(_chapter_id uuid, _commission_code text)
 RETURNS boolean
 LANGUAGE sql

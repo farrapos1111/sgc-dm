@@ -1,9 +1,20 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useSuspenseQuery, useMutation, useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
+import {
+  useSuspenseQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  queryOptions,
+} from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
-import { listCalendarItems, createCalendarItem, updateCalendarItem, deleteCalendarItem } from "@/lib/calendar.functions";
+import {
+  listCalendarItems,
+  createCalendarItem,
+  updateCalendarItem,
+  deleteCalendarItem,
+} from "@/lib/calendar.functions";
 import { listLodges } from "@/lib/chapter.functions";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -12,28 +23,72 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, PlusCircle, MapPin, Link as LinkIcon, Trash2, Pencil, Download, Copy, ExternalLink, Sparkles, Loader2 } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  List,
+  LayoutGrid,
+  PlusCircle,
+  MapPin,
+  Link as LinkIcon,
+  Trash2,
+  Pencil,
+  Download,
+  Copy,
+  ExternalLink,
+  Sparkles,
+  Loader2,
+} from "lucide-react";
 import { composeEventDescription } from "@/lib/ai.functions";
 import { formatDateTimeBR } from "@/lib/format";
-import { formatTimeInAppTz, todayYmd, APP_TIMEZONE } from "@/lib/timezone";
+import {
+  formatTimeInAppTz,
+  todayYmd,
+  APP_TIMEZONE,
+  fromAppTzDateTimeLocal,
+  toAppTzDateTimeLocal,
+} from "@/lib/timezone";
 import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from "@/lib/ics";
 import { buildChaveDoDia } from "@/lib/chave-do-dia";
-import { TYPE_META, CALENDAR_TYPES, isSessionType, type CalendarType } from "@/lib/calendar-types";
+import {
+  TYPE_META,
+  CALENDAR_TYPES,
+  isSessionType,
+  type CalendarType,
+} from "@/lib/calendar-types";
 import { Switch } from "@/components/ui/switch";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { useIsMobile } from "@/hooks/use-mobile";
-
 
 export const Route = createFileRoute("/_authenticated/_shell/calendario")({
   head: () => ({
     meta: [
       { title: "Calendário — SG-CDM" },
-      { name: "description", content: "Calendário unificado de sessões, eventos e filantropia do capítulo." },
+      {
+        name: "description",
+        content:
+          "Calendário unificado de sessões, eventos e filantropia do capítulo.",
+      },
     ],
   }),
   component: CalendarioPage,
@@ -67,11 +122,11 @@ const ADMIN_ROLES = new Set([
   "presidente_conselho",
 ]);
 
-
 const itemsQO = (chapterIds: string[]) =>
   queryOptions({
     queryKey: ["calendar", chapterIds.join(",")],
-    queryFn: () => listCalendarItems({ data: { chapterIds } }) as Promise<CalendarItem[]>,
+    queryFn: () =>
+      listCalendarItems({ data: { chapterIds } }) as Promise<CalendarItem[]>,
     enabled: chapterIds.length > 0,
   });
 
@@ -88,7 +143,10 @@ function addOneDayYmd(ymd: string): string {
 }
 
 /** Todas as datas (chaves no fuso do app) cobertas pelo item — itens que viram o dia aparecem em ambas. */
-function itemDayKeys(it: { start_at: string; end_at: string | null }): string[] {
+function itemDayKeys(it: {
+  start_at: string;
+  end_at: string | null;
+}): string[] {
   const startKey = todayYmd(it.start_at);
   const endKey = todayYmd(it.end_at ?? it.start_at);
   const keys: string[] = [];
@@ -100,21 +158,29 @@ function itemDayKeys(it: { start_at: string; end_at: string | null }): string[] 
   return keys.length ? keys : [startKey];
 }
 
-function occursOnDay(it: { start_at: string; end_at: string | null }, key: string) {
+function occursOnDay(
+  it: { start_at: string; end_at: string | null },
+  key: string,
+) {
   return itemDayKeys(it).includes(key);
 }
-
 
 function CalendarioPage() {
   const { active, memberships } = useActiveChapter();
   const isMobile = useIsMobile();
   const qc = useQueryClient();
 
-  const [view, setView] = useState<"mes" | "agenda">(isMobile ? "agenda" : "mes");
-  const [typeFilters, setTypeFilters] = useState<Set<CalendarType>>(new Set(CALENDAR_TYPES));
+  const [view, setView] = useState<"mes" | "agenda">(
+    isMobile ? "agenda" : "mes",
+  );
+  const [typeFilters, setTypeFilters] = useState<Set<CalendarType>>(
+    new Set(CALENDAR_TYPES),
+  );
   const [chapterFilter, setChapterFilter] = useState<string>("all");
   const [cursor, setCursor] = useState(() => {
-    const d = new Date(); d.setDate(1); d.setHours(0,0,0,0);
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
     return d;
   });
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -124,8 +190,10 @@ function CalendarioPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createDate, setCreateDate] = useState<string | null>(null);
 
-
-  const chapterIds = useMemo(() => memberships.map((m) => m.chapter_id), [memberships]);
+  const chapterIds = useMemo(
+    () => memberships.map((m) => m.chapter_id),
+    [memberships],
+  );
   const { data: items } = useSuspenseQuery(itemsQO(chapterIds));
 
   const canCreate = active ? ADMIN_ROLES.has(active.role.name) : false;
@@ -133,21 +201,24 @@ function CalendarioPage() {
   const filtered = useMemo(() => {
     return items.filter((it) => {
       if (!typeFilters.has(it.event_type)) return false;
-      if (chapterFilter !== "all" && it.chapter_id !== chapterFilter) return false;
+      if (chapterFilter !== "all" && it.chapter_id !== chapterFilter)
+        return false;
       return true;
     });
   }, [items, typeFilters, chapterFilter]);
 
   const chapterNameMap = useMemo(() => {
     const m = new Map<string, string>();
-    for (const mem of memberships) m.set(mem.chapter_id, `${mem.chapter.name} · Nº ${mem.chapter.number}`);
+    for (const mem of memberships)
+      m.set(mem.chapter_id, `${mem.chapter.name} · Nº ${mem.chapter.number}`);
     return m;
   }, [memberships]);
 
   function toggleType(t: CalendarType) {
     setTypeFilters((prev) => {
       const next = new Set(prev);
-      if (next.has(t)) next.delete(t); else next.add(t);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
       return next;
     });
   }
@@ -163,14 +234,28 @@ function CalendarioPage() {
               <button
                 onClick={() => setView("mes")}
                 className="flex items-center gap-1 rounded-[6px] px-2.5 py-1.5 text-xs font-medium"
-                style={view === "mes" ? { backgroundColor: "var(--chapter-primary)", color: "#fff" } : { color: "var(--muted-foreground)" }}
+                style={
+                  view === "mes"
+                    ? {
+                        backgroundColor: "var(--chapter-primary)",
+                        color: "#fff",
+                      }
+                    : { color: "var(--muted-foreground)" }
+                }
               >
                 <LayoutGrid className="h-3.5 w-3.5" /> Mês
               </button>
               <button
                 onClick={() => setView("agenda")}
                 className="flex items-center gap-1 rounded-[6px] px-2.5 py-1.5 text-xs font-medium"
-                style={view === "agenda" ? { backgroundColor: "var(--chapter-primary)", color: "#fff" } : { color: "var(--muted-foreground)" }}
+                style={
+                  view === "agenda"
+                    ? {
+                        backgroundColor: "var(--chapter-primary)",
+                        color: "#fff",
+                      }
+                    : { color: "var(--muted-foreground)" }
+                }
               >
                 <List className="h-3.5 w-3.5" /> Agenda
               </button>
@@ -179,22 +264,40 @@ function CalendarioPage() {
               variant="outline"
               size="sm"
               className="h-9"
-              onClick={() => downloadIcs(filtered, `calendario-sgcdm`, "SG-CDM · Calendário")}
+              onClick={() =>
+                downloadIcs(filtered, `calendario-sgcdm`, "SG-CDM · Calendário")
+              }
               title="Baixar .ics para Google Agenda, Apple, Outlook ou Teams"
             >
-              <Download className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Exportar</span>
+              <Download className="h-4 w-4 sm:mr-2" />{" "}
+              <span className="hidden sm:inline">Exportar</span>
             </Button>
             {canCreate && (
-              <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) setCreateDate(null); }}>
+              <Dialog
+                open={createOpen}
+                onOpenChange={(o) => {
+                  setCreateOpen(o);
+                  if (!o) setCreateDate(null);
+                }}
+              >
                 <DialogTrigger asChild>
-                  <Button size="sm" className="h-9" style={{ backgroundColor: "var(--chapter-primary)" }} onClick={() => setCreateDate(null)}>
+                  <Button
+                    size="sm"
+                    className="h-9"
+                    style={{ backgroundColor: "var(--chapter-primary)" }}
+                    onClick={() => setCreateDate(null)}
+                  >
                     <PlusCircle className="mr-2 h-4 w-4" /> Novo
                   </Button>
                 </DialogTrigger>
                 <CreateDialog
                   key={createDate ?? "novo"}
                   chapterId={active?.chapter_id ?? ""}
-                  chapterName={active ? `${active.chapter.name} · Nº ${active.chapter.number}` : ""}
+                  chapterName={
+                    active
+                      ? `${active.chapter.name} · Nº ${active.chapter.number}`
+                      : ""
+                  }
                   defaultDate={createDate}
                   onClose={() => setCreateOpen(false)}
                   onCreated={() => {
@@ -205,7 +308,6 @@ function CalendarioPage() {
                 />
               </Dialog>
             )}
-
           </div>
         }
       />
@@ -225,7 +327,10 @@ function CalendarioPage() {
                 borderColor: on ? meta.color : "var(--border)",
               }}
             >
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: meta.color }} />
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: meta.color }}
+              />
               {meta.label}
             </button>
           );
@@ -265,37 +370,63 @@ function CalendarioPage() {
           }}
         />
       ) : (
-        <AgendaView items={filtered} onSelect={setDetail} chapterNameMap={chapterNameMap} showChapter={memberships.length > 1} />
+        <AgendaView
+          items={filtered}
+          onSelect={setDetail}
+          chapterNameMap={chapterNameMap}
+          showChapter={memberships.length > 1}
+        />
       )}
 
       {/* Day list dialog (month view) */}
-      <Dialog open={!!selectedDay} onOpenChange={(o) => !o && setSelectedDay(null)}>
+      <Dialog
+        open={!!selectedDay}
+        onOpenChange={(o) => !o && setSelectedDay(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {selectedDay &&
-                new Date(selectedDay + "T00:00:00").toLocaleDateString("pt-BR", {
-                  weekday: "long", day: "2-digit", month: "long", year: "numeric",
-                })}
+                new Date(selectedDay + "T00:00:00").toLocaleDateString(
+                  "pt-BR",
+                  {
+                    weekday: "long",
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  },
+                )}
             </DialogTitle>
           </DialogHeader>
           <ul className="space-y-2">
-            {selectedDay && filtered.filter((it) => occursOnDay(it, selectedDay)).length === 0 && (
-              <li className="text-sm text-muted-foreground">Nenhum item neste dia.</li>
-            )}
-            {selectedDay && filtered
-              .filter((it) => occursOnDay(it, selectedDay))
-              .sort((a, b) => a.start_at.localeCompare(b.start_at))
-              .map((it) => (
-                <li key={it.id}>
-                  <button
-                    className="w-full rounded-[8px] border border-border p-3 text-left hover:bg-muted"
-                    onClick={() => { setDetail(it); setSelectedDay(null); }}
-                  >
-                    <ItemRow item={it} chapterName={chapterNameMap.get(it.chapter_id)} showChapter={memberships.length > 1} />
-                  </button>
+            {selectedDay &&
+              filtered.filter((it) => occursOnDay(it, selectedDay)).length ===
+                0 && (
+                <li className="text-sm text-muted-foreground">
+                  Nenhum item neste dia.
                 </li>
-              ))}
+              )}
+            {selectedDay &&
+              filtered
+                .filter((it) => occursOnDay(it, selectedDay))
+                .sort((a, b) => a.start_at.localeCompare(b.start_at))
+                .map((it) => (
+                  <li key={it.id}>
+                    <button
+                      className="w-full rounded-[8px] border border-border p-3 text-left hover:bg-muted"
+                      onClick={() => {
+                        setDetail(it);
+                        setSelectedDay(null);
+                      }}
+                    >
+                      <ItemRow
+                        item={it}
+                        chapterName={chapterNameMap.get(it.chapter_id)}
+                        showChapter={memberships.length > 1}
+                      />
+                    </button>
+                  </li>
+                ))}
           </ul>
           {canCreate && selectedDay && (
             <DialogFooter>
@@ -315,7 +446,6 @@ function CalendarioPage() {
         </DialogContent>
       </Dialog>
 
-
       {/* Detail dialog */}
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
         <DialogContent>
@@ -325,7 +455,10 @@ function CalendarioPage() {
               chapterName={chapterNameMap.get(detail.chapter_id)}
               showChapter={memberships.length > 1}
               canDelete={canCreate && detail.chapter_id === active?.chapter_id}
-              onEdit={() => { setEditItem(detail); setDetail(null); }}
+              onEdit={() => {
+                setEditItem(detail);
+                setDetail(null);
+              }}
               onDeleted={() => {
                 setDetail(null);
                 qc.invalidateQueries({ queryKey: ["calendar"] });
@@ -351,13 +484,15 @@ function CalendarioPage() {
           />
         )}
       </Dialog>
-
     </div>
   );
 }
 
 function MonthView({
-  cursor, setCursor, items, onDayClick,
+  cursor,
+  setCursor,
+  items,
+  onDayClick,
 }: {
   cursor: Date;
   setCursor: (d: Date) => void;
@@ -383,7 +518,10 @@ function MonthView({
     return map;
   }, [items]);
 
-  const monthLabel = cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const monthLabel = cursor.toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
   const todayKey = toLocalDateKey(new Date().toISOString());
 
   return (
@@ -391,25 +529,52 @@ function MonthView({
       <div className="mb-3 flex items-center justify-between">
         <div className="text-sm font-semibold capitalize">{monthLabel}</div>
         <div className="flex items-center gap-1">
-          <Button size="icon" variant="ghost" onClick={() => setCursor(new Date(year, month - 1, 1))}>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setCursor(new Date(year, month - 1, 1))}
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="outline" onClick={() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); setCursor(d); }}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const d = new Date();
+              d.setDate(1);
+              d.setHours(0, 0, 0, 0);
+              setCursor(d);
+            }}
+          >
             Hoje
           </Button>
-          <Button size="icon" variant="ghost" onClick={() => setCursor(new Date(year, month + 1, 1))}>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setCursor(new Date(year, month + 1, 1))}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground">
-        {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map((d) => <div key={d} className="py-1">{d}</div>)}
+        {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
+          <div key={d} className="py-1">
+            {d}
+          </div>
+        ))}
       </div>
       <div className="grid grid-cols-7 gap-1">
         {Array.from({ length: totalCells }).map((_, idx) => {
           const dayNum = idx - startWeekday + 1;
           const inMonth = dayNum >= 1 && dayNum <= daysInMonth;
-          if (!inMonth) return <div key={idx} className="min-h-[64px] rounded-[6px] bg-transparent lg:min-h-[96px]" />;
+          if (!inMonth)
+            return (
+              <div
+                key={idx}
+                className="min-h-[64px] rounded-[6px] bg-transparent lg:min-h-[96px]"
+              />
+            );
           const date = new Date(year, month, dayNum);
           const key = toLocalDateKey(date.toISOString());
           const dayItems = byDay.get(key) ?? [];
@@ -421,19 +586,29 @@ function MonthView({
               key={idx}
               onClick={() => onDayClick(key)}
               className="flex min-h-[64px] flex-col rounded-[6px] border border-border p-1 text-left transition-colors hover:bg-muted lg:min-h-[96px]"
-              style={isToday ? { borderColor: "var(--chapter-primary)" } : undefined}
+              style={
+                isToday ? { borderColor: "var(--chapter-primary)" } : undefined
+              }
             >
               <div className="mb-1 flex items-center justify-between">
                 <span
                   className="text-xs font-semibold"
-                  style={isToday ? { color: "var(--chapter-primary)" } : undefined}
+                  style={
+                    isToday ? { color: "var(--chapter-primary)" } : undefined
+                  }
                 >
                   {dayNum}
                 </span>
                 <div className="flex gap-0.5 lg:hidden">
-                  {Array.from(new Set(dayItems.map((i) => i.event_type))).map((t) => (
-                    <span key={t} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: TYPE_META[t].color }} />
-                  ))}
+                  {Array.from(new Set(dayItems.map((i) => i.event_type))).map(
+                    (t) => (
+                      <span
+                        key={t}
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: TYPE_META[t].color }}
+                      />
+                    ),
+                  )}
                 </div>
               </div>
               <div className="hidden flex-col gap-0.5 lg:flex">
@@ -441,12 +616,19 @@ function MonthView({
                   <span
                     key={it.id}
                     className="truncate rounded px-1 py-0.5 text-[10px]"
-                    style={{ backgroundColor: TYPE_META[it.event_type].bg, color: TYPE_META[it.event_type].color }}
+                    style={{
+                      backgroundColor: TYPE_META[it.event_type].bg,
+                      color: TYPE_META[it.event_type].color,
+                    }}
                   >
                     {formatTimeInAppTz(it.start_at)} {it.title}
                   </span>
                 ))}
-                {extra > 0 && <span className="text-[10px] text-muted-foreground">+{extra} mais</span>}
+                {extra > 0 && (
+                  <span className="text-[10px] text-muted-foreground">
+                    +{extra} mais
+                  </span>
+                )}
               </div>
             </button>
           );
@@ -457,7 +639,10 @@ function MonthView({
 }
 
 function AgendaView({
-  items, onSelect, chapterNameMap, showChapter,
+  items,
+  onSelect,
+  chapterNameMap,
+  showChapter,
 }: {
   items: CalendarItem[];
   onSelect: (it: CalendarItem) => void;
@@ -494,34 +679,54 @@ function AgendaView({
 
   return (
     <div className="space-y-4">
-      {Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([key, list]) => {
-
-        const date = new Date(key + "T00:00:00");
-        const label = date.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
-        return (
-          <div key={key}>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
-            <Card className="rounded-[12px] p-0">
-              <ul className="divide-y divide-border">
-                {list.map((it) => (
-                  <li key={it.id}>
-                    <button className="w-full p-4 text-left hover:bg-muted" onClick={() => onSelect(it)}>
-                      <ItemRow item={it} chapterName={chapterNameMap.get(it.chapter_id)} showChapter={showChapter} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          </div>
-        );
-      })}
+      {Array.from(groups.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([key, list]) => {
+          const date = new Date(key + "T00:00:00");
+          const label = date.toLocaleDateString("pt-BR", {
+            weekday: "long",
+            day: "2-digit",
+            month: "long",
+          });
+          return (
+            <div key={key}>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {label}
+              </div>
+              <Card className="rounded-[12px] p-0">
+                <ul className="divide-y divide-border">
+                  {list.map((it) => (
+                    <li key={it.id}>
+                      <button
+                        className="w-full p-4 text-left hover:bg-muted"
+                        onClick={() => onSelect(it)}
+                      >
+                        <ItemRow
+                          item={it}
+                          chapterName={chapterNameMap.get(it.chapter_id)}
+                          showChapter={showChapter}
+                        />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
+          );
+        })}
     </div>
   );
 }
 
 function ItemRow({
-  item, chapterName, showChapter,
-}: { item: CalendarItem; chapterName?: string; showChapter: boolean }) {
+  item,
+  chapterName,
+  showChapter,
+}: {
+  item: CalendarItem;
+  chapterName?: string;
+  showChapter: boolean;
+}) {
   const meta = TYPE_META[item.event_type];
   const time = formatTimeInAppTz(item.start_at);
   return (
@@ -543,7 +748,12 @@ function ItemRow({
           </span>
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-          {item.location && (<span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{item.location}</span>)}
+          {item.location && (
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              {item.location}
+            </span>
+          )}
           {showChapter && chapterName && <span>{chapterName}</span>}
         </div>
       </div>
@@ -552,7 +762,12 @@ function ItemRow({
 }
 
 function DetailContent({
-  item, chapterName, showChapter, canDelete, onDeleted, onEdit,
+  item,
+  chapterName,
+  showChapter,
+  canDelete,
+  onDeleted,
+  onEdit,
 }: {
   item: CalendarItem;
   chapterName?: string;
@@ -565,7 +780,10 @@ function DetailContent({
   const { active: activeChapter } = useActiveChapter();
   const del = useMutation({
     mutationFn: () => deleteCalendarItem({ data: { id: item.id } }),
-    onSuccess: () => { toast.success("Item excluído"); onDeleted(); },
+    onSuccess: () => {
+      toast.success("Item excluído");
+      onDeleted();
+    },
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
 
@@ -584,7 +802,10 @@ function DetailContent({
             style={
               item.mandatory
                 ? { backgroundColor: "#FEE2E2", color: "#B91C1C" }
-                : { backgroundColor: "var(--muted)", color: "var(--muted-foreground)" }
+                : {
+                    backgroundColor: "var(--muted)",
+                    color: "var(--muted-foreground)",
+                  }
             }
           >
             {item.mandatory ? "Obrigatório" : "Facultativo"}
@@ -601,7 +822,6 @@ function DetailContent({
         </DialogTitle>
       </DialogHeader>
       <div className="space-y-3 text-sm">
-
         <div>
           <div className="text-xs text-muted-foreground">Início</div>
           <div>{formatDateTimeBR(item.start_at)}</div>
@@ -650,7 +870,9 @@ function DetailContent({
               try {
                 await navigator.clipboard.writeText(
                   buildChaveDoDia(item, {
-                    template: (activeChapter?.chapter as any)?.settings?.chave_template ?? null,
+                    template:
+                      (activeChapter?.chapter as any)?.settings
+                        ?.chave_template ?? null,
                     chapterName: activeChapter?.chapter.name ?? null,
                   }),
                 );
@@ -672,7 +894,11 @@ function DetailContent({
               <ExternalLink className="mr-2 h-3.5 w-3.5" /> Outlook / Teams
             </a>
           </Button>
-          <Button size="sm" variant="outline" onClick={() => downloadIcs([item], item.title)}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => downloadIcs([item], item.title)}
+          >
             <Download className="mr-2 h-3.5 w-3.5" /> .ics (Apple)
           </Button>
         </div>
@@ -698,7 +924,6 @@ function DetailContent({
             </Link>
           </div>
         )}
-
       </div>
       {canDelete && (
         <DialogFooter className="sm:justify-between">
@@ -710,19 +935,27 @@ function DetailContent({
           >
             <Trash2 className="mr-2 h-4 w-4" /> Excluir
           </Button>
-          <Button style={{ backgroundColor: "var(--chapter-primary)" }} onClick={onEdit}>
+          <Button
+            style={{ backgroundColor: "var(--chapter-primary)" }}
+            onClick={onEdit}
+          >
             <Pencil className="mr-2 h-4 w-4" /> Editar
           </Button>
         </DialogFooter>
       )}
-
     </>
   );
 }
 
 function toLocalDateTimeInput(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toAppTzDateTimeLocal(d);
+}
+
+/** Defaults de criação (13:30 / 17:00) no fuso do app, a partir de YYYY-MM-DD. */
+function appTzDateAt(ymd: string, hour: number, minute: number): Date {
+  return fromAppTzDateTimeLocal(
+    `${ymd}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+  );
 }
 
 const DRESS_CODES = ["Informal", "Formal"] as const;
@@ -741,7 +974,12 @@ function FieldError({ msg }: { msg?: string | null }) {
 }
 
 function CreateDialog({
-  chapterId, chapterName, defaultDate, onClose, onCreated, item,
+  chapterId,
+  chapterName,
+  defaultDate,
+  onClose,
+  onCreated,
+  item,
 }: {
   chapterId: string;
   chapterName: string;
@@ -753,28 +991,23 @@ function CreateDialog({
   const isEdit = Boolean(item);
   const isMobile = useIsMobile();
   const [title, setTitle] = useState(item?.title ?? "");
-  const [type, setType] = useState<CalendarType>(item?.event_type ?? "sessao_ritualistica");
+  const [type, setType] = useState<CalendarType>(
+    item?.event_type ?? "sessao_ritualistica",
+  );
   const [mandatory, setMandatory] = useState(item?.mandatory ?? true);
   const [publicOpen, setPublicOpen] = useState(item?.public_open ?? false);
   const [touched, setTouched] = useState(false);
 
-  const baseDate = () => {
-    const d = item ? new Date(item.start_at) : defaultDate ? new Date(defaultDate + "T00:00:00") : new Date();
-    d.setSeconds(0, 0);
-    return d;
-  };
-
   const [startAt, setStartAt] = useState<string>(() => {
     if (item) return toLocalDateTimeInput(new Date(item.start_at));
-    const d = baseDate();
-    d.setHours(13, 30, 0, 0);
-    return toLocalDateTimeInput(d);
+    const ymd = defaultDate ?? todayYmd();
+    return toLocalDateTimeInput(appTzDateAt(ymd, 13, 30));
   });
   const [endAt, setEndAt] = useState<string>(() => {
-    if (item) return item.end_at ? toLocalDateTimeInput(new Date(item.end_at)) : "";
-    const d = baseDate();
-    d.setHours(17, 0, 0, 0);
-    return toLocalDateTimeInput(d);
+    if (item)
+      return item.end_at ? toLocalDateTimeInput(new Date(item.end_at)) : "";
+    const ymd = defaultDate ?? todayYmd();
+    return toLocalDateTimeInput(appTzDateAt(ymd, 17, 0));
   });
 
   const [location, setLocation] = useState(item?.location ?? "");
@@ -793,7 +1026,10 @@ function CreateDialog({
   });
 
   function pickLodge(id: string) {
-    if (id === "none") { setLodgeId(""); return; }
+    if (id === "none") {
+      setLodgeId("");
+      return;
+    }
     setLodgeId(id);
     const l = (lodges.data ?? []).find((x) => x.id === id);
     if (!l) return;
@@ -806,7 +1042,8 @@ function CreateDialog({
     const e: Record<string, string> = {};
     if (!title.trim()) e.title = "Informe o título da atividade.";
     if (!startAt) e.startAt = "Informe a data e hora de início.";
-    if (endAt && startAt && endAt <= startAt) e.endAt = "O término deve ser após o início.";
+    if (endAt && startAt && endAt <= startAt)
+      e.endAt = "O término deve ser após o início.";
     return e;
   }, [title, startAt, endAt]);
   const showErr = (k: string) => (touched ? errors[k] : undefined);
@@ -814,7 +1051,7 @@ function CreateDialog({
 
   const dateLabel = useMemo(() => {
     if (!startAt) return undefined;
-    const d = new Date(startAt);
+    const d = fromAppTzDateTimeLocal(startAt);
     if (Number.isNaN(d.getTime())) return undefined;
     return (
       d.toLocaleDateString("pt-BR", {
@@ -843,9 +1080,14 @@ function CreateDialog({
       }),
     onSuccess: (r: { text: string }) => {
       setDescription(r.text);
-      toast.success(description.trim() ? "Descrição complementada pela IA" : "Descrição gerada pela IA");
+      toast.success(
+        description.trim()
+          ? "Descrição complementada pela IA"
+          : "Descrição gerada pela IA",
+      );
     },
-    onError: (e: any) => toast.error(e?.message ?? "Não foi possível gerar a descrição"),
+    onError: (e: any) =>
+      toast.error(e?.message ?? "Não foi possível gerar a descrição"),
   });
 
   const payload = () => ({
@@ -853,11 +1095,11 @@ function CreateDialog({
     event_type: type,
     mandatory,
     public_open: publicOpen,
-    start_at: new Date(startAt).toISOString(),
-    end_at: endAt ? new Date(endAt).toISOString() : null,
+    start_at: fromAppTzDateTimeLocal(startAt).toISOString(),
+    end_at: endAt ? fromAppTzDateTimeLocal(endAt).toISOString() : null,
     location: location.trim() || null,
     address: address.trim() || null,
-    lodge_id: usesLodge ? (lodgeId || null) : null,
+    lodge_id: usesLodge ? lodgeId || null : null,
     dress_code: dressCode.trim() || null,
     description: description.trim() || null,
   });
@@ -867,14 +1109,20 @@ function CreateDialog({
       isEdit
         ? updateCalendarItem({ data: { id: item!.id, ...payload() } })
         : createCalendarItem({ data: payload() }),
-    onSuccess: () => { toast.success(isEdit ? "Item atualizado" : "Item criado"); onCreated(); },
+    onSuccess: () => {
+      toast.success(isEdit ? "Item atualizado" : "Item criado");
+      onCreated();
+    },
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
 
   function submit() {
     setTouched(true);
     const first = Object.values(errors)[0];
-    if (first) { toast.error(first); return; }
+    if (first) {
+      toast.error(first);
+      return;
+    }
     m.mutate();
   }
 
@@ -886,7 +1134,8 @@ function CreateDialog({
           {chapterName}
         </div>
         <p className="mt-1 text-[11px] text-muted-foreground">
-          O evento será criado no capítulo ativo do usuário. Altere o capítulo pelo menu lateral.
+          O evento será criado no capítulo ativo do usuário. Altere o capítulo
+          pelo menu lateral.
         </p>
       </div>
       <div>
@@ -904,10 +1153,14 @@ function CreateDialog({
       <div>
         <Label className="mb-1.5 block text-xs">Tipo</Label>
         <Select value={type} onValueChange={(v) => setType(v as CalendarType)}>
-          <SelectTrigger className="h-11"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+          <SelectTrigger className="h-11">
+            <SelectValue placeholder="Selecione o tipo" />
+          </SelectTrigger>
           <SelectContent>
             {CALENDAR_TYPES.map((t) => (
-              <SelectItem key={t} value={t}>{TYPE_META[t].label}</SelectItem>
+              <SelectItem key={t} value={t}>
+                {TYPE_META[t].label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -915,18 +1168,25 @@ function CreateDialog({
       <div>
         <Label className="mb-1.5 block text-xs">Traje</Label>
         <Select
-          value={(DRESS_CODES.includes(dressCode as (typeof DRESS_CODES)[number]) ? dressCode : "Formal")}
+          value={
+            DRESS_CODES.includes(dressCode as (typeof DRESS_CODES)[number])
+              ? dressCode
+              : "Formal"
+          }
           onValueChange={setDressCode}
         >
-          <SelectTrigger className="h-11"><SelectValue placeholder="Selecione o traje" /></SelectTrigger>
+          <SelectTrigger className="h-11">
+            <SelectValue placeholder="Selecione o traje" />
+          </SelectTrigger>
           <SelectContent>
             {DRESS_CODES.map((d) => (
-              <SelectItem key={d} value={d}>{d}</SelectItem>
+              <SelectItem key={d} value={d}>
+                {d}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
-
     </div>
   );
 
@@ -941,7 +1201,13 @@ function CreateDialog({
             value={startAt}
             onChange={(e) => setStartAt(e.target.value)}
             onBlur={() => setTouched(true)}
-            onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+            onClick={(e) =>
+              (
+                e.currentTarget as HTMLInputElement & {
+                  showPicker?: () => void;
+                }
+              ).showPicker?.()
+            }
             aria-invalid={Boolean(showErr("startAt"))}
           />
           <FieldError msg={showErr("startAt")} />
@@ -955,26 +1221,43 @@ function CreateDialog({
             min={startAt || undefined}
             onChange={(e) => setEndAt(e.target.value)}
             onBlur={() => setTouched(true)}
-            onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+            onClick={(e) =>
+              (
+                e.currentTarget as HTMLInputElement & {
+                  showPicker?: () => void;
+                }
+              ).showPicker?.()
+            }
             aria-invalid={Boolean(showErr("endAt"))}
           />
           <FieldError msg={showErr("endAt")} />
         </div>
-
       </div>
       <label className="flex min-h-[56px] items-center justify-between gap-3 rounded-[10px] border border-border p-3">
         <span>
           <span className="block text-xs font-medium">Obrigatório</span>
-          <span className="block text-[11px] text-muted-foreground">Conta na frequência dos membros.</span>
+          <span className="block text-[11px] text-muted-foreground">
+            Conta na frequência dos membros.
+          </span>
         </span>
-        <Switch checked={mandatory} onCheckedChange={setMandatory} className="scale-110" />
+        <Switch
+          checked={mandatory}
+          onCheckedChange={setMandatory}
+          className="scale-110"
+        />
       </label>
       <label className="flex min-h-[56px] items-center justify-between gap-3 rounded-[10px] border border-border p-3">
         <span>
           <span className="block text-xs font-medium">Aberto ao público</span>
-          <span className="block text-[11px] text-muted-foreground">Convidados e familiares podem participar.</span>
+          <span className="block text-[11px] text-muted-foreground">
+            Convidados e familiares podem participar.
+          </span>
         </span>
-        <Switch checked={publicOpen} onCheckedChange={setPublicOpen} className="scale-110" />
+        <Switch
+          checked={publicOpen}
+          onCheckedChange={setPublicOpen}
+          className="scale-110"
+        />
       </label>
     </div>
   );
@@ -986,19 +1269,27 @@ function CreateDialog({
           <Label className="mb-1 block text-xs">Loja patrocinadora</Label>
           <Select value={lodgeId || "none"} onValueChange={pickLodge}>
             <SelectTrigger className="h-11">
-              <SelectValue placeholder={(lodges.data ?? []).length ? "Selecione a loja…" : "Nenhuma loja cadastrada"} />
+              <SelectValue
+                placeholder={
+                  (lodges.data ?? []).length
+                    ? "Selecione a loja…"
+                    : "Nenhuma loja cadastrada"
+                }
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Sem loja vinculada</SelectItem>
               {(lodges.data ?? []).map((l) => (
                 <SelectItem key={l.id} value={l.id}>
-                  {l.name}{l.is_primary ? " · principal" : ""}
+                  {l.name}
+                  {l.is_primary ? " · principal" : ""}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Local e endereço são preenchidos automaticamente e podem ser editados.
+            Local e endereço são preenchidos automaticamente e podem ser
+            editados.
           </p>
         </div>
       )}
@@ -1012,7 +1303,9 @@ function CreateDialog({
           placeholder="Templo, salão…"
         />
         <datalist id="cal-local-sugestoes">
-          {(lodges.data ?? []).map((l) => <option key={l.id} value={l.name} />)}
+          {(lodges.data ?? []).map((l) => (
+            <option key={l.id} value={l.name} />
+          ))}
         </datalist>
       </div>
       <div>
@@ -1042,11 +1335,20 @@ function CreateDialog({
         ) : (
           <Sparkles className="mr-1.5 h-3.5 w-3.5" />
         )}
-        {ai.isPending ? "Gerando…" : description.trim() ? "Complementar com IA" : "Gerar com IA"}
+        {ai.isPending
+          ? "Gerando…"
+          : description.trim()
+            ? "Complementar com IA"
+            : "Gerar com IA"}
       </Button>
-      <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} />
+      <Textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        rows={5}
+      />
       <p className="text-[11px] text-muted-foreground">
-        Com texto escrito, a IA complementa mantendo o seu conteúdo; vazio, ela gera a partir do título e dos dados da atividade.
+        Com texto escrito, a IA complementa mantendo o seu conteúdo; vazio, ela
+        gera a partir do título e dos dados da atividade.
       </p>
     </div>
   );
@@ -1065,22 +1367,40 @@ function CreateDialog({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
         {isMobile ? (
-          <Accordion type="multiple" defaultValue={["ident", "data"]} className="w-full">
+          <Accordion
+            type="multiple"
+            defaultValue={["ident", "data"]}
+            className="w-full"
+          >
             <AccordionItem value="ident">
-              <AccordionTrigger className="py-3 text-sm">Identificação</AccordionTrigger>
-              <AccordionContent className="pb-4">{identificacao}</AccordionContent>
+              <AccordionTrigger className="py-3 text-sm">
+                Identificação
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                {identificacao}
+              </AccordionContent>
             </AccordionItem>
             <AccordionItem value="data">
-              <AccordionTrigger className="py-3 text-sm">Data e controle</AccordionTrigger>
-              <AccordionContent className="pb-4">{dataControle}</AccordionContent>
+              <AccordionTrigger className="py-3 text-sm">
+                Data e controle
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                {dataControle}
+              </AccordionContent>
             </AccordionItem>
             <AccordionItem value="local">
-              <AccordionTrigger className="py-3 text-sm">Local</AccordionTrigger>
+              <AccordionTrigger className="py-3 text-sm">
+                Local
+              </AccordionTrigger>
               <AccordionContent className="pb-4">{localBloco}</AccordionContent>
             </AccordionItem>
             <AccordionItem value="desc">
-              <AccordionTrigger className="py-3 text-sm">Descrição</AccordionTrigger>
-              <AccordionContent className="pb-4">{descricaoBloco}</AccordionContent>
+              <AccordionTrigger className="py-3 text-sm">
+                Descrição
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                {descricaoBloco}
+              </AccordionContent>
             </AccordionItem>
           </Accordion>
         ) : (
@@ -1106,7 +1426,9 @@ function CreateDialog({
       </div>
 
       <DialogFooter className="grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-background px-4 py-3 sm:flex sm:justify-end sm:px-5">
-        <Button variant="outline" className="h-11 sm:h-9" onClick={onClose}>Cancelar</Button>
+        <Button variant="outline" className="h-11 sm:h-9" onClick={onClose}>
+          Cancelar
+        </Button>
         <Button
           className="h-11 sm:h-9"
           style={{ backgroundColor: "var(--chapter-primary)" }}
@@ -1117,6 +1439,5 @@ function CreateDialog({
         </Button>
       </DialogFooter>
     </DialogContent>
-
   );
 }

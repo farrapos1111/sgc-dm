@@ -117,7 +117,7 @@ function EventoDetalhe() {
       navigate({ to: "/eventos" });
     },
     onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Erro ao excluir"),
+      toast.error(mutationErrorMessage(e, "Erro ao excluir")),
   });
 
   return (
@@ -357,8 +357,7 @@ function TicketTypesCard({
       setQty(0);
       onChanged();
     },
-    onError: (e: unknown) =>
-      toast.error(mutationErrorMessage(e, "Erro")),
+    onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
   });
   return (
     <Card className="rounded-[12px] p-5">
@@ -473,8 +472,7 @@ function SellTicketCard({
       setEmail("");
       onSold();
     },
-    onError: (e: unknown) =>
-      toast.error(mutationErrorMessage(e, "Erro")),
+    onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
   });
 
   return (
@@ -564,16 +562,14 @@ function TablesMap({
       setLabel("");
       onChanged();
     },
-    onError: (e: unknown) =>
-      toast.error(mutationErrorMessage(e, "Erro")),
+    onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
   });
 
   const assignM = useMutation({
     mutationFn: (v: { seat_id: string; ticket_id: string | null }) =>
       assignSeat({ data: v }),
     onSuccess: () => onChanged(),
-    onError: (e: unknown) =>
-      toast.error(mutationErrorMessage(e, "Erro")),
+    onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
   });
 
   const seatsByTable = new Map<string, EventSeat[]>();

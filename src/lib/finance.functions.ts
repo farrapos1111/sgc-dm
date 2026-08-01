@@ -2071,14 +2071,15 @@ export const getDashboardFinance = createServerFn({ method: "POST" })
       const payments = await fetchAllPages<{
         charge_id: string;
         amount: number | string;
-      }>((from, to) =>
-        context.supabase
-          .from("member_charge_payments" as never)
-          .select("charge_id, amount")
-          .eq("chapter_id", data.chapterId)
-          .in("charge_id", chunk)
-          .order("charge_id", { ascending: true })
-          .range(from, to) as never,
+      }>(
+        (from, to) =>
+          context.supabase
+            .from("member_charge_payments" as never)
+            .select("charge_id, amount")
+            .eq("chapter_id", data.chapterId)
+            .in("charge_id", chunk)
+            .order("charge_id", { ascending: true })
+            .range(from, to) as never,
       );
       for (const p of payments) {
         paidByCharge.set(

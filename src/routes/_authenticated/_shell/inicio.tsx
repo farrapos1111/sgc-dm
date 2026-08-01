@@ -179,9 +179,7 @@ function InicioContent({ active }: { active: Membership }) {
         ? `Mensalidades ${formatBRL(finance.pendingAmount)} · cobranças ${formatBRL(finance.openChargesAmount ?? 0)}`
         : `${finance.pendingCompetences} competência${finance.pendingCompetences === 1 ? "" : "s"} · ${formatBRL(finance.pendingAmount)}`;
   const membrosTone =
-    !financeUnavailable &&
-    showReceivable &&
-    (finance?.receivableTotal ?? 0) > 0
+    !financeUnavailable && showReceivable && (finance?.receivableTotal ?? 0) > 0
       ? "text-amber-600 dark:text-amber-400"
       : undefined;
 
@@ -267,9 +265,7 @@ function InicioContent({ active }: { active: Membership }) {
                     )
                   }
                   label={saldoLabel}
-                  value={
-                    saldoValue == null ? "—" : formatBRL(saldoValue)
-                  }
+                  value={saldoValue == null ? "—" : formatBRL(saldoValue)}
                   hint={saldoHint}
                   tone={
                     saldoValue == null

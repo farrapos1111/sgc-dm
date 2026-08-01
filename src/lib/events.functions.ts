@@ -120,12 +120,15 @@ export const getEvent = createServerFn({ method: "POST" })
             .from("seats")
             .select("id, table_id, seat_number, ticket_id")
             .in("table_id", tableIds)
-        : Promise.resolve({ data: [] as Array<{
-            id: string;
-            table_id: string;
-            seat_number: number;
-            ticket_id: string | null;
-          }>, error: null }),
+        : Promise.resolve({
+            data: [] as Array<{
+              id: string;
+              table_id: string;
+              seat_number: number;
+              ticket_id: string | null;
+            }>,
+            error: null,
+          }),
       context.supabase
         .from("checkins")
         .select("id, ticket_id, method, checked_in_at")
@@ -339,6 +342,9 @@ export const deleteEvent = createServerFn({ method: "POST" })
       .select("name")
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!deleted) throw new Error("Evento não encontrado");
+    // Evento já confirmado acima; null aqui costuma ser RLS (policy DELETE).
+    if (!deleted) {
+      throw new Error("Sem permissão para excluir este evento");
+    }
     return { ok: true, name: deleted.name as string };
   });
