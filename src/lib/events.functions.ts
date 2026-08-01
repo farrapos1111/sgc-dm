@@ -4,11 +4,15 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const listEvents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) => z.object({ chapterId: z.string().uuid() }).parse(raw))
+  .inputValidator((raw) =>
+    z.object({ chapterId: z.string().uuid() }).parse(raw),
+  )
   .handler(async ({ data, context }) => {
     const { data: events, error } = await context.supabase
       .from("events")
-      .select("id, name, description, location, starts_at, ends_at, goal_amount, status, created_at")
+      .select(
+        "id, name, description, location, starts_at, ends_at, goal_amount, status, created_at",
+      )
       .eq("chapter_id", data.chapterId)
       .order("starts_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -30,7 +34,11 @@ export const listEvents = createServerFn({ method: "POST" })
       }
       totals.set(t.event_id, cur);
     }
-    return events.map((e) => ({ ...e, raised: totals.get(e.id)?.raised ?? 0, tickets_sold: totals.get(e.id)?.count ?? 0 }));
+    return events.map((e) => ({
+      ...e,
+      raised: totals.get(e.id)?.raised ?? 0,
+      tickets_sold: totals.get(e.id)?.count ?? 0,
+    }));
   });
 
 export const createEvent = createServerFn({ method: "POST" })
@@ -45,7 +53,9 @@ export const createEvent = createServerFn({ method: "POST" })
         starts_at: z.string(),
         ends_at: z.string().optional().nullable(),
         goal_amount: z.number().min(0).default(0),
-        status: z.enum(["rascunho", "publicado", "encerrado"]).default("rascunho"),
+        status: z
+          .enum(["rascunho", "publicado", "encerrado"])
+          .default("rascunho"),
       })
       .parse(raw),
   )
@@ -75,30 +85,48 @@ export const getEvent = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const eventRes = await context.supabase
       .from("events")
-      .select("id, chapter_id, name, description, location, starts_at, ends_at, goal_amount, status")
+      .select(
+        "id, chapter_id, name, description, location, starts_at, ends_at, goal_amount, status",
+      )
       .eq("id", data.id)
       .maybeSingle();
     if (eventRes.error) throw new Error(eventRes.error.message);
     if (!eventRes.data) throw new Error("Evento não encontrado");
 
     const [types, tickets, tables, seats, checkins] = await Promise.all([
-      context.supabase.from("ticket_types").select("*").eq("event_id", data.id).order("sort_order"),
+      context.supabase
+        .from("ticket_types")
+        .select("*")
+        .eq("event_id", data.id)
+        .order("sort_order"),
       context.supabase
         .from("tickets")
-        .select("id, ticket_type_id, buyer_name, buyer_email, qr_code, status, price_paid, sold_at")
+        .select(
+          "id, ticket_type_id, buyer_name, buyer_email, qr_code, status, price_paid, sold_at",
+        )
         .eq("event_id", data.id)
         .order("sold_at", { ascending: false }),
-      context.supabase.from("event_tables").select("*").eq("event_id", data.id).order("label"),
+      context.supabase
+        .from("event_tables")
+        .select("*")
+        .eq("event_id", data.id)
+        .order("label"),
       context.supabase
         .from("seats")
         .select("id, table_id, seat_number, ticket_id")
         .in(
           "table_id",
           (
-            await context.supabase.from("event_tables").select("id").eq("event_id", data.id)
+            await context.supabase
+              .from("event_tables")
+              .select("id")
+              .eq("event_id", data.id)
           ).data?.map((r) => r.id) ?? [],
         ),
-      context.supabase.from("checkins").select("id, ticket_id, method, checked_in_at").eq("event_id", data.id),
+      context.supabase
+        .from("checkins")
+        .select("id, ticket_id, method, checked_in_at")
+        .eq("event_id", data.id),
     ]);
     for (const r of [types, tickets, tables, seats, checkins]) {
       if ("error" in r && r.error) throw new Error(r.error.message);
@@ -144,7 +172,12 @@ export const sellTicket = createServerFn({ method: "POST" })
         event_id: z.string().uuid(),
         ticket_type_id: z.string().uuid().nullable().optional(),
         buyer_name: z.string().min(2).max(120),
-        buyer_email: z.string().email().optional().or(z.literal("")).default(""),
+        buyer_email: z
+          .string()
+          .email()
+          .optional()
+          .or(z.literal(""))
+          .default(""),
         price_paid: z.number().min(0),
       })
       .parse(raw),
@@ -180,7 +213,11 @@ export const createTable = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: table, error } = await context.supabase
       .from("event_tables")
-      .insert({ event_id: data.event_id, label: data.label, capacity: data.capacity })
+      .insert({
+        event_id: data.event_id,
+        label: data.label,
+        capacity: data.capacity,
+      })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
@@ -188,7 +225,9 @@ export const createTable = createServerFn({ method: "POST" })
       table_id: table.id,
       seat_number: i + 1,
     }));
-    const { error: sErr } = await context.supabase.from("seats").insert(seatsPayload);
+    const { error: sErr } = await context.supabase
+      .from("seats")
+      .insert(seatsPayload);
     if (sErr) throw new Error(sErr.message);
     return { id: table.id };
   });
@@ -235,7 +274,8 @@ export const checkinTicket = createServerFn({ method: "POST" })
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (!t) throw new Error("Ingresso não encontrado");
-      if (t.event_id !== data.event_id) throw new Error("Ingresso de outro evento");
+      if (t.event_id !== data.event_id)
+        throw new Error("Ingresso de outro evento");
       if (t.status !== "valido") throw new Error("Ingresso inválido");
       ticketId = t.id;
     }
@@ -263,18 +303,13 @@ export const deleteEvent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const { data: event, error: eErr } = await context.supabase
-      .from("events")
-      .select("id, chapter_id, name")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (eErr) throw new Error(eErr.message);
-    if (!event) throw new Error("Evento não encontrado");
-
-    const { error } = await context.supabase
+    const { data: deleted, error } = await context.supabase
       .from("events")
       .delete()
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .select("name")
+      .maybeSingle();
     if (error) throw new Error(error.message);
-    return { ok: true, name: event.name as string };
+    if (!deleted) throw new Error("Evento não encontrado");
+    return { ok: true, name: deleted.name as string };
   });

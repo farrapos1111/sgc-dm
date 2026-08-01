@@ -20,6 +20,7 @@ import {
 import { CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid, PlusCircle, MapPin, Link as LinkIcon, Trash2, Pencil, Download, Copy, ExternalLink, Sparkles, Loader2 } from "lucide-react";
 import { composeEventDescription } from "@/lib/ai.functions";
 import { formatDateTimeBR } from "@/lib/format";
+import { formatTimeInAppTz, todayYmd } from "@/lib/timezone";
 import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from "@/lib/ics";
 import { buildChaveDoDia } from "@/lib/chave-do-dia";
 import { TYPE_META, CALENDAR_TYPES, isSessionType, type CalendarType } from "@/lib/calendar-types";
@@ -75,8 +76,7 @@ const itemsQO = (chapterIds: string[]) =>
   });
 
 function toLocalDateKey(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return todayYmd(iso);
 }
 
 /** Todas as datas (chaves locais) cobertas pelo item — itens que viram o dia aparecem em ambas. */
@@ -436,7 +436,7 @@ function MonthView({
                     className="truncate rounded px-1 py-0.5 text-[10px]"
                     style={{ backgroundColor: TYPE_META[it.event_type].bg, color: TYPE_META[it.event_type].color }}
                   >
-                    {new Date(it.start_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {it.title}
+                    {formatTimeInAppTz(it.start_at)} {it.title}
                   </span>
                 ))}
                 {extra > 0 && <span className="text-[10px] text-muted-foreground">+{extra} mais</span>}
@@ -516,7 +516,7 @@ function ItemRow({
   item, chapterName, showChapter,
 }: { item: CalendarItem; chapterName?: string; showChapter: boolean }) {
   const meta = TYPE_META[item.event_type];
-  const time = new Date(item.start_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const time = formatTimeInAppTz(item.start_at);
   return (
     <div className="flex items-start gap-3">
       <div
@@ -810,7 +810,7 @@ function CreateDialog({
     const d = new Date(startAt);
     if (Number.isNaN(d.getTime())) return undefined;
     return d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }) +
-      `, às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+      `, às ${formatTimeInAppTz(d)}`;
   }, [startAt]);
 
   /** Gera ou complementa a descrição com IA. */

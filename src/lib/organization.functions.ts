@@ -11,20 +11,22 @@ const termInput = z.object({
 const chapterInput = z.object({ chapterId: z.string().uuid() });
 
 function slugCommissionCode(label: string): string {
-  const base = label
+  let base = label
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 40);
-  return base || "comissao";
+  if (!base) return "comissao";
+  if (!/^[a-z]/.test(base)) base = `c_${base}`.slice(0, 40);
+  return base;
 }
 
+type OrgSupabase = { from: (table: string) => any };
+
 async function uniqueCommissionCode(
-  supabase: {
-    from: (t: string) => any;
-  },
+  supabase: OrgSupabase,
   chapterId: string,
   desired: string,
   excludeId?: number,
@@ -44,6 +46,26 @@ async function uniqueCommissionCode(
     code = `${desired.slice(0, 36)}_${i + 2}`;
   }
   throw new Error("Não foi possível gerar um código único para a comissão");
+}
+
+export const COMMISSION_ROLE_ORDER: Record<string, number> = {
+  presidente: 0,
+  vice: 1,
+  membro: 2,
+  auxiliar_senior: 3,
+};
+
+export function compareCommissionMembersByRoleName(
+  a: { role: string; member?: { full_name?: string } | null },
+  b: { role: string; member?: { full_name?: string } | null },
+): number {
+  const byRole =
+    (COMMISSION_ROLE_ORDER[a.role] ?? 99) -
+    (COMMISSION_ROLE_ORDER[b.role] ?? 99);
+  if (byRole !== 0) return byRole;
+  const nameA = a.member?.full_name ?? "";
+  const nameB = b.member?.full_name ?? "";
+  return nameA.localeCompare(nameB, "pt-BR");
 }
 
 export const listCatalog = createServerFn({ method: "POST" })
@@ -101,26 +123,48 @@ export const createChapterCommission = createServerFn({ method: "POST" })
 
     let sortOrder = data.sortOrder;
     if (sortOrder == null) {
-      const { data: maxRow } = await context.supabase
+      const { data: maxRow, error: maxErr } = await context.supabase
         .from("commissions")
         .select("sort_order")
         .eq("chapter_id", data.chapterId)
         .order("sort_order", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (maxErr) throw new Error(maxErr.message);
       sortOrder = (maxRow?.sort_order ?? 0) + 1;
     }
 
-    const { data: row, error } = await context.supabase
+    const insertPayload = {
+      chapter_id: data.chapterId,
+      code,
+      label: data.label,
+      sort_order: sortOrder,
+    };
+
+    let { data: row, error } = await context.supabase
       .from("commissions")
-      .insert({
-        chapter_id: data.chapterId,
-        code,
-        label: data.label,
-        sort_order: sortOrder,
-      } as never)
+      .insert(insertPayload as never)
       .select("id, code, label, sort_order")
       .single();
+
+    if (
+      error?.code === "23505" &&
+      error.message?.includes("commissions_chapter_code_uidx")
+    ) {
+      const retryCode = await uniqueCommissionCode(
+        context.supabase,
+        data.chapterId,
+        desired,
+      );
+      const retry = await context.supabase
+        .from("commissions")
+        .insert({ ...insertPayload, code: retryCode } as never)
+        .select("id, code, label, sort_order")
+        .single();
+      row = retry.data;
+      error = retry.error;
+    }
+
     if (error) throw new Error(error.message);
     return row;
   });
@@ -203,7 +247,9 @@ export const listChapterPositions = createServerFn({ method: "POST" })
 export const assignPosition = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
-    termInput.extend({ memberId: z.string().uuid(), positionId: z.number().int() }).parse(raw),
+    termInput
+      .extend({ memberId: z.string().uuid(), positionId: z.number().int() })
+      .parse(raw),
   )
   .handler(async ({ data, context }) => {
     const MULTI_SEAT_POSITIONS = [25]; // Conselheiro Consultor: vários titulares por vigência
@@ -226,18 +272,22 @@ export const assignPosition = createServerFn({ method: "POST" })
         term_year: data.year,
         term_semester: data.semester,
       },
-      { onConflict: "chapter_id,position_id,member_id,term_year,term_semester" },
+      {
+        onConflict: "chapter_id,position_id,member_id,term_year,term_semester",
+      },
     );
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
-
 export const removePosition = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("member_positions").delete().eq("id", data.id);
+    const { error } = await context.supabase
+      .from("member_positions")
+      .delete()
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -256,20 +306,7 @@ export const listCommissionMembers = createServerFn({ method: "POST" })
       .eq("term_semester", data.semester);
     if (error) throw new Error(error.message);
 
-    const roleOrder: Record<string, number> = {
-      presidente: 0,
-      vice: 1,
-      membro: 2,
-      auxiliar_senior: 3,
-    };
-    return [...(rows ?? [])].sort((a, b) => {
-      const byRole =
-        (roleOrder[a.role as string] ?? 99) - (roleOrder[b.role as string] ?? 99);
-      if (byRole !== 0) return byRole;
-      const nameA = (a.member as { full_name?: string } | null)?.full_name ?? "";
-      const nameB = (b.member as { full_name?: string } | null)?.full_name ?? "";
-      return nameA.localeCompare(nameB, "pt-BR");
-    });
+    return [...(rows ?? [])].sort(compareCommissionMembersByRoleName);
   });
 
 export const assignCommissionMember = createServerFn({ method: "POST" })
@@ -302,7 +339,10 @@ export const assignCommissionMember = createServerFn({ method: "POST" })
         term_year: data.year,
         term_semester: data.semester,
       },
-      { onConflict: "chapter_id,commission_id,member_id,term_year,term_semester" },
+      {
+        onConflict:
+          "chapter_id,commission_id,member_id,term_year,term_semester",
+      },
     );
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -312,7 +352,10 @@ export const removeCommissionMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("commission_members").delete().eq("id", data.id);
+    const { error } = await context.supabase
+      .from("commission_members")
+      .delete()
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -325,13 +368,17 @@ export const getMemberOrgHistory = createServerFn({ method: "POST" })
     const [pos, com] = await Promise.all([
       context.supabase
         .from("member_positions")
-        .select("id, term_year, term_semester, position:positions(id, label, scope)")
+        .select(
+          "id, term_year, term_semester, position:positions(id, label, scope)",
+        )
         .eq("member_id", data.memberId)
         .order("term_year", { ascending: false })
         .order("term_semester", { ascending: false }),
       context.supabase
         .from("commission_members")
-        .select("id, role, term_year, term_semester, commission:commissions(id, label)")
+        .select(
+          "id, role, term_year, term_semester, commission:commissions(id, label)",
+        )
         .eq("member_id", data.memberId)
         .order("term_year", { ascending: false })
         .order("term_semester", { ascending: false }),

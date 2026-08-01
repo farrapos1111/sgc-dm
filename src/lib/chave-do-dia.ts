@@ -1,3 +1,5 @@
+import { datePartsInAppTz, formatTimeInAppTz, APP_TIMEZONE } from "@/lib/timezone";
+
 export type ChaveItem = {
   title: string;
   description?: string | null;
@@ -23,11 +25,20 @@ function pad(n: number) {
 }
 
 export function dateBR(d: Date) {
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+  const { day, month, year } = datePartsInAppTz(d);
+  return `${pad(day)}/${pad(month)}/${year}`;
 }
 
 export function timeBR(d: Date) {
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return formatTimeInAppTz(d);
+}
+
+function weekdayIndexInAppTz(d: Date): number {
+  const wd = new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIMEZONE,
+    weekday: "short",
+  }).format(d);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(wd);
 }
 
 /** Modelo padrão da chave do dia (usa variáveis dinâmicas entre colchetes). */
@@ -74,6 +85,7 @@ export function chaveValues(
 ): Record<string, string> {
   const start = new Date(item.start_at);
   const end = item.end_at ? new Date(item.end_at) : null;
+  const parts = datePartsInAppTz(start);
   const local = (item.location ?? "").trim();
   const endereco = (item.address ?? "").trim();
 
@@ -81,10 +93,10 @@ export function chaveValues(
     titulo: item.title,
     descricao: (item.description ?? "").trim(),
     data: dateBR(start),
-    dia_semana: DIAS[start.getDay()],
-    dia: String(start.getDate()),
-    mes: MESES[start.getMonth()],
-    ano: String(start.getFullYear()),
+    dia_semana: DIAS[weekdayIndexInAppTz(start)] ?? "",
+    dia: String(parts.day),
+    mes: MESES[parts.month - 1],
+    ano: String(parts.year),
     local: local || "A definir",
     endereco: endereco || "A definir",
     local_completo: [local, endereco].filter(Boolean).join(" — ") || "A definir",

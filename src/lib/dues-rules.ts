@@ -1,5 +1,7 @@
 /** Regras de elegibilidade e isenção de mensalidades. */
 
+import { currentYearMonthInAppTz, datePartsInAppTz } from "@/lib/timezone";
+
 export type AwayPeriod = {
   started_on: string;
   ended_on: string | null;
@@ -251,14 +253,14 @@ export function isDueOverdue(
 ): boolean {
   if (status !== "em_aberto") return false;
   const dueDay = new Date(year, month - 1, 15);
-  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const p = datePartsInAppTz(today);
+  const t = new Date(p.year, p.month - 1, p.day);
   return t >= dueDay;
 }
 
 /** Competência ainda no futuro (mês civil corrente ou posterior). */
 export function isFutureMonth(year: number, month: number, today = new Date()) {
-  const cy = today.getFullYear();
-  const cm = today.getMonth() + 1;
+  const { year: cy, month: cm } = currentYearMonthInAppTz(today);
   if (year > cy) return true;
   if (year < cy) return false;
   return month > cm;

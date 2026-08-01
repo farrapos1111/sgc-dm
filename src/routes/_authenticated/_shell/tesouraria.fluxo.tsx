@@ -45,6 +45,7 @@ import {
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { can } from "@/lib/permissions";
 import { formatBRL, formatDateBR } from "@/lib/format";
+import { todayYmd } from "@/lib/timezone";
 import { chapterFoundedAt } from "@/lib/terms";
 import {
   createCashEntry,
@@ -109,7 +110,7 @@ const emptyForm = (): EntryForm => ({
   subcategoryId: "",
   description: "",
   amount: "",
-  entry_date: new Date().toISOString().slice(0, 10),
+  entry_date: todayYmd(),
 });
 
 
@@ -435,17 +436,59 @@ function FluxoCaixa() {
 
   const remove = useMutation({
     mutationFn: (id: string) => deleteCashEntry({ data: { id } }),
-    onSuccess: async () => {
-      toast.success("Lançamento excluído — cobrança/mensalidade vinculada atualizada");
-      await invalidate();
-      await qc.invalidateQueries({ queryKey: ["member-charges"] });
-      await qc.invalidateQueries({ queryKey: ["charge-payments"] });
-      await qc.invalidateQueries({ queryKey: ["dues"] });
-      await qc.invalidateQueries({ queryKey: ["year-dues"] });
-      await qc.invalidateQueries({ queryKey: ["member-finance"] });
-      await qc.invalidateQueries({ queryKey: ["dashboard-finance"] });
+    onMutate: async (id) => {
+      const key = ["cash-entries", active?.chapter_id, year, month] as const;
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<typeof data>(key);
+
+      if (previous) {
+        const removed = previous.entries.find((e) => e.id === id);
+        const nextEntries = previous.entries.filter((e) => e.id !== id);
+        let nextBank = previous.bank;
+        let nextTotals = previous.totals;
+        if (removed) {
+          const amt = Number(removed.amount) || 0;
+          const isIn = removed.kind === "entrada";
+          const isOut = removed.kind === "saida";
+          if (previous.bank) {
+            const income = Number(previous.bank.income) - (isIn ? amt : 0);
+            const expense = Number(previous.bank.expense) - (isOut ? amt : 0);
+            nextBank = { income, expense, balance: income - expense };
+          }
+          if (previous.totals) {
+            const income = Number(previous.totals.income) - (isIn ? amt : 0);
+            const expense = Number(previous.totals.expense) - (isOut ? amt : 0);
+            nextTotals = { income, expense, balance: income - expense };
+          }
+        }
+        qc.setQueryData(key, {
+          ...previous,
+          entries: nextEntries,
+          bank: nextBank,
+          totals: nextTotals,
+        });
+      }
+
+      return { previous, key };
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao excluir"),
+    onError: (e: any, _id, ctx) => {
+      if (ctx?.previous && ctx.key) {
+        qc.setQueryData(ctx.key, ctx.previous);
+      }
+      toast.error(e?.message ?? "Erro ao excluir");
+    },
+    onSuccess: () => {
+      toast.success("Lançamento excluído — cobrança/mensalidade vinculada atualizada");
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["cash-entries"] });
+      void qc.invalidateQueries({ queryKey: ["member-charges"] });
+      void qc.invalidateQueries({ queryKey: ["charge-payments"] });
+      void qc.invalidateQueries({ queryKey: ["dues"] });
+      void qc.invalidateQueries({ queryKey: ["year-dues"] });
+      void qc.invalidateQueries({ queryKey: ["member-finance"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard-finance"] });
+    },
   });
 
   const runImport = useMutation({

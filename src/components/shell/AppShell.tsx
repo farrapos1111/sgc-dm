@@ -1,4 +1,9 @@
-import { Link, useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
+import {
+  Link,
+  useNavigate,
+  useRouter,
+  useRouterState,
+} from "@tanstack/react-router";
 import { ArrowLeftRight, ChevronDown, LogOut } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -21,9 +26,15 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { formatClockInAppTz } from "@/lib/timezone";
 
 /** Rotas mais pesadas — prefetch ao passar o mouse/foco. */
-const PRELOAD_ROUTES = ["/presencas", "/gestao", "/calendario", "/atas"] as const;
+const PRELOAD_ROUTES = [
+  "/presencas",
+  "/gestao",
+  "/calendario",
+  "/atas",
+] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -62,28 +73,37 @@ export function AppShell({ children }: { children: ReactNode }) {
     toast.message(`Visão: ${label}`);
   }
 
-  const roleSwitchButton = canSwitchRoleView ? (
-    <Button
-      type="button"
-      size="icon"
-      variant="ghost"
-      className="h-9 w-9 shrink-0"
-      onClick={handleCycleRoleView}
-      aria-label="Alternar visão de cargo"
-      title="Alternar visão de cargo"
-    >
-      <ArrowLeftRight className="h-4 w-4" />
-    </Button>
-  ) : null;
+  const roleSwitchButton =
+    canSwitchRoleView && !activeScope ? (
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        className="h-9 w-9 shrink-0"
+        onClick={handleCycleRoleView}
+        aria-label="Alternar visão de cargo"
+        title="Alternar visão de cargo"
+      >
+        <ArrowLeftRight className="h-4 w-4" />
+      </Button>
+    ) : null;
 
   const scopeSwitcher =
     scopes.length > 0 ? (
-      <Select value={activeScope?.key ?? "chapter"} onValueChange={handleScopeChange}>
-        <SelectTrigger className="h-9 w-full text-xs" aria-label="Selecionar escopo">
+      <Select
+        value={activeScope?.key ?? "chapter"}
+        onValueChange={handleScopeChange}
+      >
+        <SelectTrigger
+          className="h-9 w-full text-xs"
+          aria-label="Selecionar escopo"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {active && <SelectItem value="chapter">{active.chapter.name}</SelectItem>}
+          {active && (
+            <SelectItem value="chapter">{active.chapter.name}</SelectItem>
+          )}
           {scopes.map((s) => (
             <SelectItem key={s.key} value={s.key}>
               {ORG_ROLE_LABELS[s.orgRole]} · {s.label}
@@ -100,18 +120,23 @@ export function AppShell({ children }: { children: ReactNode }) {
     setPendingTo(null);
   }, [pathname]);
 
-  const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
+  const isActive = (to: string) =>
+    pathname === to || pathname.startsWith(to + "/");
 
   // Mantém aberto só o submenu da rota atual (accordion)
   useEffect(() => {
     const activeGroup = groups.find((g) =>
-      (g.items ?? []).some((i) => pathname === i.to || pathname.startsWith(i.to + "/")),
+      (g.items ?? []).some(
+        (i) => pathname === i.to || pathname.startsWith(i.to + "/"),
+      ),
     );
     setOpenGroupId(activeGroup?.id ?? null);
   }, [pathname, groups]);
 
   const primary = active?.chapter.primary_color || "#9E1B32";
-  const chapterName = activeScope ? activeScope.label : (active?.chapter.name ?? "SG-CDM");
+  const chapterName = activeScope
+    ? activeScope.label
+    : (active?.chapter.name ?? "SG-CDM");
   const chapterNum = activeScope ? "" : (active?.chapter.number ?? "");
   const headerSubtitle = activeScope
     ? ORG_ROLE_LABELS[activeScope.orgRole]
@@ -140,13 +165,17 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   function preloadRoute(to: string) {
     if (!PRELOAD_ROUTES.includes(to as (typeof PRELOAD_ROUTES)[number])) return;
-    void router.preloadRoute({ to: to as (typeof PRELOAD_ROUTES)[number] }).catch(() => {});
+    void router
+      .preloadRoute({ to: to as (typeof PRELOAD_ROUTES)[number] })
+      .catch(() => {});
   }
 
   return (
     <div
       className="min-h-screen bg-background text-foreground"
-      style={{ ["--chapter-primary" as string]: primary } as React.CSSProperties}
+      style={
+        { ["--chapter-primary" as string]: primary } as React.CSSProperties
+      }
     >
       {/* Sidebar (desktop) */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-card lg:flex">
@@ -160,16 +189,24 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold">{chapterName}</div>
             {chapterNum ? (
-              <div className="text-xs text-muted-foreground">Nº {chapterNum}</div>
+              <div className="text-xs text-muted-foreground">
+                Nº {chapterNum}
+              </div>
             ) : (
               headerSubtitle && (
-                <div className="truncate text-xs text-muted-foreground">{headerSubtitle}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {headerSubtitle}
+                </div>
               )
             )}
           </div>
         </div>
 
-        {scopeSwitcher && <div className="border-b border-border px-3 py-3">{scopeSwitcher}</div>}
+        {scopeSwitcher && (
+          <div className="border-b border-border px-3 py-3">
+            {scopeSwitcher}
+          </div>
+        )}
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {groups.map((group) => (
@@ -181,7 +218,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               isHighlighted={navHighlight}
               open={openGroupId === group.id}
               onOpenChange={(next) =>
-                setOpenGroupId(next ? group.id : openGroupId === group.id ? null : openGroupId)
+                setOpenGroupId(
+                  next
+                    ? group.id
+                    : openGroupId === group.id
+                      ? null
+                      : openGroupId,
+                )
               }
               onNavigate={setPendingTo}
               onPreload={preloadRoute}
@@ -189,12 +232,20 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
 
+        <div className="px-4 pb-2 pt-1">
+          <SidebarClock />
+        </div>
+
         <div className="border-t border-border p-4">
           <div className="mb-3 flex items-center gap-2">
             {active && (
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{active.role.label}</div>
-                <div className="truncate text-xs text-muted-foreground">{active.chapter.city}</div>
+                <div className="truncate text-sm font-medium">
+                  {active.role.label}
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {active.chapter.city}
+                </div>
               </div>
             )}
             {roleSwitchButton}
@@ -223,7 +274,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-semibold">{chapterName}</div>
             {headerSubtitle && (
-              <div className="truncate text-xs text-muted-foreground">{headerSubtitle}</div>
+              <div className="truncate text-xs text-muted-foreground">
+                {headerSubtitle}
+              </div>
             )}
           </div>
           {roleSwitchButton}
@@ -231,7 +284,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         {scopeSwitcher && (
-          <div className="border-b border-border bg-card px-4 py-2 lg:hidden">{scopeSwitcher}</div>
+          <div className="border-b border-border bg-card px-4 py-2 lg:hidden">
+            {scopeSwitcher}
+          </div>
         )}
 
         {(isNavigating || pendingTo) && (
@@ -250,7 +305,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 ? "max-w-[1680px]"
                 : "max-w-6xl"
             } ${
-              isNavigating || pendingTo ? "pointer-events-none opacity-60" : "opacity-100"
+              isNavigating || pendingTo
+                ? "pointer-events-none opacity-60"
+                : "opacity-100"
             }`}
           >
             {children}
@@ -268,7 +325,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           {tabs.map((item) => {
             const Icon = item.icon;
             const highlighted =
-              item.to === "/mais" ? isMaisTabHighlighted : navHighlight(item.to);
+              item.to === "/mais"
+                ? isMaisTabHighlighted
+                : navHighlight(item.to);
             return (
               <Link
                 key={item.to}
@@ -277,7 +336,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 onMouseEnter={() => preloadRoute(item.to)}
                 onFocus={() => preloadRoute(item.to)}
                 className="flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium"
-                style={{ color: highlighted ? primary : "var(--muted-foreground)" }}
+                style={{
+                  color: highlighted ? primary : "var(--muted-foreground)",
+                }}
                 aria-current={highlighted ? "page" : undefined}
               >
                 <Icon className="h-5 w-5" />
@@ -288,6 +349,27 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </div>
     </div>
+  );
+}
+
+/** Relógio em tempo real (fuso RS) acima do rodapé da sidebar. */
+function SidebarClock() {
+  const [label, setLabel] = useState(() => formatClockInAppTz());
+
+  useEffect(() => {
+    setLabel(formatClockInAppTz());
+    const id = window.setInterval(() => setLabel(formatClockInAppTz()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return (
+    <time
+      dateTime={new Date().toISOString()}
+      className="block tabular-nums text-[11px] tracking-wide text-muted-foreground"
+      title="Horário de Brasília / RS"
+    >
+      {label}
+    </time>
   );
 }
 

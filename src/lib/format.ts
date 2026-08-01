@@ -37,7 +37,11 @@ export function formatDateTimeBR(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  return d.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    dateStyle: "short",
+    timeStyle: "short",
+  });
 }
 
 export function isMinor(birthDate: string | null | undefined): boolean {

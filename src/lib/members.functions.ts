@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { is21OrOlder, isUnder21 } from "@/lib/format";
+import { todayYmd } from "@/lib/timezone";
 
 const statusEnum = z.enum(["regular", "irregular"]);
 const kindEnum = z.enum(["demolay_ativo", "senior", "macom"]);
@@ -246,7 +247,7 @@ export const updateMember = createServerFn({ method: "POST" })
     const prevStatus = current.status as "regular" | "irregular";
     const nextStatus = data.status;
     const statusChanged = prevStatus !== nextStatus;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayYmd();
     const effectiveOn = data.status_effective_on || today;
 
     if (statusChanged || (nextStatus === "irregular" && data.status_effective_on)) {

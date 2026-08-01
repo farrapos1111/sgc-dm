@@ -15,6 +15,7 @@ import {
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
 import { formatDateBR } from "@/lib/format";
+import { todayYmd } from "@/lib/timezone";
 import { createDuty, deleteDuty, listDuties } from "@/lib/hospitality.functions";
 
 export const Route = createFileRoute("/_authenticated/_shell/hospitalaria/escala")({
@@ -35,7 +36,7 @@ function Escala() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     member_id: "",
-    duty_date: new Date().toISOString().slice(0, 10),
+    duty_date: todayYmd(),
     role_label: "Serviço",
     notes: "",
   });
@@ -54,7 +55,7 @@ function Escala() {
     onSuccess: async () => {
       toast.success("Escala registrada");
       setOpen(false);
-      setForm({ member_id: "", duty_date: new Date().toISOString().slice(0, 10), role_label: "Serviço", notes: "" });
+      setForm({ member_id: "", duty_date: todayYmd(), role_label: "Serviço", notes: "" });
       await qc.invalidateQueries({ queryKey: ["hospitality-duties"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
