@@ -83,6 +83,7 @@ import {
 } from "lucide-react";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { MemberProficiencyCardPanel } from "@/components/proficiency/MemberProficiencyCardPanel";
+import { MemberAccountPanel } from "@/components/members/MemberAccountPanel";
 
 export const Route = createFileRoute("/_authenticated/_shell/membros/$id")({
   head: () => ({ meta: [{ title: "Perfil do membro — SG-CDM" }] }),
@@ -199,6 +200,7 @@ function MembroPerfil() {
   const isAdminView = canEditOrg || can(roleName, "admin");
   const canManageProficiencyCard =
     roleName === "mestre_conselheiro" || roleName === "admin_total";
+  const canManageAccount = can(roleName, "admin");
   const foundedAt = chapterFoundedAt(active?.chapter);
   const [term, setTerm] = useState(currentTerm());
 
@@ -484,6 +486,13 @@ function MembroPerfil() {
               examGrauDemolay={member.exam_grau_demolay}
               canManage={canManageProficiencyCard}
             />
+
+            {canManageAccount ? (
+              <MemberAccountPanel
+                memberId={id}
+                memberEmail={member.email}
+              />
+            ) : null}
 
             {guardians.length > 0 && (
               <Card className="rounded-[12px] p-5 md:col-span-2">

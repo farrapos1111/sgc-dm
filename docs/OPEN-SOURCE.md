@@ -289,7 +289,7 @@ As lacunas conhecidas do projeto, que são também as melhores primeiras contrib
 
 | Prioridade | Item | Por quê |
 | --- | --- | --- |
-| 🔴 Alta | Remover as credenciais de teste da tela de login ([src/routes/auth.tsx](../src/routes/auth.tsx)) | Bloqueia qualquer uso real |
+| 🔴 Alta | Remover as credenciais de teste da tela de login ([src/routes/auth/index.tsx](../src/routes/auth/index.tsx)) | Bloqueia qualquer uso real |
 | 🔴 Alta | Adicionar `.env` ao `.gitignore` e versionar um `.env.example` | Hoje o `.env` está no repositório; é questão de tempo até alguém colocar um segredo ali |
 | 🟠 Média | Investigar os 9 erros de `react-hooks/rules-of-hooks` | São os únicos erros de lint que apontam bug de execução, não estilo |
 | 🟠 Média | Testes automatizados (Vitest para os helpers, Playwright para os fluxos) | Não existe nenhum; comece por `permissions.ts`, `format.ts`, `terms.ts`, `finance-xlsx.ts` |

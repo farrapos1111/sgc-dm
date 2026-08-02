@@ -1,3 +1,4 @@
+import processModule from "node:process";
 //#region node_modules/.nitro/vite/services/ssr/index.js
 var lastCapturedError;
 var TTL_MS = 5e3;
@@ -61,6 +62,91 @@ function consumeLastCapturedError() {
 	lastCapturedError = void 0;
 	return error;
 }
+/** Fuso horário padrão do Rio Grande do Sul (mesmo de Brasília; sem horário de verão). */
+var APP_TIMEZONE = "America/Sao_Paulo";
+function asDate(value = /* @__PURE__ */ new Date()) {
+	return value instanceof Date ? value : new Date(value);
+}
+/** Partes de calendário/hora no fuso do app. */
+function datePartsInAppTz(value = /* @__PURE__ */ new Date()) {
+	const d = asDate(value);
+	const parts = new Intl.DateTimeFormat("en-US", {
+		timeZone: APP_TIMEZONE,
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hourCycle: "h23"
+	}).formatToParts(d);
+	const get = (type) => Number(parts.find((p) => p.type === type)?.value ?? NaN);
+	return {
+		year: get("year"),
+		month: get("month"),
+		day: get("day"),
+		hour: get("hour"),
+		minute: get("minute"),
+		second: get("second")
+	};
+}
+/** Data de hoje (YYYY-MM-DD) no horário do RS — evite `toISOString().slice(0, 10)` (UTC). */
+function todayYmd(value = /* @__PURE__ */ new Date()) {
+	const { year, month, day } = datePartsInAppTz(asDate(value));
+	const pad = (n) => String(n).padStart(2, "0");
+	return `${year}-${pad(month)}-${pad(day)}`;
+}
+function formatTimeInAppTz(value, opts = {
+	hour: "2-digit",
+	minute: "2-digit"
+}) {
+	return asDate(value).toLocaleTimeString("pt-BR", {
+		timeZone: APP_TIMEZONE,
+		...opts
+	});
+}
+/** Ano/mês correntes no fuso do RS (1–12). */
+function currentYearMonthInAppTz(value = /* @__PURE__ */ new Date()) {
+	const { year, month } = datePartsInAppTz(value);
+	return {
+		year,
+		month
+	};
+}
+/** Relógio: HH:MM:SS - DD/MM/AAAA no fuso do RS. */
+function formatClockInAppTz(value = /* @__PURE__ */ new Date()) {
+	const { year, month, day, hour, minute, second } = datePartsInAppTz(value);
+	const pad = (n) => String(n).padStart(2, "0");
+	return `${pad(hour)}:${pad(minute)}:${pad(second)} - ${pad(day)}/${pad(month)}/${year}`;
+}
+/**
+* Converte valor de `<input type="datetime-local">` (YYYY-MM-DDTHH:mm)
+* interpretado como horário de parede em APP_TIMEZONE → instante UTC.
+*/
+function fromAppTzDateTimeLocal(local) {
+	const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(local.trim());
+	if (!m) return /* @__PURE__ */ new Date(NaN);
+	const y = Number(m[1]);
+	const month = Number(m[2]);
+	const day = Number(m[3]);
+	const hour = Number(m[4]);
+	const minute = Number(m[5]);
+	const desiredAsUtc = Date.UTC(y, month - 1, day, hour, minute, 0);
+	let utcMs = desiredAsUtc;
+	for (let i = 0; i < 3; i++) {
+		const parts = datePartsInAppTz(new Date(utcMs));
+		const diff = desiredAsUtc - Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+		if (diff === 0) break;
+		utcMs += diff;
+	}
+	return new Date(utcMs);
+}
+/** Formata um instante como valor datetime-local no fuso do app. */
+function toAppTzDateTimeLocal(value) {
+	const { year, month, day, hour, minute } = datePartsInAppTz(value);
+	const pad = (n) => String(n).padStart(2, "0");
+	return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
+}
 function renderErrorPage() {
 	return `<!doctype html>
 <html lang="en">
@@ -91,9 +177,10 @@ function renderErrorPage() {
   </body>
 </html>`;
 }
+if (typeof processModule !== "undefined" && processModule.env) processModule.env.TZ = APP_TIMEZONE;
 var serverEntryPromise;
 async function getServerEntry() {
-	if (!serverEntryPromise) serverEntryPromise = import("./server-2GAb42oA.mjs").then((m) => m.default ?? m);
+	if (!serverEntryPromise) serverEntryPromise = import("./server-DJ13d3Hb.mjs").then((m) => m.default ?? m);
 	return serverEntryPromise;
 }
 async function normalizeCatastrophicSsrResponse(response) {
@@ -127,4 +214,4 @@ var server_default = { async fetch(request, env, ctx) {
 	}
 } };
 //#endregion
-export { server_default as default, renderErrorPage as t };
+export { formatClockInAppTz as a, toAppTzDateTimeLocal as c, server_default as default, datePartsInAppTz as i, todayYmd as l, APP_TIMEZONE as n, formatTimeInAppTz as o, currentYearMonthInAppTz as r, fromAppTzDateTimeLocal as s, renderErrorPage as t };

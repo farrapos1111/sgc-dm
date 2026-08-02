@@ -1392,6 +1392,7 @@ export type Database = {
           status: Database["public"]["Enums"]["member_status"]
           kind: Database["public"]["Enums"]["member_kind"]
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           address?: Json
@@ -1416,6 +1417,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["member_status"]
           kind?: Database["public"]["Enums"]["member_kind"]
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           address?: Json
@@ -1440,6 +1442,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["member_status"]
           kind?: Database["public"]["Enums"]["member_kind"]
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -1447,6 +1450,13 @@ export type Database = {
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1676,6 +1686,7 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
+          must_change_password: boolean
           phone: string | null
         }
         Insert: {
@@ -1683,6 +1694,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id: string
+          must_change_password?: boolean
           phone?: string | null
         }
         Update: {
@@ -1690,6 +1702,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          must_change_password?: boolean
           phone?: string | null
         }
         Relationships: [

@@ -1,1 +1,0 @@
-import{t as e}from"./jsx-runtime-By8HlURe.js";import{c as t}from"./index-cLlzI-w6.js";import{t as n}from"./DocsLayout-BAomR4Ix.js";import{t as r}from"./MarkdownDoc-ODhYy0qZ.js";var i=e();function a(){return(0,i.jsx)(n,{activeSlug:`open-source`,children:(0,i.jsx)(r,{content:t.content,title:t.title})})}export{a as component};

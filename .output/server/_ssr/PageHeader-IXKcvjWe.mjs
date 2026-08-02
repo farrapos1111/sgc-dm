@@ -1,4 +1,4 @@
-import { v as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
+import { C as require_jsx_runtime } from "../_libs/@radix-ui/react-accordion+[...].mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/PageHeader-IXKcvjWe.js
 var import_jsx_runtime = require_jsx_runtime();
 function PageHeader({ title, subtitle, actions }) {

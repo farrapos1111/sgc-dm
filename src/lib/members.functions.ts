@@ -53,7 +53,7 @@ export const getMember = createServerFn({ method: "POST" })
     const { data: member, error } = await context.supabase
       .from("members")
       .select(
-        "id, chapter_id, full_name, birth_date, status, kind, phone, email, address, cpf_last2, rg_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, demolay_id, masonic_id, created_at, updated_at",
+        "id, chapter_id, full_name, birth_date, status, kind, phone, email, address, cpf_last2, rg_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, demolay_id, masonic_id, user_id, created_at, updated_at",
       )
       .eq("id", data.id)
       .maybeSingle();

@@ -26,6 +26,8 @@ O sistema funciona pelo navegador, no computador e no celular. Não é preciso i
 
 ## Como funciona o acesso
 
+Você entra em `/auth` com **e-mail ou ID DeMolay** e senha. Contas não são criadas sozinhas: o Mestre Conselheiro (ou Administrador Total) cria o acesso na ficha do membro, depois que a ficha já está cadastrada.
+
 Três ideias explicam todo o controle de acesso do sistema:
 
 **Capítulo.** Toda informação pertence a um capítulo. Você só enxerga os dados dos capítulos aos quais está vinculado.
@@ -55,7 +57,7 @@ Além do cargo, as áreas das comissões (Eventos, Sindicâncias e Hospitalaria)
 
 ### Perfil
 
-Área global do usuário (não muda com o capítulo selecionado). Mostra os capítulos em que o cadastro de membro está vinculado ao seu e-mail ou nome, os **IDs DeMolay e maçônico**, os graus, um espaço reservado para o **Nobre Rito da Cavalaria** (em breve) e as **carteirinhas de proficiência** ativas — com visualização frente/verso no formato CR80 e opção de imprimir ou salvar em PDF.
+Área global do usuário (não muda com o capítulo selecionado). Mostra os capítulos em que o cadastro de membro está vinculado à sua conta (`members.user_id`, com fallback legado por e-mail/nome), os **IDs DeMolay e maçônico**, os graus, um espaço reservado para o **Nobre Rito da Cavalaria** (em breve) e as **carteirinhas de proficiência** ativas — com visualização frente/verso no formato CR80 e opção de imprimir ou salvar em PDF.
 
 No celular, **Perfil** fica na barra inferior; no computador, no menu lateral.
 
@@ -73,6 +75,8 @@ O painel de abertura. Mostra, de relance:
 ### Secretaria
 
 **Membros.** O cadastro completo do capítulo. O formulário é um passo a passo — se o candidato for menor de idade, ele ganha uma etapa a mais para os dados dos responsáveis (até dois, com um definido como principal) e a coleta do consentimento de dados. Cada membro tem sua ficha com histórico de cargos, presenças e graus. O **Mestre Conselheiro** (ou Administrador Total) pode **emitir, ver e revogar** a carteirinha de proficiência CR80 na ficha do membro; o titular a encontra também em **Perfil**.
+
+Na mesma ficha, o MC/Admin Total vê o painel **Acesso ao sistema**: com o e-mail já preenchido na ficha, ele **cria a conta** (senha temporária) ou **vincula** uma conta existente, escolhe o cargo de acesso e pode gerar nova senha temporária ou desativar o acesso ao capítulo. O jovem entra depois com e-mail **ou ID DeMolay** e, no primeiro acesso, redefine a senha.
 
 **Atas.** Em **Secretaria → Atas**, a aba **Atual** lista cards das atas em andamento (rascunho ou em revisão): nome da sessão, data, situação, assinaturas, PDF e **Acessar ata**. A redação e a aprovação acontecem **só na sessão** (não no hub). Use **Criar nova ata** para escolher uma sessão recente sem registro e ir direto à aba Ata. As atas seguem **rascunho → em revisão → aprovada**. Ainda no rascunho, dá para **compartilhar uma visão pública** (link + senha) para os membros lerem e registrarem *aprovada* ou *reprovada* — reprovação **exige justificativa**. Esse feedback **não substitui** as três assinaturas oficiais (Presidente do Conselho, Mestre Conselheiro e Escrivão). Há modelos editáveis por capítulo e exportação em PDF.
 
@@ -153,7 +157,7 @@ Ao entrar, o sistema pergunta em qual capítulo você quer trabalhar. A escolha 
 Quem tem permissão de Tesouraria pode editar ou excluir o lançamento. Se ele veio de uma mensalidade paga, basta desfazer o pagamento que o lançamento sai junto.
 
 **Perdi o acesso / esqueci a senha.**
-Fale com o Administrador Total ou o Mestre Conselheiro do seu capítulo — o vínculo da sua conta com o capítulo é administrado por eles.
+Use **Esqueci a senha** na tela de login (`/auth/recuperar-senha`) com o e-mail da conta. Se ainda não tiver conta, fale com o Administrador Total ou o Mestre Conselheiro — eles criam o acesso na ficha do membro e passam a senha temporária. No primeiro acesso o sistema pede para redefinir a senha.
 
 **Meu menu não tem a área da comissão que eu presido.**
 As áreas de comissão só aparecem para quem está registrado como membro daquela comissão no semestre corrente. Peça para o Administrador incluir você em **Gestão → Cargos e Comissões**.

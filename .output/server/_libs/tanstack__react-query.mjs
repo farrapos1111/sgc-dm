@@ -1,6 +1,6 @@
 import { a as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "./@floating-ui/react-dom+[...].mjs";
-import { v as require_jsx_runtime } from "./@radix-ui/react-accordion+[...].mjs";
+import { C as require_jsx_runtime } from "./@radix-ui/react-accordion+[...].mjs";
 import { a as environmentManager, c as shouldThrowError, i as notifyManager, n as MutationObserver, r as QueryObserver, s as noop } from "./tanstack__query-core.mjs";
 //#region node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js
 var import_react = /* @__PURE__ */ __toESM(require_react(), 1);

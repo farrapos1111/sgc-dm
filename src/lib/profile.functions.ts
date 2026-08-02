@@ -141,6 +141,20 @@ async function findLinkedMemberIds(
     .maybeSingle();
 
   const fullName = (profile?.full_name as string | null) ?? null;
+
+  // Prefer hard link members.user_id → auth user
+  const { data: byUser } = await supabase
+    .from("members")
+    .select("id")
+    .eq("user_id", userId);
+  if (byUser && byUser.length > 0) {
+    return {
+      ids: byUser.map((m: { id: string }) => m.id),
+      fullName,
+    };
+  }
+
+  // Fallback legado: e-mail / nome
   const filters: string[] = [];
   if (email) filters.push(`email.eq.${email}`);
   if (fullName) filters.push(`full_name.eq.${fullName}`);

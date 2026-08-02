@@ -1,6 +1,6 @@
 import { a as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "./@floating-ui/react-dom+[...].mjs";
-import { v as require_jsx_runtime } from "./@radix-ui/react-accordion+[...].mjs";
+import { C as require_jsx_runtime } from "./@radix-ui/react-accordion+[...].mjs";
 import "./devlop.mjs";
 import { n as VFileMessage, t as toJsxRuntime } from "./hast-util-to-jsx-runtime+[...].mjs";
 import { t as urlAttributes } from "./html-url-attributes.mjs";

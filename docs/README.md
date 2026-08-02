@@ -12,6 +12,12 @@ Toda a documentação vive em [`docs/`](./) e no visualizador do app em **`/docu
 | [GUIA-DO-USUARIO.md](./GUIA-DO-USUARIO.md) · `/documentacao/guia` | membro do capítulo, ou vai apresentar o sistema | o que o sistema faz, tela por tela, em linguagem simples |
 | [OPEN-SOURCE.md](./OPEN-SOURCE.md) · `/documentacao/open-source` | quer contribuir com o projeto | setup local, tutorial de contribuição, padrões de código, licença, segurança |
 
+### Discussão interna (fora do app)
+
+| Documento | Uso |
+| --- | --- |
+| [FUTURO-FILIACOES.md](./FUTURO-FILIACOES.md) | Rascunho para a equipe sobre expansão futura (Castelo, Priorado, Alumni) — **não** publicado em `/documentacao` |
+
 ---
 
 ## Regra de manutenção da documentação

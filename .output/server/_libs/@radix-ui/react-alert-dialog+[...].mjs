@@ -1,6 +1,6 @@
 import { a as __toESM } from "../../_runtime.mjs";
 import { l as require_react_dom, u as require_react } from "../@floating-ui/react-dom+[...].mjs";
-import { _ as useComposedRefs, c as useControllableState, d as useId, f as useLayoutEffect2, g as createSlot, l as Primitive, m as createContextScope, o as Presence, u as dispatchDiscreteCustomEvent, v as require_jsx_runtime } from "./react-accordion+[...].mjs";
+import { C as require_jsx_runtime, S as useComposedRefs, _ as dispatchDiscreteCustomEvent, d as useId, f as useLayoutEffect2, g as Primitive, h as createContextScope, l as useControllableState, u as Presence, y as createSlot } from "./react-accordion+[...].mjs";
 import { t as composeEventHandlers } from "../radix-ui__primitive.mjs";
 //#region node_modules/tslib/tslib.es6.mjs
 var __assign = function() {
@@ -1662,7 +1662,7 @@ var AlertDialog = /* @__PURE__ */ __name((props) => {
 		modal: true
 	});
 }, "AlertDialog");
-import_react.forwardRef(/* @__PURE__ */ __name(function AlertDialogTrigger2(props, forwardedRef) {
+var AlertDialogTrigger = import_react.forwardRef(/* @__PURE__ */ __name(function AlertDialogTrigger2(props, forwardedRef) {
 	const { __scopeAlertDialog, ...triggerProps } = props;
 	const dialogScope = useDialogScope(__scopeAlertDialog);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTrigger, {
@@ -1752,6 +1752,7 @@ var AlertDialogCancel = import_react.forwardRef(/* @__PURE__ */ __name(function 
 	});
 }, "AlertDialogCancel"));
 var Root2 = AlertDialog;
+var Trigger2 = AlertDialogTrigger;
 var Portal2 = AlertDialogPortal;
 var Overlay2 = AlertDialogOverlay;
 var Content2 = AlertDialogContent;
@@ -1760,4 +1761,4 @@ var Cancel = AlertDialogCancel;
 var Title2 = AlertDialogTitle;
 var Description2 = AlertDialogDescription;
 //#endregion
-export { useCallbackRef$1 as C, DismissableLayer as S, __rest as T, ReactRemoveScroll as _, Overlay2 as a, FocusScope as b, Title2 as c, DialogContent as d, DialogDescription as f, DialogTrigger as g, DialogTitle as h, Description2 as i, Dialog as l, DialogPortal as m, Cancel as n, Portal2 as o, DialogOverlay as p, Content2 as r, Root2 as s, Action as t, DialogClose as u, hideOthers as v, __awaiter as w, useFocusGuards as x, Portal as y };
+export { DismissableLayer as C, __rest as E, useFocusGuards as S, __awaiter as T, DialogTrigger as _, Overlay2 as a, Portal as b, Title2 as c, DialogClose as d, DialogContent as f, DialogTitle as g, DialogPortal as h, Description2 as i, Trigger2 as l, DialogOverlay as m, Cancel as n, Portal2 as o, DialogDescription as p, Content2 as r, Root2 as s, Action as t, Dialog as u, ReactRemoveScroll as v, useCallbackRef$1 as w, FocusScope as x, hideOthers as y };

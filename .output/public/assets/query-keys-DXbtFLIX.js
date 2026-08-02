@@ -1,1 +1,0 @@
-var e=(e,t=``,n=`all`)=>[`members`,e,t,n],t=e=>[`attendance-overview`,e];export{e as n,t};

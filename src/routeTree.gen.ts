@@ -11,12 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AtualizarCadastroRouteImport } from './routes/atualizar-cadastro'
-import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DocumentacaoRouteRouteImport } from './routes/documentacao/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedShellRouteRouteImport } from './routes/_authenticated/_shell/route'
 import { Route as AuthenticatedSelecionarCapituloRouteImport } from './routes/_authenticated/selecionar-capitulo'
 import { Route as AtaTokenRouteImport } from './routes/ata.$token'
+import { Route as AuthIndexRouteImport } from './routes/auth/index'
+import { Route as AuthNovaSenhaRouteImport } from './routes/auth/nova-senha'
+import { Route as AuthRecuperarSenhaRouteImport } from './routes/auth/recuperar-senha'
+import { Route as AuthRedefinirSenhaRouteImport } from './routes/auth/redefinir-senha'
 import { Route as CTokenRouteImport } from './routes/c.$token'
 import { Route as DocumentacaoIndexRouteImport } from './routes/documentacao/index'
 import { Route as DocumentacaoGuiaRouteImport } from './routes/documentacao/guia'
@@ -69,11 +72,6 @@ const AtualizarCadastroRoute = AtualizarCadastroRouteImport.update({
   path: '/atualizar-cadastro',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DocumentacaoRouteRoute = DocumentacaoRouteRouteImport.update({
   id: '/documentacao',
   path: '/documentacao',
@@ -97,6 +95,26 @@ const AuthenticatedSelecionarCapituloRoute =
 const AtaTokenRoute = AtaTokenRouteImport.update({
   id: '/ata/$token',
   path: '/ata/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthIndexRoute = AuthIndexRouteImport.update({
+  id: '/auth/',
+  path: '/auth/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthNovaSenhaRoute = AuthNovaSenhaRouteImport.update({
+  id: '/auth/nova-senha',
+  path: '/auth/nova-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRecuperarSenhaRoute = AuthRecuperarSenhaRouteImport.update({
+  id: '/auth/recuperar-senha',
+  path: '/auth/recuperar-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRedefinirSenhaRoute = AuthRedefinirSenhaRouteImport.update({
+  id: '/auth/redefinir-senha',
+  path: '/auth/redefinir-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CTokenRoute = CTokenRouteImport.update({
@@ -342,15 +360,18 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
-  '/auth': typeof AuthRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
+  '/auth/nova-senha': typeof AuthNovaSenhaRoute
+  '/auth/recuperar-senha': typeof AuthRecuperarSenhaRoute
+  '/auth/redefinir-senha': typeof AuthRedefinirSenhaRoute
   '/c/$token': typeof CTokenRouteWithChildren
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
   '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
+  '/auth/': typeof AuthIndexRoute
   '/documentacao/': typeof DocumentacaoIndexRoute
   '/atas': typeof AuthenticatedShellAtasRoute
   '/calendario': typeof AuthenticatedShellCalendarioRoute
@@ -390,15 +411,18 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
-  '/auth': typeof AuthRoute
   '/': typeof AuthenticatedIndexRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
+  '/auth/nova-senha': typeof AuthNovaSenhaRoute
+  '/auth/recuperar-senha': typeof AuthRecuperarSenhaRoute
+  '/auth/redefinir-senha': typeof AuthRedefinirSenhaRoute
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
   '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
+  '/auth': typeof AuthIndexRoute
   '/documentacao': typeof DocumentacaoIndexRoute
   '/atas': typeof AuthenticatedShellAtasRoute
   '/calendario': typeof AuthenticatedShellCalendarioRoute
@@ -441,10 +465,12 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
-  '/auth': typeof AuthRoute
   '/_authenticated/_shell': typeof AuthenticatedShellRouteRouteWithChildren
   '/_authenticated/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
+  '/auth/nova-senha': typeof AuthNovaSenhaRoute
+  '/auth/recuperar-senha': typeof AuthRecuperarSenhaRoute
+  '/auth/redefinir-senha': typeof AuthRedefinirSenhaRoute
   '/c/$token': typeof CTokenRouteWithChildren
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
@@ -452,6 +478,7 @@ export interface FileRoutesById {
   '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/auth/': typeof AuthIndexRoute
   '/documentacao/': typeof DocumentacaoIndexRoute
   '/_authenticated/_shell/atas': typeof AuthenticatedShellAtasRoute
   '/_authenticated/_shell/calendario': typeof AuthenticatedShellCalendarioRoute
@@ -495,15 +522,18 @@ export interface FileRouteTypes {
     | '/'
     | '/documentacao'
     | '/atualizar-cadastro'
-    | '/auth'
     | '/selecionar-capitulo'
     | '/ata/$token'
+    | '/auth/nova-senha'
+    | '/auth/recuperar-senha'
+    | '/auth/redefinir-senha'
     | '/c/$token'
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
     | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
+    | '/auth/'
     | '/documentacao/'
     | '/atas'
     | '/calendario'
@@ -543,15 +573,18 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/atualizar-cadastro'
-    | '/auth'
     | '/'
     | '/selecionar-capitulo'
     | '/ata/$token'
+    | '/auth/nova-senha'
+    | '/auth/recuperar-senha'
+    | '/auth/redefinir-senha'
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
     | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
+    | '/auth'
     | '/documentacao'
     | '/atas'
     | '/calendario'
@@ -593,10 +626,12 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/documentacao'
     | '/atualizar-cadastro'
-    | '/auth'
     | '/_authenticated/_shell'
     | '/_authenticated/selecionar-capitulo'
     | '/ata/$token'
+    | '/auth/nova-senha'
+    | '/auth/recuperar-senha'
+    | '/auth/redefinir-senha'
     | '/c/$token'
     | '/documentacao/guia'
     | '/documentacao/open-source'
@@ -604,6 +639,7 @@ export interface FileRouteTypes {
     | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
     | '/_authenticated/'
+    | '/auth/'
     | '/documentacao/'
     | '/_authenticated/_shell/atas'
     | '/_authenticated/_shell/calendario'
@@ -646,11 +682,14 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   DocumentacaoRouteRoute: typeof DocumentacaoRouteRouteWithChildren
   AtualizarCadastroRoute: typeof AtualizarCadastroRoute
-  AuthRoute: typeof AuthRoute
   AtaTokenRoute: typeof AtaTokenRoute
+  AuthNovaSenhaRoute: typeof AuthNovaSenhaRoute
+  AuthRecuperarSenhaRoute: typeof AuthRecuperarSenhaRoute
+  AuthRedefinirSenhaRoute: typeof AuthRedefinirSenhaRoute
   CTokenRoute: typeof CTokenRouteWithChildren
   FluxoCaixaTokenRoute: typeof FluxoCaixaTokenRoute
   MensalidadesTokenRoute: typeof MensalidadesTokenRoute
+  AuthIndexRoute: typeof AuthIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -667,13 +706,6 @@ declare module '@tanstack/react-router' {
       path: '/atualizar-cadastro'
       fullPath: '/atualizar-cadastro'
       preLoaderRoute: typeof AtualizarCadastroRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/documentacao': {
@@ -709,6 +741,34 @@ declare module '@tanstack/react-router' {
       path: '/ata/$token'
       fullPath: '/ata/$token'
       preLoaderRoute: typeof AtaTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/': {
+      id: '/auth/'
+      path: '/auth'
+      fullPath: '/auth/'
+      preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/nova-senha': {
+      id: '/auth/nova-senha'
+      path: '/auth/nova-senha'
+      fullPath: '/auth/nova-senha'
+      preLoaderRoute: typeof AuthNovaSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/recuperar-senha': {
+      id: '/auth/recuperar-senha'
+      path: '/auth/recuperar-senha'
+      fullPath: '/auth/recuperar-senha'
+      preLoaderRoute: typeof AuthRecuperarSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/redefinir-senha': {
+      id: '/auth/redefinir-senha'
+      path: '/auth/redefinir-senha'
+      fullPath: '/auth/redefinir-senha'
+      preLoaderRoute: typeof AuthRedefinirSenhaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/c/$token': {
@@ -1148,11 +1208,14 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   DocumentacaoRouteRoute: DocumentacaoRouteRouteWithChildren,
   AtualizarCadastroRoute: AtualizarCadastroRoute,
-  AuthRoute: AuthRoute,
   AtaTokenRoute: AtaTokenRoute,
+  AuthNovaSenhaRoute: AuthNovaSenhaRoute,
+  AuthRecuperarSenhaRoute: AuthRecuperarSenhaRoute,
+  AuthRedefinirSenhaRoute: AuthRedefinirSenhaRoute,
   CTokenRoute: CTokenRouteWithChildren,
   FluxoCaixaTokenRoute: FluxoCaixaTokenRoute,
   MensalidadesTokenRoute: MensalidadesTokenRoute,
+  AuthIndexRoute: AuthIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

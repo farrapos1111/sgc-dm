@@ -146,10 +146,11 @@ Outras convenções:
 
 ## 5. Camada de serviço
 
-Os 14 arquivos em `src/lib/*.functions.ts`:
+Os arquivos em `src/lib/*.functions.ts`:
 
 | Arquivo | Cobre |
 | --- | --- |
+| `accounts.functions.ts` | Provisão/vínculo de contas, login por ID DeMolay, reset de senha, flag `must_change_password` |
 | `ai.functions.ts` | `improveText`, `composeEventDescription` (via Lovable AI Gateway) |
 | `attendance.functions.ts` | Chamada e registros de presença por evento de calendário |
 | `calendar.functions.ts` | CRUD de `calendar_events`, sessões em andamento |
@@ -175,10 +176,10 @@ Helpers puros relevantes em `src/lib/`: `permissions.ts` (matriz de acesso), `na
 Schema definido pelas migrations em [supabase/migrations/](../supabase/migrations/); tipos gerados em [src/integrations/supabase/types.ts](../src/integrations/supabase/types.ts).
 
 ### Identidade e multi-inquilino
-`states` → `regions` → `chapters` (nome, número, cidade, `primary_color`, `logo_url`, `settings` JSONB, campos do encarregado LGPD) · `profiles` (1:1 com `auth.users`, guarda `active_chapter_id`; criado pelo trigger `handle_new_user`) · `roles` (catálogo) · **`chapter_members`** (usuário + capítulo + cargo + ativo — é o que concede todo o acesso ao capítulo) · `org_leaderships` (usuário + `org_role` + estado **ou** região + termo) · `audit_logs`.
+`states` → `regions` → `chapters` (nome, número, cidade, `primary_color`, `logo_url`, `settings` JSONB, campos do encarregado LGPD) · `profiles` (1:1 com `auth.users`, guarda `active_chapter_id` e `must_change_password`; criado pelo trigger `handle_new_user`) · `roles` (catálogo) · **`chapter_members`** (usuário + capítulo + cargo + ativo — é o que concede todo o acesso ao capítulo) · `org_leaderships` (usuário + `org_role` + estado **ou** região + termo) · `audit_logs`.
 
 ### Pessoas
-`members` (escopo de capítulo; `status` ativo|inativo|senior|macom; `cpf_encrypted`/`cpf_last2`, `rg_encrypted`/`rg_last2`, endereço JSONB, datas de graus e exames) · `guardians` (até 2 por membro, um principal via índice único parcial) · `lgpd_consents`.
+`members` (escopo de capítulo; `user_id` opcional → `profiles` — vínculo duro com a conta de login; `status`/`kind`; `cpf_encrypted`/`cpf_last2`, `rg_encrypted`/`rg_last2`, endereço JSONB, datas de graus e exames, `demolay_id` / `masonic_id`) · `guardians` (até 2 por membro, um principal via índice único parcial) · `lgpd_consents`.
 
 ### Governança
 `positions` (25 cargos semeados, de Mestre Conselheiro a Sentinela, mais cargos consultivos) ↔ `member_positions` (membro + cargo + `term_year`/`term_semester`) · `commissions` (9 semeadas: midia, novos_membros, manutencao, eventos, entretenimento, hospitalaria, auditoria, financas, sindicancias) ↔ `commission_members` (+ `commission_role` + termo) · `chapter_lodges`.
@@ -208,18 +209,32 @@ Quase toda tabela de conteúdo carrega `chapter_id` (a chave de inquilino), `cre
 
 ### Fluxo de autenticação
 
-1. `/auth` ([src/routes/auth.tsx](../src/routes/auth.tsx), `ssr: false`) — e-mail e senha via `supabase.auth.signInWithPassword`. Link para a documentação pública em `/documentacao`.
-2. **Rotas públicas de documentação** (fora de `_authenticated`): `/documentacao`, `/documentacao/tecnica`, `/documentacao/guia`, `/documentacao/open-source` — layout próprio em [src/routes/documentacao/](../src/routes/documentacao/), renderizam os Markdowns de `docs/` via `react-markdown` ([src/lib/docs-catalog.ts](../src/lib/docs-catalog.ts), [src/components/docs/](../src/components/docs/)).
-3. **Outras rotas públicas** (sem login): `/mensalidades/$token`, `/fluxo-caixa/$token`, `/c/$token/*` (lobby), `/ata/$token` (visão pública da ata com senha), `/atualizar-cadastro`.
-4. `_authenticated/route.tsx` — o `beforeLoad` chama `supabase.auth.getUser()` e redireciona para `/auth` se não houver sessão; monta `ActiveChapterProvider` e `OrgScopeProvider`.
-5. `_authenticated/index.tsx` redireciona `/` → `/inicio`.
-6. `_shell/route.tsx` resolve o escopo de trabalho:
+1. `/auth` ([src/routes/auth/index.tsx](../src/routes/auth/index.tsx), `ssr: false`) — identificador (**e-mail ou ID DeMolay**) + senha. A autenticação passa por `signInWithIdentifier` em [src/lib/accounts.functions.ts](../src/lib/accounts.functions.ts): se o identificador contém `@`, resolve como e-mail; senão busca `members.demolay_id` com `user_id` preenchido, resolve o e-mail via Admin API e autentica no servidor, devolvendo tokens para `supabase.auth.setSession` (o e-mail não é exposto na UI antes do login).
+2. **Recuperação / primeiro acesso** (mesmo diretório `src/routes/auth/`):
+   - `/auth/recuperar-senha` — `requestPasswordReset` → `resetPasswordForEmail` (redirect para `/auth/nova-senha`)
+   - `/auth/nova-senha` — define senha a partir do link de recovery
+   - `/auth/redefinir-senha` — obrigatório quando `profiles.must_change_password` é true (senha temporária do provisão)
+3. **Rotas públicas de documentação** (fora de `_authenticated`): `/documentacao`, `/documentacao/tecnica`, `/documentacao/guia`, `/documentacao/open-source` — layout próprio em [src/routes/documentacao/](../src/routes/documentacao/), renderizam os Markdowns de `docs/` via `react-markdown` ([src/lib/docs-catalog.ts](../src/lib/docs-catalog.ts), [src/components/docs/](../src/components/docs/)).
+4. **Outras rotas públicas** (sem login): `/mensalidades/$token`, `/fluxo-caixa/$token`, `/c/$token/*` (lobby), `/ata/$token` (visão pública da ata com senha), `/atualizar-cadastro`.
+5. `_authenticated/route.tsx` — `beforeLoad` exige sessão; se `must_change_password`, redireciona para `/auth/redefinir-senha`; monta `ActiveChapterProvider` e `OrgScopeProvider`.
+6. `_authenticated/index.tsx` redireciona `/` → `/inicio`.
+7. `_shell/route.tsx` resolve o escopo de trabalho:
    - 0 vínculos de capítulo + ≥1 liderança → entra direto no escopo regional
    - >1 vínculo e nenhum escolhido → `/selecionar-capitulo`
    - 0 de ambos → mensagem de conta não vinculada
-7. O capítulo ativo é persistido em `localStorage` (`sgcdm.activeChapterId`) **e** espelhado em `profiles.active_chapter_id` para continuidade entre dispositivos. O escopo org fica em `sgcdm.activeOrgScope`.
-8. Toda chamada de *server function* leva `Authorization: Bearer <access_token>` e é verificada no servidor com `supabase.auth.getClaims(token)`. Um middleware de CSRF protege essas requisições.
-9. O logout limpa o `localStorage`, chama `supabase.auth.signOut()` e navega com recarga completa para `/auth`.
+8. O capítulo ativo é persistido em `localStorage` (`sgcdm.activeChapterId`) **e** espelhado em `profiles.active_chapter_id` para continuidade entre dispositivos. O escopo org fica em `sgcdm.activeOrgScope`.
+9. Toda chamada de *server function* leva `Authorization: Bearer <access_token>` e é verificada no servidor com `supabase.auth.getClaims(token)`. Um middleware de CSRF protege essas requisições.
+10. O logout limpa o `localStorage`, chama `supabase.auth.signOut()` e navega com recarga completa para `/auth`.
+
+### Provisão de contas (MC / Admin Total)
+
+Não há signup público. O fluxo é **ficha primeiro, conta depois**:
+
+1. Secretaria/admin cadastra o membro com e-mail válido.
+2. Na ficha (`/membros/$id`), o painel **Acesso ao sistema** ([MemberAccountPanel](../src/components/members/MemberAccountPanel.tsx)) — visível só com permissão `admin` — chama `provisionMemberAccount`.
+3. A server function usa `supabaseAdmin` (`auth.admin.createUser` com senha aleatória, ou vincula conta já existente pelo e-mail), grava `chapter_members`, seta `members.user_id` e `profiles.must_change_password = true`.
+4. A senha temporária é mostrada **uma vez** na UI para o MC repassar; no primeiro login o usuário é forçado a `/auth/redefinir-senha`.
+5. Também há `resetMemberTemporaryPassword` e `revokeMemberChapterAccess` (desativa `chapter_members.active` no capítulo; não apaga `auth.users`).
 
 ### Autorização em duas camadas
 
@@ -311,8 +326,9 @@ Esta é a parte que quebra se mexida sem cuidado ([src/lib/finance.functions.ts]
 | `SUPABASE_URL` | [auth-middleware.ts](../src/integrations/supabase/auth-middleware.ts) | sim | cliente por requisição no SSR |
 | `SUPABASE_PUBLISHABLE_KEY` | [auth-middleware.ts](../src/integrations/supabase/auth-middleware.ts) | sim | idem |
 | `VITE_SUPABASE_PROJECT_ID` / `SUPABASE_PROJECT_ID` | `.env`, `supabase/config.toml` | sim | referência do projeto |
-| `SUPABASE_SERVICE_ROLE_KEY` | [client.server.ts](../src/integrations/supabase/client.server.ts) | **não está no `.env`** | **ignora RLS** — injetar apenas no ambiente de deploy, jamais no cliente ou no repositório |
+| `SUPABASE_SERVICE_ROLE_KEY` | [client.server.ts](../src/integrations/supabase/client.server.ts) | **não está no `.env`** | **ignora RLS** — injetar apenas no ambiente de deploy, jamais no cliente ou no repositório; usada em `accounts.functions.ts` para criar/vincular usuários |
 | `LOVABLE_API_KEY` | [ai.functions.ts](../src/lib/ai.functions.ts) | **não está no `.env`** | sem ela, as funções de IA lançam `"IA indisponível: LOVABLE_API_KEY não configurada."` |
+| `VITE_APP_URL` / `APP_URL` | [accounts.functions.ts](../src/lib/accounts.functions.ts) (`requestPasswordReset`) | recomendada em produção | origem usada no `redirectTo` de recuperação de senha (`/auth/nova-senha`); fallback `http://localhost:8080` |
 
 > ⚠️ O arquivo `.env` **está versionado no git** e não consta no `.gitignore`. Ele contém apenas a URL e a chave publicável (públicas por design), mas versionar `.env` é uma prática que convida ao vazamento na primeira vez que alguém colocar um segredo real ali. A correção pendente é adicionar `.env` ao `.gitignore` e publicar um `.env.example` — ver [OPEN-SOURCE.md](./OPEN-SOURCE.md#roadmap--onde-ajudar).
 
