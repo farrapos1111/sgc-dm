@@ -428,11 +428,13 @@ export function GuardianFields({
   value,
   onChange,
   required,
+  className,
 }: {
   title: string;
   value: GuardianFormData;
   onChange: (patch: Partial<GuardianFormData>) => void;
   required?: boolean;
+  className?: string;
 }) {
   const known = (GUARDIAN_RELATIONSHIPS as readonly string[]).includes(value.relationship);
   const relationshipOptions =
@@ -441,7 +443,12 @@ export function GuardianFields({
       : [...GUARDIAN_RELATIONSHIPS];
 
   return (
-    <div className="space-y-4 rounded-[12px] border border-border p-4">
+    <div
+      className={
+        className ??
+        "space-y-4 rounded-[12px] border border-border p-4"
+      }
+    >
       <h4 className="text-sm font-semibold">{title}</h4>
       <Field label={`Nome do responsável${required ? " *" : ""}`}>
         <Input value={value.full_name} onChange={(e) => onChange({ full_name: e.target.value })} />

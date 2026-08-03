@@ -42,6 +42,8 @@ export type NavPath =
   | "/eventos"
   | "/eventos/checkins"
   | "/sindicancias/fichas"
+  | "/sindicancias/sindicarias"
+  | "/sindicancias/config"
   | "/sindicancias/processos"
   | "/hospitalaria/cardapios"
   | "/hospitalaria/escala"
@@ -123,7 +125,8 @@ export const NAV_GROUPS: NavGroup[] = [
     commission: "sindicancias",
     items: [
       { to: "/sindicancias/fichas", label: "Fichas", icon: FolderSearch },
-      { to: "/sindicancias/processos", label: "Processos", icon: Gavel },
+      { to: "/sindicancias/sindicarias", label: "Sindicâncias", icon: Gavel },
+      { to: "/sindicancias/config", label: "Configurações", icon: Settings },
     ],
   },
   {

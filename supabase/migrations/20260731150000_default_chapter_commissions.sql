@@ -9,7 +9,8 @@ WHERE chapter_id IS NULL
     'hospitalaria',
     'financas',
     'eventos',
-    'auditoria'
+    'auditoria',
+    'sindicancias'
   );
 
 INSERT INTO public.commissions (code, label, sort_order, chapter_id)
@@ -19,7 +20,8 @@ VALUES
   ('hospitalaria', 'Hospitalária', 3, NULL),
   ('financas', 'Finanças', 4, NULL),
   ('eventos', 'Eventos', 5, NULL),
-  ('auditoria', 'Auditoria', 6, NULL)
+  ('auditoria', 'Auditoria', 6, NULL),
+  ('sindicancias', 'Sindicâncias', 7, NULL)
 ON CONFLICT (code) WHERE (chapter_id IS NULL)
 DO UPDATE SET
   label = EXCLUDED.label,

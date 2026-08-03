@@ -5,7 +5,7 @@ import {
   memberEligibleForAttendance,
   type DueMemberLite,
 } from "@/lib/dues-rules";
-import { supportsMinutes } from "@/lib/calendar-types";
+import { supportsAttendance, supportsMinutes } from "@/lib/calendar-types";
 
 const EVENT_SELECT =
   "id, chapter_id, title, event_type, mandatory, start_at, end_at, location, address, description, related_event_id";
@@ -28,7 +28,11 @@ export const listOngoingItems = createServerFn({ method: "POST" })
       .lte("start_at", now.toISOString())
       .order("start_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (rows ?? []).filter((r: any) => !r.end_at || new Date(r.end_at) >= now);
+    return (rows ?? []).filter(
+      (r: { end_at?: string | null; event_type?: string }) =>
+        supportsAttendance(r.event_type ?? "") &&
+        (!r.end_at || new Date(r.end_at) >= now),
+    );
   });
 
 /** Dados completos da tela de Ongoing: item, membros ativos, presenças e ata. */
@@ -93,6 +97,18 @@ export const setAttendance = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const { data: eventMeta, error: metaErr } = await context.supabase
+      .from("calendar_events")
+      .select("id, start_at, event_type")
+      .eq("id", data.calendarEventId)
+      .eq("chapter_id", data.chapterId)
+      .maybeSingle();
+    if (metaErr) throw new Error(metaErr.message);
+    if (!eventMeta) throw new Error("Evento não encontrado");
+    if (!supportsAttendance(eventMeta.event_type)) {
+      throw new Error("Sindicância não possui chamada de presença.");
+    }
+
     if (data.status === null) {
       const { error } = await context.supabase
         .from("attendance_records")
@@ -104,27 +120,21 @@ export const setAttendance = createServerFn({ method: "POST" })
       return { ok: true, cleared: true };
     }
 
-    const [{ data: event, error: eErr }, { data: member, error: mErr }] =
-      await Promise.all([
-        context.supabase
-          .from("calendar_events")
-          .select("id, start_at")
-          .eq("id", data.calendarEventId)
-          .eq("chapter_id", data.chapterId)
-          .maybeSingle(),
-        context.supabase
-          .from("members")
-          .select(MEMBER_ATTENDANCE_SELECT)
-          .eq("id", data.memberId)
-          .eq("chapter_id", data.chapterId)
-          .maybeSingle(),
-      ]);
-    if (eErr) throw new Error(eErr.message);
+    const { data: member, error: mErr } = await context.supabase
+      .from("members")
+      .select(MEMBER_ATTENDANCE_SELECT)
+      .eq("id", data.memberId)
+      .eq("chapter_id", data.chapterId)
+      .maybeSingle();
     if (mErr) throw new Error(mErr.message);
-    if (!event) throw new Error("Evento não encontrado");
     if (!member) throw new Error("Membro não encontrado");
 
-    if (!memberEligibleForAttendance(member as DueMemberLite, event.start_at)) {
+    if (
+      !memberEligibleForAttendance(
+        member as DueMemberLite,
+        eventMeta.start_at,
+      )
+    ) {
       throw new Error(
         "Membro fora da regra de presença neste evento (iniciação ou Senior).",
       );
@@ -221,7 +231,9 @@ export const listAttendanceOverview = createServerFn({ method: "POST" })
     if (items.error) throw new Error(items.error.message);
     if (members.error) throw new Error(members.error.message);
 
-    const eventRows = items.data ?? [];
+    const eventRows = (items.data ?? []).filter((row: { event_type?: string }) =>
+      supportsAttendance(row.event_type ?? ""),
+    );
     const eventIds = eventRows.map((row: { id: string }) => row.id);
 
     type AttendanceRow = {

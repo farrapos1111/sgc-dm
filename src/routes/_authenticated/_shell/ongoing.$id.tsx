@@ -17,6 +17,7 @@ import { getOngoing, setAttendance } from "@/lib/attendance.functions";
 import { MinutesPanel } from "@/components/minutes/MinutesPanel";
 import {
   TYPE_META,
+  supportsAttendance,
   supportsMinutes,
   type CalendarType,
 } from "@/lib/calendar-types";
@@ -55,6 +56,9 @@ function OngoingPage() {
   const qc = useQueryClient();
   const { data } = useSuspenseQuery(ongoingQO(id));
   const [search, setSearch] = useState("");
+  const hasAttendance = supportsAttendance(
+    (data.item as { event_type: string }).event_type,
+  );
   const hasAta = supportsMinutes(
     (data.item as { event_type: string }).event_type,
   );
@@ -76,7 +80,7 @@ function OngoingPage() {
   const { live } = useOngoingRealtime({
     calendarEventId: id,
     chapterId: item.chapter_id,
-    enabled: allowed,
+    enabled: allowed && hasAttendance,
   });
 
   type OngoingRecord = {
@@ -151,14 +155,42 @@ function OngoingPage() {
       });
       return { prev };
     },
-    onError: (e: Error, _v, ctx) => {
+    onError: (e: unknown, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(["ongoing", id], ctx.prev);
-      toast.error(e.message || "Erro ao registrar");
+      toast.error(e instanceof Error ? e.message : "Erro ao marcar presença");
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: ["ongoing", id] });
     },
   });
+
+  if (!hasAttendance && !hasAta) {
+    return (
+      <div>
+        <PageHeader
+          title={item.title}
+          subtitle="Sindicância — sem chamada de presença nem ata de sessão."
+          actions={
+            <Button asChild variant="outline" size="sm">
+              <Link to="/sindicancias/sindicarias">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Voltar às sindicâncias
+              </Link>
+            </Button>
+          }
+        />
+        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+          A ata desta sindicância é preenchida no módulo{" "}
+          <Link
+            to="/sindicancias/sindicarias"
+            className="font-medium text-foreground underline"
+          >
+            Sindicâncias
+          </Link>
+          .
+        </Card>
+      </div>
+    );
+  }
 
   function toggleMark(memberId: string, status: "presente" | "ausente") {
     const current = recordMap.get(memberId)?.status;

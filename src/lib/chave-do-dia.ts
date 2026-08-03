@@ -147,6 +147,52 @@ export function buildChaveDoDia(
   return renderChaveTemplate(template, chaveValues(item, { chapterName: opts?.chapterName }));
 }
 
+export type SindicanciaChaveInput = {
+  chapterName?: string | null;
+  nominee: string;
+  start_at: string;
+  location?: string | null;
+  sindicante?: string | null;
+  senior?: string | null;
+  escrivao?: string | null;
+  padrinho?: string | null;
+  template?: string | null;
+};
+
+const DEFAULT_SINDICANCIA_CHAVE_FALLBACK = `[capítulo]
+CHAVE DE SINDICÂNCIA
+
+Indicado: [indicado]
+Padrinho: [padrinho]
+Data: [data] às [hora]
+Local: [local]
+Sindicante: [sindicante]
+Tio/Senior: [senior]
+Escrivão de Parecer: [escrivao]
+`;
+
+/** Monta a chave de sindicância com o modelo da comissão. */
+export function buildSindicanciaChave(input: SindicanciaChaveInput): string {
+  const start = new Date(input.start_at);
+  const template =
+    (input.template ?? "").trim() || DEFAULT_SINDICANCIA_CHAVE_FALLBACK;
+  const values: Record<string, string> = {
+    capítulo: (input.chapterName ?? "").trim(),
+    capitulo: (input.chapterName ?? "").trim(),
+    indicado: (input.nominee ?? "").trim(),
+    padrinho: (input.padrinho ?? "").trim() || "A definir",
+    data: dateBR(start),
+    hora: timeBR(start),
+    local: (input.location ?? "").trim() || "A definir",
+    sindicante: (input.sindicante ?? "").trim() || "A definir",
+    senior: (input.senior ?? "").trim() || "A definir",
+    escrivao: (input.escrivao ?? "").trim() || "A definir",
+  };
+  // renderChaveTemplate só aceita [a-z_]; "capítulo" tem acento — normalizar no template
+  const normalized = template.replace(/\[capítulo\]/gi, "[capitulo]");
+  return renderChaveTemplate(normalized, values);
+}
+
 /** Exemplo usado na pré-visualização do editor de modelo. */
 export function chavePreviewItem(): ChaveItem {
   const start = new Date();

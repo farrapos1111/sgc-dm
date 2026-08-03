@@ -25,9 +25,11 @@ import {
   MapPin,
   Landmark,
   Receipt,
+  Gavel,
 } from "lucide-react";
 import { listCalendarItems } from "@/lib/calendar.functions";
-import { buildChaveDoDia } from "@/lib/chave-do-dia";
+import { listOpenSindicanciasForMe } from "@/lib/investigations.functions";
+import { resolveCalendarChaveText } from "@/lib/resolve-calendar-chave";
 import { toast } from "sonner";
 import { listEvents } from "@/lib/events.functions";
 import { listMembers } from "@/lib/members.functions";
@@ -43,6 +45,8 @@ import {
   parseDateOnly,
 } from "@/lib/format";
 import { MONTH_LONG } from "@/lib/dues-rules";
+import { STATUS_LABELS } from "@/lib/investigation-labels";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/_shell/inicio")({
   head: () => ({
@@ -90,6 +94,13 @@ function InicioContent({ active }: { active: Membership }) {
     queryFn: () => listOngoingItems({ data: { chapterId } }),
     enabled: Boolean(chapterId),
     refetchInterval: 60_000,
+  });
+
+  const { data: openSindicancias = [] } = useQuery({
+    queryKey: ["open-sindicancias", chapterId],
+    queryFn: () => listOpenSindicanciasForMe({ data: { chapterId } }),
+    enabled: Boolean(chapterId),
+    staleTime: 30_000,
   });
 
   const {
@@ -225,6 +236,46 @@ function InicioContent({ active }: { active: Membership }) {
         </Card>
       )}
 
+      {openSindicancias.length > 0 && (
+        <Card className="mb-5 rounded-[12px] p-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Gavel
+                className="h-5 w-5"
+                style={{ color: active.chapter.primary_color }}
+              />
+              Sindicâncias em aberto
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/sindicancias/sindicarias">Ver todas</Link>
+            </Button>
+          </div>
+          <ul className="space-y-2">
+            {openSindicancias.map((s) => (
+              <li key={s.calendar_event_id}>
+                <Link
+                  to="/sindicancias/sindicarias"
+                  className="flex items-center justify-between gap-3 rounded-[8px] px-2 py-2 no-underline transition-colors hover:bg-muted/60"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-foreground">
+                      {s.nominee_name}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {s.start_at ? formatDateTimeBR(s.start_at) : "Sem data"}
+                      {s.needsMyVote ? " · Seu voto pendente" : ""}
+                    </div>
+                  </div>
+                  <Badge variant={s.needsMyVote ? "default" : "secondary"}>
+                    {STATUS_LABELS[s.status] ?? s.status}
+                  </Badge>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       <NextItemCard chapterId={chapterId} />
 
       {!hasAnyData ? (
@@ -344,6 +395,7 @@ function OngoingRow({
     <Link
       to="/ongoing/$id"
       params={{ id: to }}
+      search={{ tab: "chamada" }}
       className={`${cls} hover:bg-muted`}
     >
       {children}
@@ -393,26 +445,50 @@ function NextItemCard({ chapterId }: { chapterId: string }) {
   });
 
   const next = (data ?? [])[0];
+
+  const { data: chaveText } = useQuery({
+    queryKey: [
+      "calendar-chave-text",
+      next?.id,
+      activeChapter?.chapter_id,
+    ],
+    queryFn: () => {
+      if (!next) throw new Error("Sem próximo compromisso");
+      return resolveCalendarChaveText(next, activeChapter?.chapter);
+    },
+    enabled: Boolean(next?.id),
+  });
+
   if (!next) return null;
 
   const meta = TYPE_META[next.event_type as CalendarType];
 
-  async function copyChave() {
-    const settings = activeChapter?.chapter.settings;
-    const rawTemplate =
-      settings && typeof settings === "object"
-        ? (settings as Record<string, unknown>).chave_template
-        : null;
-    const template = typeof rawTemplate === "string" ? rawTemplate : null;
-    const text = buildChaveDoDia(next, {
-      template,
-      chapterName: activeChapter?.chapter.name ?? null,
-    });
+  function copyChave() {
     try {
-      await navigator.clipboard.writeText(text);
-      toast.success("Chave do dia copiada!");
-    } catch {
-      toast.error("Não foi possível copiar. Copie manualmente.");
+      if (!chaveText) {
+        throw new Error("Aguarde o carregamento da chave.");
+      }
+      const isSindicancia = next.event_type === "sindicancia";
+      void navigator.clipboard.writeText(chaveText).then(
+        () =>
+          toast.success(
+            isSindicancia
+              ? "Chave de sindicância copiada!"
+              : "Chave do dia copiada!",
+          ),
+        (e: unknown) =>
+          toast.error(
+            e instanceof Error
+              ? e.message
+              : "Não foi possível copiar. Copie manualmente.",
+          ),
+      );
+    } catch (e: unknown) {
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : "Não foi possível copiar. Copie manualmente.",
+      );
     }
   }
 
@@ -444,8 +520,12 @@ function NextItemCard({ chapterId }: { chapterId: string }) {
           variant="outline"
           className="w-full sm:w-auto"
           onClick={copyChave}
+          disabled={!chaveText}
         >
-          <Copy className="mr-2 h-4 w-4" /> Copiar chave do dia
+          <Copy className="mr-2 h-4 w-4" />{" "}
+          {next.event_type === "sindicancia"
+            ? "Copiar chave de sindicância"
+            : "Copiar chave do dia"}
         </Button>
       </div>
     </Card>

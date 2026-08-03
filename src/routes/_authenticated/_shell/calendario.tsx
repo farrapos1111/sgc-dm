@@ -64,7 +64,7 @@ import {
   toAppTzDateTimeLocal,
 } from "@/lib/timezone";
 import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from "@/lib/ics";
-import { buildChaveDoDia } from "@/lib/chave-do-dia";
+import { resolveCalendarChaveText } from "@/lib/resolve-calendar-chave";
 import {
   TYPE_META,
   CALENDAR_TYPES,
@@ -778,6 +778,11 @@ function DetailContent({
 }) {
   const meta = TYPE_META[item.event_type];
   const { active: activeChapter } = useActiveChapter();
+  const { data: chaveText } = useQuery({
+    queryKey: ["calendar-chave-text", item.id, activeChapter?.chapter_id],
+    queryFn: () =>
+      resolveCalendarChaveText(item, activeChapter?.chapter),
+  });
   const del = useMutation({
     mutationFn: () => deleteCalendarItem({ data: { id: item.id } }),
     onSuccess: () => {
@@ -866,23 +871,38 @@ function DetailContent({
           <Button
             size="sm"
             variant="outline"
-            onClick={async () => {
+            disabled={!chaveText}
+            onClick={() => {
               try {
-                await navigator.clipboard.writeText(
-                  buildChaveDoDia(item, {
-                    template:
-                      (activeChapter?.chapter as any)?.settings
-                        ?.chave_template ?? null,
-                    chapterName: activeChapter?.chapter.name ?? null,
-                  }),
+                if (!chaveText) {
+                  throw new Error("Aguarde o carregamento da chave.");
+                }
+                const isSindicancia = item.event_type === "sindicancia";
+                void navigator.clipboard.writeText(chaveText).then(
+                  () =>
+                    toast.success(
+                      isSindicancia
+                        ? "Chave de sindicância copiada!"
+                        : "Chave do dia copiada!",
+                    ),
+                  (e: unknown) =>
+                    toast.error(
+                      e instanceof Error
+                        ? e.message
+                        : "Não foi possível copiar.",
+                    ),
                 );
-                toast.success("Chave do dia copiada!");
-              } catch {
-                toast.error("Não foi possível copiar.");
+              } catch (e: unknown) {
+                toast.error(
+                  e instanceof Error ? e.message : "Não foi possível copiar.",
+                );
               }
             }}
           >
-            <Copy className="mr-2 h-3.5 w-3.5" /> Chave do dia
+            <Copy className="mr-2 h-3.5 w-3.5" />{" "}
+            {item.event_type === "sindicancia"
+              ? "Chave de sindicância"
+              : "Chave do dia"}
           </Button>
           <Button size="sm" variant="outline" asChild>
             <a href={googleCalendarUrl(item)} target="_blank" rel="noreferrer">
@@ -917,6 +937,7 @@ function DetailContent({
             <Link
               to="/ongoing/$id"
               params={{ id: item.id }}
+              search={{ tab: "chamada" }}
               className="inline-flex items-center gap-1 text-sm font-medium"
               style={{ color: "var(--chapter-primary)" }}
             >
@@ -1152,12 +1173,18 @@ function CreateDialog({
       </div>
       <div>
         <Label className="mb-1.5 block text-xs">Tipo</Label>
-        <Select value={type} onValueChange={(v) => setType(v as CalendarType)}>
+        <Select
+          value={type}
+          onValueChange={(v) => setType(v as CalendarType)}
+          disabled={type === "sindicancia"}
+        >
           <SelectTrigger className="h-11">
             <SelectValue placeholder="Selecione o tipo" />
           </SelectTrigger>
           <SelectContent>
-            {CALENDAR_TYPES.map((t) => (
+            {CALENDAR_TYPES.filter(
+              (t) => t !== "sindicancia" || type === "sindicancia",
+            ).map((t) => (
               <SelectItem key={t} value={t}>
                 {TYPE_META[t].label}
               </SelectItem>

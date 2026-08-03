@@ -1,0 +1,71 @@
+DADOS SENSÍVEIS NA ATA DE SINDICÂNCIA (LGPD)
+Módulo: sindicâncias — respostas da ata digital e exportação em PDF
+
+────────────────────────────────────────────────────────────────
+CATEGORIAS MARCADAS NOS QUESTIONÁRIOS
+────────────────────────────────────────────────────────────────
+
+  [Sensível — saúde]     dados relativos à saúde (LGPD art. 5º, II / art. 11)
+  [Sensível — hábitos]   uso/convívio com substâncias ilícitas (dado sensível
+                        ou de risco elevado; tratar com o mesmo rigor)
+
+Campos tipicamente abrangidos:
+  • doença, alergia ou necessidade especial (+ descrição)
+  • medicamento contínuo (+ lista)
+  • já usou substância ilícita? / convive com usuário de drogas?
+    (faixas 15–17 e 18+)
+
+────────────────────────────────────────────────────────────────
+BASE LEGAL
+────────────────────────────────────────────────────────────────
+
+Menores (12–14 e 15–17 anos)
+  Consentimento específico do(s) responsável(is) legal(is), prestado na
+  inscrição/ata (assinatura do responsável), para o tratamento desses
+  campos com a finalidade exclusiva de avaliar ingresso e garantir
+  segurança/cuidado do candidato nas atividades do Capítulo
+  (LGPD art. 11, §1º / art. 14).
+
+Adultos (18 anos ou mais)
+  Consentimento do próprio titular, informado no texto inicial da
+  sindicância e nas assinaturas da ata, para a mesma finalidade de
+  admissão e cuidado em atividades do Capítulo (LGPD art. 7º, I, e
+  art. 11 quando cabível).
+
+Finalidade: processo admissional DeMolay; não usar para marketing,
+perfilamento comercial nem divulgação pública.
+
+────────────────────────────────────────────────────────────────
+QUEM PODE LER (ACESSO)
+────────────────────────────────────────────────────────────────
+
+Leitura das respostas sensíveis na ata / PDF da sindicância fica
+restrita a:
+
+  • membros da comissão de sindicâncias do capítulo;
+  • sindicante, escrivão e tio/senior designados na sindicância;
+  • mestre conselheiro, presidente do conselho consultivo e
+    admin_total do capítulo (supervisão).
+
+Não devem constar em listas gerais, mural público, chave do dia
+nem comunicações amplas do capítulo. Exportação em PDF herda as
+mesmas restrições de distribuição.
+
+(Documento de identidade / CPF da ficha: revelação segue
+can_reveal_id_documents — liderança + presidente da comissão.)
+
+────────────────────────────────────────────────────────────────
+RETENÇÃO
+────────────────────────────────────────────────────────────────
+
+Manter enquanto o processo de sindicância estiver aberto e, após
+conclusão (aprovada / reprovada / arquivada), pelo prazo necessário
+ao cumprimento do rito e de eventuais recursos internos, limitado a
+5 (cinco) anos a contar do encerramento da sindicância, salvo obrigação
+legal mais longa.
+
+Após o prazo: anonimizar ou eliminar as respostas sensíveis da ata
+(e cópias de PDF controladas pelo capítulo), preservando apenas
+metadados não sensíveis do processo (ex.: status, datas, nome do
+indicado sem o conteúdo sensível), quando ainda houver necessidade
+administrativa.
