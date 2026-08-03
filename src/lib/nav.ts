@@ -52,7 +52,9 @@ export type NavPath =
   | "/regional/calendario"
   | "/regional/membros"
   | "/regional/capitulos"
-  | "/regional/regioes";
+  | "/regional/regioes"
+  | "/regional/estados"
+  | "/regional/liderancas";
 
 export type NavItem = {
   to: NavPath;
@@ -157,15 +159,28 @@ export const ORG_NAV_GROUPS: NavGroup[] = [
     label: "Gestão estadual",
     icon: Map,
     items: [
+      { to: "/regional/estados", label: "Estados", icon: Globe2 },
       { to: "/regional/capitulos", label: "Instituições", icon: Building2 },
       { to: "/regional/regioes", label: "Regiões", icon: Map },
+      { to: "/regional/liderancas", label: "Lideranças", icon: Users },
     ],
   },
 ];
 
-/** Grupos do escopo org: gestão estadual é exclusiva do GME. */
-export function visibleOrgGroups(isGme: boolean): NavGroup[] {
-  return ORG_NAV_GROUPS.filter((g) => g.id !== "org-gestao" || isGme);
+/** Grupos do escopo org: gestão estadual para GME ou super admin. */
+export function visibleOrgGroups(
+  canManageOrg: boolean,
+  isSuperAdmin = false,
+): NavGroup[] {
+  return ORG_NAV_GROUPS.filter(
+    (g) => g.id !== "org-gestao" || canManageOrg,
+  ).map((g) => {
+    if (g.id !== "org-gestao" || isSuperAdmin) return g;
+    return {
+      ...g,
+      items: (g.items ?? []).filter((i) => i.to !== "/regional/estados"),
+    };
+  });
 }
 
 /** Atalhos da barra inferior no mobile em escopo regional/estadual. */

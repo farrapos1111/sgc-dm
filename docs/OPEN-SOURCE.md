@@ -264,7 +264,7 @@ O projeto lida com dados pessoais de menores de idade. Leve a sério.
 
 - `SUPABASE_SERVICE_ROLE_KEY` ignora toda a RLS. Nunca no cliente, nunca no repositório, nunca em log.
 - CPF e RG são cifrados no banco e só se revelam pela RPC `reveal_member_pii`. Não crie caminho novo que devolva PII em claro.
-- O escopo regional/estadual é **somente leitura** e **sem PII**. Não amplie isso sem discussão.
+- O escopo regional/estadual é **sem PII** na busca consolidada. Escrita organizacional (estados/regiões/capítulos/lideranças) fica com GME e/ou `is_super_admin` — não amplie sem discussão.
 - Toda tabela nova precisa de RLS antes do merge.
 - Nunca registre PII em log ou telemetria de erro.
 

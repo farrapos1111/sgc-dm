@@ -13,16 +13,29 @@ export const Route = createFileRoute("/_authenticated/_shell")({
 
 function ShellLayout() {
   const { memberships, loading, active, activeChapterId } = useActiveChapter();
-  const { scopes, activeScope, loading: orgLoading, setActiveScopeKey } = useOrgScope();
+  const {
+    scopes,
+    activeScope,
+    loading: orgLoading,
+    setActiveScopeKey,
+    isSuperAdmin,
+  } = useOrgScope();
   const navigate = useNavigate();
 
-  // Liderança supra-capitular sem vínculo de capítulo entra direto no escopo org.
+  // Liderança supra-capitular (ou super admin) sem vínculo de capítulo entra no escopo org.
   useEffect(() => {
     if (loading || orgLoading) return;
     if (memberships.length === 0 && scopes.length > 0 && !activeScope) {
       setActiveScopeKey(scopes[0].key);
     }
-  }, [loading, orgLoading, memberships.length, scopes, activeScope, setActiveScopeKey]);
+  }, [
+    loading,
+    orgLoading,
+    memberships.length,
+    scopes,
+    activeScope,
+    setActiveScopeKey,
+  ]);
 
   useEffect(() => {
     if (loading) return;
@@ -41,11 +54,12 @@ function ShellLayout() {
     );
   }
 
-  if (memberships.length === 0 && scopes.length === 0) {
+  if (memberships.length === 0 && scopes.length === 0 && !isSuperAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="max-w-md rounded-[12px] border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
-          Sua conta não está vinculada a nenhum capítulo. Contate o administrador do seu capítulo.
+          Sua conta não está vinculada a nenhum capítulo. Contate o
+          administrador do seu capítulo.
         </div>
       </div>
     );

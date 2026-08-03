@@ -45,13 +45,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   });
   const { canView } = useCommissionAccess();
   const navigate = useNavigate();
-  const { scopes, activeScope, setActiveScopeKey, isGme } = useOrgScope();
+  const { scopes, activeScope, setActiveScopeKey, canManageOrg, isSuperAdmin } =
+    useOrgScope();
   const groups = useMemo(
     () =>
       activeScope
-        ? visibleOrgGroups(isGme)
+        ? visibleOrgGroups(canManageOrg, isSuperAdmin)
         : visibleGroups(active?.role.name ?? null, canView),
-    [activeScope, isGme, active?.role.name, canView],
+    [activeScope, canManageOrg, isSuperAdmin, active?.role.name, canView],
   );
   const tabs = useMemo(
     () => visibleMobileTabs(Boolean(activeScope)),
@@ -139,7 +140,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     : (active?.chapter.name ?? "SG-CDM");
   const chapterNum = activeScope ? "" : (active?.chapter.number ?? "");
   const headerSubtitle = activeScope
-    ? ORG_ROLE_LABELS[activeScope.orgRole]
+    ? isSuperAdmin
+      ? "Super administrador"
+      : ORG_ROLE_LABELS[activeScope.orgRole]
     : (active?.role.label ?? "");
 
   async function handleSignOut() {

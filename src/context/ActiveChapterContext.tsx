@@ -48,6 +48,8 @@ type ActiveChapterContextValue = {
   loading: boolean;
   activeChapterId: string | null;
   active: Membership | null;
+  /** Nome completo do perfil (auth). */
+  profileFullName: string | null;
   /** Papel real do vínculo (sem override de visão). */
   realRoleName: string | null;
   /** Há múltiplos papéis distintos no capítulo ativo — pode alternar visão. */
@@ -116,7 +118,7 @@ export function ActiveChapterProvider({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("active_chapter_id")
+        .select("active_chapter_id, full_name")
         .eq("id", userId)
         .single();
       if (error) throw error;
@@ -124,6 +126,8 @@ export function ActiveChapterProvider({
     },
     enabled: Boolean(userId),
   });
+
+  const profileFullName = profile?.full_name ?? null;
 
   const [activeChapterId, setActiveChapterIdState] = useState<string | null>(
     () => {
@@ -274,6 +278,7 @@ export function ActiveChapterProvider({
       loading: isLoading,
       activeChapterId,
       active,
+      profileFullName,
       realRoleName,
       canSwitchRoleView,
       setActiveChapterId,
@@ -285,6 +290,7 @@ export function ActiveChapterProvider({
       isLoading,
       activeChapterId,
       active,
+      profileFullName,
       realRoleName,
       canSwitchRoleView,
       setActiveChapterId,

@@ -86,7 +86,7 @@ export const getEvent = createServerFn({ method: "POST" })
     const eventRes = await context.supabase
       .from("events")
       .select(
-        "id, chapter_id, name, description, location, starts_at, ends_at, goal_amount, status",
+        "id, chapter_id, name, description, location, starts_at, ends_at, goal_amount, status, ticket_artwork_url",
       )
       .eq("id", data.id)
       .maybeSingle();
@@ -147,6 +147,28 @@ export const getEvent = createServerFn({ method: "POST" })
     };
   });
 
+export const updateEventArtwork = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        event_id: z.string().uuid(),
+        ticket_artwork_url: z.string().max(500).nullable(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("events")
+      .update({ ticket_artwork_url: data.ticket_artwork_url })
+      .eq("id", data.event_id)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error("Evento não encontrado");
+    return { ok: true };
+  });
+
 export const createTicketType = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
@@ -170,6 +192,49 @@ export const createTicketType = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateTicketType = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        name: z.string().min(1).max(60),
+        price: z.number().min(0),
+        quantity_total: z.number().int().min(0),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("ticket_types")
+      .update({
+        name: data.name,
+        price: data.price,
+        quantity_total: data.quantity_total,
+      })
+      .eq("id", data.id)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error("Tipo de ingresso não encontrado");
+    return { ok: true };
+  });
+
+export const deleteTicketType = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("ticket_types")
+      .delete()
+      .eq("id", data.id)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error("Tipo de ingresso não encontrado");
+    return { ok: true };
+  });
+
 export const sellTicket = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
@@ -185,24 +250,25 @@ export const sellTicket = createServerFn({ method: "POST" })
           .or(z.literal(""))
           .default(""),
         price_paid: z.number().min(0),
+        quantity: z.number().int().min(1).max(50).default(1),
       })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { data: row, error } = await context.supabase
+    const rows = Array.from({ length: data.quantity }, () => ({
+      event_id: data.event_id,
+      ticket_type_id: data.ticket_type_id ?? null,
+      buyer_name: data.buyer_name,
+      buyer_email: data.buyer_email || null,
+      price_paid: data.price_paid,
+      sold_by: context.userId,
+    }));
+    const { data: inserted, error } = await context.supabase
       .from("tickets")
-      .insert({
-        event_id: data.event_id,
-        ticket_type_id: data.ticket_type_id ?? null,
-        buyer_name: data.buyer_name,
-        buyer_email: data.buyer_email || null,
-        price_paid: data.price_paid,
-        sold_by: context.userId,
-      })
-      .select("id, qr_code")
-      .single();
+      .insert(rows)
+      .select("id, qr_code, buyer_name");
     if (error) throw new Error(error.message);
-    return row;
+    return inserted ?? [];
   });
 
 export const createTable = createServerFn({ method: "POST" })
@@ -248,6 +314,28 @@ export const assignSeat = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+function parseTicketQrPayload(raw: string): {
+  qrCode: string;
+  buyerName: string | null;
+} {
+  const trimmed = raw.trim();
+  try {
+    const parsed = JSON.parse(trimmed) as { n?: unknown; nome?: unknown };
+    if (typeof parsed.n === "string" && parsed.n.trim()) {
+      return {
+        qrCode: parsed.n.trim(),
+        buyerName:
+          typeof parsed.nome === "string" && parsed.nome.trim()
+            ? parsed.nome.trim()
+            : null,
+      };
+    }
+  } catch {
+    // Payload legado: só o número do ingresso
+  }
+  return { qrCode: trimmed, buyerName: null };
+}
+
 export const checkinTicket = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
@@ -263,18 +351,28 @@ export const checkinTicket = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     let ticketId = data.ticket_id;
+    let ticketMeta: { qr_code: string; buyer_name: string } | null = null;
+
     if (!ticketId && data.qr) {
+      const { qrCode, buyerName } = parseTicketQrPayload(data.qr);
       const { data: t, error } = await context.supabase
         .from("tickets")
-        .select("id, event_id, status, buyer_name")
-        .eq("qr_code", data.qr)
+        .select("id, event_id, status, buyer_name, qr_code")
+        .eq("qr_code", qrCode)
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (!t) throw new Error("Ingresso não encontrado");
       if (t.event_id !== data.event_id)
         throw new Error("Ingresso de outro evento");
       if (t.status !== "valido") throw new Error("Ingresso inválido");
+      if (
+        buyerName &&
+        t.buyer_name.trim().toLowerCase() !== buyerName.toLowerCase()
+      ) {
+        throw new Error("Nome do comprador não confere com o ingresso");
+      }
       ticketId = t.id;
+      ticketMeta = { qr_code: t.qr_code, buyer_name: t.buyer_name };
     }
     if (!ticketId) throw new Error("Ingresso não informado");
 
@@ -282,13 +380,14 @@ export const checkinTicket = createServerFn({ method: "POST" })
     if (data.ticket_id) {
       const { data: t, error } = await context.supabase
         .from("tickets")
-        .select("id, status")
+        .select("id, status, buyer_name, qr_code")
         .eq("id", ticketId)
         .eq("event_id", data.event_id)
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (!t) throw new Error("Ingresso não encontrado");
       if (t.status !== "valido") throw new Error("Ingresso inválido");
+      ticketMeta = { qr_code: t.qr_code, buyer_name: t.buyer_name };
     }
 
     const { data: existing } = await context.supabase
@@ -296,7 +395,14 @@ export const checkinTicket = createServerFn({ method: "POST" })
       .select("id")
       .eq("ticket_id", ticketId)
       .maybeSingle();
-    if (existing) return { ok: true, alreadyCheckedIn: true };
+    if (existing) {
+      return {
+        ok: true,
+        alreadyCheckedIn: true,
+        qr_code: ticketMeta?.qr_code ?? null,
+        buyer_name: ticketMeta?.buyer_name ?? null,
+      };
+    }
 
     const { error } = await context.supabase.from("checkins").insert({
       ticket_id: ticketId,
@@ -305,7 +411,12 @@ export const checkinTicket = createServerFn({ method: "POST" })
       checked_in_by: context.userId,
     });
     if (error) throw new Error(error.message);
-    return { ok: true, alreadyCheckedIn: false };
+    return {
+      ok: true,
+      alreadyCheckedIn: false,
+      qr_code: ticketMeta?.qr_code ?? null,
+      buyer_name: ticketMeta?.buyer_name ?? null,
+    };
   });
 
 /** Exclui um evento (ingressos/mesas/check-ins em cascata). */

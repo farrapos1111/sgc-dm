@@ -8,7 +8,11 @@ import {
   type ReactNode,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getMyOrgContext, type OrgLeadership, type OrgRoleName } from "@/lib/org.functions";
+import {
+  getMyOrgContext,
+  type OrgLeadership,
+  type OrgRoleName,
+} from "@/lib/org.functions";
 
 export type OrgScope = {
   key: string;
@@ -27,9 +31,15 @@ type OrgScopeContextValue = {
   activeScope: OrgScope | null;
   setActiveScopeKey: (key: string | null) => void;
   isGme: boolean;
+  isSuperAdmin: boolean;
+  /** Pode cadastrar instituições/regiões/lideranças. */
+  canManageOrg: boolean;
 };
 
 const STORAGE_KEY = "sgcdm.activeOrgScope";
+
+/** Sentinel usado quando o super admin ainda não tem estados cadastrados. */
+export const PLATFORM_SCOPE_ID = "00000000-0000-0000-0000-000000000000";
 
 const OrgScopeContext = createContext<OrgScopeContextValue | null>(null);
 
@@ -47,29 +57,34 @@ export function OrgScopeProvider({ children }: { children: ReactNode }) {
     staleTime: 60_000,
   });
 
-  const leaderships = useMemo(() => data ?? [], [data]);
+  const isSuperAdmin = Boolean(data?.isSuperAdmin);
+  const leaderships = useMemo(() => data?.leaderships ?? [], [data]);
 
   const scopes = useMemo<OrgScope[]>(
     () =>
-      leaderships.map((l) => {
-        const type = l.region_id ? "region" : "state";
-        const id = (l.region_id ?? l.state_id) as string;
-        return {
-          key: `${type}:${id}`,
-          type: type as "region" | "state",
-          id,
-          label: l.region_name ?? l.state_name ?? "Escopo",
-          orgRole: l.org_role,
-          chapterIds: l.chapter_ids,
-        };
-      }),
+      leaderships
+        .map((l) => {
+          const type = l.region_id ? "region" : "state";
+          const id = (l.region_id ?? l.state_id ?? PLATFORM_SCOPE_ID) as string;
+          return {
+            key: `${type}:${id}`,
+            type: type as "region" | "state",
+            id,
+            label: l.region_name ?? l.state_name ?? "Escopo",
+            orgRole: l.org_role,
+            chapterIds: l.chapter_ids,
+          };
+        })
+        .filter((s) => Boolean(s.id)),
     [leaderships],
   );
 
-  const [activeScopeKey, setActiveScopeKeyState] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return window.localStorage.getItem(STORAGE_KEY);
-  });
+  const [activeScopeKey, setActiveScopeKeyState] = useState<string | null>(
+    () => {
+      if (typeof window === "undefined") return null;
+      return window.localStorage.getItem(STORAGE_KEY);
+    },
+  );
 
   const setActiveScopeKey = useCallback((key: string | null) => {
     setActiveScopeKeyState(key);
@@ -78,7 +93,6 @@ export function OrgScopeProvider({ children }: { children: ReactNode }) {
     else window.localStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  // Descarta seleção inválida (liderança removida/expirada).
   useEffect(() => {
     if (isLoading || !activeScopeKey) return;
     if (!scopes.some((s) => s.key === activeScopeKey)) setActiveScopeKey(null);
@@ -89,6 +103,9 @@ export function OrgScopeProvider({ children }: { children: ReactNode }) {
     [scopes, activeScopeKey],
   );
 
+  const isGme = leaderships.some((l) => l.org_role === "gme");
+  const canManageOrg = isGme || isSuperAdmin;
+
   const value = useMemo<OrgScopeContextValue>(
     () => ({
       leaderships,
@@ -96,17 +113,31 @@ export function OrgScopeProvider({ children }: { children: ReactNode }) {
       loading: isLoading,
       activeScope,
       setActiveScopeKey,
-      isGme: leaderships.some((l) => l.org_role === "gme"),
+      isGme,
+      isSuperAdmin,
+      canManageOrg,
     }),
-    [leaderships, scopes, isLoading, activeScope, setActiveScopeKey],
+    [
+      leaderships,
+      scopes,
+      isLoading,
+      activeScope,
+      setActiveScopeKey,
+      isGme,
+      isSuperAdmin,
+      canManageOrg,
+    ],
   );
 
-  return <OrgScopeContext.Provider value={value}>{children}</OrgScopeContext.Provider>;
+  return (
+    <OrgScopeContext.Provider value={value}>{children}</OrgScopeContext.Provider>
+  );
 }
 
 export function useOrgScope() {
   const ctx = useContext(OrgScopeContext);
-  if (!ctx) throw new Error("useOrgScope deve ser usado dentro de OrgScopeProvider");
+  if (!ctx)
+    throw new Error("useOrgScope deve ser usado dentro de OrgScopeProvider");
   return ctx;
 }
 

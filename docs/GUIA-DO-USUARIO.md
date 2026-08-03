@@ -63,7 +63,7 @@ No celular, **Perfil** fica na barra inferior; no computador, no menu lateral.
 
 ### Início
 
-O painel de abertura. Mostra, de relance:
+O painel de abertura. Cumprimenta pelo **primeiro nome** do perfil e mostra, de relance:
 
 - se há uma **sessão acontecendo agora** (com atalho direto para a chamada)
 - o **próximo compromisso** do calendário
@@ -105,7 +105,7 @@ O ponto mais prático: **mensalidade paga vira lançamento no caixa sozinha.** A
 
 ### Comissão de Eventos
 
-Para os eventos de arrecadação. Cria-se o evento, definem-se os **tipos de ingresso** com preço e quantidade, e a venda é registrada no sistema. Cada ingresso ganha um **QR Code**. Há um **mapa de mesas e lugares** para organizar quem senta onde, e o **check-in na portaria é feito pela câmera do celular**, lendo o QR Code — ou pelo nome, se a pessoa esqueceu o ingresso.
+Para os eventos de arrecadação. Cria-se o evento, define-se a **arte de fundo do ingresso**, os **tipos de ingresso** com preço e quantidade (editáveis depois), e a venda registra um ou vários ingressos de uma vez. Cada ingresso ganha um **cartão com QR Code** (nome do evento, data, local e número). Há um **mapa de mesas e lugares** para organizar quem senta onde, e o **check-in na portaria é feito pela câmera do celular**, validando número + nome — ou pela busca, se a pessoa esqueceu o ingresso. O envio do ingresso por e-mail está em preparação.
 
 ### Comissão de Sindicâncias
 
@@ -122,7 +122,9 @@ Para quem tem cargo acima do capítulo:
 - **Panorama** — todos os capítulos da jurisdição, com número de membros ativos e a próxima atividade de cada um
 - **Calendário** — todos os compromissos de todos os capítulos em uma agenda só
 - **Membros** — busca de membros entre capítulos (com os documentos protegidos)
-- **Instituições e Regiões** — cadastro e edição de capítulos e regiões, exclusivo do Grão-Mestre Estadual
+- **Instituições e Regiões** — cadastro e edição de capítulos e regiões (Grande Mestre Estadual ou super administrador)
+- **Estados** — cadastro de jurisdições estaduais (**somente super administrador**)
+- **Lideranças** — atribui GME, MCE, MCR e Oficiais Executivos a contas existentes por e-mail (GME do estado ou super administrador)
 
 ### Documentação
 
