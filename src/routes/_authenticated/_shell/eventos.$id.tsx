@@ -12,6 +12,8 @@ import { useActiveChapter } from "@/context/ActiveChapterContext";
 import {
   getEvent,
   createTicketType,
+  updateTicketType,
+  deleteTicketType,
   sellTicket,
   createTable,
   assignSeat,
@@ -38,7 +40,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -53,6 +54,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft,
+  Pencil,
   PlusCircle,
   ScanLine,
   Search,
@@ -62,6 +64,18 @@ import {
 import { formatBRL, formatDateTimeBR } from "@/lib/format";
 import { QrScanner } from "@/components/QrScanner";
 import { can } from "@/lib/permissions";
+
+function ticketQrPayload(qrCode: string, buyerName: string) {
+  return JSON.stringify({ n: qrCode, nome: buyerName });
+}
+
+async function ticketQrDataUrl(qrCode: string, buyerName: string) {
+  const QRCode = await import("qrcode");
+  return QRCode.default.toDataURL(ticketQrPayload(qrCode, buyerName), {
+    width: 260,
+    margin: 1,
+  });
+}
 
 export const Route = createFileRoute("/_authenticated/_shell/eventos/$id")({
   head: () => ({ meta: [{ title: "Evento — SG-CDM" }] }),
@@ -216,6 +230,7 @@ function EventoDetalhe() {
               <TicketTypesCard
                 eventId={id}
                 types={data.ticketTypes}
+                tickets={data.tickets}
                 onChanged={() =>
                   qc.invalidateQueries({ queryKey: ["event", id] })
                 }
@@ -267,20 +282,24 @@ function TicketsList({
   types: EventTicketType[];
 }) {
   const typeMap = new Map(types.map((t) => [t.id, t.name]));
-  const [qrImg, setQrImg] = useState<{ ticketId: string; url: string } | null>(
-    null,
-  );
+  const [qrImg, setQrImg] = useState<{
+    ticketId: string;
+    url: string;
+    qrCode: string;
+    buyerName: string;
+  } | null>(null);
   async function showQr(ticket: EventTicket) {
     if (!ticket.qr_code) {
       toast.error("Ingresso sem QR code");
       return;
     }
-    const QRCode = await import("qrcode");
-    const url = await QRCode.default.toDataURL(ticket.qr_code, {
-      width: 260,
-      margin: 1,
+    const url = await ticketQrDataUrl(ticket.qr_code, ticket.buyer_name);
+    setQrImg({
+      ticketId: ticket.id,
+      url,
+      qrCode: ticket.qr_code,
+      buyerName: ticket.buyer_name,
     });
-    setQrImg({ ticketId: ticket.id, url });
   }
   return (
     <Card className="rounded-[12px] p-0">
@@ -298,6 +317,7 @@ function TicketsList({
               <div className="min-w-0">
                 <div className="truncate font-medium">{t.buyer_name}</div>
                 <div className="text-xs text-muted-foreground">
+                  {t.qr_code} ·{" "}
                   {(t.ticket_type_id
                     ? typeMap.get(t.ticket_type_id)
                     : undefined) ?? "Avulso"}{" "}
@@ -321,7 +341,17 @@ function TicketsList({
           <DialogHeader>
             <DialogTitle>QR Code do ingresso</DialogTitle>
           </DialogHeader>
-          {qrImg && <img src={qrImg.url} alt="QR" className="mx-auto" />}
+          {qrImg && (
+            <div className="space-y-3 text-center">
+              <img src={qrImg.url} alt="QR" className="mx-auto" />
+              <div>
+                <div className="font-medium">{qrImg.buyerName}</div>
+                <div className="text-xs text-muted-foreground font-mono">
+                  {qrImg.qrCode}
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </Card>
@@ -331,16 +361,32 @@ function TicketsList({
 function TicketTypesCard({
   eventId,
   types,
+  tickets,
   onChanged,
 }: {
   eventId: string;
   types: EventTicketType[];
+  tickets: EventTicket[];
   onChanged: () => void;
 }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState(0);
   const [qty, setQty] = useState(0);
-  const m = useMutation({
+  const [editing, setEditing] = useState<EventTicketType | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPrice, setEditPrice] = useState(0);
+  const [editQty, setEditQty] = useState(0);
+
+  const soldByType = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of tickets) {
+      if (t.status === "cancelado" || !t.ticket_type_id) continue;
+      map.set(t.ticket_type_id, (map.get(t.ticket_type_id) ?? 0) + 1);
+    }
+    return map;
+  }, [tickets]);
+
+  const createM = useMutation({
     mutationFn: () =>
       createTicketType({
         data: {
@@ -359,30 +405,126 @@ function TicketTypesCard({
     },
     onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
   });
+
+  const updateM = useMutation({
+    mutationFn: () =>
+      updateTicketType({
+        data: {
+          id: editing!.id,
+          name: editName,
+          price: Number(editPrice),
+          quantity_total: Number(editQty),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Tipo atualizado");
+      setEditing(null);
+      onChanged();
+    },
+    onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
+  });
+
+  const deleteM = useMutation({
+    mutationFn: (id: string) => deleteTicketType({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Tipo excluído");
+      onChanged();
+    },
+    onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
+  });
+
+  function openEdit(t: EventTicketType) {
+    setEditing(t);
+    setEditName(t.name);
+    setEditPrice(Number(t.price));
+    setEditQty(t.quantity_total);
+  }
+
   return (
     <Card className="rounded-[12px] p-5">
       <h3 className="mb-3 text-sm font-semibold">Tipos de ingresso</h3>
-      <ul className="mb-3 space-y-1 text-sm">
+      <ul className="mb-4 space-y-2">
         {types.length === 0 && (
-          <li className="text-muted-foreground">Nenhum tipo cadastrado.</li>
-        )}
-        {types.map((t) => (
-          <li key={t.id} className="flex items-center justify-between">
-            <span>{t.name}</span>
-            <span className="text-muted-foreground">
-              {formatBRL(Number(t.price))}
-            </span>
+          <li className="text-sm text-muted-foreground">
+            Nenhum tipo cadastrado.
           </li>
-        ))}
+        )}
+        {types.map((t) => {
+          const sold = soldByType.get(t.id) ?? 0;
+          return (
+            <li
+              key={t.id}
+              className="rounded-[8px] border border-border px-3 py-2"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{t.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatBRL(Number(t.price))} · {sold}
+                    {t.quantity_total > 0
+                      ? ` / ${t.quantity_total}`
+                      : ""}{" "}
+                    vendidos
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => openEdit(t)}
+                    aria-label={`Editar ${t.name}`}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        disabled={deleteM.isPending}
+                        aria-label={`Excluir ${t.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir tipo?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Remove “{t.name}”. Ingressos já vendidos deste tipo
+                          passam a figurar como avulsos.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={(e) => {
+                            e.preventDefault();
+                            deleteM.mutate(t.id);
+                          }}
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
-      <div className="space-y-2">
+      <div className="space-y-2 border-t border-border pt-3">
+        <p className="text-xs font-medium text-muted-foreground">Novo tipo</p>
         <div>
           <Label htmlFor="ticket-type-name" className="mb-1 block text-xs">
             Nome
           </Label>
           <Input
             id="ticket-type-name"
-            placeholder="Nome (ex: Pista)"
+            placeholder="Ex: Pista"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -395,7 +537,8 @@ function TicketTypesCard({
             <Input
               id="ticket-type-price"
               type="number"
-              placeholder="Preço"
+              min={0}
+              step="0.01"
               value={price}
               onChange={(e) => setPrice(Number(e.target.value))}
             />
@@ -407,7 +550,7 @@ function TicketTypesCard({
             <Input
               id="ticket-type-qty"
               type="number"
-              placeholder="Qtde"
+              min={0}
               value={qty}
               onChange={(e) => setQty(Number(e.target.value))}
             />
@@ -421,13 +564,68 @@ function TicketTypesCard({
               toast.error("Informe o nome");
               return;
             }
-            m.mutate();
+            createM.mutate();
           }}
-          disabled={m.isPending}
+          disabled={createM.isPending}
         >
           <PlusCircle className="mr-2 h-4 w-4" /> Adicionar tipo
         </Button>
       </div>
+
+      <Dialog
+        open={!!editing}
+        onOpenChange={(o) => {
+          if (!o) setEditing(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar tipo de ingresso</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="mb-1 block text-xs">Nome</Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="mb-1 block text-xs">Preço</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block text-xs">Quantidade</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={editQty}
+                  onChange={(e) => setEditQty(Number(e.target.value))}
+                />
+              </div>
+            </div>
+            <Button
+              onClick={() => {
+                if (!editName.trim()) {
+                  toast.error("Informe o nome");
+                  return;
+                }
+                updateM.mutate();
+              }}
+              disabled={updateM.isPending}
+            >
+              {updateM.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
@@ -447,6 +645,10 @@ function SellTicketCard({
   const [email, setEmail] = useState("");
   const [typeId, setTypeId] = useState<string>("");
   const [price, setPrice] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [soldTickets, setSoldTickets] = useState<
+    Array<{ id: string; qr_code: string; buyer_name: string; url: string }>
+  >([]);
 
   useEffect(() => {
     if (typeId) {
@@ -454,6 +656,8 @@ function SellTicketCard({
       if (t) setPrice(Number(t.price));
     }
   }, [typeId, types]);
+
+  const total = Number(price) * Number(quantity || 0);
 
   const m = useMutation({
     mutationFn: () =>
@@ -464,33 +668,46 @@ function SellTicketCard({
           buyer_name: buyer,
           buyer_email: email,
           price_paid: Number(price),
+          quantity: Number(quantity),
         },
       }),
-    onSuccess: () => {
-      toast.success("Ingresso vendido");
+    onSuccess: async (rows) => {
+      toast.success(
+        rows.length === 1
+          ? "Ingresso vendido"
+          : `${rows.length} ingressos vendidos`,
+      );
       setBuyer("");
       setEmail("");
+      setQuantity(1);
       onSold();
+      const withUrls = await Promise.all(
+        rows.map(async (r) => ({
+          ...r,
+          url: await ticketQrDataUrl(r.qr_code, r.buyer_name),
+        })),
+      );
+      setSoldTickets(withUrls);
     },
     onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
   });
 
   return (
-    <Card className="rounded-[12px] p-5 space-y-3">
-      <h3 className="text-sm font-semibold">Vender ingresso</h3>
-      <div>
-        <Label className="mb-1 block text-xs">Comprador *</Label>
-        <Input value={buyer} onChange={(e) => setBuyer(e.target.value)} />
-      </div>
-      <div>
-        <Label className="mb-1 block text-xs">Email</Label>
-        <Input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
+    <>
+      <Card className="rounded-[12px] p-5 space-y-3">
+        <h3 className="text-sm font-semibold">Vender ingresso</h3>
+        <div>
+          <Label className="mb-1 block text-xs">Comprador *</Label>
+          <Input value={buyer} onChange={(e) => setBuyer(e.target.value)} />
+        </div>
+        <div>
+          <Label className="mb-1 block text-xs">Email</Label>
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
         <div>
           <Label className="mb-1 block text-xs">Tipo</Label>
           <Select value={typeId} onValueChange={setTypeId}>
@@ -506,31 +723,76 @@ function SellTicketCard({
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label className="mb-1 block text-xs">Valor pago</Label>
-          <Input
-            type="number"
-            min={0}
-            step="0.01"
-            value={price}
-            onChange={(e) => setPrice(Number(e.target.value))}
-          />
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="mb-1 block text-xs">Valor unitário</Label>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={price}
+              onChange={(e) => setPrice(Number(e.target.value))}
+            />
+          </div>
+          <div>
+            <Label className="mb-1 block text-xs">Quantidade</Label>
+            <Input
+              type="number"
+              min={1}
+              max={50}
+              value={quantity}
+              onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
+            />
+          </div>
         </div>
-      </div>
-      <Button
-        style={{ backgroundColor: primary }}
-        disabled={m.isPending}
-        onClick={() => {
-          if (!buyer.trim()) {
-            toast.error("Informe o comprador");
-            return;
-          }
-          m.mutate();
+        {quantity > 1 && (
+          <div className="text-xs text-muted-foreground">
+            Total: {formatBRL(total)} ({quantity} × {formatBRL(Number(price))})
+          </div>
+        )}
+        <Button
+          style={{ backgroundColor: primary }}
+          disabled={m.isPending}
+          onClick={() => {
+            if (!buyer.trim()) {
+              toast.error("Informe o comprador");
+              return;
+            }
+            m.mutate();
+          }}
+        >
+          {m.isPending ? "Vendendo…" : "Registrar venda"}
+        </Button>
+      </Card>
+
+      <Dialog
+        open={soldTickets.length > 0}
+        onOpenChange={(o) => {
+          if (!o) setSoldTickets([]);
         }}
       >
-        {m.isPending ? "Vendendo…" : "Registrar venda"}
-      </Button>
-    </Card>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {soldTickets.length === 1
+                ? "QR Code do ingresso"
+                : `QR Codes (${soldTickets.length})`}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            {soldTickets.map((t) => (
+              <div key={t.id} className="space-y-2 text-center">
+                <img src={t.url} alt={`QR ${t.qr_code}`} className="mx-auto" />
+                <div className="font-medium">{t.buyer_name}</div>
+                <div className="text-xs text-muted-foreground font-mono">
+                  {t.qr_code}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -757,8 +1019,17 @@ function CheckinPanel({
       method: "qr" | "nome";
     }) => checkinTicket({ data: { event_id: eventId, ...v } }),
     onSuccess: (res) => {
-      if (res.alreadyCheckedIn) toast.info("Ingresso já havia entrado");
-      else toast.success("Check-in realizado");
+      const who =
+        res.buyer_name && res.qr_code
+          ? `${res.buyer_name} · ${res.qr_code}`
+          : res.buyer_name || res.qr_code || null;
+      if (res.alreadyCheckedIn) {
+        toast.info(
+          who ? `Já havia entrado: ${who}` : "Ingresso já havia entrado",
+        );
+      } else {
+        toast.success(who ? `Check-in: ${who}` : "Check-in realizado");
+      }
       onChanged();
     },
     onError: (e: unknown) =>
@@ -766,7 +1037,8 @@ function CheckinPanel({
   });
 
   const filtered = tickets.filter((t) =>
-    t.buyer_name.toLowerCase().includes(search.toLowerCase()),
+    t.buyer_name.toLowerCase().includes(search.toLowerCase()) ||
+    t.qr_code.toLowerCase().includes(search.toLowerCase()),
   );
   const checkedTicketIds = new Set(checkins.map((c) => c.ticket_id));
 
@@ -806,11 +1078,11 @@ function CheckinPanel({
         )}
       </Card>
       <Card className="rounded-[12px] p-5">
-        <h3 className="mb-3 text-sm font-semibold">Buscar por nome</h3>
+        <h3 className="mb-3 text-sm font-semibold">Buscar por nome ou número</h3>
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Nome do participante"
+            placeholder="Nome ou número do ingresso"
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -827,7 +1099,14 @@ function CheckinPanel({
                 key={t.id}
                 className="flex items-center justify-between gap-2 rounded-[8px] border border-border px-3 py-2"
               >
-                <span className="min-w-0 truncate text-sm">{t.buyer_name}</span>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">
+                    {t.buyer_name}
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground font-mono">
+                    {t.qr_code}
+                  </div>
+                </div>
                 {already ? (
                   <Badge variant="secondary">Presente</Badge>
                 ) : (
