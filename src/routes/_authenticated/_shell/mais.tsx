@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/_shell/mais")({
 function MaisPage() {
   const { active, memberships } = useActiveChapter();
   const { canView } = useCommissionAccess();
-  const { activeScope, isGme } = useOrgScope();
+  const { activeScope, canManageOrg, isSuperAdmin } = useOrgScope();
   const navigate = useNavigate();
   const primary = active?.chapter.primary_color || "var(--chapter-primary)";
 
@@ -39,10 +39,10 @@ function MaisPage() {
 
   const groups = useMemo(() => {
     const all = activeScope
-      ? visibleOrgGroups(isGme)
+      ? visibleOrgGroups(canManageOrg, isSuperAdmin)
       : visibleGroups(active?.role.name ?? null, canView);
     return mobileOverflowGroups(all, tabs);
-  }, [activeScope, isGme, active?.role.name, canView, tabs]);
+  }, [activeScope, canManageOrg, isSuperAdmin, active?.role.name, canView, tabs]);
 
   async function signOut() {
     if (typeof window !== "undefined") {
@@ -70,7 +70,11 @@ function MaisPage() {
               <Building2 className="h-5 w-5" /> Escopo ativo
             </div>
             <div className="text-base font-semibold text-white">{activeScope.label}</div>
-            <div className="text-sm text-white/75">{ORG_ROLE_LABELS[activeScope.orgRole]}</div>
+            <div className="text-sm text-white/75">
+              {isSuperAdmin
+                ? "Super administrador"
+                : ORG_ROLE_LABELS[activeScope.orgRole]}
+            </div>
           </section>
         ) : (
           <section className="rounded-[12px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">

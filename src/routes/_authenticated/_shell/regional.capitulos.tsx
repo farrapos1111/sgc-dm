@@ -66,20 +66,25 @@ function ManageChapters() {
 }
 
 function ChaptersContent() {
-  const { activeScope, leaderships } = useOrgScope();
+  const { activeScope, leaderships, canManageOrg } = useOrgScope();
   const scope = activeScope!;
   const qc = useQueryClient();
   const [draft, setDraft] = useState<Draft | null>(null);
 
   const stateId =
-    leaderships.find((l) => l.org_role === "gme")?.state_id ??
-    leaderships.find((l) => (l.region_id ?? l.state_id) === scope.id)?.state_id ??
+    leaderships.find((l) => l.org_role === "gme" && l.state_id)?.state_id ??
+    (scope.type === "state" &&
+    scope.id !== "00000000-0000-0000-0000-000000000000"
+      ? scope.id
+      : leaderships.find((l) => l.state_id)?.state_id) ??
     null;
-  const canManage = leaderships.some((l) => l.org_role === "gme");
 
   const { data: chapters, isLoading } = useQuery({
     queryKey: ["scope-chapters", scope.key],
-    queryFn: () => listScopeChapters({ data: { scopeType: scope.type, scopeId: scope.id } }),
+    queryFn: () =>
+      listScopeChapters({
+        data: { scopeType: scope.type, scopeId: scope.id },
+      }),
   });
 
   const { data: regions } = useQuery({
@@ -109,15 +114,26 @@ function ChaptersContent() {
   });
 
   const toggleActive = useMutation({
-    mutationFn: (v: { id: string; active: boolean }) => setChapterActive({ data: v }),
+    mutationFn: (v: { id: string; active: boolean }) =>
+      setChapterActive({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["scope-chapters"] }),
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (!canManage) {
+  if (!canManageOrg) {
     return (
       <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
-        Apenas o Grande Mestre Estadual pode gerenciar instituições.
+        Apenas o Grande Mestre Estadual ou super administrador podem gerenciar
+        instituições.
+      </Card>
+    );
+  }
+
+  if (!stateId) {
+    return (
+      <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        Cadastre um estado e selecione o escopo estadual para gerenciar
+        instituições.
       </Card>
     );
   }

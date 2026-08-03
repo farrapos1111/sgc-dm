@@ -77,6 +77,7 @@ function Inicio() {
 }
 
 function InicioContent({ active }: { active: Membership }) {
+  const { profileFullName } = useActiveChapter();
   const chapterId = active.chapter_id;
   const canFinance = can(active.role.name, "tesouraria");
 
@@ -136,12 +137,8 @@ function InicioContent({ active }: { active: Membership }) {
 
   const hasAnyData = members.length > 0 || events.length > 0;
 
-  const demolayName =
-    typeof window !== "undefined"
-      ? (window as Window & { __demolayName?: unknown }).__demolayName
-      : undefined;
   const firstName =
-    (typeof demolayName === "string" && demolayName) || active.role.label;
+    profileFullName?.trim().split(/\s+/).filter(Boolean)[0] || "DeMolay";
 
   const monthLabel =
     finance != null

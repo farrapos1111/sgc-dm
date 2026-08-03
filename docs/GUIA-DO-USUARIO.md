@@ -63,7 +63,7 @@ No celular, **Perfil** fica na barra inferior; no computador, no menu lateral.
 
 ### Início
 
-O painel de abertura. Mostra, de relance:
+O painel de abertura. Cumprimenta pelo **primeiro nome** do perfil e mostra, de relance:
 
 - se há uma **sessão acontecendo agora** (com atalho direto para a chamada)
 - o **próximo compromisso** do calendário
@@ -122,7 +122,9 @@ Para quem tem cargo acima do capítulo:
 - **Panorama** — todos os capítulos da jurisdição, com número de membros ativos e a próxima atividade de cada um
 - **Calendário** — todos os compromissos de todos os capítulos em uma agenda só
 - **Membros** — busca de membros entre capítulos (com os documentos protegidos)
-- **Instituições e Regiões** — cadastro e edição de capítulos e regiões, exclusivo do Grão-Mestre Estadual
+- **Instituições e Regiões** — cadastro e edição de capítulos e regiões (Grande Mestre Estadual ou super administrador)
+- **Estados** — cadastro de jurisdições estaduais (**somente super administrador**)
+- **Lideranças** — atribui GME, MCE, MCR e Oficiais Executivos a contas existentes por e-mail (GME do estado ou super administrador)
 
 ### Documentação
 

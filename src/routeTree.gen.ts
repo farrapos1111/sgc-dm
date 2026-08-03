@@ -54,6 +54,8 @@ import { Route as AuthenticatedShellOngoingIdRouteImport } from './routes/_authe
 import { Route as AuthenticatedShellRegionalIndexRouteImport } from './routes/_authenticated/_shell/regional.index'
 import { Route as AuthenticatedShellRegionalCalendarioRouteImport } from './routes/_authenticated/_shell/regional.calendario'
 import { Route as AuthenticatedShellRegionalCapitulosRouteImport } from './routes/_authenticated/_shell/regional.capitulos'
+import { Route as AuthenticatedShellRegionalEstadosRouteImport } from './routes/_authenticated/_shell/regional.estados'
+import { Route as AuthenticatedShellRegionalLiderancasRouteImport } from './routes/_authenticated/_shell/regional.liderancas'
 import { Route as AuthenticatedShellRegionalMembrosRouteImport } from './routes/_authenticated/_shell/regional.membros'
 import { Route as AuthenticatedShellRegionalRegioesRouteImport } from './routes/_authenticated/_shell/regional.regioes'
 import { Route as AuthenticatedShellSindicanciasFichasRouteImport } from './routes/_authenticated/_shell/sindicancias.fichas'
@@ -307,6 +309,18 @@ const AuthenticatedShellRegionalCapitulosRoute =
     path: '/regional/capitulos',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
+const AuthenticatedShellRegionalEstadosRoute =
+  AuthenticatedShellRegionalEstadosRouteImport.update({
+    id: '/regional/estados',
+    path: '/regional/estados',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellRegionalLiderancasRoute =
+  AuthenticatedShellRegionalLiderancasRouteImport.update({
+    id: '/regional/liderancas',
+    path: '/regional/liderancas',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
 const AuthenticatedShellRegionalMembrosRoute =
   AuthenticatedShellRegionalMembrosRouteImport.update({
     id: '/regional/membros',
@@ -397,6 +411,8 @@ export interface FileRoutesByFullPath {
   '/ongoing/$id': typeof AuthenticatedShellOngoingIdRoute
   '/regional/calendario': typeof AuthenticatedShellRegionalCalendarioRoute
   '/regional/capitulos': typeof AuthenticatedShellRegionalCapitulosRoute
+  '/regional/estados': typeof AuthenticatedShellRegionalEstadosRoute
+  '/regional/liderancas': typeof AuthenticatedShellRegionalLiderancasRoute
   '/regional/membros': typeof AuthenticatedShellRegionalMembrosRoute
   '/regional/regioes': typeof AuthenticatedShellRegionalRegioesRoute
   '/sindicancias/fichas': typeof AuthenticatedShellSindicanciasFichasRoute
@@ -448,6 +464,8 @@ export interface FileRoutesByTo {
   '/ongoing/$id': typeof AuthenticatedShellOngoingIdRoute
   '/regional/calendario': typeof AuthenticatedShellRegionalCalendarioRoute
   '/regional/capitulos': typeof AuthenticatedShellRegionalCapitulosRoute
+  '/regional/estados': typeof AuthenticatedShellRegionalEstadosRoute
+  '/regional/liderancas': typeof AuthenticatedShellRegionalLiderancasRoute
   '/regional/membros': typeof AuthenticatedShellRegionalMembrosRoute
   '/regional/regioes': typeof AuthenticatedShellRegionalRegioesRoute
   '/sindicancias/fichas': typeof AuthenticatedShellSindicanciasFichasRoute
@@ -504,6 +522,8 @@ export interface FileRoutesById {
   '/_authenticated/_shell/ongoing/$id': typeof AuthenticatedShellOngoingIdRoute
   '/_authenticated/_shell/regional/calendario': typeof AuthenticatedShellRegionalCalendarioRoute
   '/_authenticated/_shell/regional/capitulos': typeof AuthenticatedShellRegionalCapitulosRoute
+  '/_authenticated/_shell/regional/estados': typeof AuthenticatedShellRegionalEstadosRoute
+  '/_authenticated/_shell/regional/liderancas': typeof AuthenticatedShellRegionalLiderancasRoute
   '/_authenticated/_shell/regional/membros': typeof AuthenticatedShellRegionalMembrosRoute
   '/_authenticated/_shell/regional/regioes': typeof AuthenticatedShellRegionalRegioesRoute
   '/_authenticated/_shell/sindicancias/fichas': typeof AuthenticatedShellSindicanciasFichasRoute
@@ -559,6 +579,8 @@ export interface FileRouteTypes {
     | '/ongoing/$id'
     | '/regional/calendario'
     | '/regional/capitulos'
+    | '/regional/estados'
+    | '/regional/liderancas'
     | '/regional/membros'
     | '/regional/regioes'
     | '/sindicancias/fichas'
@@ -610,6 +632,8 @@ export interface FileRouteTypes {
     | '/ongoing/$id'
     | '/regional/calendario'
     | '/regional/capitulos'
+    | '/regional/estados'
+    | '/regional/liderancas'
     | '/regional/membros'
     | '/regional/regioes'
     | '/sindicancias/fichas'
@@ -665,6 +689,8 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/ongoing/$id'
     | '/_authenticated/_shell/regional/calendario'
     | '/_authenticated/_shell/regional/capitulos'
+    | '/_authenticated/_shell/regional/estados'
+    | '/_authenticated/_shell/regional/liderancas'
     | '/_authenticated/_shell/regional/membros'
     | '/_authenticated/_shell/regional/regioes'
     | '/_authenticated/_shell/sindicancias/fichas'
@@ -1009,6 +1035,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellRegionalCapitulosRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
+    '/_authenticated/_shell/regional/estados': {
+      id: '/_authenticated/_shell/regional/estados'
+      path: '/regional/estados'
+      fullPath: '/regional/estados'
+      preLoaderRoute: typeof AuthenticatedShellRegionalEstadosRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/regional/liderancas': {
+      id: '/_authenticated/_shell/regional/liderancas'
+      path: '/regional/liderancas'
+      fullPath: '/regional/liderancas'
+      preLoaderRoute: typeof AuthenticatedShellRegionalLiderancasRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
     '/_authenticated/_shell/regional/membros': {
       id: '/_authenticated/_shell/regional/membros'
       path: '/regional/membros'
@@ -1088,6 +1128,8 @@ interface AuthenticatedShellRouteRouteChildren {
   AuthenticatedShellOngoingIdRoute: typeof AuthenticatedShellOngoingIdRoute
   AuthenticatedShellRegionalCalendarioRoute: typeof AuthenticatedShellRegionalCalendarioRoute
   AuthenticatedShellRegionalCapitulosRoute: typeof AuthenticatedShellRegionalCapitulosRoute
+  AuthenticatedShellRegionalEstadosRoute: typeof AuthenticatedShellRegionalEstadosRoute
+  AuthenticatedShellRegionalLiderancasRoute: typeof AuthenticatedShellRegionalLiderancasRoute
   AuthenticatedShellRegionalMembrosRoute: typeof AuthenticatedShellRegionalMembrosRoute
   AuthenticatedShellRegionalRegioesRoute: typeof AuthenticatedShellRegionalRegioesRoute
   AuthenticatedShellSindicanciasFichasRoute: typeof AuthenticatedShellSindicanciasFichasRoute
@@ -1127,6 +1169,10 @@ const AuthenticatedShellRouteRouteChildren: AuthenticatedShellRouteRouteChildren
       AuthenticatedShellRegionalCalendarioRoute,
     AuthenticatedShellRegionalCapitulosRoute:
       AuthenticatedShellRegionalCapitulosRoute,
+    AuthenticatedShellRegionalEstadosRoute:
+      AuthenticatedShellRegionalEstadosRoute,
+    AuthenticatedShellRegionalLiderancasRoute:
+      AuthenticatedShellRegionalLiderancasRoute,
     AuthenticatedShellRegionalMembrosRoute:
       AuthenticatedShellRegionalMembrosRoute,
     AuthenticatedShellRegionalRegioesRoute:

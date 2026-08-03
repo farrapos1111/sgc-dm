@@ -50,13 +50,18 @@ function ManageRegions() {
 }
 
 function RegionsContent() {
-  const { activeScope, leaderships } = useOrgScope();
+  const { activeScope, leaderships, canManageOrg } = useOrgScope();
   const scope = activeScope!;
   const qc = useQueryClient();
   const [draft, setDraft] = useState<Draft | null>(null);
 
-  const gme = leaderships.find((l) => l.org_role === "gme");
-  const stateId = gme?.state_id ?? null;
+  const gme = leaderships.find((l) => l.org_role === "gme" && l.state_id);
+  const stateId =
+    gme?.state_id ??
+    (scope.type === "state" &&
+    scope.id !== "00000000-0000-0000-0000-000000000000"
+      ? scope.id
+      : null);
 
   const { data: regions, isLoading } = useQuery({
     queryKey: ["regions", stateId],
@@ -66,13 +71,21 @@ function RegionsContent() {
 
   const { data: chapters } = useQuery({
     queryKey: ["scope-chapters", scope.key],
-    queryFn: () => listScopeChapters({ data: { scopeType: scope.type, scopeId: scope.id } }),
+    queryFn: () =>
+      listScopeChapters({
+        data: { scopeType: scope.type, scopeId: scope.id },
+      }),
   });
 
   const save = useMutation({
     mutationFn: (d: Draft) =>
       saveRegion({
-        data: { id: d.id, state_id: stateId!, name: d.name, code: d.code || null },
+        data: {
+          id: d.id,
+          state_id: stateId!,
+          name: d.name,
+          code: d.code || null,
+        },
       }),
     onSuccess: () => {
       toast.success("Região salva");
@@ -92,10 +105,19 @@ function RegionsContent() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (!gme) {
+  if (!canManageOrg) {
     return (
       <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
-        Apenas o Grande Mestre Estadual pode gerenciar regiões.
+        Apenas o Grande Mestre Estadual ou super administrador podem gerenciar
+        regiões.
+      </Card>
+    );
+  }
+
+  if (!stateId) {
+    return (
+      <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        Cadastre um estado e selecione o escopo estadual para gerenciar regiões.
       </Card>
     );
   }
@@ -104,7 +126,7 @@ function RegionsContent() {
     <div className="space-y-5">
       <PageHeader
         title="Regiões"
-        subtitle={gme.state_name ?? "Estado"}
+        subtitle={gme?.state_name ?? scope.label}
         actions={
           <Button size="sm" onClick={() => setDraft({ name: "", code: "" })}>
             <Plus className="mr-1 h-4 w-4" /> Nova
