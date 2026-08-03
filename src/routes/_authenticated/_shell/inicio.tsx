@@ -28,11 +28,8 @@ import {
   Gavel,
 } from "lucide-react";
 import { listCalendarItems } from "@/lib/calendar.functions";
-import { buildChaveDoDia, buildSindicanciaChave } from "@/lib/chave-do-dia";
-import {
-  getSindicanciaChaveContext,
-  listOpenSindicanciasForMe,
-} from "@/lib/investigations.functions";
+import { listOpenSindicanciasForMe } from "@/lib/investigations.functions";
+import { resolveCalendarChaveText } from "@/lib/resolve-calendar-chave";
 import { toast } from "sonner";
 import { listEvents } from "@/lib/events.functions";
 import { listMembers } from "@/lib/members.functions";
@@ -48,7 +45,7 @@ import {
   parseDateOnly,
 } from "@/lib/format";
 import { MONTH_LONG } from "@/lib/dues-rules";
-import { STATUS_LABELS } from "./sindicancias.fichas";
+import { STATUS_LABELS } from "@/lib/investigation-labels";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/_shell/inicio")({
@@ -456,37 +453,14 @@ function NextItemCard({ chapterId }: { chapterId: string }) {
 
   async function copyChave() {
     try {
-      let text: string;
-      if (next.event_type === "sindicancia") {
-        const ctx = await getSindicanciaChaveContext({
-          data: { calendarEventId: next.id },
-        });
-        text = buildSindicanciaChave({
-          template: ctx.template,
-          chapterName: ctx.chapterName || activeChapter?.chapter.name,
-          nominee: ctx.nominee,
-          start_at: ctx.start_at || next.start_at,
-          location: ctx.location || next.location,
-                    padrinho: ctx.padrinho,
-                    sindicante: ctx.sindicante,
-          senior: ctx.senior,
-          escrivao: ctx.escrivao,
-        });
-      } else {
-        const settings = activeChapter?.chapter.settings;
-        const rawTemplate =
-          settings && typeof settings === "object"
-            ? (settings as Record<string, unknown>).chave_template
-            : null;
-        const template = typeof rawTemplate === "string" ? rawTemplate : null;
-        text = buildChaveDoDia(next, {
-          template,
-          chapterName: activeChapter?.chapter.name ?? null,
-        });
-      }
+      const isSindicancia = next.event_type === "sindicancia";
+      const text = await resolveCalendarChaveText(
+        next,
+        activeChapter?.chapter,
+      );
       await navigator.clipboard.writeText(text);
       toast.success(
-        next.event_type === "sindicancia"
+        isSindicancia
           ? "Chave de sindicância copiada!"
           : "Chave do dia copiada!",
       );

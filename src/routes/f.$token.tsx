@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { CheckCircle2, ClipboardList, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   emptyInvestigationFile,
@@ -24,6 +26,7 @@ import {
   submitInvestigationSignup,
   uploadInvestigationDocPublic,
 } from "@/lib/investigations.functions";
+import { fileToBase64 } from "@/lib/file-to-base64";
 import type { IdDocKind } from "@/lib/member-documents";
 
 export const Route = createFileRoute("/f/$token")({
@@ -97,20 +100,13 @@ function PublicShell({
   );
 }
 
-async function fileToBase64(file: File): Promise<string> {
-  const buf = await file.arrayBuffer();
-  const bytes = new Uint8Array(buf);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
-  return btoa(binary);
-}
-
 function PublicInvestigationSignup() {
   const { token } = Route.useParams();
   const [form, setForm] = useState<InvestigationFileFormValue>(
     emptyInvestigationFile(),
   );
   const [done, setDone] = useState(false);
+  const [lgpdConsent, setLgpdConsent] = useState(false);
   const [docPreviews, setDocPreviews] = useState<DocPreviewState>(emptyDocPaths());
   const [uploadingDoc, setUploadingDoc] = useState<IdDocKind | null>(null);
   const tempIdRef = useRef(crypto.randomUUID());
@@ -168,8 +164,13 @@ function PublicInvestigationSignup() {
 
   const submit = useMutation({
     mutationFn: () => {
+      if (!lgpdConsent) {
+        throw new Error("É necessário consentir com o tratamento de dados (LGPD).");
+      }
       const v = validateInvestigationForm(form);
       if (v) throw new Error(v);
+      const consentNote = `Consentimento LGPD: sim (${new Date().toISOString()})`;
+      const notes = [form.notes?.trim(), consentNote].filter(Boolean).join("\n");
       return submitInvestigationSignup({
         data: {
           token,
@@ -194,7 +195,7 @@ function PublicInvestigationSignup() {
           has_mason_relative: form.has_mason_relative,
           mason_relative_name: form.mason_relative_name || null,
           mason_relative_lodge: form.mason_relative_lodge || null,
-          notes: form.notes,
+          notes,
           docs: {
             rg_front: form.docs.rg_front!,
             rg_back: form.docs.rg_back!,
@@ -313,24 +314,58 @@ function PublicInvestigationSignup() {
           }}
         />
 
-        <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">
-            Ao enviar, você confirma que as informações estão corretas.
-          </p>
-          <Button
-            className="h-11 min-w-[140px] text-white"
-            disabled={submit.isPending}
-            onClick={() => submit.mutate()}
-            style={{ backgroundColor: accent }}
-          >
-            {submit.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando…
-              </>
-            ) : (
-              "Enviar ficha"
-            )}
-          </Button>
+        <div className="mt-8 space-y-4 border-t border-border pt-5">
+          <div className="space-y-2 rounded-md border border-border/80 bg-muted/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              Os dados pessoais informados serão tratados para a finalidade de
+              inscrição em sindicância do capítulo indicado ({chapter.name}),
+              que atua como controlador. Consulte a{" "}
+              <a
+                href="/documentacao"
+                className="underline underline-offset-2 hover:text-foreground"
+                target="_blank"
+                rel="noreferrer"
+              >
+                política de privacidade
+              </a>
+              .
+            </p>
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="lgpd-consent"
+                checked={lgpdConsent}
+                onCheckedChange={(v) => setLgpdConsent(v === true)}
+                className="mt-0.5"
+              />
+              <Label
+                htmlFor="lgpd-consent"
+                className="cursor-pointer text-sm font-normal leading-snug"
+              >
+                Li e autorizo o tratamento dos meus dados pessoais conforme a
+                LGPD. *
+              </Label>
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              Ao enviar, você confirma que as informações estão corretas.
+            </p>
+            <Button
+              className="h-11 min-w-[140px] text-white"
+              disabled={submit.isPending || !lgpdConsent}
+              onClick={() => submit.mutate()}
+              style={{ backgroundColor: accent }}
+            >
+              {submit.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando…
+                </>
+              ) : (
+                "Enviar ficha"
+              )}
+            </Button>
+          </div>
         </div>
       </Card>
     </PublicShell>

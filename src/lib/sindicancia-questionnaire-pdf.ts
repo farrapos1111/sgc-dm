@@ -4,6 +4,7 @@ import { formatDateBR } from "@/lib/format";
 import {
   formatAtaAnswer,
   isAtaQuestionBlock,
+  SIGNATURE_ROLES,
   type AtaBlock,
 } from "@/lib/member-documents";
 import { applySindicanciaAtaVars } from "@/lib/sindicancia-ata-vars";
@@ -32,6 +33,8 @@ export type SindicanciaQuestionnairePdfInput = {
   answers: Record<string, string | boolean | null>;
   /** Texto da declaração já com variáveis aplicadas (opcional). */
   declaration?: string | null;
+  /** Assinaturas em data URL (image/png). */
+  signatures?: Record<string, string | null> | null;
 };
 
 function ensureSpace(
@@ -223,6 +226,36 @@ export async function exportSindicanciaQuestionnairePdf(
     }
     doc.setTextColor(26);
     y += 3;
+  }
+
+  const sigEntries = SIGNATURE_ROLES.map((role) => {
+    const dataUrl = input.signatures?.[role.id];
+    if (!dataUrl?.startsWith("data:image")) return null;
+    return { label: role.label, dataUrl };
+  }).filter((x): x is { label: string; dataUrl: string } => Boolean(x));
+
+  if (sigEntries.length > 0) {
+    y = ensureSpace(doc, y, 14, pageH);
+    y += 4;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(26);
+    doc.text("Assinaturas", MARGIN, y);
+    y += 6;
+
+    for (const sig of sigEntries) {
+      y = ensureSpace(doc, y, 28, pageH);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(sig.label, MARGIN, y);
+      y += 3;
+      try {
+        doc.addImage(sig.dataUrl, "PNG", MARGIN, y, 60, 20);
+      } catch {
+        /* ignore invalid image */
+      }
+      y += 24;
+    }
   }
 
   doc.setFontSize(8);

@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -163,6 +163,10 @@ export function InvestigationFileForm({
   const [cepError, setCepError] = useState("");
   const lastLookedUp = useRef("");
   const [sponsorQuery, setSponsorQuery] = useState(value.sponsor_text || "");
+
+  useEffect(() => {
+    setSponsorQuery(value.sponsor_text || "");
+  }, [value.sponsor_text, value.sponsor_member_id]);
 
   async function lookupCep(raw: string) {
     const cep = digitsOnly(raw);

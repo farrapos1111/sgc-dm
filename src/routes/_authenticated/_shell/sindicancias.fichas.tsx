@@ -70,6 +70,10 @@ import {
 } from "@/components/investigations/DocumentUploadFields";
 import { MemberSearchSelect } from "@/components/investigations/MemberSearchSelect";
 import { ID_DOC_KINDS, ID_DOC_LABELS, type IdDocKind } from "@/lib/member-documents";
+import { STATUS_LABELS } from "@/lib/investigation-labels";
+import { fileToBase64 } from "@/lib/file-to-base64";
+
+export { STATUS_LABELS } from "@/lib/investigation-labels";
 
 export const Route = createFileRoute("/_authenticated/_shell/sindicancias/fichas")({
   head: () => ({
@@ -80,23 +84,6 @@ export const Route = createFileRoute("/_authenticated/_shell/sindicancias/fichas
   }),
   component: Fichas,
 });
-
-export const STATUS_LABELS: Record<string, string> = {
-  aberta: "Aberta",
-  em_andamento: "Em andamento",
-  votacao_comissao: "Votação Comissão",
-  aprovada: "Aprovada",
-  reprovada: "Reprovada",
-  arquivada: "Arquivada",
-};
-
-async function fileToBase64(file: File): Promise<string> {
-  const buf = await file.arrayBuffer();
-  const bytes = new Uint8Array(buf);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
-  return btoa(binary);
-}
 
 function Fichas() {
   const { active } = useActiveChapter();
@@ -392,7 +379,7 @@ function Fichas() {
   const setStatus = useMutation({
     mutationFn: (v: {
       id: string;
-      status: "aberta" | "em_andamento" | "aprovada" | "reprovada" | "arquivada";
+      status: InvestigationFileRow["status"];
     }) => updateFileStatus({ data: v }),
     onSuccess: async () =>
       qc.invalidateQueries({ queryKey: ["investigation-files"] }),
@@ -437,6 +424,14 @@ function Fichas() {
     onSuccess: async () => {
       toast.success("Sindicância criada no calendário");
       setOpenSind(false);
+      setSindRoles({
+        senior_member_id: null,
+        investigator_member_id: null,
+        clerk_member_id: null,
+      });
+      setSindStart(
+        toAppTzDateTimeLocal(fromAppTzDateTimeLocal(`${todayYmd()}T19:00`)),
+      );
       await qc.invalidateQueries({ queryKey: ["sindicancias"] });
       await qc.invalidateQueries({ queryKey: ["calendar"] });
     },

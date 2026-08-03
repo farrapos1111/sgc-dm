@@ -2464,6 +2464,7 @@ export type Database = {
       investigation_status:
         | "aberta"
         | "em_andamento"
+        | "votacao_comissao"
         | "aprovada"
         | "reprovada"
         | "arquivada"
@@ -2621,6 +2622,7 @@ export const Constants = {
       investigation_status: [
         "aberta",
         "em_andamento",
+        "votacao_comissao",
         "aprovada",
         "reprovada",
         "arquivada",

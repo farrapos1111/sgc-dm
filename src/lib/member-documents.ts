@@ -42,10 +42,18 @@ export function memberDocPath(
   return `${chapterId}/members/${memberId}/${kind}.${ext}`;
 }
 
+export type SindicanciaSignatureRole =
+  | "senior"
+  | "sindicante"
+  | "escrivao"
+  | "guardian1"
+  | "guardian2"
+  | "nominee";
+
 export function sindicanciaSignaturePath(
   chapterId: string,
   eventId: string,
-  role: string,
+  role: SindicanciaSignatureRole,
 ): string {
   return `${chapterId}/sindicancia/${eventId}/sig_${role}.png`;
 }
@@ -124,14 +132,6 @@ export function formatAtaAnswer(
   if (value == null) return "";
   return String(value).trim();
 }
-
-export type SindicanciaSignatureRole =
-  | "senior"
-  | "sindicante"
-  | "escrivao"
-  | "guardian1"
-  | "guardian2"
-  | "nominee";
 
 export const SIGNATURE_ROLES: Array<{
   id: SindicanciaSignatureRole;

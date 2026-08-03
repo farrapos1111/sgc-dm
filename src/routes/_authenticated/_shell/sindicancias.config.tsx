@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Copy, Link2, RefreshCw, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
@@ -64,9 +64,13 @@ function SindicanciaConfigPage() {
   const parecerValue =
     parecer ?? templates?.parecer ?? DEFAULT_SINDICANCIA_PARECER;
 
-  const publicUrl = useMemo(() => {
-    if (!tokenData?.token || typeof window === "undefined") return null;
-    return `${window.location.origin}/f/${tokenData.token}`;
+  const [publicUrl, setPublicUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!tokenData?.token) {
+      setPublicUrl(null);
+      return;
+    }
+    setPublicUrl(`${window.location.origin}/f/${tokenData.token}`);
   }, [tokenData?.token]);
 
   const saveTemplates = useMutation({

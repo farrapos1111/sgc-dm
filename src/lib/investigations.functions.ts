@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { digitsOnly } from "@/lib/format";
 import {
   MEMBER_DOCS_BUCKET,
+  SIGNATURE_ROLES,
   ageBandFromBirthDate,
   docColumnForKind,
   extFromMime,
@@ -12,6 +13,7 @@ import {
   type AgeBand,
   type AtaTemplates,
   type IdDocKind,
+  type SindicanciaSignatureRole,
 } from "@/lib/member-documents";
 import { ATA_TEMPLATE_ATE_14 } from "@/lib/sindicancia-ata-ate14";
 import { ATA_TEMPLATE_15_17 } from "@/lib/sindicancia-ata-15-17";
@@ -544,27 +546,38 @@ export const updateFile = createServerFn({ method: "POST" })
       doc_cpf_back_path: string | null;
     };
 
+    const mergeDocPath = (
+      incoming: string | undefined,
+      keep: boolean | undefined,
+      existing: string | null,
+    ) => {
+      if (incoming) return incoming;
+      // keep true/undefined → reuse existing; keep false → allow clear/null from rest
+      if (keep === false) return "";
+      return existing ?? "";
+    };
+
     const docs = {
-      rg_front:
-        rest.docs?.rg_front ||
-        (keep_docs?.rg_front ? ex.doc_rg_front_path : null) ||
-        ex.doc_rg_front_path ||
-        "",
-      rg_back:
-        rest.docs?.rg_back ||
-        (keep_docs?.rg_back ? ex.doc_rg_back_path : null) ||
-        ex.doc_rg_back_path ||
-        "",
-      cpf_front:
-        rest.docs?.cpf_front ||
-        (keep_docs?.cpf_front ? ex.doc_cpf_front_path : null) ||
-        ex.doc_cpf_front_path ||
-        "",
-      cpf_back:
-        rest.docs?.cpf_back ||
-        (keep_docs?.cpf_back ? ex.doc_cpf_back_path : null) ||
-        ex.doc_cpf_back_path ||
-        "",
+      rg_front: mergeDocPath(
+        rest.docs?.rg_front,
+        keep_docs?.rg_front,
+        ex.doc_rg_front_path,
+      ),
+      rg_back: mergeDocPath(
+        rest.docs?.rg_back,
+        keep_docs?.rg_back,
+        ex.doc_rg_back_path,
+      ),
+      cpf_front: mergeDocPath(
+        rest.docs?.cpf_front,
+        keep_docs?.cpf_front,
+        ex.doc_cpf_front_path,
+      ),
+      cpf_back: mergeDocPath(
+        rest.docs?.cpf_back,
+        keep_docs?.cpf_back,
+        ex.doc_cpf_back_path,
+      ),
     };
 
     if (!docs.rg_front || !docs.rg_back || !docs.cpf_front || !docs.cpf_back) {
@@ -681,6 +694,56 @@ export const deleteFile = createServerFn({ method: "POST" })
 
 /* ---------------------- Upload / PII / docs ---------------------- */
 
+const ALLOWED_IMAGE_MIMES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
+function assertAllowedImageMime(contentType: string): string {
+  const mime = contentType.toLowerCase().split(";")[0]?.trim() ?? "";
+  if (!ALLOWED_IMAGE_MIMES.has(mime)) {
+    throw new Error(
+      "Tipo de arquivo não permitido. Use JPEG, PNG, WebP ou GIF.",
+    );
+  }
+  return mime;
+}
+
+const PUBLIC_UPLOAD_RATE_LIMIT = 30;
+const PUBLIC_UPLOAD_RATE_WINDOW_MS = 15 * 60 * 1000;
+const publicUploadRateByToken = new Map<
+  string,
+  { count: number; windowStart: number }
+>();
+
+function assertPublicUploadRateLimit(token: string) {
+  const now = Date.now();
+  const entry = publicUploadRateByToken.get(token);
+  if (!entry || now - entry.windowStart >= PUBLIC_UPLOAD_RATE_WINDOW_MS) {
+    publicUploadRateByToken.set(token, { count: 1, windowStart: now });
+    return;
+  }
+  if (entry.count >= PUBLIC_UPLOAD_RATE_LIMIT) {
+    throw new Error(
+      "Limite de uploads excedido (máx. 30 por token a cada 15 minutos).",
+    );
+  }
+  entry.count += 1;
+}
+
+async function createAnonClient() {
+  const { createClient } = await import("@supabase/supabase-js");
+  const url = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key =
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error("Supabase não configurado");
+  return createClient(url, key);
+}
+
 export const uploadInvestigationDoc = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
@@ -696,9 +759,10 @@ export const uploadInvestigationDoc = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const contentType = assertAllowedImageMime(data.contentType);
     const bytes = Buffer.from(data.base64, "base64");
     if (bytes.length > 3 * 1024 * 1024) throw new Error("Imagem maior que 3 MB");
-    const ext = extFromMime(data.contentType);
+    const ext = extFromMime(contentType);
     const tempId = data.tempId ?? crypto.randomUUID();
     const path = investigationDocPath(
       data.chapterId,
@@ -708,7 +772,7 @@ export const uploadInvestigationDoc = createServerFn({ method: "POST" })
     );
     const { error } = await context.supabase.storage
       .from(MEMBER_DOCS_BUCKET)
-      .upload(path, bytes, { contentType: data.contentType, upsert: true });
+      .upload(path, bytes, { contentType, upsert: true });
     if (error) throw new Error(error.message);
     return { path, tempId };
   });
@@ -727,14 +791,9 @@ export const uploadInvestigationDocPublic = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data }) => {
-    const { createClient } = await import("@supabase/supabase-js");
-    const url =
-      import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const key =
-      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-      process.env.SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !key) throw new Error("Supabase não configurado");
-    const anon = createClient(url, key);
+    assertPublicUploadRateLimit(data.token);
+    const contentType = assertAllowedImageMime(data.contentType);
+    const anon = await createAnonClient();
     const { data: rows, error: rErr } = await anon.rpc(
       "resolve_investigation_signup_chapter" as never,
       { _token: data.token } as never,
@@ -750,7 +809,7 @@ export const uploadInvestigationDocPublic = createServerFn({ method: "POST" })
     );
     const bytes = Buffer.from(data.base64, "base64");
     if (bytes.length > 3 * 1024 * 1024) throw new Error("Imagem maior que 3 MB");
-    const ext = extFromMime(data.contentType);
+    const ext = extFromMime(contentType);
     const tempId = data.tempId ?? crypto.randomUUID();
     const path = investigationDocPath(
       chapter.id,
@@ -760,7 +819,7 @@ export const uploadInvestigationDocPublic = createServerFn({ method: "POST" })
     );
     const { error } = await supabaseAdmin.storage
       .from(MEMBER_DOCS_BUCKET)
-      .upload(path, bytes, { contentType: data.contentType, upsert: true });
+      .upload(path, bytes, { contentType, upsert: true });
     if (error) throw new Error(error.message);
     return { path, tempId, chapterId: chapter.id };
   });
@@ -1236,13 +1295,14 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
     };
     for (const [role, value] of Object.entries(signatures)) {
       if (!value || !value.startsWith("data:image")) continue;
+      if (!SIGNATURE_ROLES.some((r) => r.id === role)) continue;
       const base64 = value.split(",")[1];
       if (!base64) continue;
       const bytes = Buffer.from(base64, "base64");
       const path = sindicanciaSignaturePath(
         data.chapterId,
         data.calendarEventId,
-        role,
+        role as SindicanciaSignatureRole,
       );
       const { error: upErr } = await context.supabase.storage
         .from(MEMBER_DOCS_BUCKET)
@@ -1298,22 +1358,25 @@ async function resolveLinkedMemberIds(
   chapterId: string,
   email: string | null,
 ): Promise<string[]> {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", userId)
-    .maybeSingle();
-  const fullName = profile?.full_name ?? null;
-  if (!email && !fullName) return [];
-  const filters: string[] = [];
-  if (email) filters.push(`email.eq.${email}`);
-  if (fullName) filters.push(`full_name.eq.${fullName}`);
-  const { data: members } = await supabase
+  const ids = new Set<string>();
+
+  const { data: byUser } = await supabase
     .from("members")
     .select("id")
     .eq("chapter_id", chapterId)
-    .or(filters.join(","));
-  return (members ?? []).map((m: { id: string }) => m.id);
+    .eq("user_id", userId);
+  for (const m of byUser ?? []) ids.add((m as { id: string }).id);
+
+  if (email) {
+    const { data: byEmail } = await supabase
+      .from("members")
+      .select("id")
+      .eq("chapter_id", chapterId)
+      .eq("email", email);
+    for (const m of byEmail ?? []) ids.add((m as { id: string }).id);
+  }
+
+  return [...ids];
 }
 
 async function userCanVoteSindicancia(
@@ -1472,6 +1535,9 @@ export const castSindicanciaVote = createServerFn({ method: "POST" })
     if (dErr) throw new Error(dErr.message);
     const d = detail as { status: string; chapter_id: string } | null;
     if (!d) throw new Error("Sindicância não encontrada");
+    if (d.chapter_id !== data.chapterId) {
+      throw new Error("Capítulo inválido para esta sindicância");
+    }
     if (d.status !== "votacao_comissao") {
       throw new Error("Votação disponível apenas no status Votação Comissão");
     }
@@ -1479,7 +1545,7 @@ export const castSindicanciaVote = createServerFn({ method: "POST" })
     const eligibility = await userCanVoteSindicancia(context.supabase, {
       userId: context.userId,
       email,
-      chapterId: data.chapterId,
+      chapterId: d.chapter_id,
       year: term.year,
       semester: term.semester,
     });
@@ -1493,7 +1559,7 @@ export const castSindicanciaVote = createServerFn({ method: "POST" })
       .upsert(
         {
           calendar_event_id: data.calendarEventId,
-          chapter_id: data.chapterId,
+          chapter_id: d.chapter_id,
           member_id: memberId,
           vote: data.vote,
           updated_at: new Date().toISOString(),
@@ -1516,6 +1582,29 @@ export const finalizeSindicanciaVoting = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const { data: canManage, error: mErr } = await context.supabase.rpc(
+      "can_manage_commission" as never,
+      { _chapter_id: data.chapterId, _commission_code: "sindicancias" } as never,
+    );
+    if (mErr) throw new Error(mErr.message);
+    if (!canManage) {
+      throw new Error(
+        "Apenas o presidente/gestor da comissão pode encerrar a votação",
+      );
+    }
+
+    const { data: detail, error: dErr } = await context.supabase
+      .from("sindicancia_details" as never)
+      .select("chapter_id")
+      .eq("calendar_event_id", data.calendarEventId)
+      .maybeSingle();
+    if (dErr) throw new Error(dErr.message);
+    const d = detail as { chapter_id: string } | null;
+    if (!d) throw new Error("Sindicância não encontrada");
+    if (d.chapter_id !== data.chapterId) {
+      throw new Error("Capítulo inválido para esta sindicância");
+    }
+
     const { data: votes, error } = await context.supabase
       .from("sindicancia_votes" as never)
       .select("vote")
@@ -1525,16 +1614,19 @@ export const finalizeSindicanciaVoting = createServerFn({ method: "POST" })
     const aprovada = list.filter((v) => v.vote === "aprovada").length;
     const reprovada = list.filter((v) => v.vote === "reprovada").length;
 
-    let result = data.result;
-    if (!result) {
-      if (aprovada === 0 && reprovada === 0) {
-        throw new Error("Ainda não há votos registrados");
-      }
-      if (aprovada === reprovada) {
+    if (aprovada === 0 && reprovada === 0) {
+      throw new Error("Ainda não há votos registrados");
+    }
+
+    let result: "aprovada" | "reprovada";
+    if (aprovada === reprovada) {
+      if (!data.result) {
         throw new Error(
           "Empate na votação — escolha Aprovada ou Reprovada para encerrar",
         );
       }
+      result = data.result;
+    } else {
       result = aprovada > reprovada ? "aprovada" : "reprovada";
     }
 
@@ -1659,32 +1751,26 @@ export const getSindicanciaAtaTemplates = createServerFn({ method: "POST" })
 /* ---------------------- Templates + link público ---------------------- */
 
 async function patchChapterSettings(
-  supabase: { from: (t: string) => any },
+  supabase: { from: (t: string) => any; rpc: (...args: any[]) => any },
   chapterId: string,
   patch: Record<string, unknown | null>,
 ) {
-  const { data: current, error } = await supabase
+  const { data, error } = await supabase.rpc(
+    "patch_chapter_settings" as never,
+    { chapter_id: chapterId, patch } as never,
+  );
+  if (error) throw new Error(error.message);
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    return data as Record<string, unknown>;
+  }
+  const { data: current, error: fErr } = await supabase
     .from("chapters")
     .select("settings")
     .eq("id", chapterId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
-  const settings: Record<string, unknown> = {
-    ...(((current?.settings as Record<string, unknown> | null) ?? {}) as Record<
-      string,
-      unknown
-    >),
-  };
-  for (const [k, v] of Object.entries(patch)) {
-    if (v === null || v === "") delete settings[k];
-    else settings[k] = v;
-  }
-  const { error: uErr } = await supabase
-    .from("chapters")
-    .update({ settings: settings as never })
-    .eq("id", chapterId);
-  if (uErr) throw new Error(uErr.message);
-  return settings;
+  if (fErr) throw new Error(fErr.message);
+  return ((current?.settings as Record<string, unknown> | null) ??
+    {}) as Record<string, unknown>;
 }
 
 export const getSindicanciaTemplates = createServerFn({ method: "POST" })
@@ -1773,14 +1859,7 @@ export const revokeInvestigationSignupToken = createServerFn({ method: "POST" })
 export const resolveInvestigationSignup = createServerFn({ method: "POST" })
   .inputValidator((raw) => z.object({ token: z.string().min(8) }).parse(raw))
   .handler(async ({ data }) => {
-    const { createClient } = await import("@supabase/supabase-js");
-    const url =
-      import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const key =
-      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-      process.env.SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !key) throw new Error("Supabase não configurado");
-    const anon = createClient(url, key);
+    const anon = await createAnonClient();
     const { data: rows, error } = await anon.rpc(
       "resolve_investigation_signup_chapter" as never,
       { _token: data.token } as never,
@@ -1799,19 +1878,19 @@ export const resolveInvestigationSignup = createServerFn({ method: "POST" })
   });
 
 export const listInvestigationSignupMembers = createServerFn({ method: "POST" })
-  .inputValidator((raw) => z.object({ token: z.string().min(8) }).parse(raw))
+  .inputValidator((raw) =>
+    z
+      .object({
+        token: z.string().min(8),
+        search: z.string().trim().max(80).optional().default(""),
+      })
+      .parse(raw),
+  )
   .handler(async ({ data }) => {
-    const { createClient } = await import("@supabase/supabase-js");
-    const url =
-      import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const key =
-      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-      process.env.SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !key) throw new Error("Supabase não configurado");
-    const anon = createClient(url, key);
+    const anon = await createAnonClient();
     const { data: rows, error } = await anon.rpc(
       "list_investigation_signup_members" as never,
-      { _token: data.token } as never,
+      { _token: data.token, _search: data.search ?? "" } as never,
     );
     if (error) throw new Error(error.message);
     return (rows as Array<{ id: string; full_name: string }>) ?? [];
@@ -1822,14 +1901,7 @@ export const submitInvestigationSignup = createServerFn({ method: "POST" })
     z.object({ token: z.string().min(8) }).and(fileFieldsSchema).parse(raw),
   )
   .handler(async ({ data }) => {
-    const { createClient } = await import("@supabase/supabase-js");
-    const url =
-      import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const key =
-      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-      process.env.SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !key) throw new Error("Supabase não configurado");
-    const anon = createClient(url, key);
+    const anon = await createAnonClient();
 
     const guardians = data.guardians
       .filter((g: z.infer<typeof guardianSchema>) => g.full_name.trim())

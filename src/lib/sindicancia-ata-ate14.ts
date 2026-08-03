@@ -1,74 +1,10 @@
 import type { AtaTemplate } from "@/lib/member-documents";
+import { declaracaoBlocks, preliminarBlocks } from "@/lib/sindicancia-ata-shared";
 
 /** Questionário admissional 12–14 anos (textos, sim/não e descritivas). */
 export const ATA_TEMPLATE_ATE_14: AtaTemplate = {
   blocks: [
-    { id: "h_pre", type: "heading", label: "Informações preliminares do candidato" },
-    {
-      id: "pre_intro",
-      type: "text",
-      label:
-        "Dados preliminares — quando disponíveis, utilize as informações da ficha de indicação.",
-    },
-    { id: "pre_nome", type: "short_text", label: "Nome", required: true },
-    {
-      id: "pre_macom",
-      type: "yes_no",
-      label: "Tem parentesco com Maçom?",
-      required: true,
-    },
-    {
-      id: "pre_macom_grau",
-      type: "short_text",
-      label: "Grau de parentesco (Pai, Irmão, Avô, Tio ou Outro)",
-      required: false,
-      showWhen: { id: "pre_macom", equals: true },
-    },
-    {
-      id: "pre_demolay",
-      type: "yes_no",
-      label: "Tem parentesco com DeMolay?",
-      required: true,
-    },
-    {
-      id: "pre_demolay_grau",
-      type: "short_text",
-      label: "Grau de parentesco (Pai, Irmão, Avô, Tio ou Outro)",
-      required: false,
-      showWhen: { id: "pre_demolay", equals: true },
-    },
-    {
-      id: "pre_escudeiro",
-      type: "yes_no",
-      label: "É membro da Ordem dos Escudeiros?",
-      required: false,
-    },
-    {
-      id: "pre_saude",
-      type: "yes_no",
-      label: "Possui alguma doença, alergia ou necessidade especial?",
-      required: false,
-    },
-    {
-      id: "pre_saude_detalhe",
-      type: "long_text",
-      label: "Qual? (Caso afirmativo, descrever detalhadamente)",
-      required: false,
-      showWhen: { id: "pre_saude", equals: true },
-    },
-    {
-      id: "pre_medicamento",
-      type: "yes_no",
-      label: "Faz uso de medicamento contínuo?",
-      required: false,
-    },
-    {
-      id: "pre_medicamento_detalhe",
-      type: "long_text",
-      label: "Qual? (Caso afirmativo, listar)",
-      required: false,
-      showWhen: { id: "pre_medicamento", equals: true },
-    },
+    ...preliminarBlocks("pre"),
 
     { id: "h_esp", type: "heading", label: "Espiritualidade" },
     {
@@ -506,29 +442,6 @@ export const ATA_TEMPLATE_ATE_14: AtaTemplate = {
       required: true,
     },
 
-    { id: "h_decl", type: "heading", label: "Declaração de Sindicância" },
-    {
-      id: "decl_texto",
-      type: "text",
-      label: `Eu, [candidato], portador do RG [rg] CPF [cpf], respeitosamente solicito ser considerado como candidato aos graus da Ordem DeMolay por intermédio do Capítulo [capitulo_nome] — nº [numero], com sede na cidade de [cidade].
-
-Faço esta solicitação por vontade própria, sem imposição de terceiros, e por desejo de poder fazer parte desta organização para jovens, desde já estando ciente de minhas obrigações caso seja admitido em seu meio.
-
-Tenho crença em um Criador, sigo as leis de meu país e garanto ser uma pessoa de bons costumes e de práticas adequadas e dignas de qualquer homem de bem.
-
-Caso seja aceito como membro da Ordem DeMolay, prometo seguir todas as normas estipuladas pelas Normas, Estatutos, Regimentos e Atos nacionais, estaduais e regionais, assim como o Regimento Interno do Capítulo em que peticiono.
-
-Asseguro ter passado pela entrevista exigida, que foi realizada por [sindicante], e [escrivao], membros ativos da Ordem DeMolay, acompanhados pelo senhor [senior], membro do Conselho Consultivo.
-
-Declaro ter sanado todas as minhas dúvidas acerca dos objetivos e valores da Ordem DeMolay, e afirmo estar ciente dos compromissos e responsabilidades próprias da instituição, bem como afirmo-me ciente dos compromissos financeiros que são exigidos.
-
-Compreendo os motivos da cerimônia de iniciação, estando ciente de que nenhum trote, zombaria, ou prática perigosa serão me impostos em momento algum e que o ritual não tem caráter religioso. Comprometo-me de antemão a guardar sigilo sobre o ritual tradicional, caso venha a conhecê-lo.
-
-Asseguro que minha eventual participação na Ordem DeMolay não atrapalhará meus compromissos escolares, profissionais, religiosos ou familiares.
-
-Garanto ter respondido a todas as questões de maneira verdadeira e condizente com a minha pessoa, de forma que este certificado assegura minha honestidade.
-
-[dia] de [mes] de [ano]`,
-    },
+    ...declaracaoBlocks(),
   ],
 };

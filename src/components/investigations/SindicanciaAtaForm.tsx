@@ -25,6 +25,7 @@ import {
   AGE_BAND_LABELS,
   SIGNATURE_ROLES,
   formatAtaAnswer,
+  isAtaQuestionBlock,
   type AgeBand,
   type AtaBlock,
 } from "@/lib/member-documents";
@@ -313,10 +314,33 @@ export function SindicanciaAtaForm({
         blocks,
         answers,
         declaration,
+        signatures,
       });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Falha ao gerar PDF");
     }
+  }
+
+  function firstMissingRequired(): AtaBlock | null {
+    for (const block of blocks) {
+      if (!isAtaQuestionBlock(block) || !block.required) continue;
+      if (block.showWhen) {
+        const raw = answers[block.showWhen.id];
+        if (raw !== block.showWhen.equals) continue;
+      }
+      const formatted = formatAtaAnswer(answers[block.id]);
+      if (!formatted) return block;
+    }
+    return null;
+  }
+
+  function concludeAta() {
+    const missing = firstMissingRequired();
+    if (missing) {
+      toast.error(`Preencha o campo obrigatório: ${missing.label}`);
+      return;
+    }
+    save.mutate(true);
   }
 
   if (!isRoteiro && (isLoading || !hydrated)) {
@@ -518,7 +542,9 @@ export function SindicanciaAtaForm({
         </div>
       )}
 
-      {!isRoteiro && answersWritable && (
+      {!isRoteiro &&
+        (answersWritable ||
+          SIGNATURE_ROLES.some((r) => signatures[r.id]?.startsWith("data:"))) && (
         <section className="space-y-3 rounded-[12px] border border-border/70 bg-muted/10 p-4">
           <h4 className="text-sm font-semibold">Assinaturas</h4>
           <p className="text-sm leading-relaxed text-muted-foreground">
@@ -643,7 +669,7 @@ export function SindicanciaAtaForm({
           <Button
             disabled={save.isPending}
             style={accent ? { backgroundColor: accent } : undefined}
-            onClick={() => save.mutate(true)}
+            onClick={() => concludeAta()}
           >
             Concluir ata
           </Button>

@@ -56,16 +56,28 @@ function fileSafe(text: string) {
     .toLowerCase();
 }
 
-function line(doc: jsPDF, label: string, value: string | null | undefined, y: number, pageW: number) {
+function line(
+  doc: jsPDF,
+  label: string,
+  value: string | null | undefined,
+  y: number,
+  pageW: number,
+  pageH: number,
+) {
   const contentW = pageW - MARGIN * 2;
+  const text = value?.trim() || "—";
+  const lines = doc.splitTextToSize(text, contentW - 45) as string[];
+  const need = Math.max(6, lines.length * 4.5);
+  if (y + need > pageH - MARGIN) {
+    doc.addPage();
+    y = MARGIN;
+  }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.text(label, MARGIN, y);
   doc.setFont("helvetica", "normal");
-  const text = value?.trim() || "—";
-  const lines = doc.splitTextToSize(text, contentW - 45) as string[];
   doc.text(lines, MARGIN + 42, y);
-  return y + Math.max(6, lines.length * 4.5);
+  return y + need;
 }
 
 /** PDF da ficha de sindicância com logo e identificação do capítulo. */
@@ -118,21 +130,22 @@ export async function exportInvestigationFilePdf(input: InvestigationPdfInput) {
         .join(" · ")
     : "";
 
-  y = line(doc, "Candidato", input.candidate_name, y, pageW);
+  y = line(doc, "Candidato", input.candidate_name, y, pageW, pageH);
   y = line(
     doc,
     "Nascimento",
     input.candidate_birth_date ? formatDateBR(input.candidate_birth_date) : null,
     y,
     pageW,
+    pageH,
   );
-  y = line(doc, "CPF", input.cpf, y, pageW);
-  y = line(doc, "RG", input.rg, y, pageW);
-  y = line(doc, "E-mail", input.candidate_email, y, pageW);
-  y = line(doc, "Telefone", input.candidate_phone, y, pageW);
-  y = line(doc, "Celular", input.celular, y, pageW);
-  y = line(doc, "Endereço", addressLine, y, pageW);
-  y = line(doc, "Padrinho", input.sponsor, y, pageW);
+  y = line(doc, "CPF", input.cpf, y, pageW, pageH);
+  y = line(doc, "RG", input.rg, y, pageW, pageH);
+  y = line(doc, "E-mail", input.candidate_email, y, pageW, pageH);
+  y = line(doc, "Telefone", input.candidate_phone, y, pageW, pageH);
+  y = line(doc, "Celular", input.celular, y, pageW, pageH);
+  y = line(doc, "Endereço", addressLine, y, pageW, pageH);
+  y = line(doc, "Padrinho", input.sponsor, y, pageW, pageH);
 
   const guardians = (input.guardians ?? []).filter((g) => g.full_name?.trim());
   guardians.forEach((g, i) => {
@@ -142,6 +155,7 @@ export async function exportInvestigationFilePdf(input: InvestigationPdfInput) {
       [g.full_name, g.relationship, g.phone, g.email].filter(Boolean).join(" · "),
       y,
       pageW,
+      pageH,
     );
   });
 
@@ -154,6 +168,7 @@ export async function exportInvestigationFilePdf(input: InvestigationPdfInput) {
         .join(" — "),
       y,
       pageW,
+      pageH,
     );
   }
   if (input.has_mason_relative) {
@@ -165,12 +180,13 @@ export async function exportInvestigationFilePdf(input: InvestigationPdfInput) {
         .join(" — "),
       y,
       pageW,
+      pageH,
     );
   }
 
   if (input.notes) {
     y += 2;
-    y = line(doc, "Obs.", input.notes, y, pageW);
+    y = line(doc, "Obs.", input.notes, y, pageW, pageH);
   }
   if (input.opinion) {
     y += 4;

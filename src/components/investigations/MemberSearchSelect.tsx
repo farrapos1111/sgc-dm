@@ -77,7 +77,13 @@ export function MemberSearchSelect({
   }
 
   return (
-    <div>
+    <div
+      onBlur={(e) => {
+        const next = e.relatedTarget as Node | null;
+        if (next && e.currentTarget.contains(next)) return;
+        setOpen(false);
+      }}
+    >
       <Label className="mb-1.5 block text-sm">{label}</Label>
       <Input
         value={query}
@@ -87,10 +93,6 @@ export function MemberSearchSelect({
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
-        onBlur={() => {
-          // delay so click on option registers
-          window.setTimeout(() => setOpen(false), 150);
-        }}
       />
       {hint ? (
         <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
@@ -107,7 +109,6 @@ export function MemberSearchSelect({
                 <button
                   type="button"
                   className="w-full px-3 py-2.5 text-left hover:bg-muted"
-                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     onChange(m.id, m.full_name);
                     setQuery("");

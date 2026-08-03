@@ -74,7 +74,7 @@ export function DocumentUploadFields({
                   )}
                 </div>
               ) : (
-                <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-2 px-3 text-center text-xs text-muted-foreground hover:bg-muted/50">
+                <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-2 px-3 text-center text-xs text-muted-foreground hover:bg-muted/50 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
                   {busy ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
@@ -84,7 +84,7 @@ export function DocumentUploadFields({
                   <input
                     type="file"
                     accept="image/*"
-                    className="hidden"
+                    className="sr-only"
                     disabled={disabled || busy}
                     onChange={(e) => {
                       const file = e.target.files?.[0];

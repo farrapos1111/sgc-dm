@@ -51,7 +51,7 @@ import {
   type AtaFormMode,
 } from "@/components/investigations/SindicanciaAtaForm";
 import { MemberSearchSelect } from "@/components/investigations/MemberSearchSelect";
-import { STATUS_LABELS } from "./sindicancias.fichas";
+import { STATUS_LABELS } from "@/lib/investigation-labels";
 
 type SortKey = "data_desc" | "data_asc" | "nome_asc" | "nome_desc" | "status";
 

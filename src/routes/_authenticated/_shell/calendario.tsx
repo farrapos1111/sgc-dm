@@ -64,8 +64,7 @@ import {
   toAppTzDateTimeLocal,
 } from "@/lib/timezone";
 import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from "@/lib/ics";
-import { buildChaveDoDia, buildSindicanciaChave } from "@/lib/chave-do-dia";
-import { getSindicanciaChaveContext } from "@/lib/investigations.functions";
+import { resolveCalendarChaveText } from "@/lib/resolve-calendar-chave";
 import {
   TYPE_META,
   CALENDAR_TYPES,
@@ -869,34 +868,14 @@ function DetailContent({
             variant="outline"
             onClick={async () => {
               try {
-                let text: string;
-                if (item.event_type === "sindicancia") {
-                  const ctx = await getSindicanciaChaveContext({
-                    data: { calendarEventId: item.id },
-                  });
-                  text = buildSindicanciaChave({
-                    template: ctx.template,
-                    chapterName:
-                      ctx.chapterName || activeChapter?.chapter.name,
-                    nominee: ctx.nominee,
-                    start_at: ctx.start_at || item.start_at,
-                    location: ctx.location || item.location,
-                    padrinho: ctx.padrinho,
-                    sindicante: ctx.sindicante,
-                    senior: ctx.senior,
-                    escrivao: ctx.escrivao,
-                  });
-                } else {
-                  text = buildChaveDoDia(item, {
-                    template:
-                      (activeChapter?.chapter as { settings?: Record<string, unknown> })
-                        ?.settings?.chave_template as string | null ?? null,
-                    chapterName: activeChapter?.chapter.name ?? null,
-                  });
-                }
+                const isSindicancia = item.event_type === "sindicancia";
+                const text = await resolveCalendarChaveText(
+                  item,
+                  activeChapter?.chapter,
+                );
                 await navigator.clipboard.writeText(text);
                 toast.success(
-                  item.event_type === "sindicancia"
+                  isSindicancia
                     ? "Chave de sindicância copiada!"
                     : "Chave do dia copiada!",
                 );
