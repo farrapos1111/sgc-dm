@@ -292,6 +292,7 @@ export const createCashEntry = createServerFn({ method: "POST" })
         kind: z.enum(["entrada", "saida"]),
         category: z.string().min(1).default("Outras"),
         subcategoryId: z.string().uuid().nullable().default(null),
+        eventId: z.string().uuid().nullable().default(null),
         description: z.string().min(1, "Informe a descrição"),
         amount: z.number().nonnegative(),
         entry_date: z.string().min(1),
@@ -305,6 +306,7 @@ export const createCashEntry = createServerFn({ method: "POST" })
       data.chapterId,
       data.category,
       data.subcategoryId,
+      data.eventId,
     );
     const { error } = await context.supabase.from("cash_entries").insert({
       chapter_id: data.chapterId,
@@ -312,6 +314,8 @@ export const createCashEntry = createServerFn({ method: "POST" })
       category: data.category,
       subcategory: resolved.subcategory,
       calendar_event_id: resolved.calendar_event_id,
+      event_id: resolved.event_id,
+      event_finance_item_id: resolved.event_finance_item_id,
       description: data.description,
       amount: data.amount,
       entry_date: data.entry_date,
@@ -330,6 +334,7 @@ export const updateCashEntry = createServerFn({ method: "POST" })
         kind: z.enum(["entrada", "saida"]),
         category: z.string().min(1),
         subcategoryId: z.string().uuid().nullable().default(null),
+        eventId: z.string().uuid().nullable().default(null),
         description: z.string().min(1),
         amount: z.number().nonnegative(),
         entry_date: z.string().min(1),
@@ -350,15 +355,18 @@ export const updateCashEntry = createServerFn({ method: "POST" })
       current.chapter_id,
       data.category,
       data.subcategoryId,
+      data.eventId,
     );
 
-    const { id, subcategoryId, ...patch } = data;
+    const { id, subcategoryId, eventId: _eventId, ...patch } = data;
     const { error } = await context.supabase
       .from("cash_entries")
       .update({
         ...patch,
         subcategory: resolved.subcategory,
         calendar_event_id: resolved.calendar_event_id,
+        event_id: resolved.event_id,
+        event_finance_item_id: resolved.event_finance_item_id,
       })
       .eq("id", id);
     if (error) throw new Error(error.message);
@@ -528,7 +536,7 @@ export const listCashCategories = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => chapterInput.parse(raw))
   .handler(async ({ data, context }) => {
-    const [cats, calendar, subs] = await Promise.all([
+    const [cats, calendar, subs, opsEvents, financeItems] = await Promise.all([
       context.supabase
         .from("cash_categories")
         .select("id, name, sort_order, is_system")
@@ -548,14 +556,49 @@ export const listCashCategories = createServerFn({ method: "POST" })
         .eq("chapter_id", data.chapterId)
         .eq("active", true)
         .order("name"),
+      context.supabase
+        .from("events")
+        .select("id, name, starts_at, status")
+        .eq("chapter_id", data.chapterId)
+        .in("status", ["rascunho", "publicado"])
+        .order("starts_at", { ascending: false })
+        .limit(100),
+      context.supabase
+        .from("event_finance_items")
+        .select(
+          "id, event_id, category_id, name, unit_price, track_stock, stock_qty, active",
+        )
+        .eq("chapter_id", data.chapterId)
+        .eq("active", true)
+        .order("name"),
     ]);
     if (cats.error) throw new Error(cats.error.message);
     if (subs.error) throw new Error(subs.error.message);
+    if (opsEvents.error) throw new Error(opsEvents.error.message);
+    if (financeItems.error) throw new Error(financeItems.error.message);
 
     return {
       categories: cats.data ?? [],
+      /** @deprecated legado calendar_events — use operationalEvents */
       events: calendar.data ?? [],
       subcategories: subs.data ?? [],
+      operationalEvents: (opsEvents.data ?? []).map((e) => ({
+        id: e.id,
+        title: e.name,
+        start_at: e.starts_at,
+        status: e.status,
+      })),
+      eventFinanceItems: (financeItems.data ?? []).map((i) => ({
+        id: i.id,
+        event_id: i.event_id,
+        category_id: i.category_id,
+        name: i.name,
+        unit_price: i.unit_price == null ? null : Number(i.unit_price),
+        track_stock: i.track_stock,
+        stock_qty: i.stock_qty,
+        active: i.active,
+        scope: "eventos" as const,
+      })),
     };
   });
 

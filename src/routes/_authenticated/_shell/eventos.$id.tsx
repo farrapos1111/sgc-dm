@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   useSuspenseQuery,
   useMutation,
+  useQuery,
   useQueryClient,
   queryOptions,
 } from "@tanstack/react-query";
@@ -21,6 +22,11 @@ import {
   deleteEvent,
   updateEventArtwork,
 } from "@/lib/events.functions";
+import {
+  deleteEventTicket,
+  getEventFinanceTotals,
+} from "@/lib/event-finance.functions";
+import { formatEventFinanceHint } from "@/lib/event-finance-export";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,6 +73,8 @@ import { formatBRL, formatDateTimeBR } from "@/lib/format";
 import { QrScanner } from "@/components/QrScanner";
 import { can } from "@/lib/permissions";
 import { TicketPass } from "@/components/events/TicketPass";
+import { EventFinancePanel } from "@/components/events/EventFinancePanel";
+import { TicketComandaButton } from "@/components/events/TicketComandaDialog";
 import {
   EVENT_ARTWORK_BUCKET,
   buildTicketEmailPayload,
@@ -106,13 +114,26 @@ function EventoDetalhe() {
   const { data } = useSuspenseQuery(eventQO(id));
   const artworkUrl = useEventArtwork(data.event.ticket_artwork_url);
 
-  const raised = useMemo(
+  const financeTotalsQ = useQuery({
+    queryKey: ["event-finance-totals", id, "", ""],
+    queryFn: () =>
+      getEventFinanceTotals({
+        data: { eventId: id, from: null, until: null },
+      }),
+  });
+
+  const ticketsRaised = useMemo(
     () =>
       data.tickets
         .filter((t) => t.status !== "cancelado")
         .reduce((s, t) => s + Number(t.price_paid ?? 0), 0),
     [data.tickets],
   );
+  const raised = financeTotalsQ.data?.totalIncome ?? ticketsRaised;
+  const raisedHint =
+    financeTotalsQ.data != null
+      ? formatEventFinanceHint(financeTotalsQ.data)
+      : null;
   const pct =
     data.event.goal_amount > 0
       ? Math.min(100, (raised / Number(data.event.goal_amount)) * 100)
@@ -122,6 +143,10 @@ function EventoDetalhe() {
     can(active?.role.name, "admin") ||
     can(active?.role.name, "comissoes") ||
     can(active?.role.name, "secretaria");
+  const canEditFinance =
+    can(active?.role.name, "admin") ||
+    can(active?.role.name, "tesouraria") ||
+    can(active?.role.name, "comissoes");
 
   const remove = useMutation({
     mutationFn: () => deleteEvent({ data: { id } }),
@@ -188,30 +213,58 @@ function EventoDetalhe() {
       />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="resumo">Resumo</TabsTrigger>
-          <TabsTrigger value="ingressos">Ingressos</TabsTrigger>
-          <TabsTrigger value="mesas">Mapa de mesas</TabsTrigger>
-          <TabsTrigger value="checkin">Check-in</TabsTrigger>
+        <TabsList className="mb-4 flex h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto p-1">
+          <TabsTrigger value="resumo" className="shrink-0">
+            Resumo
+          </TabsTrigger>
+          <TabsTrigger value="ingressos" className="shrink-0">
+            Ingressos
+          </TabsTrigger>
+          <TabsTrigger value="mesas" className="shrink-0">
+            <span className="sm:hidden">Mesas</span>
+            <span className="hidden sm:inline">Mapa de mesas</span>
+          </TabsTrigger>
+          <TabsTrigger value="checkin" className="shrink-0">
+            Check-in
+          </TabsTrigger>
+          <TabsTrigger value="financeiro" className="shrink-0">
+            Financeiro
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="resumo">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Card className="rounded-[12px] p-5">
-              <div className="text-sm text-muted-foreground">Arrecadação</div>
-              <div className="mt-1 text-2xl font-bold">{formatBRL(raised)}</div>
-              {data.event.goal_amount > 0 && (
-                <div className="mt-3">
-                  <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                    <span>{pct.toFixed(0)}% da meta</span>
-                    <span>
-                      Meta: {formatBRL(Number(data.event.goal_amount))}
-                    </span>
-                  </div>
-                  <Progress value={pct} className="h-1.5" />
+            <button
+              type="button"
+              className="text-left"
+              onClick={() => setTab("financeiro")}
+            >
+              <Card className="rounded-[12px] p-5 transition-colors hover:bg-muted/40">
+                <div className="text-sm text-muted-foreground">Arrecadação</div>
+                <div className="mt-1 text-2xl font-bold">
+                  {formatBRL(raised)}
                 </div>
-              )}
-            </Card>
+                {raisedHint && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {raisedHint}
+                  </div>
+                )}
+                {data.event.goal_amount > 0 && (
+                  <div className="mt-3">
+                    <div className="mb-1 flex justify-between text-xs text-muted-foreground">
+                      <span>{pct.toFixed(0)}% da meta</span>
+                      <span>
+                        Meta: {formatBRL(Number(data.event.goal_amount))}
+                      </span>
+                    </div>
+                    <Progress value={pct} className="h-1.5" />
+                  </div>
+                )}
+                <div className="mt-2 text-xs text-muted-foreground underline-offset-2 hover:underline">
+                  Ver financeiro →
+                </div>
+              </Card>
+            </button>
             <Card className="rounded-[12px] p-5">
               <div className="text-sm text-muted-foreground">Ingressos</div>
               <div className="mt-1 text-2xl font-bold">
@@ -242,20 +295,28 @@ function EventoDetalhe() {
         <TabsContent value="ingressos">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
             <TicketsList
+              eventId={id}
               tickets={data.tickets}
               types={data.ticketTypes}
               event={eventMeta}
               artworkUrl={artworkUrl}
               primary={active?.chapter.primary_color}
+              canEditComanda={canEditFinance}
             />
             <div className="space-y-4">
               <TicketTypesCard
                 eventId={id}
                 types={data.ticketTypes}
                 tickets={data.tickets}
-                onChanged={() =>
-                  qc.invalidateQueries({ queryKey: ["event", id] })
-                }
+                onChanged={() => {
+                  qc.invalidateQueries({ queryKey: ["event", id] });
+                  qc.invalidateQueries({
+                    queryKey: ["event-finance", id],
+                  });
+                  qc.invalidateQueries({
+                    queryKey: ["event-finance-totals", id],
+                  });
+                }}
               />
               <SellTicketCard
                 eventId={id}
@@ -263,10 +324,37 @@ function EventoDetalhe() {
                 types={data.ticketTypes}
                 artworkUrl={artworkUrl}
                 primary={active?.chapter.primary_color}
-                onSold={() => qc.invalidateQueries({ queryKey: ["event", id] })}
+                onSold={() => {
+                  qc.invalidateQueries({ queryKey: ["event", id] });
+                  qc.invalidateQueries({
+                    queryKey: ["event-finance", id],
+                  });
+                  qc.invalidateQueries({
+                    queryKey: ["event-finance-totals", id],
+                  });
+                }}
               />
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="financeiro">
+          <EventFinancePanel
+            eventId={id}
+            chapterId={data.event.chapter_id}
+            primary={active?.chapter.primary_color}
+            canEdit={canEditFinance}
+            chapterName={
+              active
+                ? `${active.chapter.name} nº ${active.chapter.number}`
+                : undefined
+            }
+            chapterCity={active?.chapter.city}
+            logoPath={
+              (active?.chapter as { logo_url?: string | null } | undefined)
+                ?.logo_url ?? null
+            }
+          />
         </TabsContent>
 
         <TabsContent value="mesas">
@@ -444,23 +532,47 @@ function notifyTicketEmailSoon(pass: TicketPassData) {
 }
 
 function TicketsList({
+  eventId,
   tickets,
   types,
   event,
   artworkUrl,
   primary,
+  canEditComanda,
 }: {
+  eventId: string;
   tickets: EventTicket[];
   types: EventTicketType[];
   event: { name: string; starts_at: string; location: string | null };
   artworkUrl: string | null;
   primary?: string;
+  canEditComanda?: boolean;
 }) {
+  const qc = useQueryClient();
   const typeMap = new Map(types.map((t) => [t.id, t.name]));
   const [preview, setPreview] = useState<{
     pass: TicketPassData;
     qrDataUrl: string;
   } | null>(null);
+
+  const removeTicket = useMutation({
+    mutationFn: (ticketId: string) =>
+      deleteEventTicket({ data: { ticketId } }),
+    onSuccess: (res) => {
+      toast.success(
+        res.comanda_items_removed > 0
+          ? `Ingresso excluído · ${res.comanda_items_removed} item(ns) da comanda removido(s)`
+          : "Ingresso excluído",
+      );
+      qc.invalidateQueries({ queryKey: ["event", eventId] });
+      qc.invalidateQueries({ queryKey: ["event-ticket-items", eventId] });
+      qc.invalidateQueries({ queryKey: ["event-finance", eventId] });
+      qc.invalidateQueries({ queryKey: ["event-finance-totals", eventId] });
+      qc.invalidateQueries({ queryKey: ["cash-entries"] });
+    },
+    onError: (e: unknown) =>
+      toast.error(mutationErrorMessage(e, "Erro ao excluir ingresso")),
+  });
 
   async function showQr(ticket: EventTicket) {
     if (!ticket.qr_code) {
@@ -504,13 +616,40 @@ function TicketsList({
                   · {formatBRL(Number(t.price_paid))}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 <Badge variant="secondary" className="capitalize">
                   {t.status}
                 </Badge>
+                {canEditComanda && t.status !== "cancelado" && (
+                  <TicketComandaButton
+                    eventId={eventId}
+                    ticketId={t.id}
+                    buyerName={t.buyer_name}
+                    primary={primary}
+                  />
+                )}
                 <Button size="sm" variant="ghost" onClick={() => showQr(t)}>
                   <Ticket className="mr-1 h-4 w-4" /> QR
                 </Button>
+                {canEditComanda && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive"
+                    disabled={removeTicket.isPending}
+                    onClick={() => {
+                      if (
+                        confirm(
+                          `Excluir o ingresso de “${t.buyer_name}”? Isso remove comanda, check-in, assento e lançamentos de caixa vinculados.`,
+                        )
+                      ) {
+                        removeTicket.mutate(t.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </li>
           ))}
@@ -1191,7 +1330,8 @@ function CheckinPanel({
   const [useCamera, setUseCamera] = useState(false);
   const [search, setSearch] = useState("");
   const [liveCount, setLiveCount] = useState(checkins.length);
-  const [lastScanned, setLastScanned] = useState<string | null>(null);
+  const lastScanAtRef = useRef<Map<string, number>>(new Map());
+  const SCAN_COOLDOWN_MS = 30_000;
 
   useEffect(() => {
     setLiveCount(checkins.length);
@@ -1273,10 +1413,11 @@ function CheckinPanel({
         {useCamera && (
           <QrScanner
             onScan={(text) => {
-              if (text === lastScanned) return;
-              setLastScanned(text);
+              const now = Date.now();
+              const last = lastScanAtRef.current.get(text) ?? 0;
+              if (now - last < SCAN_COOLDOWN_MS) return;
+              lastScanAtRef.current.set(text, now);
               m.mutate({ qr: text, method: "qr" });
-              setTimeout(() => setLastScanned(null), 2000);
             }}
           />
         )}
