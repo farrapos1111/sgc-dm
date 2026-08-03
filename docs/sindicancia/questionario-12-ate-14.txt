@@ -1,0 +1,168 @@
+QUESTIONÁRIO DE SINDICÂNCIA ADMISSIONAL
+Faixa: 12 a 14 anos
+
+Legenda
+  [Sim/Não]     = resposta sim ou não
+  [Descritiva]  = resposta em texto
+  [Opcional]    = pode ficar em branco
+  *             = preferir dados da ficha de indicação
+
+
+────────────────────────────────────────────────────────────────
+INFORMAÇÕES PRELIMINARES DO CANDIDATO
+(Usar a ficha de indicação quando possível)
+────────────────────────────────────────────────────────────────
+
+Nome * .............................................. [Descritiva]
+
+Tem parentesco com Maçom? * ......................... [Sim/Não]
+  Se sim — grau: Pai / Irmão / Avô / Tio / Outro ..... [Descritiva] [Opcional]
+
+Tem parentesco com DeMolay? * ....................... [Sim/Não]
+  Se sim — grau: Pai / Irmão / Avô / Tio / Outro ..... [Descritiva] [Opcional]
+
+É membro da Ordem dos Escudeiros? ................... [Sim/Não]
+
+Possui doença, alergia ou necessidade especial? ..... [Sim/Não]
+  Se sim — descrever ................................ [Descritiva] [Opcional]
+
+Faz uso de medicamento contínuo? .................... [Sim/Não]
+  Se sim — listar ................................... [Descritiva] [Opcional]
+
+
+────────────────────────────────────────────────────────────────
+ESPIRITUALIDADE
+────────────────────────────────────────────────────────────────
+
+Texto para o candidato:
+A Ordem DeMolay NÃO é uma religião. Aceitamos todas as crenças e incentivamos
+a fé pessoal (Virtude da Reverência pelas Coisas Sagradas). Para ser DeMolay
+é indispensável acreditar em um Criador.
+
+Você acredita em Deus ou em um Ser Criador? ......... [Sim/Não]
+Costuma fazer orações? .............................. [Sim/Não]
+Tem religião? Se sim, qual? ......................... [Descritiva] [Opcional]
+Possui compromissos religiosos? Quais e com que
+periodicidade? ...................................... [Descritiva] [Opcional]
+Os compromissos na Ordem podem atrapalhar sua rotina
+religiosa? De que maneira? .......................... [Descritiva] [Opcional]
+Considera sua religião melhor que a dos outros? ..... [Descritiva]
+É possível o convívio entre religiões diferentes? ... [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+FAMÍLIA
+────────────────────────────────────────────────────────────────
+
+Texto: a Ordem valoriza a família (Amor Filial) e não a substitui.
+
+Você mora com seus pais? ............................ [Descritiva]
+Você se dá bem com a sua família? ................... [Descritiva]
+Fale sobre sua família. ............................. [Descritiva]
+Suas ideias se parecem ou diferem das dos pais? Por quê? [Descritiva]
+Quanto tempo você passa com a família? .............. [Descritiva]
+Considera a família importante? ..................... [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+VIDA EM SOCIEDADE
+────────────────────────────────────────────────────────────────
+
+Você tem muitos amigos? ............................. [Descritiva]
+Melhores qualidades e piores defeitos dos amigos
+mais próximos? ...................................... [Descritiva]
+Fará novos amigos na Ordem? Isso influencia o pedido
+de ingresso? ........................................ [Descritiva]
+Considera-se briguento, explosivo ou temperamental? . [Descritiva]
+Em brigas, a culpa costuma ser sua ou da outra pessoa? [Descritiva]
+Tem facilidade em pedir desculpas? .................. [Descritiva]
+O que entende por “amizade”? Qual a importância
+dela na sua vida? ................................... [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+VISÃO E VALORES
+────────────────────────────────────────────────────────────────
+
+Texto: não há gabarito — queremos conhecê-lo.
+
+Qual é a sua melhor qualidade? ...................... [Descritiva]
+Qual é o seu principal defeito? ..................... [Descritiva]
+Qual defeito as pessoas mais apontam em você? ....... [Descritiva]
+Opinião sobre vitórias e derrotas; como lida com elas? [Descritiva]
+É mais importante ser rico ou ter influência? ....... [Descritiva]
+Quem você mais admira e por quê? .................... [Descritiva]
+É mais importante ser ouvido por muitos ou ter
+muito conhecimento? ................................. [Descritiva]
+Se pudesse passar uma qualidade sua a todas as
+crianças do mundo, qual seria? ...................... [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+HÁBITOS
+────────────────────────────────────────────────────────────────
+
+Hábitos importantes para uma vida saudável? ......... [Descritiva]
+Tem o hábito de ler? O quê? ......................... [Descritiva]
+Gosta de filmes e/ou séries? De quais tipos? ........ [Descritiva]
+Pratica esportes? Quais? ............................ [Descritiva] [Opcional]
+Quais são seus hobbies? ............................. [Descritiva]
+Há hábito que gostaria de mudar? .................... [Descritiva]
+Como costuma estudar? ............................... [Descritiva]
+Opinião sobre drogas? ............................... [Descritiva]
+Opinião sobre bebidas alcoólicas? ................... [Descritiva]
+Costuma se atrasar? ................................. [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+POTENCIALIDADES E APTIDÕES
+────────────────────────────────────────────────────────────────
+
+Você “manda” ou “obedece”? .......................... [Descritiva]
+Já ajudou ONG/projeto social ou grupo de jovens? .... [Descritiva]
+Já liderou (sala, grêmio etc.)? Como foi? ........... [Descritiva] [Opcional]
+Considera-se tímido? ................................ [Descritiva]
+Tem algum diferencial positivo? ..................... [Descritiva]
+Domina alguma arte (música, pintura, teatro…)? ...... [Descritiva] [Opcional]
+Disciplinas escolares de maior aptidão/gostos? ...... [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+CIVISMO
+────────────────────────────────────────────────────────────────
+
+Texto: ligado à virtude do Patriotismo. Sem gabarito.
+
+Você se considera útil à sociedade? ................. [Descritiva]
+Segue as leis do País, estado e município? .......... [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+ORDEM DEMOLAY
+────────────────────────────────────────────────────────────────
+
+Como conheceu a Ordem DeMolay? ...................... [Descritiva]
+Conhece algum membro? Fale sobre ele. ............... [Descritiva] [Opcional]
+O que vem à cabeça ao ouvir “Ordem DeMolay”? ........ [Descritiva]
+Disposto a abrir mão de tempo (fins de semana /
+semana) se for aceito? .............................. [Sim/Não]
+É vontade própria entrar na Ordem? .................. [Sim/Não]
+Acha que será “melhor” que quem não é DeMolay? Por quê? [Descritiva]
+Por que quer entrar na Ordem? ....................... [Descritiva]
+A relação com a Maçonaria influencia? Como? ......... [Descritiva] [Opcional]
+O que mais chamou atenção na Ordem? Por quê? ........ [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+DECLARAÇÃO DE SINDICÂNCIA
+────────────────────────────────────────────────────────────────
+
+Eu, [candidato], portador do RG [rg] CPF [cpf], solicito ser considerado
+candidato aos graus da Ordem DeMolay pelo Capítulo [capitulo_nome] — nº [numero],
+sede em [cidade].
+
+(Texto completo da declaração está no sistema / ata digital.)
+
+Data: [dia] de [mes] de [ano]
+
+Assinaturas: candidato · responsáveis · sindicante · escrivão · tio/senior

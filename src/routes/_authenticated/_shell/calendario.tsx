@@ -64,7 +64,8 @@ import {
   toAppTzDateTimeLocal,
 } from "@/lib/timezone";
 import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from "@/lib/ics";
-import { buildChaveDoDia } from "@/lib/chave-do-dia";
+import { buildChaveDoDia, buildSindicanciaChave } from "@/lib/chave-do-dia";
+import { getSindicanciaChaveContext } from "@/lib/investigations.functions";
 import {
   TYPE_META,
   CALENDAR_TYPES,
@@ -868,21 +869,48 @@ function DetailContent({
             variant="outline"
             onClick={async () => {
               try {
-                await navigator.clipboard.writeText(
-                  buildChaveDoDia(item, {
+                let text: string;
+                if (item.event_type === "sindicancia") {
+                  const ctx = await getSindicanciaChaveContext({
+                    data: { calendarEventId: item.id },
+                  });
+                  text = buildSindicanciaChave({
+                    template: ctx.template,
+                    chapterName:
+                      ctx.chapterName || activeChapter?.chapter.name,
+                    nominee: ctx.nominee,
+                    start_at: ctx.start_at || item.start_at,
+                    location: ctx.location || item.location,
+                    padrinho: ctx.padrinho,
+                    sindicante: ctx.sindicante,
+                    senior: ctx.senior,
+                    escrivao: ctx.escrivao,
+                  });
+                } else {
+                  text = buildChaveDoDia(item, {
                     template:
-                      (activeChapter?.chapter as any)?.settings
-                        ?.chave_template ?? null,
+                      (activeChapter?.chapter as { settings?: Record<string, unknown> })
+                        ?.settings?.chave_template as string | null ?? null,
                     chapterName: activeChapter?.chapter.name ?? null,
-                  }),
+                  });
+                }
+                await navigator.clipboard.writeText(text);
+                toast.success(
+                  item.event_type === "sindicancia"
+                    ? "Chave de sindicância copiada!"
+                    : "Chave do dia copiada!",
                 );
-                toast.success("Chave do dia copiada!");
-              } catch {
-                toast.error("Não foi possível copiar.");
+              } catch (e: unknown) {
+                toast.error(
+                  e instanceof Error ? e.message : "Não foi possível copiar.",
+                );
               }
             }}
           >
-            <Copy className="mr-2 h-3.5 w-3.5" /> Chave do dia
+            <Copy className="mr-2 h-3.5 w-3.5" />{" "}
+            {item.event_type === "sindicancia"
+              ? "Chave de sindicância"
+              : "Chave do dia"}
           </Button>
           <Button size="sm" variant="outline" asChild>
             <a href={googleCalendarUrl(item)} target="_blank" rel="noreferrer">
@@ -1157,7 +1185,7 @@ function CreateDialog({
             <SelectValue placeholder="Selecione o tipo" />
           </SelectTrigger>
           <SelectContent>
-            {CALENDAR_TYPES.map((t) => (
+            {CALENDAR_TYPES.filter((t) => t !== "sindicancia").map((t) => (
               <SelectItem key={t} value={t}>
                 {TYPE_META[t].label}
               </SelectItem>

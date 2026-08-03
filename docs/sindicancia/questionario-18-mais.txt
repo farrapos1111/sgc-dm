@@ -1,0 +1,182 @@
+QUESTIONÁRIO DE SINDICÂNCIA ADMISSIONAL
+Faixa: 18 anos ou mais
+
+Legenda
+  [Sim/Não]     = resposta sim ou não
+  [Descritiva]  = resposta em texto
+  [Opcional]    = pode ficar em branco
+  *             = preferir dados da ficha de indicação
+
+
+────────────────────────────────────────────────────────────────
+TEXTO INICIAL (ler ao candidato)
+────────────────────────────────────────────────────────────────
+
+Caro candidato,
+
+Para tornar-se membro, alguém apresenta a Ficha de Indicação; marca-se esta
+entrevista; o Capítulo vota; se aprovado, agenda-se a Iniciação.
+
+Alguma dúvida sobre os procedimentos? ............... [Descritiva] [Opcional]
+
+A Iniciação não é religiosa, ocultista nem envolve trotes. É fechada para
+preservar a surpresa (simbolismos, fases da vida, Virtudes Cardeais). Nada
+fere a lei, coloca em perigo ou humilha.
+
+Você possui alguma dúvida sobre a Iniciação? ........ [Descritiva] [Opcional]
+
+Haverá também termos (autorização, imagem, declaração, finanças/bolsa).
+É direito pedir Plano Pedagógico e Regulamento Geral. Dados: LGPD.
+
+
+────────────────────────────────────────────────────────────────
+INFORMAÇÕES PRELIMINARES DO CANDIDATO
+────────────────────────────────────────────────────────────────
+
+Nome * .............................................. [Descritiva]
+Tem parentesco com Maçom? * ......................... [Sim/Não]
+  Grau (Pai/Irmão/Avô/Tio/Outro) .................... [Descritiva] [Opcional]
+Tem parentesco com DeMolay? * ....................... [Sim/Não]
+  Grau (Pai/Irmão/Avô/Tio/Outro) .................... [Descritiva] [Opcional]
+É membro da Ordem dos Escudeiros? ................... [Sim/Não]
+Possui doença, alergia ou necessidade especial? ..... [Sim/Não]
+  Se sim — descrever ................................ [Descritiva] [Opcional]
+Faz uso de medicamento contínuo? .................... [Sim/Não]
+  Se sim — listar ................................... [Descritiva] [Opcional]
+
+Orientação: sem gabarito — sinceridade e tranquilidade.
+
+
+────────────────────────────────────────────────────────────────
+ESPIRITUALIDADE
+────────────────────────────────────────────────────────────────
+
+Acredita em Deus ou em um Ser Criador? .............. [Sim/Não]
+Costuma fazer orações? .............................. [Sim/Não]
+Tem religião? Qual? ................................. [Descritiva] [Opcional]
+Compromissos religiosos (quais / periodicidade)? .... [Descritiva] [Opcional]
+A Ordem pode atrapalhar a rotina religiosa? Como? ... [Descritiva] [Opcional]
+Considera sua religião melhor que a dos outros? ..... [Descritiva]
+Convívio entre religiões diferentes é possível? ..... [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+FAMÍLIA
+────────────────────────────────────────────────────────────────
+
+Mora com seus pais? ................................. [Descritiva]
+Se dá bem com a família? ............................ [Descritiva]
+Fale sobre sua família. ............................. [Descritiva]
+Ideias parecidas ou diferentes das dos pais? Por quê? [Descritiva]
+Quanto tempo passa com a família? ................... [Descritiva]
+Considera a família importante? ..................... [Descritiva]
+O que os pais pensam do seu ingresso na Ordem? ...... [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+VIDA EM SOCIEDADE
+────────────────────────────────────────────────────────────────
+
+Tem muitos amigos? .................................. [Descritiva]
+Amigos próximos — quão bem eles lhe fazem? .......... [Descritiva]
+Comportamento do grupo (festas, bebidas etc.)? ...... [Descritiva]
+Costumam usar drogas? ............................... [Descritiva]
+Qualidades e defeitos dos amigos mais próximos? ..... [Descritiva]
+Fará novos amigos na Ordem? Isso influencia o ingresso? [Descritiva]
+Briguento / explosivo / temperamental? .............. [Descritiva]
+Em brigas, culpa sua ou da outra pessoa? ............ [Descritiva]
+Facilidade em pedir desculpas? ...................... [Descritiva]
+O que entende por “amizade”? ........................ [Descritiva]
+O que costuma fazer com os amigos? .................. [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+VISÃO E VALORES
+────────────────────────────────────────────────────────────────
+
+Melhor qualidade? ................................... [Descritiva]
+Principal defeito? .................................. [Descritiva]
+Defeito que mais apontam em você? ................... [Descritiva]
+Opinião sobre vitórias e derrotas? .................. [Descritiva]
+Opinião sobre vingança? ............................. [Descritiva]
+Ser rico ou ter influência — o que é mais importante? [Descritiva]
+Ser ouvido por muitos ou ter muito conhecimento? .... [Descritiva]
+Qualidade que passaria a todas as crianças do mundo?  [Descritiva]
+Fazer algo rápido ou envolvendo muitas pessoas? ..... [Descritiva]
+Homens e mulheres devem ter direitos iguais? ........ [Descritiva]
+Estaria disposto a quebrar alguma lei? Em que situação? [Descritiva]
+Leis injustas devem ser quebradas? .................. [Descritiva]
+Como trata os compromissos que assume? .............. [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+HÁBITOS
+────────────────────────────────────────────────────────────────
+
+Hábitos para uma vida saudável? ..................... [Descritiva]
+Hábito de ler? O quê? ............................... [Descritiva]
+Filmes/séries — quais tipos? ........................ [Descritiva]
+Pratica esportes? Quais? ............................ [Descritiva] [Opcional]
+Hobbies? ............................................ [Descritiva]
+Hábito que gostaria de mudar? ....................... [Descritiva]
+Como estuda? ........................................ [Descritiva]
+Opinião sobre drogas? ............................... [Descritiva]
+Já usou substância ilícita? ......................... [Descritiva]
+Convive com usuário de drogas? ...................... [Descritiva]
+Opinião sobre cigarro e afins? ...................... [Descritiva]
+Opinião sobre bebidas alcoólicas? ................... [Descritiva]
+Vício que gostaria de eliminar? ..................... [Descritiva]
+Costuma se atrasar? ................................. [Descritiva]
+Qual é a sua rotina? ................................ [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+POTENCIALIDADES E APTIDÕES
+────────────────────────────────────────────────────────────────
+
+“Manda” ou “obedece”? ............................... [Descritiva]
+ONG / projetos sociais / grupos de jovens? .......... [Descritiva]
+Já liderou (sala, grêmio etc.)? Como foi? ........... [Descritiva] [Opcional]
+Tímido? ............................................. [Descritiva]
+Diferencial positivo? ............................... [Descritiva]
+Domina alguma arte? ................................. [Descritiva] [Opcional]
+Disciplinas de maior aptidão/gosto? ................. [Descritiva]
+Valores mais relevantes na sua vida? ................ [Descritiva]
+Situações que costumam frustrá-lo? .................. [Descritiva]
+Planos profissionais (resumidos)? ................... [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+CIVISMO
+────────────────────────────────────────────────────────────────
+
+Opinião sobre guerras? .............................. [Descritiva]
+Como define patriotismo? ............................ [Descritiva]
+Se considera patriota? .............................. [Descritiva]
+Se considera útil à sociedade? ...................... [Descritiva]
+Segue as leis do País, estado e município? .......... [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+ORDEM DEMOLAY
+────────────────────────────────────────────────────────────────
+
+Como conheceu a Ordem? .............................. [Descritiva]
+Conhece algum membro? ............................... [Descritiva] [Opcional]
+O que pensa ao ouvir “Ordem DeMolay”? ............... [Descritiva]
+Disposto a abrir mão de tempo? ...................... [Sim/Não]
+É vontade própria entrar? ........................... [Sim/Não]
+Acha que será “melhor” que outros? Por quê? ......... [Descritiva]
+Por que quer entrar? ................................ [Descritiva]
+Influência da Maçonaria? ............................ [Descritiva] [Opcional]
+O que mais chamou atenção? .......................... [Descritiva]
+
+
+────────────────────────────────────────────────────────────────
+DECLARAÇÃO DE SINDICÂNCIA
+────────────────────────────────────────────────────────────────
+
+Texto padrão com variáveis [candidato], [rg], [cpf], [capitulo_nome],
+[numero], [cidade], [sindicante], [escrivao], [senior], [dia], [mes], [ano].
+
+Assinaturas na ata digital.

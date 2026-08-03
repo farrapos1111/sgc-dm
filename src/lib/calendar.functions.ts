@@ -2,7 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const eventTypeEnum = z.enum(["sessao_ritualistica", "sessao_administrativa", "evento", "filantropia", "entretenimento"]);
+const eventTypeEnum = z.enum([
+  "sessao_ritualistica",
+  "sessao_administrativa",
+  "evento",
+  "filantropia",
+  "entretenimento",
+  "sindicancia",
+]);
 
 export const listCalendarItems = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -25,6 +25,7 @@ import { Route as DocumentacaoIndexRouteImport } from './routes/documentacao/ind
 import { Route as DocumentacaoGuiaRouteImport } from './routes/documentacao/guia'
 import { Route as DocumentacaoOpenSourceRouteImport } from './routes/documentacao/open-source'
 import { Route as DocumentacaoTecnicaRouteImport } from './routes/documentacao/tecnica'
+import { Route as FTokenRouteImport } from './routes/f.$token'
 import { Route as FluxoCaixaTokenRouteImport } from './routes/fluxo-caixa.$token'
 import { Route as MensalidadesTokenRouteImport } from './routes/mensalidades.$token'
 import { Route as AuthenticatedShellAtasRouteImport } from './routes/_authenticated/_shell/atas'
@@ -56,12 +57,15 @@ import { Route as AuthenticatedShellRegionalCalendarioRouteImport } from './rout
 import { Route as AuthenticatedShellRegionalCapitulosRouteImport } from './routes/_authenticated/_shell/regional.capitulos'
 import { Route as AuthenticatedShellRegionalMembrosRouteImport } from './routes/_authenticated/_shell/regional.membros'
 import { Route as AuthenticatedShellRegionalRegioesRouteImport } from './routes/_authenticated/_shell/regional.regioes'
+import { Route as AuthenticatedShellSindicanciasConfigRouteImport } from './routes/_authenticated/_shell/sindicancias.config'
 import { Route as AuthenticatedShellSindicanciasFichasRouteImport } from './routes/_authenticated/_shell/sindicancias.fichas'
 import { Route as AuthenticatedShellSindicanciasProcessosRouteImport } from './routes/_authenticated/_shell/sindicancias.processos'
+import { Route as AuthenticatedShellSindicanciasSindicariasRouteImport } from './routes/_authenticated/_shell/sindicancias.sindicarias'
 import { Route as AuthenticatedShellTesourariaCobrancasRouteImport } from './routes/_authenticated/_shell/tesouraria.cobrancas'
 import { Route as AuthenticatedShellTesourariaFluxoRouteImport } from './routes/_authenticated/_shell/tesouraria.fluxo'
 import { Route as AuthenticatedShellTesourariaMensalidadesRouteImport } from './routes/_authenticated/_shell/tesouraria.mensalidades'
 import { Route as AuthenticatedShellMembrosIdEditarRouteImport } from './routes/_authenticated/_shell/membros.$id_.editar'
+import { Route as AuthenticatedShellSindicanciasSindicariasEventIdRouteImport } from './routes/_authenticated/_shell/sindicancias.sindicarias_.$eventId'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -141,6 +145,11 @@ const DocumentacaoTecnicaRoute = DocumentacaoTecnicaRouteImport.update({
   id: '/tecnica',
   path: '/tecnica',
   getParentRoute: () => DocumentacaoRouteRoute,
+} as any)
+const FTokenRoute = FTokenRouteImport.update({
+  id: '/f/$token',
+  path: '/f/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const FluxoCaixaTokenRoute = FluxoCaixaTokenRouteImport.update({
   id: '/fluxo-caixa/$token',
@@ -319,6 +328,12 @@ const AuthenticatedShellRegionalRegioesRoute =
     path: '/regional/regioes',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
+const AuthenticatedShellSindicanciasConfigRoute =
+  AuthenticatedShellSindicanciasConfigRouteImport.update({
+    id: '/sindicancias/config',
+    path: '/sindicancias/config',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
 const AuthenticatedShellSindicanciasFichasRoute =
   AuthenticatedShellSindicanciasFichasRouteImport.update({
     id: '/sindicancias/fichas',
@@ -329,6 +344,12 @@ const AuthenticatedShellSindicanciasProcessosRoute =
   AuthenticatedShellSindicanciasProcessosRouteImport.update({
     id: '/sindicancias/processos',
     path: '/sindicancias/processos',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellSindicanciasSindicariasRoute =
+  AuthenticatedShellSindicanciasSindicariasRouteImport.update({
+    id: '/sindicancias/sindicarias',
+    path: '/sindicancias/sindicarias',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
 const AuthenticatedShellTesourariaCobrancasRoute =
@@ -355,6 +376,12 @@ const AuthenticatedShellMembrosIdEditarRoute =
     path: '/membros/$id/editar',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
+const AuthenticatedShellSindicanciasSindicariasEventIdRoute =
+  AuthenticatedShellSindicanciasSindicariasEventIdRouteImport.update({
+    id: '/sindicancias/sindicarias_/$eventId',
+    path: '/sindicancias/sindicarias/$eventId',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -369,6 +396,7 @@ export interface FileRoutesByFullPath {
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
+  '/f/$token': typeof FTokenRoute
   '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
   '/auth/': typeof AuthIndexRoute
@@ -399,8 +427,10 @@ export interface FileRoutesByFullPath {
   '/regional/capitulos': typeof AuthenticatedShellRegionalCapitulosRoute
   '/regional/membros': typeof AuthenticatedShellRegionalMembrosRoute
   '/regional/regioes': typeof AuthenticatedShellRegionalRegioesRoute
+  '/sindicancias/config': typeof AuthenticatedShellSindicanciasConfigRoute
   '/sindicancias/fichas': typeof AuthenticatedShellSindicanciasFichasRoute
   '/sindicancias/processos': typeof AuthenticatedShellSindicanciasProcessosRoute
+  '/sindicancias/sindicarias': typeof AuthenticatedShellSindicanciasSindicariasRoute
   '/tesouraria/cobrancas': typeof AuthenticatedShellTesourariaCobrancasRoute
   '/tesouraria/fluxo': typeof AuthenticatedShellTesourariaFluxoRoute
   '/tesouraria/mensalidades': typeof AuthenticatedShellTesourariaMensalidadesRoute
@@ -408,6 +438,7 @@ export interface FileRoutesByFullPath {
   '/membros/': typeof AuthenticatedShellMembrosIndexRoute
   '/regional/': typeof AuthenticatedShellRegionalIndexRoute
   '/membros/$id/editar': typeof AuthenticatedShellMembrosIdEditarRoute
+  '/sindicancias/sindicarias/$eventId': typeof AuthenticatedShellSindicanciasSindicariasEventIdRoute
 }
 export interface FileRoutesByTo {
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
@@ -420,6 +451,7 @@ export interface FileRoutesByTo {
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
+  '/f/$token': typeof FTokenRoute
   '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
   '/auth': typeof AuthIndexRoute
@@ -450,8 +482,10 @@ export interface FileRoutesByTo {
   '/regional/capitulos': typeof AuthenticatedShellRegionalCapitulosRoute
   '/regional/membros': typeof AuthenticatedShellRegionalMembrosRoute
   '/regional/regioes': typeof AuthenticatedShellRegionalRegioesRoute
+  '/sindicancias/config': typeof AuthenticatedShellSindicanciasConfigRoute
   '/sindicancias/fichas': typeof AuthenticatedShellSindicanciasFichasRoute
   '/sindicancias/processos': typeof AuthenticatedShellSindicanciasProcessosRoute
+  '/sindicancias/sindicarias': typeof AuthenticatedShellSindicanciasSindicariasRoute
   '/tesouraria/cobrancas': typeof AuthenticatedShellTesourariaCobrancasRoute
   '/tesouraria/fluxo': typeof AuthenticatedShellTesourariaFluxoRoute
   '/tesouraria/mensalidades': typeof AuthenticatedShellTesourariaMensalidadesRoute
@@ -459,6 +493,7 @@ export interface FileRoutesByTo {
   '/membros': typeof AuthenticatedShellMembrosIndexRoute
   '/regional': typeof AuthenticatedShellRegionalIndexRoute
   '/membros/$id/editar': typeof AuthenticatedShellMembrosIdEditarRoute
+  '/sindicancias/sindicarias/$eventId': typeof AuthenticatedShellSindicanciasSindicariasEventIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -475,6 +510,7 @@ export interface FileRoutesById {
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
+  '/f/$token': typeof FTokenRoute
   '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -506,8 +542,10 @@ export interface FileRoutesById {
   '/_authenticated/_shell/regional/capitulos': typeof AuthenticatedShellRegionalCapitulosRoute
   '/_authenticated/_shell/regional/membros': typeof AuthenticatedShellRegionalMembrosRoute
   '/_authenticated/_shell/regional/regioes': typeof AuthenticatedShellRegionalRegioesRoute
+  '/_authenticated/_shell/sindicancias/config': typeof AuthenticatedShellSindicanciasConfigRoute
   '/_authenticated/_shell/sindicancias/fichas': typeof AuthenticatedShellSindicanciasFichasRoute
   '/_authenticated/_shell/sindicancias/processos': typeof AuthenticatedShellSindicanciasProcessosRoute
+  '/_authenticated/_shell/sindicancias/sindicarias': typeof AuthenticatedShellSindicanciasSindicariasRoute
   '/_authenticated/_shell/tesouraria/cobrancas': typeof AuthenticatedShellTesourariaCobrancasRoute
   '/_authenticated/_shell/tesouraria/fluxo': typeof AuthenticatedShellTesourariaFluxoRoute
   '/_authenticated/_shell/tesouraria/mensalidades': typeof AuthenticatedShellTesourariaMensalidadesRoute
@@ -515,6 +553,7 @@ export interface FileRoutesById {
   '/_authenticated/_shell/membros/': typeof AuthenticatedShellMembrosIndexRoute
   '/_authenticated/_shell/regional/': typeof AuthenticatedShellRegionalIndexRoute
   '/_authenticated/_shell/membros/$id_/editar': typeof AuthenticatedShellMembrosIdEditarRoute
+  '/_authenticated/_shell/sindicancias/sindicarias_/$eventId': typeof AuthenticatedShellSindicanciasSindicariasEventIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -531,6 +570,7 @@ export interface FileRouteTypes {
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
+    | '/f/$token'
     | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
     | '/auth/'
@@ -561,8 +601,10 @@ export interface FileRouteTypes {
     | '/regional/capitulos'
     | '/regional/membros'
     | '/regional/regioes'
+    | '/sindicancias/config'
     | '/sindicancias/fichas'
     | '/sindicancias/processos'
+    | '/sindicancias/sindicarias'
     | '/tesouraria/cobrancas'
     | '/tesouraria/fluxo'
     | '/tesouraria/mensalidades'
@@ -570,6 +612,7 @@ export interface FileRouteTypes {
     | '/membros/'
     | '/regional/'
     | '/membros/$id/editar'
+    | '/sindicancias/sindicarias/$eventId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/atualizar-cadastro'
@@ -582,6 +625,7 @@ export interface FileRouteTypes {
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
+    | '/f/$token'
     | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
     | '/auth'
@@ -612,8 +656,10 @@ export interface FileRouteTypes {
     | '/regional/capitulos'
     | '/regional/membros'
     | '/regional/regioes'
+    | '/sindicancias/config'
     | '/sindicancias/fichas'
     | '/sindicancias/processos'
+    | '/sindicancias/sindicarias'
     | '/tesouraria/cobrancas'
     | '/tesouraria/fluxo'
     | '/tesouraria/mensalidades'
@@ -621,6 +667,7 @@ export interface FileRouteTypes {
     | '/membros'
     | '/regional'
     | '/membros/$id/editar'
+    | '/sindicancias/sindicarias/$eventId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -636,6 +683,7 @@ export interface FileRouteTypes {
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
+    | '/f/$token'
     | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
     | '/_authenticated/'
@@ -667,8 +715,10 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/regional/capitulos'
     | '/_authenticated/_shell/regional/membros'
     | '/_authenticated/_shell/regional/regioes'
+    | '/_authenticated/_shell/sindicancias/config'
     | '/_authenticated/_shell/sindicancias/fichas'
     | '/_authenticated/_shell/sindicancias/processos'
+    | '/_authenticated/_shell/sindicancias/sindicarias'
     | '/_authenticated/_shell/tesouraria/cobrancas'
     | '/_authenticated/_shell/tesouraria/fluxo'
     | '/_authenticated/_shell/tesouraria/mensalidades'
@@ -676,6 +726,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/membros/'
     | '/_authenticated/_shell/regional/'
     | '/_authenticated/_shell/membros/$id_/editar'
+    | '/_authenticated/_shell/sindicancias/sindicarias_/$eventId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -687,6 +738,7 @@ export interface RootRouteChildren {
   AuthRecuperarSenhaRoute: typeof AuthRecuperarSenhaRoute
   AuthRedefinirSenhaRoute: typeof AuthRedefinirSenhaRoute
   CTokenRoute: typeof CTokenRouteWithChildren
+  FTokenRoute: typeof FTokenRoute
   FluxoCaixaTokenRoute: typeof FluxoCaixaTokenRoute
   MensalidadesTokenRoute: typeof MensalidadesTokenRoute
   AuthIndexRoute: typeof AuthIndexRoute
@@ -805,6 +857,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/documentacao/tecnica'
       preLoaderRoute: typeof DocumentacaoTecnicaRouteImport
       parentRoute: typeof DocumentacaoRouteRoute
+    }
+    '/f/$token': {
+      id: '/f/$token'
+      path: '/f/$token'
+      fullPath: '/f/$token'
+      preLoaderRoute: typeof FTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/fluxo-caixa/$token': {
       id: '/fluxo-caixa/$token'
@@ -1023,6 +1082,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellRegionalRegioesRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
+    '/_authenticated/_shell/sindicancias/config': {
+      id: '/_authenticated/_shell/sindicancias/config'
+      path: '/sindicancias/config'
+      fullPath: '/sindicancias/config'
+      preLoaderRoute: typeof AuthenticatedShellSindicanciasConfigRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
     '/_authenticated/_shell/sindicancias/fichas': {
       id: '/_authenticated/_shell/sindicancias/fichas'
       path: '/sindicancias/fichas'
@@ -1035,6 +1101,13 @@ declare module '@tanstack/react-router' {
       path: '/sindicancias/processos'
       fullPath: '/sindicancias/processos'
       preLoaderRoute: typeof AuthenticatedShellSindicanciasProcessosRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/sindicancias/sindicarias': {
+      id: '/_authenticated/_shell/sindicancias/sindicarias'
+      path: '/sindicancias/sindicarias'
+      fullPath: '/sindicancias/sindicarias'
+      preLoaderRoute: typeof AuthenticatedShellSindicanciasSindicariasRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
     '/_authenticated/_shell/tesouraria/cobrancas': {
@@ -1065,6 +1138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellMembrosIdEditarRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
+    '/_authenticated/_shell/sindicancias/sindicarias_/$eventId': {
+      id: '/_authenticated/_shell/sindicancias/sindicarias_/$eventId'
+      path: '/sindicancias/sindicarias/$eventId'
+      fullPath: '/sindicancias/sindicarias/$eventId'
+      preLoaderRoute: typeof AuthenticatedShellSindicanciasSindicariasEventIdRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
   }
 }
 
@@ -1090,8 +1170,10 @@ interface AuthenticatedShellRouteRouteChildren {
   AuthenticatedShellRegionalCapitulosRoute: typeof AuthenticatedShellRegionalCapitulosRoute
   AuthenticatedShellRegionalMembrosRoute: typeof AuthenticatedShellRegionalMembrosRoute
   AuthenticatedShellRegionalRegioesRoute: typeof AuthenticatedShellRegionalRegioesRoute
+  AuthenticatedShellSindicanciasConfigRoute: typeof AuthenticatedShellSindicanciasConfigRoute
   AuthenticatedShellSindicanciasFichasRoute: typeof AuthenticatedShellSindicanciasFichasRoute
   AuthenticatedShellSindicanciasProcessosRoute: typeof AuthenticatedShellSindicanciasProcessosRoute
+  AuthenticatedShellSindicanciasSindicariasRoute: typeof AuthenticatedShellSindicanciasSindicariasRoute
   AuthenticatedShellTesourariaCobrancasRoute: typeof AuthenticatedShellTesourariaCobrancasRoute
   AuthenticatedShellTesourariaFluxoRoute: typeof AuthenticatedShellTesourariaFluxoRoute
   AuthenticatedShellTesourariaMensalidadesRoute: typeof AuthenticatedShellTesourariaMensalidadesRoute
@@ -1099,6 +1181,7 @@ interface AuthenticatedShellRouteRouteChildren {
   AuthenticatedShellMembrosIndexRoute: typeof AuthenticatedShellMembrosIndexRoute
   AuthenticatedShellRegionalIndexRoute: typeof AuthenticatedShellRegionalIndexRoute
   AuthenticatedShellMembrosIdEditarRoute: typeof AuthenticatedShellMembrosIdEditarRoute
+  AuthenticatedShellSindicanciasSindicariasEventIdRoute: typeof AuthenticatedShellSindicanciasSindicariasEventIdRoute
 }
 
 const AuthenticatedShellRouteRouteChildren: AuthenticatedShellRouteRouteChildren =
@@ -1131,10 +1214,14 @@ const AuthenticatedShellRouteRouteChildren: AuthenticatedShellRouteRouteChildren
       AuthenticatedShellRegionalMembrosRoute,
     AuthenticatedShellRegionalRegioesRoute:
       AuthenticatedShellRegionalRegioesRoute,
+    AuthenticatedShellSindicanciasConfigRoute:
+      AuthenticatedShellSindicanciasConfigRoute,
     AuthenticatedShellSindicanciasFichasRoute:
       AuthenticatedShellSindicanciasFichasRoute,
     AuthenticatedShellSindicanciasProcessosRoute:
       AuthenticatedShellSindicanciasProcessosRoute,
+    AuthenticatedShellSindicanciasSindicariasRoute:
+      AuthenticatedShellSindicanciasSindicariasRoute,
     AuthenticatedShellTesourariaCobrancasRoute:
       AuthenticatedShellTesourariaCobrancasRoute,
     AuthenticatedShellTesourariaFluxoRoute:
@@ -1146,6 +1233,8 @@ const AuthenticatedShellRouteRouteChildren: AuthenticatedShellRouteRouteChildren
     AuthenticatedShellRegionalIndexRoute: AuthenticatedShellRegionalIndexRoute,
     AuthenticatedShellMembrosIdEditarRoute:
       AuthenticatedShellMembrosIdEditarRoute,
+    AuthenticatedShellSindicanciasSindicariasEventIdRoute:
+      AuthenticatedShellSindicanciasSindicariasEventIdRoute,
   }
 
 const AuthenticatedShellRouteRouteWithChildren =
@@ -1213,6 +1302,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRecuperarSenhaRoute: AuthRecuperarSenhaRoute,
   AuthRedefinirSenhaRoute: AuthRedefinirSenhaRoute,
   CTokenRoute: CTokenRouteWithChildren,
+  FTokenRoute: FTokenRoute,
   FluxoCaixaTokenRoute: FluxoCaixaTokenRoute,
   MensalidadesTokenRoute: MensalidadesTokenRoute,
   AuthIndexRoute: AuthIndexRoute,

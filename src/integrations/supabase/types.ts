@@ -899,53 +899,254 @@ export type Database = {
       }
       investigation_files: {
         Row: {
+          address: Json
           candidate_birth_date: string | null
           candidate_email: string | null
           candidate_name: string
           candidate_phone: string | null
+          celular: string | null
           chapter_id: string
+          cpf: string | null
+          cpf_last2: string | null
           created_at: string
           created_by: string | null
+          demolay_relative_chapter: string | null
+          demolay_relative_name: string | null
           guardian_name: string | null
+          guardians: Json
+          has_demolay_relative: boolean
+          has_mason_relative: boolean
           id: string
+          mason_relative_lodge: string | null
+          mason_relative_name: string | null
           notes: string | null
+          opinion: string | null
           referred_by: string | null
+          rg: string | null
+          rg_last2: string | null
+          signup_source: string
+          sponsor_member_id: string | null
+          sponsor_meta: Json
+          sponsor_text: string | null
+          doc_rg_front_path: string | null
+          doc_rg_back_path: string | null
+          doc_cpf_front_path: string | null
+          doc_cpf_back_path: string | null
           status: Database["public"]["Enums"]["investigation_status"]
           updated_at: string
         }
         Insert: {
+          address?: Json
           candidate_birth_date?: string | null
           candidate_email?: string | null
           candidate_name: string
           candidate_phone?: string | null
+          celular?: string | null
           chapter_id: string
+          cpf?: string | null
+          cpf_last2?: string | null
           created_at?: string
           created_by?: string | null
+          demolay_relative_chapter?: string | null
+          demolay_relative_name?: string | null
           guardian_name?: string | null
+          guardians?: Json
+          has_demolay_relative?: boolean
+          has_mason_relative?: boolean
           id?: string
+          mason_relative_lodge?: string | null
+          mason_relative_name?: string | null
           notes?: string | null
+          opinion?: string | null
           referred_by?: string | null
+          rg?: string | null
+          rg_last2?: string | null
+          signup_source?: string
+          sponsor_member_id?: string | null
+          sponsor_meta?: Json
+          sponsor_text?: string | null
+          doc_rg_front_path?: string | null
+          doc_rg_back_path?: string | null
+          doc_cpf_front_path?: string | null
+          doc_cpf_back_path?: string | null
           status?: Database["public"]["Enums"]["investigation_status"]
           updated_at?: string
         }
         Update: {
+          address?: Json
           candidate_birth_date?: string | null
           candidate_email?: string | null
           candidate_name?: string
           candidate_phone?: string | null
+          celular?: string | null
           chapter_id?: string
+          cpf?: string | null
+          cpf_last2?: string | null
           created_at?: string
           created_by?: string | null
+          demolay_relative_chapter?: string | null
+          demolay_relative_name?: string | null
           guardian_name?: string | null
+          guardians?: Json
+          has_demolay_relative?: boolean
+          has_mason_relative?: boolean
           id?: string
+          mason_relative_lodge?: string | null
+          mason_relative_name?: string | null
           notes?: string | null
+          opinion?: string | null
           referred_by?: string | null
+          rg?: string | null
+          rg_last2?: string | null
+          signup_source?: string
+          sponsor_member_id?: string | null
+          sponsor_meta?: Json
+          sponsor_text?: string | null
+          doc_rg_front_path?: string | null
+          doc_rg_back_path?: string | null
+          doc_cpf_front_path?: string | null
+          doc_cpf_back_path?: string | null
           status?: Database["public"]["Enums"]["investigation_status"]
           updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "investigation_files_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "investigation_files_sponsor_member_id_fkey"
+            columns: ["sponsor_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sindicancia_details: {
+        Row: {
+          calendar_event_id: string
+          chapter_id: string
+          clerk_member_id: string | null
+          clerk_text: string | null
+          created_at: string
+          file_id: string | null
+          investigator_member_id: string | null
+          investigator_text: string | null
+          nominee_name: string
+          opinion: string | null
+          senior_member_id: string | null
+          senior_text: string | null
+          status: Database["public"]["Enums"]["investigation_status"]
+          updated_at: string
+        }
+        Insert: {
+          calendar_event_id: string
+          chapter_id: string
+          clerk_member_id?: string | null
+          clerk_text?: string | null
+          created_at?: string
+          file_id?: string | null
+          investigator_member_id?: string | null
+          investigator_text?: string | null
+          nominee_name?: string
+          opinion?: string | null
+          senior_member_id?: string | null
+          senior_text?: string | null
+          status?: Database["public"]["Enums"]["investigation_status"]
+          updated_at?: string
+        }
+        Update: {
+          calendar_event_id?: string
+          chapter_id?: string
+          clerk_member_id?: string | null
+          clerk_text?: string | null
+          created_at?: string
+          file_id?: string | null
+          investigator_member_id?: string | null
+          investigator_text?: string | null
+          nominee_name?: string
+          opinion?: string | null
+          senior_member_id?: string | null
+          senior_text?: string | null
+          status?: Database["public"]["Enums"]["investigation_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sindicancia_details_calendar_event_id_fkey"
+            columns: ["calendar_event_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sindicancia_details_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sindicancia_details_clerk_member_id_fkey"
+            columns: ["clerk_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sindicancia_details_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "investigation_files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sindicancia_minutes: {
+        Row: {
+          age_band: string
+          answers: Json
+          calendar_event_id: string
+          chapter_id: string
+          completed_at: string | null
+          created_at: string
+          signatures: Json
+          updated_at: string
+        }
+        Insert: {
+          age_band: string
+          answers?: Json
+          calendar_event_id: string
+          chapter_id: string
+          completed_at?: string | null
+          created_at?: string
+          signatures?: Json
+          updated_at?: string
+        }
+        Update: {
+          age_band?: string
+          answers?: Json
+          calendar_event_id?: string
+          chapter_id?: string
+          completed_at?: string | null
+          created_at?: string
+          signatures?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sindicancia_minutes_calendar_event_id_fkey"
+            columns: ["calendar_event_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sindicancia_minutes_chapter_id_fkey"
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
@@ -1391,6 +1592,10 @@ export type Database = {
           rg_last2: string | null
           status: Database["public"]["Enums"]["member_status"]
           kind: Database["public"]["Enums"]["member_kind"]
+          doc_rg_front_path: string | null
+          doc_rg_back_path: string | null
+          doc_cpf_front_path: string | null
+          doc_cpf_back_path: string | null
           updated_at: string
           user_id: string | null
         }
@@ -1416,6 +1621,10 @@ export type Database = {
           rg_last2?: string | null
           status?: Database["public"]["Enums"]["member_status"]
           kind?: Database["public"]["Enums"]["member_kind"]
+          doc_rg_front_path?: string | null
+          doc_rg_back_path?: string | null
+          doc_cpf_front_path?: string | null
+          doc_cpf_back_path?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -2246,6 +2455,7 @@ export type Database = {
         | "filantropia"
         | "entretenimento"
         | "sessao_administrativa"
+        | "sindicancia"
       cash_entry_kind: "entrada" | "saida"
       checkin_method: "qr" | "nome"
       commission_role: "presidente" | "vice" | "membro" | "auxiliar_senior"
@@ -2401,6 +2611,7 @@ export const Constants = {
         "filantropia",
         "entretenimento",
         "sessao_administrativa",
+        "sindicancia",
       ],
       cash_entry_kind: ["entrada", "saida"],
       checkin_method: ["qr", "nome"],
