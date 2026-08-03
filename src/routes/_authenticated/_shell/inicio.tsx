@@ -445,19 +445,23 @@ function NextItemCard({ chapterId }: { chapterId: string }) {
   });
 
   const next = (data ?? [])[0];
-  if (!next) return null;
-
-  const meta = TYPE_META[next.event_type as CalendarType];
 
   const { data: chaveText } = useQuery({
     queryKey: [
       "calendar-chave-text",
-      next.id,
+      next?.id,
       activeChapter?.chapter_id,
     ],
-    queryFn: () =>
-      resolveCalendarChaveText(next, activeChapter?.chapter),
+    queryFn: () => {
+      if (!next) throw new Error("Sem próximo compromisso");
+      return resolveCalendarChaveText(next, activeChapter?.chapter);
+    },
+    enabled: Boolean(next?.id),
   });
+
+  if (!next) return null;
+
+  const meta = TYPE_META[next.event_type as CalendarType];
 
   function copyChave() {
     try {
