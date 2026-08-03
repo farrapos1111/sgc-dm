@@ -105,7 +105,7 @@ O ponto mais prático: **mensalidade paga vira lançamento no caixa sozinha.** A
 
 ### Comissão de Eventos
 
-Para os eventos de arrecadação. Cria-se o evento, definem-se os **tipos de ingresso** com preço e quantidade (editáveis depois), e a venda registra um ou vários ingressos de uma vez. Cada ingresso ganha um **QR Code** com o número e o nome do comprador. Há um **mapa de mesas e lugares** para organizar quem senta onde, e o **check-in na portaria é feito pela câmera do celular**, validando número + nome — ou pela busca, se a pessoa esqueceu o ingresso.
+Para os eventos de arrecadação. Cria-se o evento, define-se a **arte de fundo do ingresso**, os **tipos de ingresso** com preço e quantidade (editáveis depois), e a venda registra um ou vários ingressos de uma vez. Cada ingresso ganha um **cartão com QR Code** (nome do evento, data, local e número). Há um **mapa de mesas e lugares** para organizar quem senta onde, e o **check-in na portaria é feito pela câmera do celular**, validando número + nome — ou pela busca, se a pessoa esqueceu o ingresso. O envio do ingresso por e-mail está em preparação.
 
 ### Comissão de Sindicâncias
 

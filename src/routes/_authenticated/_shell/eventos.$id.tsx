@@ -5,7 +5,7 @@ import {
   useQueryClient,
   queryOptions,
 } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
@@ -19,6 +19,7 @@ import {
   assignSeat,
   checkinTicket,
   deleteEvent,
+  updateEventArtwork,
 } from "@/lib/events.functions";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -54,6 +55,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft,
+  ImagePlus,
   Pencil,
   PlusCircle,
   ScanLine,
@@ -64,18 +66,15 @@ import {
 import { formatBRL, formatDateTimeBR } from "@/lib/format";
 import { QrScanner } from "@/components/QrScanner";
 import { can } from "@/lib/permissions";
-
-function ticketQrPayload(qrCode: string, buyerName: string) {
-  return JSON.stringify({ n: qrCode, nome: buyerName });
-}
-
-async function ticketQrDataUrl(qrCode: string, buyerName: string) {
-  const QRCode = await import("qrcode");
-  return QRCode.default.toDataURL(ticketQrPayload(qrCode, buyerName), {
-    width: 260,
-    margin: 1,
-  });
-}
+import { TicketPass } from "@/components/events/TicketPass";
+import {
+  EVENT_ARTWORK_BUCKET,
+  buildTicketEmailPayload,
+  buildTicketPassData,
+  ticketQrDataUrl,
+  useEventArtwork,
+  type TicketPassData,
+} from "@/lib/ticket-pass";
 
 export const Route = createFileRoute("/_authenticated/_shell/eventos/$id")({
   head: () => ({ meta: [{ title: "Evento — SG-CDM" }] }),
@@ -105,6 +104,7 @@ function EventoDetalhe() {
   const qc = useQueryClient();
   const { active } = useActiveChapter();
   const { data } = useSuspenseQuery(eventQO(id));
+  const artworkUrl = useEventArtwork(data.event.ticket_artwork_url);
 
   const raised = useMemo(
     () =>
@@ -133,6 +133,12 @@ function EventoDetalhe() {
     onError: (e: unknown) =>
       toast.error(mutationErrorMessage(e, "Erro ao excluir")),
   });
+
+  const eventMeta = {
+    name: data.event.name,
+    starts_at: data.event.starts_at,
+    location: data.event.location,
+  };
 
   return (
     <div>
@@ -215,6 +221,16 @@ function EventoDetalhe() {
                 {data.checkins.length} check-ins realizados
               </div>
             </Card>
+            <TicketArtworkCard
+              eventId={id}
+              chapterId={data.event.chapter_id}
+              artworkPath={data.event.ticket_artwork_url}
+              artworkUrl={artworkUrl}
+              primary={active?.chapter.primary_color}
+              onChanged={() =>
+                qc.invalidateQueries({ queryKey: ["event", id] })
+              }
+            />
             {data.event.description && (
               <Card className="rounded-[12px] p-5 md:col-span-2 text-sm text-muted-foreground whitespace-pre-wrap">
                 {data.event.description}
@@ -225,7 +241,13 @@ function EventoDetalhe() {
 
         <TabsContent value="ingressos">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
-            <TicketsList tickets={data.tickets} types={data.ticketTypes} />
+            <TicketsList
+              tickets={data.tickets}
+              types={data.ticketTypes}
+              event={eventMeta}
+              artworkUrl={artworkUrl}
+              primary={active?.chapter.primary_color}
+            />
             <div className="space-y-4">
               <TicketTypesCard
                 eventId={id}
@@ -237,7 +259,9 @@ function EventoDetalhe() {
               />
               <SellTicketCard
                 eventId={id}
+                event={eventMeta}
                 types={data.ticketTypes}
+                artworkUrl={artworkUrl}
                 primary={active?.chapter.primary_color}
                 onSold={() => qc.invalidateQueries({ queryKey: ["event", id] })}
               />
@@ -274,33 +298,189 @@ function EventoDetalhe() {
   );
 }
 
+const ARTWORK_MAX_BYTES = 5 * 1024 * 1024;
+
+function TicketArtworkCard({
+  eventId,
+  chapterId,
+  artworkPath,
+  artworkUrl,
+  primary,
+  onChanged,
+}: {
+  eventId: string;
+  chapterId: string;
+  artworkPath: string | null;
+  artworkUrl: string | null;
+  primary?: string;
+  onChanged: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Envie PNG, JPG ou WEBP.");
+      return;
+    }
+    if (file.size > ARTWORK_MAX_BYTES) {
+      toast.error("A imagem deve ter no máximo 5 MB.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${chapterId}/${eventId}/artwork-${Date.now()}.${ext}`;
+      const up = await supabase.storage
+        .from(EVENT_ARTWORK_BUCKET)
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (up.error) throw up.error;
+
+      await updateEventArtwork({
+        data: { event_id: eventId, ticket_artwork_url: path },
+      });
+      if (artworkPath) {
+        await supabase.storage.from(EVENT_ARTWORK_BUCKET).remove([artworkPath]);
+      }
+      toast.success("Arte do ingresso atualizada");
+      onChanged();
+    } catch (e: unknown) {
+      toast.error(mutationErrorMessage(e, "Erro ao enviar a arte"));
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  async function removeArtwork() {
+    setBusy(true);
+    try {
+      await updateEventArtwork({
+        data: { event_id: eventId, ticket_artwork_url: null },
+      });
+      if (artworkPath) {
+        await supabase.storage.from(EVENT_ARTWORK_BUCKET).remove([artworkPath]);
+      }
+      toast.success("Arte removida");
+      onChanged();
+    } catch (e: unknown) {
+      toast.error(mutationErrorMessage(e, "Erro ao remover"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="rounded-[12px] overflow-hidden md:col-span-2">
+      <div
+        className="relative h-36 bg-cover bg-center"
+        style={{
+          backgroundImage: artworkUrl
+            ? `linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.55)), url(${artworkUrl})`
+            : `linear-gradient(145deg, ${primary || "hsl(var(--primary))"} 0%, color-mix(in srgb, ${primary || "hsl(var(--primary))"} 50%, #111) 100%)`,
+        }}
+      >
+        <div className="absolute inset-0 flex items-end p-4">
+          <div className="text-white">
+            <div className="text-xs uppercase tracking-wide text-white/80">
+              Arte do ingresso
+            </div>
+            <div className="text-sm font-medium">
+              {artworkUrl
+                ? "Imagem de fundo personalizada"
+                : "Sem imagem — usando a cor do capítulo"}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 p-4">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void onFile(f);
+          }}
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => inputRef.current?.click()}
+        >
+          <ImagePlus className="mr-2 h-4 w-4" />
+          {busy ? "Enviando…" : artworkUrl ? "Trocar imagem" : "Enviar imagem"}
+        </Button>
+        {artworkUrl ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => void removeArtwork()}
+          >
+            Remover
+          </Button>
+        ) : null}
+        <p className="w-full text-xs text-muted-foreground">
+          Recomendado: 1200×600 px. Aparece no topo do ingresso (estilo
+          Sympla).
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+function notifyTicketEmailSoon(pass: TicketPassData) {
+  const payload = buildTicketEmailPayload(pass);
+  if (!payload) {
+    toast.error("Este ingresso não tem e-mail do comprador");
+    return;
+  }
+  toast.info(
+    `Envio por e-mail em breve — destino: ${payload.to}`,
+  );
+}
+
 function TicketsList({
   tickets,
   types,
+  event,
+  artworkUrl,
+  primary,
 }: {
   tickets: EventTicket[];
   types: EventTicketType[];
+  event: { name: string; starts_at: string; location: string | null };
+  artworkUrl: string | null;
+  primary?: string;
 }) {
   const typeMap = new Map(types.map((t) => [t.id, t.name]));
-  const [qrImg, setQrImg] = useState<{
-    ticketId: string;
-    url: string;
-    qrCode: string;
-    buyerName: string;
+  const [preview, setPreview] = useState<{
+    pass: TicketPassData;
+    qrDataUrl: string;
   } | null>(null);
+
   async function showQr(ticket: EventTicket) {
     if (!ticket.qr_code) {
       toast.error("Ingresso sem QR code");
       return;
     }
-    const url = await ticketQrDataUrl(ticket.qr_code, ticket.buyer_name);
-    setQrImg({
-      ticketId: ticket.id,
-      url,
-      qrCode: ticket.qr_code,
-      buyerName: ticket.buyer_name,
+    const typeName = ticket.ticket_type_id
+      ? typeMap.get(ticket.ticket_type_id)
+      : null;
+    const pass = buildTicketPassData({
+      event,
+      ticket,
+      ticketTypeName: typeName,
+      artworkUrl,
+      primaryColor: primary,
     });
+    const url = await ticketQrDataUrl(ticket.qr_code, ticket.buyer_name);
+    setPreview({ pass, qrDataUrl: url });
   }
+
   return (
     <Card className="rounded-[12px] p-0">
       {tickets.length === 0 ? (
@@ -336,21 +516,19 @@ function TicketsList({
           ))}
         </ul>
       )}
-      <Dialog open={!!qrImg} onOpenChange={(o) => !o && setQrImg(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>QR Code do ingresso</DialogTitle>
+      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md p-0 gap-0 overflow-hidden">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Ingresso</DialogTitle>
           </DialogHeader>
-          {qrImg && (
-            <div className="space-y-3 text-center">
-              <img src={qrImg.url} alt="QR" className="mx-auto" />
-              <div>
-                <div className="font-medium">{qrImg.buyerName}</div>
-                <div className="text-xs text-muted-foreground font-mono">
-                  {qrImg.qrCode}
-                </div>
-              </div>
-            </div>
+          {preview && (
+            <TicketPass
+              pass={preview.pass}
+              qrDataUrl={preview.qrDataUrl}
+              className="rounded-none border-0 shadow-none"
+              onSendEmail={() => notifyTicketEmailSoon(preview.pass)}
+              sendEmailLabel="Enviar por e-mail (em breve)"
+            />
           )}
         </DialogContent>
       </Dialog>
@@ -632,12 +810,16 @@ function TicketTypesCard({
 
 function SellTicketCard({
   eventId,
+  event,
   types,
+  artworkUrl,
   primary,
   onSold,
 }: {
   eventId: string;
+  event: { name: string; starts_at: string; location: string | null };
   types: EventTicketType[];
+  artworkUrl: string | null;
   primary?: string;
   onSold: () => void;
 }) {
@@ -646,8 +828,8 @@ function SellTicketCard({
   const [typeId, setTypeId] = useState<string>("");
   const [price, setPrice] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [soldTickets, setSoldTickets] = useState<
-    Array<{ id: string; qr_code: string; buyer_name: string; url: string }>
+  const [soldPasses, setSoldPasses] = useState<
+    Array<{ id: string; pass: TicketPassData; qrDataUrl: string }>
   >([]);
 
   useEffect(() => {
@@ -658,6 +840,9 @@ function SellTicketCard({
   }, [typeId, types]);
 
   const total = Number(price) * Number(quantity || 0);
+  const typeName = typeId
+    ? (types.find((t) => t.id === typeId)?.name ?? "Avulso")
+    : "Avulso";
 
   const m = useMutation({
     mutationFn: () =>
@@ -677,17 +862,35 @@ function SellTicketCard({
           ? "Ingresso vendido"
           : `${rows.length} ingressos vendidos`,
       );
+      const buyerEmail = email.trim() || null;
+      const buyerName = buyer;
+      const unitPrice = Number(price);
       setBuyer("");
       setEmail("");
       setQuantity(1);
       onSold();
-      const withUrls = await Promise.all(
-        rows.map(async (r) => ({
-          ...r,
-          url: await ticketQrDataUrl(r.qr_code, r.buyer_name),
-        })),
+      const passes = await Promise.all(
+        rows.map(async (r) => {
+          const pass = buildTicketPassData({
+            event,
+            ticket: {
+              buyer_name: r.buyer_name || buyerName,
+              buyer_email: buyerEmail,
+              qr_code: r.qr_code,
+              price_paid: unitPrice,
+            },
+            ticketTypeName: typeName,
+            artworkUrl,
+            primaryColor: primary,
+          });
+          return {
+            id: r.id,
+            pass,
+            qrDataUrl: await ticketQrDataUrl(r.qr_code, pass.buyerName),
+          };
+        }),
       );
-      setSoldTickets(withUrls);
+      setSoldPasses(passes);
     },
     onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
   });
@@ -706,6 +909,7 @@ function SellTicketCard({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            placeholder="Para enviar o ingresso depois"
           />
         </div>
         <div>
@@ -766,28 +970,28 @@ function SellTicketCard({
       </Card>
 
       <Dialog
-        open={soldTickets.length > 0}
+        open={soldPasses.length > 0}
         onOpenChange={(o) => {
-          if (!o) setSoldTickets([]);
+          if (!o) setSoldPasses([]);
         }}
       >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md p-0 gap-0 overflow-hidden">
+          <DialogHeader className="sr-only">
             <DialogTitle>
-              {soldTickets.length === 1
-                ? "QR Code do ingresso"
-                : `QR Codes (${soldTickets.length})`}
+              {soldPasses.length === 1
+                ? "Ingresso"
+                : `Ingressos (${soldPasses.length})`}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-6">
-            {soldTickets.map((t) => (
-              <div key={t.id} className="space-y-2 text-center">
-                <img src={t.url} alt={`QR ${t.qr_code}`} className="mx-auto" />
-                <div className="font-medium">{t.buyer_name}</div>
-                <div className="text-xs text-muted-foreground font-mono">
-                  {t.qr_code}
-                </div>
-              </div>
+          <div className="space-y-4 p-4 bg-muted/30">
+            {soldPasses.map((t) => (
+              <TicketPass
+                key={t.id}
+                pass={t.pass}
+                qrDataUrl={t.qrDataUrl}
+                onSendEmail={() => notifyTicketEmailSoon(t.pass)}
+                sendEmailLabel="Enviar por e-mail (em breve)"
+              />
             ))}
           </div>
         </DialogContent>

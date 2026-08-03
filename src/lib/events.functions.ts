@@ -86,7 +86,7 @@ export const getEvent = createServerFn({ method: "POST" })
     const eventRes = await context.supabase
       .from("events")
       .select(
-        "id, chapter_id, name, description, location, starts_at, ends_at, goal_amount, status",
+        "id, chapter_id, name, description, location, starts_at, ends_at, goal_amount, status, ticket_artwork_url",
       )
       .eq("id", data.id)
       .maybeSingle();
@@ -145,6 +145,28 @@ export const getEvent = createServerFn({ method: "POST" })
       seats: seats.data ?? [],
       checkins: checkins.data ?? [],
     };
+  });
+
+export const updateEventArtwork = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        event_id: z.string().uuid(),
+        ticket_artwork_url: z.string().max(500).nullable(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("events")
+      .update({ ticket_artwork_url: data.ticket_artwork_url })
+      .eq("id", data.event_id)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error("Evento não encontrado");
+    return { ok: true };
   });
 
 export const createTicketType = createServerFn({ method: "POST" })

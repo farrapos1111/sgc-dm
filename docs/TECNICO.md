@@ -195,7 +195,7 @@ RPCs públicas da ata (`anon`): `get_public_minute(token, password)`, `submit_pu
 `cash_entries` (kind, `category` texto, `subcategory` texto — *snapshot*, `calendar_event_id`, valor, data, comprovante) · `cash_categories` (por capítulo, `is_system`, único por capítulo+nome) · `cash_subcategories` (por capítulo, escopo eventos|hospitalaria, `calendar_event_id` opcional, ativo; índice único em capítulo+escopo+coalesce(evento)+lower(nome)) · `member_dues` (único por capítulo+membro+`competence_year`+`competence_month`; status em_aberto|pago|isento; `cash_entry_id` apontando de volta para `cash_entries`).
 
 ### Eventos de arrecadação (distintos de `calendar_events`)
-`events` → `ticket_types` → `tickets` (com `qr_code`; valido|cancelado|usado) → `checkins` (qr|nome) · `event_tables` (capacidade, `pos_x`/`pos_y` para o mapa) → `seats`.
+`events` (`ticket_artwork_url`) → `ticket_types` → `tickets` (com `qr_code`; valido|cancelado|usado) → `checkins` (qr|nome) · `event_tables` (capacidade, `pos_x`/`pos_y` para o mapa) → `seats`. Arte em Storage `event-artwork`.
 
 ### Comissões
 `investigation_files` → `investigation_processes` (aberta|em_andamento|aprovada|reprovada|arquivada) · `hospitality_menus` (opcionalmente ligado a um evento de calendário, com custo estimado) · `hospitality_duties`.
