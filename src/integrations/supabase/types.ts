@@ -2680,8 +2680,9 @@ export type Database = {
       record_investigation_public_attempt: {
         Args: {
           _chapter_limit?: number
+          _client_ip?: string | null
+          _cpf?: string | null
           _kind: string
-          _sender_key: string
           _sender_limit?: number
           _token: string
           _window_minutes?: number

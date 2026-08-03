@@ -1,4 +1,3 @@
-import { useRef, useState } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -42,10 +41,12 @@ export function DocumentUploadFields({
         const preview = previews[kind];
         const hasPath = Boolean(paths[kind]);
         const busy = uploading === kind;
+        const inputId = `investigation-doc-${kind}`;
+        const labelText = ID_DOC_LABELS[kind];
         return (
           <div key={kind} className="space-y-1.5">
-            <Label className="text-sm">
-              {ID_DOC_LABELS[kind]} <span className="text-destructive">*</span>
+            <Label htmlFor={inputId} className="text-sm">
+              {labelText} <span className="text-destructive">*</span>
             </Label>
             <div className="relative overflow-hidden rounded-[12px] border border-dashed border-border bg-muted/30">
               {preview || hasPath ? (
@@ -53,7 +54,7 @@ export function DocumentUploadFields({
                   {preview ? (
                     <img
                       src={preview}
-                      alt={ID_DOC_LABELS[kind]}
+                      alt={labelText}
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -68,24 +69,47 @@ export function DocumentUploadFields({
                       variant="secondary"
                       className="absolute right-2 top-2 h-8 w-8"
                       onClick={() => onClear(kind)}
+                      aria-label={`Remover ${labelText}`}
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   )}
+                  <input
+                    id={inputId}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    disabled={disabled || busy}
+                    aria-label={`Substituir ${labelText}`}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (file) void onPick(kind, file);
+                    }}
+                  />
                 </div>
               ) : (
-                <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-2 px-3 text-center text-xs text-muted-foreground hover:bg-muted/50 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                <label
+                  htmlFor={inputId}
+                  className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-2 px-3 text-center text-xs text-muted-foreground hover:bg-muted/50 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+                >
                   {busy ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
                     <ImagePlus className="h-5 w-5" />
                   )}
-                  <span>{busy ? "Enviando…" : "Toque para enviar foto"}</span>
+                  <span>
+                    {busy
+                      ? `Enviando ${labelText}…`
+                      : `Toque para enviar ${labelText}`}
+                  </span>
                   <input
+                    id={inputId}
                     type="file"
                     accept="image/*"
                     className="sr-only"
                     disabled={disabled || busy}
+                    aria-label={labelText}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       e.target.value = "";
@@ -117,21 +141,4 @@ export function readFilePreview(file: File): Promise<string> {
     reader.onerror = () => reject(new Error("Falha ao ler imagem"));
     reader.readAsDataURL(file);
   });
-}
-
-export function useLocalDocPreviews() {
-  const [previews, setPreviews] = useState<DocPreviewState>(emptyDocPaths());
-  const objectUrls = useRef<string[]>([]);
-
-  function setPreview(kind: IdDocKind, url: string | null) {
-    setPreviews((p) => ({ ...p, [kind]: url }));
-  }
-
-  function clearAll() {
-    for (const u of objectUrls.current) URL.revokeObjectURL(u);
-    objectUrls.current = [];
-    setPreviews(emptyDocPaths());
-  }
-
-  return { previews, setPreview, clearAll, setPreviews };
 }

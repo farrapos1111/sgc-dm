@@ -398,6 +398,7 @@ function OngoingRow({
     <Link
       to="/ongoing/$id"
       params={{ id: to }}
+      search={{ tab: "chamada" }}
       className={`${cls} hover:bg-muted`}
     >
       {children}

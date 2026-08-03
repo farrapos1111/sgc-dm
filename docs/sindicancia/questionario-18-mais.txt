@@ -6,6 +6,7 @@ Legenda
   [Descritiva]  = resposta em texto
   [Opcional]    = pode ficar em branco
   *             = preferir dados da ficha de indicação
+  [Sensível]     = dado sensível (LGPD) — ver lgpd-dados-sensiveis.txt
 
 
 ────────────────────────────────────────────────────────────────
@@ -26,7 +27,12 @@ fere a lei, coloca em perigo ou humilha.
 Você possui alguma dúvida sobre a Iniciação? ........ [Descritiva] [Opcional]
 
 Haverá também termos (autorização, imagem, declaração, finanças/bolsa).
-É direito pedir Plano Pedagógico e Regulamento Geral. Dados: LGPD.
+É direito pedir Plano Pedagógico e Regulamento Geral.
+
+LGPD — o tratamento dos dados da sindicância (incluindo dados sensíveis de
+saúde e hábitos, quando respondidos) tem por base o consentimento do titular
+adulto, para a finalidade de admissão e cuidado nas atividades do Capítulo.
+Detalhes de acesso e retenção: docs/sindicancia/lgpd-dados-sensiveis.txt.
 
 
 ────────────────────────────────────────────────────────────────
@@ -39,10 +45,15 @@ Tem parentesco com Maçom? * ......................... [Sim/Não]
 Tem parentesco com DeMolay? * ....................... [Sim/Não]
   Grau (Pai/Irmão/Avô/Tio/Outro) .................... [Descritiva] [Opcional]
 É membro da Ordem dos Escudeiros? ................... [Sim/Não]
-Possui doença, alergia ou necessidade especial? ..... [Sim/Não]
-  Se sim — descrever ................................ [Descritiva] [Opcional]
-Faz uso de medicamento contínuo? .................... [Sim/Não]
-  Se sim — listar ................................... [Descritiva] [Opcional]
+
+── Saúde (dado sensível) ──
+Base legal: consentimento do próprio titular (adulto).
+Acesso e retenção: docs/sindicancia/lgpd-dados-sensiveis.txt
+
+Possui doença, alergia ou necessidade especial? ..... [Sim/Não] [Sensível — saúde]
+  Se sim — descrever ................................ [Descritiva] [Opcional] [Sensível — saúde]
+Faz uso de medicamento contínuo? .................... [Sim/Não] [Sensível — saúde]
+  Se sim — listar ................................... [Descritiva] [Opcional] [Sensível — saúde]
 
 Orientação: sem gabarito — sinceridade e tranquilidade.
 
@@ -121,8 +132,8 @@ Hobbies? ............................................ [Descritiva]
 Hábito que gostaria de mudar? ....................... [Descritiva]
 Como estuda? ........................................ [Descritiva]
 Opinião sobre drogas? ............................... [Descritiva]
-Já usou substância ilícita? ......................... [Descritiva]
-Convive com usuário de drogas? ...................... [Descritiva]
+Já usou substância ilícita? ......................... [Descritiva] [Sensível — hábitos]
+Convive com usuário de drogas? ...................... [Descritiva] [Sensível — hábitos]
 Opinião sobre cigarro e afins? ...................... [Descritiva]
 Opinião sobre bebidas alcoólicas? ................... [Descritiva]
 Vício que gostaria de eliminar? ..................... [Descritiva]

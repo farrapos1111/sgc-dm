@@ -937,6 +937,7 @@ function DetailContent({
             <Link
               to="/ongoing/$id"
               params={{ id: item.id }}
+              search={{ tab: "chamada" }}
               className="inline-flex items-center gap-1 text-sm font-medium"
               style={{ color: "var(--chapter-primary)" }}
             >

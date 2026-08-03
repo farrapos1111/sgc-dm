@@ -6,6 +6,7 @@ Legenda
   [Descritiva]  = resposta em texto
   [Opcional]    = pode ficar em branco
   *             = preferir dados da ficha de indicação
+  [Sensível]     = dado sensível (LGPD) — ver lgpd-dados-sensiveis.txt
 
 
 ────────────────────────────────────────────────────────────────
@@ -35,10 +36,15 @@ Tem parentesco com Maçom? * ......................... [Sim/Não]
 Tem parentesco com DeMolay? * ....................... [Sim/Não]
   Grau (Pai/Irmão/Avô/Tio/Outro) .................... [Descritiva] [Opcional]
 É membro da Ordem dos Escudeiros? ................... [Sim/Não]
-Possui doença, alergia ou necessidade especial? ..... [Sim/Não]
-  Se sim — descrever ................................ [Descritiva] [Opcional]
-Faz uso de medicamento contínuo? .................... [Sim/Não]
-  Se sim — listar ................................... [Descritiva] [Opcional]
+
+── Saúde (dado sensível) ──
+Exige consentimento do responsável legal (assinatura na ata / inscrição).
+Base, acesso e retenção: docs/sindicancia/lgpd-dados-sensiveis.txt
+
+Possui doença, alergia ou necessidade especial? ..... [Sim/Não] [Sensível — saúde]
+  Se sim — descrever ................................ [Descritiva] [Opcional] [Sensível — saúde]
+Faz uso de medicamento contínuo? .................... [Sim/Não] [Sensível — saúde]
+  Se sim — listar ................................... [Descritiva] [Opcional] [Sensível — saúde]
 
 Orientação: não há certo/errado — queremos conhecê-lo. Seja sincero.
 
@@ -110,8 +116,8 @@ Hobbies? ............................................ [Descritiva]
 Hábito que gostaria de mudar? ....................... [Descritiva]
 Como estuda? ........................................ [Descritiva]
 Opinião sobre drogas? ............................... [Descritiva]
-Já usou substância ilícita? ......................... [Descritiva]
-Convive com usuário de drogas? ...................... [Descritiva]
+Já usou substância ilícita? ......................... [Descritiva] [Sensível — hábitos]
+Convive com usuário de drogas? ...................... [Descritiva] [Sensível — hábitos]
 Opinião sobre cigarro e afins? ...................... [Descritiva]
 Opinião sobre bebidas alcoólicas? ................... [Descritiva]
 Vício que gostaria de eliminar? ..................... [Descritiva]

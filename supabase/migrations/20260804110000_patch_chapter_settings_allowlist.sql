@@ -1,7 +1,5 @@
--- Patch atômico de chapters.settings (allowlist + audit).
--- Apenas chaves usadas pela UI de modelos de sindicância.
--- investigation_signup_token e demais settings de SECURITY DEFINER
--- permanecem exclusivos das RPCs ensure/revoke dedicadas.
+-- Restringe patch_chapter_settings a allowlist + audit_logs.
+-- Tokens / settings de SECURITY DEFINER não podem ser alterados por este RPC.
 
 CREATE OR REPLACE FUNCTION public.patch_chapter_settings(
   _chapter_id uuid,
@@ -37,6 +35,7 @@ BEGIN
     RAISE EXCEPTION 'Patch inválido';
   END IF;
 
+  -- Rejeita chaves fora da allowlist (inclui investigation_signup_token e demais)
   FOR v_key, v_val IN SELECT * FROM jsonb_each(_patch)
   LOOP
     IF NOT (v_key = ANY (v_allowed)) THEN
@@ -95,7 +94,3 @@ BEGIN
   RETURN v_settings;
 END;
 $$;
-
-REVOKE ALL ON FUNCTION public.patch_chapter_settings(uuid, jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.patch_chapter_settings(uuid, jsonb)
-  TO authenticated, service_role;

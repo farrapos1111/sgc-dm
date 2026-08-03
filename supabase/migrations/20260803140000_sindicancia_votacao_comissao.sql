@@ -1,17 +1,6 @@
 -- Status "Votação Comissão" + votos da entrevista de sindicância.
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_enum e
-    JOIN pg_type t ON t.oid = e.enumtypid
-    WHERE t.typname = 'investigation_status'
-      AND e.enumlabel = 'votacao_comissao'
-  ) THEN
-    ALTER TYPE public.investigation_status ADD VALUE 'votacao_comissao';
-  END IF;
-END $$;
+ALTER TYPE public.investigation_status ADD VALUE IF NOT EXISTS 'votacao_comissao';
 
 CREATE TABLE IF NOT EXISTS public.sindicancia_votes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -749,6 +749,19 @@ async function createAnonClient() {
   return createClient(url, key);
 }
 
+async function clientIpFromRequest(): Promise<string> {
+  const { getRequest } = await import("@tanstack/react-start/server");
+  const request = getRequest();
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+  throw new Error("Não foi possível validar a origem da requisição");
+}
+
 export const uploadInvestigationDoc = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
@@ -809,12 +822,17 @@ export const uploadInvestigationDocPublic = createServerFn({ method: "POST" })
     if (!chapter?.id) throw new Error("Link inválido ou expirado");
 
     const tempId = data.tempId ?? crypto.randomUUID();
-    const { error: rateErr } = await anon.rpc(
+    const clientIp = await clientIpFromRequest();
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const { error: rateErr } = await supabaseAdmin.rpc(
       "record_investigation_public_attempt",
       {
         _token: data.token,
         _kind: "upload",
-        _sender_key: tempId,
+        _client_ip: clientIp,
+        _cpf: null,
         _chapter_limit: PUBLIC_UPLOAD_RATE_LIMIT,
         _sender_limit: 10,
         _window_minutes: PUBLIC_UPLOAD_RATE_WINDOW_MINUTES,
@@ -822,9 +840,6 @@ export const uploadInvestigationDocPublic = createServerFn({ method: "POST" })
     );
     if (rateErr) throw new Error(rateErr.message);
 
-    const { supabaseAdmin } = await import(
-      "@/integrations/supabase/client.server"
-    );
     const bytes = Buffer.from(data.base64, "base64");
     if (bytes.length > 3 * 1024 * 1024) throw new Error("Imagem maior que 3 MB");
     const ext = extFromMime(contentType);

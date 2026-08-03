@@ -6,6 +6,7 @@ Legenda
   [Descritiva]  = resposta em texto
   [Opcional]    = pode ficar em branco
   *             = preferir dados da ficha de indicação
+  [Sensível]     = dado sensível (LGPD) — ver lgpd-dados-sensiveis.txt
 
 
 ────────────────────────────────────────────────────────────────
@@ -23,11 +24,15 @@ Tem parentesco com DeMolay? * ....................... [Sim/Não]
 
 É membro da Ordem dos Escudeiros? ................... [Sim/Não]
 
-Possui doença, alergia ou necessidade especial? ..... [Sim/Não]
-  Se sim — descrever ................................ [Descritiva] [Opcional]
+── Saúde (dado sensível) ──
+Exige consentimento do responsável legal (assinatura na ata / inscrição).
+Base, acesso e retenção: docs/sindicancia/lgpd-dados-sensiveis.txt
 
-Faz uso de medicamento contínuo? .................... [Sim/Não]
-  Se sim — listar ................................... [Descritiva] [Opcional]
+Possui doença, alergia ou necessidade especial? ..... [Sim/Não] [Sensível — saúde]
+  Se sim — descrever ................................ [Descritiva] [Opcional] [Sensível — saúde]
+
+Faz uso de medicamento contínuo? .................... [Sim/Não] [Sensível — saúde]
+  Se sim — listar ................................... [Descritiva] [Opcional] [Sensível — saúde]
 
 
 ────────────────────────────────────────────────────────────────

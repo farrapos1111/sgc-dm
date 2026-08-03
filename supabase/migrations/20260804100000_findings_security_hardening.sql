@@ -254,7 +254,8 @@ $$;
 CREATE OR REPLACE FUNCTION public.record_investigation_public_attempt(
   _token text,
   _kind text,
-  _sender_key text,
+  _client_ip text DEFAULT NULL,
+  _cpf text DEFAULT NULL,
   _chapter_limit integer DEFAULT 20,
   _sender_limit integer DEFAULT 5,
   _window_minutes integer DEFAULT 60
@@ -262,19 +263,18 @@ CREATE OR REPLACE FUNCTION public.record_investigation_public_attempt(
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_chapter uuid;
-  v_sender text := nullif(trim(coalesce(_sender_key, '')), '');
+  v_sender text;
+  v_cpf text;
+  v_ip text;
   v_chapter_count integer;
   v_sender_count integer;
 BEGIN
   IF _kind NOT IN ('signup', 'upload') THEN
     RAISE EXCEPTION 'Tipo de tentativa inválido';
-  END IF;
-  IF v_sender IS NULL THEN
-    RAISE EXCEPTION 'Identificador de envio inválido';
   END IF;
 
   SELECT c.id INTO v_chapter
@@ -283,6 +283,24 @@ BEGIN
   LIMIT 1;
   IF v_chapter IS NULL THEN
     RAISE EXCEPTION 'Link inválido ou expirado';
+  END IF;
+
+  IF _kind = 'signup' THEN
+    v_cpf := nullif(regexp_replace(coalesce(_cpf, ''), '[^0-9]', '', 'g'), '');
+    IF v_cpf IS NULL OR length(v_cpf) <> 11 THEN
+      RAISE EXCEPTION 'Identificador de envio inválido';
+    END IF;
+    v_sender := 'cpf:' || encode(digest(v_cpf, 'sha256'), 'hex');
+  ELSE
+    v_ip := nullif(trim(coalesce(_client_ip, '')), '');
+    IF v_ip IS NULL OR length(v_ip) > 64 THEN
+      RAISE EXCEPTION 'Identificador de envio inválido';
+    END IF;
+    BEGIN
+      v_sender := 'ip:' || host(v_ip::inet);
+    EXCEPTION WHEN others THEN
+      v_sender := 'ip:' || encode(digest(v_ip, 'sha256'), 'hex');
+    END;
   END IF;
 
   PERFORM public.cleanup_investigation_public_attempts();
@@ -313,9 +331,12 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.record_investigation_public_attempt(text, text, text, integer, integer, integer) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.record_investigation_public_attempt(text, text, text, integer, integer, integer)
-  TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.record_investigation_public_attempt(
+  text, text, text, text, integer, integer, integer
+) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.record_investigation_public_attempt(
+  text, text, text, text, integer, integer, integer
+) TO service_role;
 
 -- 5) submit_investigation_signup reforçado
 DROP FUNCTION IF EXISTS public.submit_investigation_signup(
@@ -487,8 +508,9 @@ BEGIN
     RAISE EXCEPTION 'Documentos inválidos para esta inscrição';
   END IF;
 
+  -- Rate limit por CPF (derivado no servidor), não por tempId do cliente
   PERFORM public.record_investigation_public_attempt(
-    _token, 'signup', v_temp::text, 20, 5, 60
+    _token, 'signup', NULL, v_cpf, 20, 5, 60
   );
 
   v_cpf_hash := encode(digest(v_cpf, 'sha256'), 'hex');
@@ -634,7 +656,8 @@ BEGIN
     ALTER TABLE public.sindicancia_votes
       ADD CONSTRAINT sindicancia_votes_event_chapter_fkey
       FOREIGN KEY (calendar_event_id, chapter_id)
-      REFERENCES public.sindicancia_details (calendar_event_id, chapter_id);
+      REFERENCES public.sindicancia_details (calendar_event_id, chapter_id)
+      ON DELETE CASCADE;
   END IF;
 END $$;
 

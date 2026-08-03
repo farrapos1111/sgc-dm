@@ -1,16 +1,7 @@
 -- Módulo Sindicâncias: fichas expandidas, evento de calendário, detalhes, token público, seed comissão.
 
 -- 1) Enum calendário
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_enum e
-    JOIN pg_type t ON t.oid = e.enumtypid
-    WHERE t.typname = 'calendar_event_type' AND e.enumlabel = 'sindicancia'
-  ) THEN
-    ALTER TYPE public.calendar_event_type ADD VALUE 'sindicancia';
-  END IF;
-END $$;
+ALTER TYPE public.calendar_event_type ADD VALUE IF NOT EXISTS 'sindicancia';
 
 -- 2) Colunas extras em investigation_files
 ALTER TABLE public.investigation_files
@@ -92,65 +83,7 @@ CREATE TRIGGER sindicancia_details_updated_at
   BEFORE UPDATE ON public.sindicancia_details
   FOR EACH ROW EXECUTE FUNCTION public.tg_set_updated_at();
 
--- 4) Migrar investigation_processes → calendar_events + sindicancia_details
-DO $$
-DECLARE
-  r record;
-  v_event_id uuid;
-  v_start timestamptz;
-BEGIN
-  FOR r IN
-    SELECT p.*
-    FROM public.investigation_processes p
-    WHERE NOT EXISTS (
-      SELECT 1
-      FROM public.sindicancia_details d
-      WHERE d.file_id IS NOT DISTINCT FROM p.file_id
-        AND d.chapter_id = p.chapter_id
-        AND d.nominee_name = coalesce(
-          (SELECT f.candidate_name FROM public.investigation_files f WHERE f.id = p.file_id),
-          p.title
-        )
-        AND d.status = p.status
-    )
-  LOOP
-    v_start := (r.opened_at::timestamp AT TIME ZONE 'America/Sao_Paulo');
-    INSERT INTO public.calendar_events (
-      chapter_id, title, event_type, mandatory, public_open,
-      start_at, end_at, location, description, created_by
-    ) VALUES (
-      r.chapter_id,
-      r.title,
-      'sindicancia',
-      false,
-      false,
-      v_start,
-      NULL,
-      NULL,
-      r.opinion,
-      r.created_by
-    )
-    RETURNING id INTO v_event_id;
-
-    INSERT INTO public.sindicancia_details (
-      calendar_event_id, chapter_id, file_id, nominee_name,
-      investigator_member_id, opinion, status
-    ) VALUES (
-      v_event_id,
-      r.chapter_id,
-      r.file_id,
-      coalesce(
-        (SELECT f.candidate_name FROM public.investigation_files f WHERE f.id = r.file_id),
-        r.title
-      ),
-      r.responsible_member_id,
-      r.opinion,
-      r.status
-    );
-  END LOOP;
-END $$;
-
--- 5) Seed comissão sindicancias no catálogo global + capítulos existentes sem ela
+-- 4) Seed comissão sindicancias no catálogo global + capítulos existentes sem ela
 INSERT INTO public.commissions (code, label, sort_order, chapter_id)
 VALUES ('sindicancias', 'Sindicâncias', 7, NULL)
 ON CONFLICT (code) WHERE (chapter_id IS NULL)
@@ -169,7 +102,7 @@ SELECT setval(
   GREATEST(COALESCE((SELECT MAX(id) FROM public.commissions), 1), 1)
 );
 
--- 6) Token público de inscrição em ficha
+-- 5) Token público de inscrição em ficha
 CREATE OR REPLACE FUNCTION public.can_manage_investigation_signup(_chapter_id uuid)
 RETURNS boolean
 LANGUAGE sql
