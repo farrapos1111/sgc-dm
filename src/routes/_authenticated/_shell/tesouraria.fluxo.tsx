@@ -165,8 +165,22 @@ function FluxoCaixa() {
     queryFn: () => listCashCategories({ data: { chapterId: active!.chapter_id } }),
   });
   const categories = catData?.categories ?? [];
-  const eventOptions = catData?.events ?? [];
-  const subcategories = catData?.subcategories ?? [];
+  const eventOptions = catData?.operationalEvents?.length
+    ? catData.operationalEvents
+    : catData?.events ?? [];
+  const legacySubs = catData?.subcategories ?? [];
+  const eventFinanceItems = catData?.eventFinanceItems ?? [];
+  const subcategories = [
+    ...legacySubs,
+    ...eventFinanceItems.map((i) => ({
+      id: i.id,
+      scope: "eventos" as const,
+      calendar_event_id: i.event_id,
+      name: i.name,
+      active: i.active,
+      unit_price: i.unit_price,
+    })),
+  ];
 
   const scope = scopeOfCategory(form.category);
   const scopedSubs = subcategories.filter((s) =>
@@ -174,8 +188,9 @@ function FluxoCaixa() {
       ? s.scope === "eventos" && s.calendar_event_id === form.eventId
       : s.scope === scope,
   );
-  const eventsWithItems = eventOptions.filter((e) =>
-    subcategories.some((s) => s.scope === "eventos" && s.calendar_event_id === e.id),
+  const eventsWithItems = eventOptions;
+  const selectedEventItem = eventFinanceItems.find(
+    (i) => i.id === form.subcategoryId,
   );
   const isManualDues = form.category === "Mensalidades" && !form.id;
 
@@ -413,6 +428,7 @@ function FluxoCaixa() {
         kind: form.kind,
         category: form.category,
         subcategoryId: form.subcategoryId || null,
+        eventId: form.eventId || null,
         description: form.description.trim(),
         amount: Number(String(form.amount).replace(",", ".")) || 0,
         entry_date: form.entry_date,
@@ -1040,8 +1056,8 @@ function FluxoCaixa() {
                 </Select>
                 {eventsWithItems.length === 0 && (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Nenhum evento configurado pela Comissão de Eventos. Configure em
-                    “Categorias e itens”.
+                    Nenhum evento ativo. Crie um evento em Eventos e cadastre
+                    itens na aba Financeiro.
                   </p>
                 )}
               </div>
@@ -1054,7 +1070,19 @@ function FluxoCaixa() {
                 </Label>
                 <Select
                   value={form.subcategoryId}
-                  onValueChange={(v) => setForm((f) => ({ ...f, subcategoryId: v }))}
+                  onValueChange={(v) => {
+                    const item = eventFinanceItems.find((i) => i.id === v);
+                    setForm((f) => ({
+                      ...f,
+                      subcategoryId: v,
+                      amount:
+                        item?.unit_price != null && !f.amount
+                          ? String(item.unit_price)
+                          : item?.unit_price != null
+                            ? String(item.unit_price)
+                            : f.amount,
+                    }));
+                  }}
                 >
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
@@ -1066,6 +1094,12 @@ function FluxoCaixa() {
                 {scopedSubs.length === 0 && (
                   <p className="mt-1 text-xs text-muted-foreground">
                     A comissão ainda não liberou itens para esta categoria.
+                  </p>
+                )}
+                {scope === "eventos" && selectedEventItem?.track_stock && (
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    Este item controla estoque. Lançamentos manuais no Caixa não
+                    baixam estoque — use a comanda do ingresso para isso.
                   </p>
                 )}
               </div>

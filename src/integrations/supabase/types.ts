@@ -256,6 +256,8 @@ export type Database = {
           created_by: string | null
           description: string
           entry_date: string
+          event_finance_item_id: string | null
+          event_id: string | null
           id: string
           kind: Database["public"]["Enums"]["cash_entry_kind"]
           receipt_url: string | null
@@ -271,6 +273,8 @@ export type Database = {
           created_by?: string | null
           description: string
           entry_date?: string
+          event_finance_item_id?: string | null
+          event_id?: string | null
           id?: string
           kind: Database["public"]["Enums"]["cash_entry_kind"]
           receipt_url?: string | null
@@ -286,6 +290,8 @@ export type Database = {
           created_by?: string | null
           description?: string
           entry_date?: string
+          event_finance_item_id?: string | null
+          event_id?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["cash_entry_kind"]
           receipt_url?: string | null
@@ -305,6 +311,20 @@ export type Database = {
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_entries_event_finance_item_id_fkey"
+            columns: ["event_finance_item_id"]
+            isOneToOne: false
+            referencedRelation: "event_finance_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -644,6 +664,183 @@ export type Database = {
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_finance_categories: {
+        Row: {
+          chapter_id: string
+          created_at: string
+          event_id: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          chapter_id: string
+          created_at?: string
+          event_id: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          chapter_id?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_finance_categories_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_finance_categories_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_finance_items: {
+        Row: {
+          active: boolean
+          category_id: string
+          chapter_id: string
+          created_at: string
+          event_id: string
+          id: string
+          name: string
+          stock_qty: number | null
+          track_stock: boolean
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category_id: string
+          chapter_id: string
+          created_at?: string
+          event_id: string
+          id?: string
+          name: string
+          stock_qty?: number | null
+          track_stock?: boolean
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category_id?: string
+          chapter_id?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          name?: string
+          stock_qty?: number | null
+          track_stock?: boolean
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_finance_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "event_finance_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_finance_items_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_finance_items_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_ticket_items: {
+        Row: {
+          amount: number
+          cash_entry_id: string | null
+          created_at: string
+          created_by: string | null
+          event_id: string
+          id: string
+          item_id: string
+          qty: number
+          ticket_id: string
+          unit_price: number
+        }
+        Insert: {
+          amount: number
+          cash_entry_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_id: string
+          id?: string
+          item_id: string
+          qty?: number
+          ticket_id: string
+          unit_price: number
+        }
+        Update: {
+          amount?: number
+          cash_entry_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          event_id?: string
+          id?: string
+          item_id?: string
+          qty?: number
+          ticket_id?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_ticket_items_cash_entry_id_fkey"
+            columns: ["cash_entry_id"]
+            isOneToOne: false
+            referencedRelation: "cash_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_ticket_items_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_ticket_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "event_finance_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_ticket_items_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
             referencedColumns: ["id"]
           },
         ]
@@ -2544,6 +2741,32 @@ export type Database = {
       create_event_table_with_seats: {
         Args: { _capacity: number; _event_id: string; _label: string }
         Returns: string
+      }
+      add_event_ticket_item: {
+        Args: {
+          _ticket_id: string
+          _item_id: string
+          _qty?: number
+          _unit_price?: number | null
+          _description?: string | null
+        }
+        Returns: Json
+      }
+      delete_event_ticket: {
+        Args: { _ticket_id: string }
+        Returns: Json
+      }
+      delete_event_ticket_item: {
+        Args: { _line_id: string }
+        Returns: Json
+      }
+      update_event_ticket_item: {
+        Args: {
+          _line_id: string
+          _qty?: number | null
+          _unit_price?: number | null
+        }
+        Returns: Json
       }
       create_member_with_pii: {
         Args: {
