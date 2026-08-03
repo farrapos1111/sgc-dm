@@ -67,17 +67,26 @@ function line(
   const contentW = pageW - MARGIN * 2;
   const text = value?.trim() || "—";
   const lines = doc.splitTextToSize(text, contentW - 45) as string[];
-  const need = Math.max(6, lines.length * 4.5);
-  if (y + need > pageH - MARGIN) {
-    doc.addPage();
-    y = MARGIN;
+  const lineH = 4.5;
+  const startY = y;
+  let first = true;
+  for (const part of lines) {
+    if (y + lineH > pageH - MARGIN) {
+      doc.addPage();
+      y = MARGIN;
+    }
+    if (first) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(label, MARGIN, y);
+      first = false;
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(part, MARGIN + 42, y);
+    y += lineH;
   }
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text(label, MARGIN, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(lines, MARGIN + 42, y);
-  return y + need;
+  return Math.max(y, startY + 6);
 }
 
 /** PDF da ficha de sindicância com logo e identificação do capítulo. */

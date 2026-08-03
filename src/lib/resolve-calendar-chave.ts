@@ -13,10 +13,13 @@ type CalendarChaveItem = {
   dress_code?: string | null;
 };
 
-type ChapterForChave = {
-  name?: string | null;
-  settings?: Record<string, unknown> | null;
-} | null | undefined;
+type ChapterForChave =
+  | {
+      name?: string | null;
+      settings?: Record<string, unknown> | null;
+    }
+  | null
+  | undefined;
 
 /** Resolve o texto da chave (dia ou sindicância) para copiar. */
 export async function resolveCalendarChaveText(
@@ -42,9 +45,7 @@ export async function resolveCalendarChaveText(
 
   const settings = chapter?.settings;
   const rawTemplate =
-    settings && typeof settings === "object"
-      ? settings.chave_template
-      : null;
+    settings && typeof settings === "object" ? settings.chave_template : null;
   const template = typeof rawTemplate === "string" ? rawTemplate : null;
 
   return buildChaveDoDia(item, {

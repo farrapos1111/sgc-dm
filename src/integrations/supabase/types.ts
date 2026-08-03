@@ -699,6 +699,7 @@ export type Database = {
           name: string
           starts_at: string
           status: Database["public"]["Enums"]["event_status"]
+          ticket_artwork_url: string | null
           updated_at: string
         }
         Insert: {
@@ -713,6 +714,7 @@ export type Database = {
           name: string
           starts_at: string
           status?: Database["public"]["Enums"]["event_status"]
+          ticket_artwork_url?: string | null
           updated_at?: string
         }
         Update: {
@@ -727,6 +729,7 @@ export type Database = {
           name?: string
           starts_at?: string
           status?: Database["public"]["Enums"]["event_status"]
+          ticket_artwork_url?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -907,31 +910,36 @@ export type Database = {
           celular: string | null
           chapter_id: string
           cpf: string | null
+          cpf_encrypted: string | null
+          cpf_hash: string | null
           cpf_last2: string | null
           created_at: string
           created_by: string | null
           demolay_relative_chapter: string | null
           demolay_relative_name: string | null
+          doc_cpf_back_path: string | null
+          doc_cpf_front_path: string | null
+          doc_rg_back_path: string | null
+          doc_rg_front_path: string | null
           guardian_name: string | null
           guardians: Json
           has_demolay_relative: boolean
           has_mason_relative: boolean
           id: string
+          lgpd_consent_text_version: string | null
+          lgpd_consented_at: string | null
           mason_relative_lodge: string | null
           mason_relative_name: string | null
           notes: string | null
           opinion: string | null
           referred_by: string | null
           rg: string | null
+          rg_encrypted: string | null
           rg_last2: string | null
           signup_source: string
           sponsor_member_id: string | null
           sponsor_meta: Json
           sponsor_text: string | null
-          doc_rg_front_path: string | null
-          doc_rg_back_path: string | null
-          doc_cpf_front_path: string | null
-          doc_cpf_back_path: string | null
           status: Database["public"]["Enums"]["investigation_status"]
           updated_at: string
         }
@@ -944,31 +952,36 @@ export type Database = {
           celular?: string | null
           chapter_id: string
           cpf?: string | null
+          cpf_encrypted?: string | null
+          cpf_hash?: string | null
           cpf_last2?: string | null
           created_at?: string
           created_by?: string | null
           demolay_relative_chapter?: string | null
           demolay_relative_name?: string | null
+          doc_cpf_back_path?: string | null
+          doc_cpf_front_path?: string | null
+          doc_rg_back_path?: string | null
+          doc_rg_front_path?: string | null
           guardian_name?: string | null
           guardians?: Json
           has_demolay_relative?: boolean
           has_mason_relative?: boolean
           id?: string
+          lgpd_consent_text_version?: string | null
+          lgpd_consented_at?: string | null
           mason_relative_lodge?: string | null
           mason_relative_name?: string | null
           notes?: string | null
           opinion?: string | null
           referred_by?: string | null
           rg?: string | null
+          rg_encrypted?: string | null
           rg_last2?: string | null
           signup_source?: string
           sponsor_member_id?: string | null
           sponsor_meta?: Json
           sponsor_text?: string | null
-          doc_rg_front_path?: string | null
-          doc_rg_back_path?: string | null
-          doc_cpf_front_path?: string | null
-          doc_cpf_back_path?: string | null
           status?: Database["public"]["Enums"]["investigation_status"]
           updated_at?: string
         }
@@ -981,31 +994,36 @@ export type Database = {
           celular?: string | null
           chapter_id?: string
           cpf?: string | null
+          cpf_encrypted?: string | null
+          cpf_hash?: string | null
           cpf_last2?: string | null
           created_at?: string
           created_by?: string | null
           demolay_relative_chapter?: string | null
           demolay_relative_name?: string | null
+          doc_cpf_back_path?: string | null
+          doc_cpf_front_path?: string | null
+          doc_rg_back_path?: string | null
+          doc_rg_front_path?: string | null
           guardian_name?: string | null
           guardians?: Json
           has_demolay_relative?: boolean
           has_mason_relative?: boolean
           id?: string
+          lgpd_consent_text_version?: string | null
+          lgpd_consented_at?: string | null
           mason_relative_lodge?: string | null
           mason_relative_name?: string | null
           notes?: string | null
           opinion?: string | null
           referred_by?: string | null
           rg?: string | null
+          rg_encrypted?: string | null
           rg_last2?: string | null
           signup_source?: string
           sponsor_member_id?: string | null
           sponsor_meta?: Json
           sponsor_text?: string | null
-          doc_rg_front_path?: string | null
-          doc_rg_back_path?: string | null
-          doc_cpf_front_path?: string | null
-          doc_cpf_back_path?: string | null
           status?: Database["public"]["Enums"]["investigation_status"]
           updated_at?: string
         }
@@ -1022,134 +1040,6 @@ export type Database = {
             columns: ["sponsor_member_id"]
             isOneToOne: false
             referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      sindicancia_details: {
-        Row: {
-          calendar_event_id: string
-          chapter_id: string
-          clerk_member_id: string | null
-          clerk_text: string | null
-          created_at: string
-          file_id: string | null
-          investigator_member_id: string | null
-          investigator_text: string | null
-          nominee_name: string
-          opinion: string | null
-          senior_member_id: string | null
-          senior_text: string | null
-          status: Database["public"]["Enums"]["investigation_status"]
-          updated_at: string
-        }
-        Insert: {
-          calendar_event_id: string
-          chapter_id: string
-          clerk_member_id?: string | null
-          clerk_text?: string | null
-          created_at?: string
-          file_id?: string | null
-          investigator_member_id?: string | null
-          investigator_text?: string | null
-          nominee_name?: string
-          opinion?: string | null
-          senior_member_id?: string | null
-          senior_text?: string | null
-          status?: Database["public"]["Enums"]["investigation_status"]
-          updated_at?: string
-        }
-        Update: {
-          calendar_event_id?: string
-          chapter_id?: string
-          clerk_member_id?: string | null
-          clerk_text?: string | null
-          created_at?: string
-          file_id?: string | null
-          investigator_member_id?: string | null
-          investigator_text?: string | null
-          nominee_name?: string
-          opinion?: string | null
-          senior_member_id?: string | null
-          senior_text?: string | null
-          status?: Database["public"]["Enums"]["investigation_status"]
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sindicancia_details_calendar_event_id_fkey"
-            columns: ["calendar_event_id"]
-            isOneToOne: true
-            referencedRelation: "calendar_events"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sindicancia_details_chapter_id_fkey"
-            columns: ["chapter_id"]
-            isOneToOne: false
-            referencedRelation: "chapters"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sindicancia_details_clerk_member_id_fkey"
-            columns: ["clerk_member_id"]
-            isOneToOne: false
-            referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sindicancia_details_file_id_fkey"
-            columns: ["file_id"]
-            isOneToOne: false
-            referencedRelation: "investigation_files"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      sindicancia_minutes: {
-        Row: {
-          age_band: string
-          answers: Json
-          calendar_event_id: string
-          chapter_id: string
-          completed_at: string | null
-          created_at: string
-          signatures: Json
-          updated_at: string
-        }
-        Insert: {
-          age_band: string
-          answers?: Json
-          calendar_event_id: string
-          chapter_id: string
-          completed_at?: string | null
-          created_at?: string
-          signatures?: Json
-          updated_at?: string
-        }
-        Update: {
-          age_band?: string
-          answers?: Json
-          calendar_event_id?: string
-          chapter_id?: string
-          completed_at?: string | null
-          created_at?: string
-          signatures?: Json
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sindicancia_minutes_calendar_event_id_fkey"
-            columns: ["calendar_event_id"]
-            isOneToOne: true
-            referencedRelation: "calendar_events"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sindicancia_minutes_chapter_id_fkey"
-            columns: ["chapter_id"]
-            isOneToOne: false
-            referencedRelation: "chapters"
             referencedColumns: ["id"]
           },
         ]
@@ -1221,6 +1111,38 @@ export type Database = {
           },
         ]
       }
+      investigation_public_attempts: {
+        Row: {
+          chapter_id: string
+          created_at: string
+          id: string
+          kind: string
+          sender_key: string
+        }
+        Insert: {
+          chapter_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          sender_key: string
+        }
+        Update: {
+          chapter_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          sender_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investigation_public_attempts_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lgpd_consents: {
         Row: {
           consent_text_version: string
@@ -1272,147 +1194,42 @@ export type Database = {
           },
         ]
       }
-      member_dues: {
-        Row: {
-          amount: number
-          cash_entry_id: string | null
-          chapter_id: string
-          competence_month: number
-          competence_year: number
-          created_at: string
-          created_by: string | null
-          id: string
-          member_id: string
-          notes: string | null
-          paid_at: string | null
-          status: Database["public"]["Enums"]["due_status"]
-          updated_at: string
-        }
-        Insert: {
-          amount?: number
-          cash_entry_id?: string | null
-          chapter_id: string
-          competence_month: number
-          competence_year: number
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          member_id: string
-          notes?: string | null
-          paid_at?: string | null
-          status?: Database["public"]["Enums"]["due_status"]
-          updated_at?: string
-        }
-        Update: {
-          amount?: number
-          cash_entry_id?: string | null
-          chapter_id?: string
-          competence_month?: number
-          competence_year?: number
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          member_id?: string
-          notes?: string | null
-          paid_at?: string | null
-          status?: Database["public"]["Enums"]["due_status"]
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "member_dues_cash_entry_id_fkey"
-            columns: ["cash_entry_id"]
-            isOneToOne: false
-            referencedRelation: "cash_entries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "member_dues_chapter_id_fkey"
-            columns: ["chapter_id"]
-            isOneToOne: false
-            referencedRelation: "chapters"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "member_dues_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      member_dues_manual_inclusions: {
-        Row: {
-          id: string
-          chapter_id: string
-          member_id: string
-          year: number
-          created_by: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          chapter_id: string
-          member_id: string
-          year: number
-          created_by?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          chapter_id?: string
-          member_id?: string
-          year?: number
-          created_by?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "member_dues_manual_inclusions_chapter_id_fkey"
-            columns: ["chapter_id"]
-            isOneToOne: false
-            referencedRelation: "chapters"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "member_dues_manual_inclusions_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       member_away_periods: {
         Row: {
+          chapter_id: string
+          created_at: string
+          created_by: string | null
+          ended_on: string | null
           id: string
           member_id: string
-          chapter_id: string
           started_on: string
-          ended_on: string | null
-          created_by: string | null
-          created_at: string
         }
         Insert: {
+          chapter_id: string
+          created_at?: string
+          created_by?: string | null
+          ended_on?: string | null
           id?: string
           member_id: string
-          chapter_id: string
           started_on: string
-          ended_on?: string | null
-          created_by?: string | null
-          created_at?: string
         }
         Update: {
+          chapter_id?: string
+          created_at?: string
+          created_by?: string | null
+          ended_on?: string | null
           id?: string
           member_id?: string
-          chapter_id?: string
           started_on?: string
-          ended_on?: string | null
-          created_by?: string | null
-          created_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "member_away_periods_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "member_away_periods_member_id_fkey"
             columns: ["member_id"]
@@ -1420,11 +1237,62 @@ export type Database = {
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      member_charge_payments: {
+        Row: {
+          amount: number
+          cash_entry_id: string | null
+          chapter_id: string
+          charge_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          paid_at: string
+        }
+        Insert: {
+          amount: number
+          cash_entry_id?: string | null
+          chapter_id: string
+          charge_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string
+        }
+        Update: {
+          amount?: number
+          cash_entry_id?: string | null
+          chapter_id?: string
+          charge_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "member_away_periods_chapter_id_fkey"
+            foreignKeyName: "member_charge_payments_cash_entry_id_fkey"
+            columns: ["cash_entry_id"]
+            isOneToOne: false
+            referencedRelation: "cash_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_charge_payments_chapter_id_fkey"
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_charge_payments_charge_id_fkey"
+            columns: ["charge_id"]
+            isOneToOne: false
+            referencedRelation: "member_charges"
             referencedColumns: ["id"]
           },
         ]
@@ -1508,6 +1376,118 @@ export type Database = {
           },
         ]
       }
+      member_dues: {
+        Row: {
+          amount: number
+          cash_entry_id: string | null
+          chapter_id: string
+          competence_month: number
+          competence_year: number
+          created_at: string
+          created_by: string | null
+          id: string
+          member_id: string
+          notes: string | null
+          paid_at: string | null
+          status: Database["public"]["Enums"]["due_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          cash_entry_id?: string | null
+          chapter_id: string
+          competence_month: number
+          competence_year: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          member_id: string
+          notes?: string | null
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["due_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          cash_entry_id?: string | null
+          chapter_id?: string
+          competence_month?: number
+          competence_year?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          member_id?: string
+          notes?: string | null
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["due_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_dues_cash_entry_id_fkey"
+            columns: ["cash_entry_id"]
+            isOneToOne: false
+            referencedRelation: "cash_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_dues_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_dues_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_dues_manual_inclusions: {
+        Row: {
+          chapter_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          member_id: string
+          year: number
+        }
+        Insert: {
+          chapter_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          member_id: string
+          year: number
+        }
+        Update: {
+          chapter_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          member_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_dues_manual_inclusions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_dues_manual_inclusions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_positions: {
         Row: {
           chapter_id: string
@@ -1578,24 +1558,24 @@ export type Database = {
           cpf_last2: string | null
           created_at: string
           created_by: string | null
+          demolay_id: string | null
+          doc_cpf_back_path: string | null
+          doc_cpf_front_path: string | null
+          doc_rg_back_path: string | null
+          doc_rg_front_path: string | null
           email: string | null
           exam_grau_demolay: string | null
           exam_grau_iniciatico: string | null
           full_name: string
           id: string
-          demolay_id: string | null
-          masonic_id: string | null
           iniciacao_grau_demolay: string | null
           iniciacao_ordem: string | null
+          kind: Database["public"]["Enums"]["member_kind"]
+          masonic_id: string | null
           phone: string | null
           rg_encrypted: string | null
           rg_last2: string | null
           status: Database["public"]["Enums"]["member_status"]
-          kind: Database["public"]["Enums"]["member_kind"]
-          doc_rg_front_path: string | null
-          doc_rg_back_path: string | null
-          doc_cpf_front_path: string | null
-          doc_cpf_back_path: string | null
           updated_at: string
           user_id: string | null
         }
@@ -1607,24 +1587,24 @@ export type Database = {
           cpf_last2?: string | null
           created_at?: string
           created_by?: string | null
+          demolay_id?: string | null
+          doc_cpf_back_path?: string | null
+          doc_cpf_front_path?: string | null
+          doc_rg_back_path?: string | null
+          doc_rg_front_path?: string | null
           email?: string | null
           exam_grau_demolay?: string | null
           exam_grau_iniciatico?: string | null
           full_name: string
           id?: string
-          demolay_id?: string | null
-          masonic_id?: string | null
           iniciacao_grau_demolay?: string | null
           iniciacao_ordem?: string | null
+          kind?: Database["public"]["Enums"]["member_kind"]
+          masonic_id?: string | null
           phone?: string | null
           rg_encrypted?: string | null
           rg_last2?: string | null
           status?: Database["public"]["Enums"]["member_status"]
-          kind?: Database["public"]["Enums"]["member_kind"]
-          doc_rg_front_path?: string | null
-          doc_rg_back_path?: string | null
-          doc_cpf_front_path?: string | null
-          doc_cpf_back_path?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1636,20 +1616,24 @@ export type Database = {
           cpf_last2?: string | null
           created_at?: string
           created_by?: string | null
+          demolay_id?: string | null
+          doc_cpf_back_path?: string | null
+          doc_cpf_front_path?: string | null
+          doc_rg_back_path?: string | null
+          doc_rg_front_path?: string | null
           email?: string | null
           exam_grau_demolay?: string | null
           exam_grau_iniciatico?: string | null
           full_name?: string
           id?: string
-          demolay_id?: string | null
-          masonic_id?: string | null
           iniciacao_grau_demolay?: string | null
           iniciacao_ordem?: string | null
+          kind?: Database["public"]["Enums"]["member_kind"]
+          masonic_id?: string | null
           phone?: string | null
           rg_encrypted?: string | null
           rg_last2?: string | null
           status?: Database["public"]["Enums"]["member_status"]
-          kind?: Database["public"]["Enums"]["member_kind"]
           updated_at?: string
           user_id?: string | null
         }
@@ -1664,7 +1648,7 @@ export type Database = {
           {
             foreignKeyName: "members_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1889,6 +1873,104 @@ export type Database = {
         }
         Relationships: []
       }
+      proficiency_cards: {
+        Row: {
+          chapter_id: string
+          consultor_signature_url: string | null
+          created_at: string
+          id: string
+          issued_at: string
+          issued_by: string
+          member_id: string
+          member_signature_url: string | null
+          note: string | null
+          photo_url: string | null
+          prof_demolay: string | null
+          prof_iniciatico: string | null
+          qr_url: string | null
+          registro_scdb: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          status: string
+          updated_at: string
+          valid_until: string | null
+          verification_code: string
+        }
+        Insert: {
+          chapter_id: string
+          consultor_signature_url?: string | null
+          created_at?: string
+          id?: string
+          issued_at?: string
+          issued_by: string
+          member_id: string
+          member_signature_url?: string | null
+          note?: string | null
+          photo_url?: string | null
+          prof_demolay?: string | null
+          prof_iniciatico?: string | null
+          qr_url?: string | null
+          registro_scdb?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          status?: string
+          updated_at?: string
+          valid_until?: string | null
+          verification_code: string
+        }
+        Update: {
+          chapter_id?: string
+          consultor_signature_url?: string | null
+          created_at?: string
+          id?: string
+          issued_at?: string
+          issued_by?: string
+          member_id?: string
+          member_signature_url?: string | null
+          note?: string | null
+          photo_url?: string | null
+          prof_demolay?: string | null
+          prof_iniciatico?: string | null
+          qr_url?: string | null
+          registro_scdb?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          status?: string
+          updated_at?: string
+          valid_until?: string | null
+          verification_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proficiency_cards_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proficiency_cards_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proficiency_cards_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proficiency_cards_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active_chapter_id: string | null
@@ -1920,104 +2002,6 @@ export type Database = {
             columns: ["active_chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      proficiency_cards: {
-        Row: {
-          id: string
-          chapter_id: string
-          member_id: string
-          issued_by: string
-          issued_at: string
-          status: string
-          revoked_at: string | null
-          revoked_by: string | null
-          registro_scdb: string | null
-          photo_url: string | null
-          prof_iniciatico: string | null
-          prof_demolay: string | null
-          valid_until: string | null
-          member_signature_url: string | null
-          consultor_signature_url: string | null
-          qr_url: string | null
-          verification_code: string
-          note: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          chapter_id: string
-          member_id: string
-          issued_by: string
-          issued_at?: string
-          status?: string
-          revoked_at?: string | null
-          revoked_by?: string | null
-          registro_scdb?: string | null
-          photo_url?: string | null
-          prof_iniciatico?: string | null
-          prof_demolay?: string | null
-          valid_until?: string | null
-          member_signature_url?: string | null
-          consultor_signature_url?: string | null
-          qr_url?: string | null
-          verification_code: string
-          note?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          chapter_id?: string
-          member_id?: string
-          issued_by?: string
-          issued_at?: string
-          status?: string
-          revoked_at?: string | null
-          revoked_by?: string | null
-          registro_scdb?: string | null
-          photo_url?: string | null
-          prof_iniciatico?: string | null
-          prof_demolay?: string | null
-          valid_until?: string | null
-          member_signature_url?: string | null
-          consultor_signature_url?: string | null
-          qr_url?: string | null
-          verification_code?: string
-          note?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "proficiency_cards_chapter_id_fkey"
-            columns: ["chapter_id"]
-            isOneToOne: false
-            referencedRelation: "chapters"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "proficiency_cards_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "proficiency_cards_issued_by_fkey"
-            columns: ["issued_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "proficiency_cards_revoked_by_fkey"
-            columns: ["revoked_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2171,6 +2155,207 @@ export type Database = {
           },
         ]
       }
+      sindicancia_details: {
+        Row: {
+          calendar_event_id: string
+          chapter_id: string
+          clerk_member_id: string | null
+          clerk_text: string | null
+          created_at: string
+          file_id: string | null
+          investigator_member_id: string | null
+          investigator_text: string | null
+          nominee_name: string
+          opinion: string | null
+          senior_member_id: string | null
+          senior_text: string | null
+          status: Database["public"]["Enums"]["investigation_status"]
+          updated_at: string
+        }
+        Insert: {
+          calendar_event_id: string
+          chapter_id: string
+          clerk_member_id?: string | null
+          clerk_text?: string | null
+          created_at?: string
+          file_id?: string | null
+          investigator_member_id?: string | null
+          investigator_text?: string | null
+          nominee_name?: string
+          opinion?: string | null
+          senior_member_id?: string | null
+          senior_text?: string | null
+          status?: Database["public"]["Enums"]["investigation_status"]
+          updated_at?: string
+        }
+        Update: {
+          calendar_event_id?: string
+          chapter_id?: string
+          clerk_member_id?: string | null
+          clerk_text?: string | null
+          created_at?: string
+          file_id?: string | null
+          investigator_member_id?: string | null
+          investigator_text?: string | null
+          nominee_name?: string
+          opinion?: string | null
+          senior_member_id?: string | null
+          senior_text?: string | null
+          status?: Database["public"]["Enums"]["investigation_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sindicancia_details_calendar_event_id_fkey"
+            columns: ["calendar_event_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sindicancia_details_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sindicancia_details_clerk_member_id_fkey"
+            columns: ["clerk_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sindicancia_details_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "investigation_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sindicancia_details_investigator_member_id_fkey"
+            columns: ["investigator_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sindicancia_details_senior_member_id_fkey"
+            columns: ["senior_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sindicancia_minutes: {
+        Row: {
+          age_band: string
+          answers: Json
+          calendar_event_id: string
+          chapter_id: string
+          completed_at: string | null
+          created_at: string
+          signatures: Json
+          updated_at: string
+        }
+        Insert: {
+          age_band: string
+          answers?: Json
+          calendar_event_id: string
+          chapter_id: string
+          completed_at?: string | null
+          created_at?: string
+          signatures?: Json
+          updated_at?: string
+        }
+        Update: {
+          age_band?: string
+          answers?: Json
+          calendar_event_id?: string
+          chapter_id?: string
+          completed_at?: string | null
+          created_at?: string
+          signatures?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sindicancia_minutes_calendar_event_id_fkey"
+            columns: ["calendar_event_id"]
+            isOneToOne: true
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sindicancia_minutes_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sindicancia_votes: {
+        Row: {
+          calendar_event_id: string
+          chapter_id: string
+          created_at: string
+          id: string
+          member_id: string
+          updated_at: string
+          vote: string
+        }
+        Insert: {
+          calendar_event_id: string
+          chapter_id: string
+          created_at?: string
+          id?: string
+          member_id: string
+          updated_at?: string
+          vote: string
+        }
+        Update: {
+          calendar_event_id?: string
+          chapter_id?: string
+          created_at?: string
+          id?: string
+          member_id?: string
+          updated_at?: string
+          vote?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sindicancia_votes_calendar_event_id_fkey"
+            columns: ["calendar_event_id"]
+            isOneToOne: false
+            referencedRelation: "sindicancia_details"
+            referencedColumns: ["calendar_event_id"]
+          },
+          {
+            foreignKeyName: "sindicancia_votes_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sindicancia_votes_event_chapter_fkey"
+            columns: ["calendar_event_id", "chapter_id"]
+            isOneToOne: false
+            referencedRelation: "sindicancia_details"
+            referencedColumns: ["calendar_event_id", "chapter_id"]
+          },
+          {
+            foreignKeyName: "sindicancia_votes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       states: {
         Row: {
           created_at: string
@@ -2312,12 +2497,51 @@ export type Database = {
         Args: { _guardian: Json; _member_id: string }
         Returns: string
       }
+      auth_member_id_in_chapter: {
+        Args: { _chapter_id: string }
+        Returns: string
+      }
+      can_cast_sindicancia_vote: {
+        Args: { _chapter_id: string }
+        Returns: boolean
+      }
       can_lead_chapter: { Args: { _chapter_id: string }; Returns: boolean }
+      can_manage_cash_share: { Args: { _chapter_id: string }; Returns: boolean }
       can_manage_commission: {
         Args: { _chapter_id: string; _commission_code: string }
         Returns: boolean
       }
+      can_manage_dues_share: { Args: { _chapter_id: string }; Returns: boolean }
+      can_manage_investigation_signup: {
+        Args: { _chapter_id: string }
+        Returns: boolean
+      }
+      can_manage_minute_public_share: {
+        Args: { _chapter_id: string }
+        Returns: boolean
+      }
+      can_manage_public_lobby: {
+        Args: { _chapter_id: string }
+        Returns: boolean
+      }
       can_read_chapter: { Args: { _chapter_id: string }; Returns: boolean }
+      can_read_sindicancia_votes: {
+        Args: { _chapter_id: string }
+        Returns: boolean
+      }
+      can_reveal_id_documents: {
+        Args: { _chapter_id: string }
+        Returns: boolean
+      }
+      can_write_member_documents: {
+        Args: { _chapter_id: string }
+        Returns: boolean
+      }
+      cleanup_investigation_public_attempts: { Args: never; Returns: undefined }
+      create_event_table_with_seats: {
+        Args: { _capacity: number; _event_id: string; _label: string }
+        Returns: string
+      }
       create_member_with_pii: {
         Args: {
           _address: Json
@@ -2341,61 +2565,71 @@ export type Database = {
         }
         Returns: string
       }
+      decrypt_pii: { Args: { _cipher: string }; Returns: string }
       desligar_open_dues_from: {
         Args: { _from: string; _member_id: string }
         Returns: number
       }
-      lookup_member_cadastro_by_demolay_id: {
-        Args: { _demolay_id: string }
-        Returns: Json
-      }
-      submit_member_cadastro_update: {
-        Args: {
-          _address?: Json
-          _cpf?: string
-          _demolay_id: string
-          _email?: string
-          _guardians?: Json
-          _phone?: string
-          _rg?: string
-        }
-        Returns: Json
-      }
-      decrypt_pii: { Args: { _cipher: string }; Returns: string }
       encrypt_pii: { Args: { _plain: string }; Returns: string }
-      can_manage_minute_public_share: {
-        Args: { _chapter_id: string }
-        Returns: boolean
+      ensure_cash_share_token: {
+        Args: { _chapter_id: string; _regenerate?: boolean }
+        Returns: string
+      }
+      ensure_dues_share_token: {
+        Args: { _chapter_id: string; _regenerate?: boolean }
+        Returns: string
+      }
+      ensure_investigation_signup_token: {
+        Args: { _chapter_id: string; _rotate?: boolean }
+        Returns: string
       }
       ensure_minute_public_share_token: {
         Args: { _minute_id: string; _regenerate?: boolean }
+        Returns: string
+      }
+      ensure_public_lobby_token: {
+        Args: { _chapter_id: string; _regenerate?: boolean }
+        Returns: string
+      }
+      get_cash_share_token: { Args: { _chapter_id: string }; Returns: string }
+      get_dues_share_token: { Args: { _chapter_id: string }; Returns: string }
+      get_id_document_path: {
+        Args: { _doc_kind: string; _entity: string; _id: string }
+        Returns: string
+      }
+      get_investigation_signup_token: {
+        Args: { _chapter_id: string }
         Returns: string
       }
       get_minute_public_share_token: {
         Args: { _minute_id: string }
         Returns: string
       }
+      get_public_attendance_overview: {
+        Args: { _token: string; _year: number }
+        Returns: Json
+      }
+      get_public_cash_flow: {
+        Args: { _month?: number; _token: string; _year: number }
+        Returns: Json
+      }
+      get_public_lobby: { Args: { _token: string }; Returns: Json }
+      get_public_lobby_token: { Args: { _chapter_id: string }; Returns: string }
+      get_public_member_portal: {
+        Args: { _demolay_id: string; _token: string; _year: number }
+        Returns: Json
+      }
       get_public_minute: {
         Args: { _password: string; _token: string }
+        Returns: Json
+      }
+      get_public_year_dues: {
+        Args: { _token: string; _year: number }
         Returns: Json
       }
       has_any_role: {
         Args: { _chapter_id: string; _role_names: string[] }
         Returns: boolean
-      }
-      revoke_minute_public_share_token: {
-        Args: { _minute_id: string }
-        Returns: boolean
-      }
-      submit_public_minute_vote: {
-        Args: {
-          _decision: string
-          _email: string
-          _justification?: string
-          _password: string
-          _token: string
-        }
-        Returns: Json
       }
       has_permission: {
         Args: { _chapter_id: string; _perm: string }
@@ -2415,15 +2649,212 @@ export type Database = {
         Returns: boolean
       }
       is_gme: { Args: { _state_id: string }; Returns: boolean }
+      is_linked_member: { Args: { _member_id: string }; Returns: boolean }
       is_region_leader: { Args: { _chapter_id: string }; Returns: boolean }
       is_state_leader: { Args: { _chapter_id: string }; Returns: boolean }
+      list_investigation_signup_members: {
+        Args: { _search?: string; _token: string }
+        Returns: {
+          full_name: string
+          id: string
+        }[]
+      }
+      lookup_lobby_member_cadastro: {
+        Args: { _demolay_id: string; _token: string }
+        Returns: Json
+      }
+      lookup_member_cadastro_by_demolay_id: {
+        Args: { _demolay_id: string }
+        Returns: Json
+      }
+      migrate_investigation_docs_to_member: {
+        Args: { _file_id: string; _member_id: string }
+        Returns: undefined
+      }
       my_org_state_ids: { Args: never; Returns: string[] }
+      patch_chapter_settings: {
+        Args: { _chapter_id: string; _patch: Json }
+        Returns: Json
+      }
       recalc_member_status: { Args: { _chapter_id?: string }; Returns: number }
+      record_investigation_public_attempt: {
+        Args: {
+          _chapter_limit?: number
+          _kind: string
+          _sender_key: string
+          _sender_limit?: number
+          _token: string
+          _window_minutes?: number
+        }
+        Returns: undefined
+      }
+      resolve_investigation_signup_chapter: {
+        Args: { _token: string }
+        Returns: {
+          city: string
+          id: string
+          logo_url: string
+          name: string
+          number: string
+          primary_color: string
+        }[]
+      }
+      resolve_lobby_chapter_by_token: {
+        Args: { _token: string }
+        Returns: {
+          active: boolean
+          city: string | null
+          created_at: string
+          id: string
+          lgpd_officer_contact: string | null
+          lgpd_officer_name: string | null
+          logo_url: string | null
+          name: string
+          number: string
+          primary_color: string
+          region_id: string | null
+          settings: Json
+          state_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chapters"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      resolve_public_chapter_by_token: {
+        Args: { _token: string }
+        Returns: {
+          active: boolean
+          city: string | null
+          created_at: string
+          id: string
+          lgpd_officer_contact: string | null
+          lgpd_officer_name: string | null
+          logo_url: string | null
+          name: string
+          number: string
+          primary_color: string
+          region_id: string | null
+          settings: Json
+          state_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "chapters"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      reveal_investigation_pii: {
+        Args: { _field: string; _file_id: string }
+        Returns: string
+      }
       reveal_member_pii: {
         Args: { _field: string; _member_id: string }
         Returns: string
       }
+      revoke_cash_share_token: {
+        Args: { _chapter_id: string }
+        Returns: boolean
+      }
+      revoke_dues_share_token: {
+        Args: { _chapter_id: string }
+        Returns: boolean
+      }
+      revoke_investigation_signup_token: {
+        Args: { _chapter_id: string }
+        Returns: undefined
+      }
+      revoke_minute_public_share_token: {
+        Args: { _minute_id: string }
+        Returns: boolean
+      }
+      revoke_public_lobby_token: {
+        Args: { _chapter_id: string }
+        Returns: undefined
+      }
+      save_default_dues_amount: {
+        Args: { _amount: number; _chapter_id: string }
+        Returns: number
+      }
       shares_chapter_with: { Args: { _other_user: string }; Returns: boolean }
+      sindicancia_vote_totals: {
+        Args: { _calendar_event_id: string }
+        Returns: {
+          aprovada: number
+          reprovada: number
+          total: number
+        }[]
+      }
+      storage_chapter_uuid: { Args: { object_name: string }; Returns: string }
+      submit_investigation_signup: {
+        Args: {
+          _address: Json
+          _candidate_birth_date: string
+          _candidate_email: string
+          _candidate_name: string
+          _candidate_phone: string
+          _celular: string
+          _cpf: string
+          _demolay_relative_chapter: string
+          _demolay_relative_name: string
+          _doc_cpf_back_path: string
+          _doc_cpf_front_path: string
+          _doc_rg_back_path: string
+          _doc_rg_front_path: string
+          _guardians: Json
+          _has_demolay_relative: boolean
+          _has_mason_relative: boolean
+          _lgpd_consent_text_version?: string
+          _mason_relative_lodge: string
+          _mason_relative_name: string
+          _notes: string
+          _rg: string
+          _sponsor_member_id: string
+          _sponsor_meta?: Json
+          _sponsor_text: string
+          _temp_id?: string
+          _token: string
+        }
+        Returns: string
+      }
+      submit_lobby_member_cadastro: {
+        Args: {
+          _address?: Json
+          _cpf?: string
+          _demolay_id: string
+          _email?: string
+          _guardians?: Json
+          _phone?: string
+          _rg?: string
+          _token: string
+        }
+        Returns: Json
+      }
+      submit_member_cadastro_update: {
+        Args: {
+          _address?: Json
+          _cpf?: string
+          _demolay_id: string
+          _email?: string
+          _guardians?: Json
+          _phone?: string
+          _rg?: string
+        }
+        Returns: Json
+      }
+      submit_public_minute_vote: {
+        Args: {
+          _decision: string
+          _email: string
+          _justification?: string
+          _password: string
+          _token: string
+        }
+        Returns: Json
+      }
       update_member_with_pii: {
         Args: {
           _address: Json
@@ -2464,10 +2895,10 @@ export type Database = {
       investigation_status:
         | "aberta"
         | "em_andamento"
-        | "votacao_comissao"
         | "aprovada"
         | "reprovada"
         | "arquivada"
+        | "votacao_comissao"
       member_kind: "demolay_ativo" | "senior" | "macom"
       member_status: "regular" | "irregular"
       minute_public_vote_decision: "aprovada" | "reprovada"
@@ -2622,10 +3053,10 @@ export const Constants = {
       investigation_status: [
         "aberta",
         "em_andamento",
-        "votacao_comissao",
         "aprovada",
         "reprovada",
         "arquivada",
+        "votacao_comissao",
       ],
       member_kind: ["demolay_ativo", "senior", "macom"],
       member_status: ["regular", "irregular"],

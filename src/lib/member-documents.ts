@@ -43,12 +43,16 @@ export function memberDocPath(
 }
 
 export type SindicanciaSignatureRole =
-  | "senior"
-  | "sindicante"
-  | "escrivao"
-  | "guardian1"
-  | "guardian2"
-  | "nominee";
+  | "senior" | "sindicante" | "escrivao" | "guardian1" | "guardian2" | "nominee";
+
+export const SINDICANCIA_SIGNATURE_ROLES = [
+  "senior",
+  "sindicante",
+  "escrivao",
+  "guardian1",
+  "guardian2",
+  "nominee",
+] as const satisfies readonly SindicanciaSignatureRole[];
 
 export function sindicanciaSignaturePath(
   chapterId: string,

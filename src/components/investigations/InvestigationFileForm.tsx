@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -162,11 +162,6 @@ export function InvestigationFileForm({
   );
   const [cepError, setCepError] = useState("");
   const lastLookedUp = useRef("");
-  const [sponsorQuery, setSponsorQuery] = useState(value.sponsor_text || "");
-
-  useEffect(() => {
-    setSponsorQuery(value.sponsor_text || "");
-  }, [value.sponsor_text, value.sponsor_member_id]);
 
   async function lookupCep(raw: string) {
     const cep = digitsOnly(raw);
@@ -218,10 +213,11 @@ export function InvestigationFileForm({
     onChange({ guardians: next.slice(0, 2) });
   }
 
+  const sponsorText = value.sponsor_text || "";
   const filteredMembers =
-    showSponsorSearch && sponsorQuery.trim().length >= 2
+    showSponsorSearch && sponsorText.trim().length >= 2
       ? members.filter((m) =>
-          m.full_name.toLowerCase().includes(sponsorQuery.toLowerCase()),
+          m.full_name.toLowerCase().includes(sponsorText.toLowerCase()),
         )
       : [];
 
@@ -474,11 +470,10 @@ export function InvestigationFileForm({
             value={
               value.sponsor_member_id
                 ? (members.find((m) => m.id === value.sponsor_member_id)
-                    ?.full_name ?? sponsorQuery)
-                : sponsorQuery
+                    ?.full_name ?? sponsorText)
+                : sponsorText
             }
             onChange={(e) => {
-              setSponsorQuery(e.target.value);
               onChange({
                 sponsor_member_id: null,
                 sponsor_text: e.target.value,
@@ -496,7 +491,6 @@ export function InvestigationFileForm({
                     type="button"
                     className="w-full px-3 py-2.5 text-left hover:bg-muted"
                     onClick={() => {
-                      setSponsorQuery(m.full_name);
                       onChange({
                         sponsor_member_id: m.id,
                         sponsor_text: m.full_name,

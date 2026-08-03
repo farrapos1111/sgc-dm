@@ -37,21 +37,27 @@ import {
 import {
   createSindicancia,
   deleteSindicancia,
-  getSindicanciaChaveContext,
   listFiles,
   listSindicancias,
   updateSindicancia,
   type InvestigationFileRow,
   type SindicanciaListItem,
 } from "@/lib/investigations.functions";
-import { buildSindicanciaChave } from "@/lib/chave-do-dia";
+import { resolveCalendarChaveText } from "@/lib/resolve-calendar-chave";
 import { listMembers } from "@/lib/members.functions";
 import {
   SindicanciaAtaForm,
   type AtaFormMode,
 } from "@/components/investigations/SindicanciaAtaForm";
 import { MemberSearchSelect } from "@/components/investigations/MemberSearchSelect";
-import { STATUS_LABELS } from "@/lib/investigation-labels";
+import {
+  STATUS_LABELS,
+  type InvestigationStatus,
+} from "@/lib/investigation-labels";
+
+function isInvestigationStatus(v: string): v is InvestigationStatus {
+  return Object.prototype.hasOwnProperty.call(STATUS_LABELS, v);
+}
 
 type SortKey = "data_desc" | "data_asc" | "nome_asc" | "nome_desc" | "status";
 
@@ -184,24 +190,47 @@ function SindicariasPage() {
     return list;
   }, [rows, search, statusFilter, sort]);
 
-  async function copyChave(calendarEventId: string) {
+  const chaveIds = useMemo(
+    () => visible.map((r) => r.calendar_event_id).join(","),
+    [visible],
+  );
+
+  const { data: chaveById = {} } = useQuery({
+    queryKey: ["sindicancias-chave-texts", active?.chapter_id, chaveIds],
+    enabled: !!active && visible.length > 0,
+    queryFn: async () => {
+      const entries = await Promise.all(
+        visible.map(async (r) => {
+          const text = await resolveCalendarChaveText(
+            {
+              id: r.calendar_event_id,
+              event_type: "sindicancia",
+              title: r.event?.title ?? "",
+              start_at: r.event?.start_at ?? new Date().toISOString(),
+              location: r.event?.location ?? null,
+            },
+            active?.chapter,
+          );
+          return [r.calendar_event_id, text] as const;
+        }),
+      );
+      return Object.fromEntries(entries) as Record<string, string>;
+    },
+  });
+
+  function copyChave(calendarEventId: string) {
     try {
-      const ctx = await getSindicanciaChaveContext({
-        data: { calendarEventId },
-      });
-      const text = buildSindicanciaChave({
-        template: ctx.template,
-        chapterName: ctx.chapterName || active?.chapter.name,
-        nominee: ctx.nominee,
-        start_at: ctx.start_at,
-        location: ctx.location,
-        sindicante: ctx.sindicante,
-        senior: ctx.senior,
-        escrivao: ctx.escrivao,
-        padrinho: ctx.padrinho,
-      });
-      await navigator.clipboard.writeText(text);
-      toast.success("Chave de sindicância copiada!");
+      const text = chaveById[calendarEventId];
+      if (!text) {
+        throw new Error("Aguarde o carregamento da chave.");
+      }
+      void navigator.clipboard.writeText(text).then(
+        () => toast.success("Chave de sindicância copiada!"),
+        (e: unknown) =>
+          toast.error(
+            e instanceof Error ? e.message : "Não foi possível copiar",
+          ),
+      );
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Não foi possível copiar");
     }
@@ -237,13 +266,7 @@ function SindicariasPage() {
   const setStatus = useMutation({
     mutationFn: (v: {
       calendar_event_id: string;
-      status:
-        | "aberta"
-        | "em_andamento"
-        | "votacao_comissao"
-        | "aprovada"
-        | "reprovada"
-        | "arquivada";
+      status: InvestigationStatus;
     }) => updateSindicancia({ data: v }),
     onSuccess: async () =>
       qc.invalidateQueries({ queryKey: ["sindicancias"] }),
@@ -373,7 +396,8 @@ function SindicariasPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => void copyChave(r.calendar_event_id)}
+                      onClick={() => copyChave(r.calendar_event_id)}
+                      disabled={!chaveById[r.calendar_event_id]}
                     >
                       <Copy className="mr-1.5 h-3.5 w-3.5" /> Chave
                     </Button>
@@ -436,12 +460,13 @@ function SindicariasPage() {
                     {writable && (
                       <Select
                         value={r.status}
-                        onValueChange={(v) =>
+                        onValueChange={(v) => {
+                          if (!isInvestigationStatus(v)) return;
                           setStatus.mutate({
                             calendar_event_id: r.calendar_event_id,
-                            status: v as typeof r.status & "aberta",
-                          })
-                        }
+                            status: v,
+                          });
+                        }}
                       >
                         <SelectTrigger className="h-8 w-36">
                           <SelectValue />

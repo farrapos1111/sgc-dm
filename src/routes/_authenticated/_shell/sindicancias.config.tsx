@@ -253,7 +253,7 @@ function SindicanciaConfigPage() {
 
           <Button
             onClick={() => saveTemplates.mutate()}
-            disabled={saveTemplates.isPending}
+            disabled={saveTemplates.isPending || templates === undefined}
             style={{ backgroundColor: active?.chapter.primary_color }}
           >
             {saveTemplates.isPending ? "Salvando…" : "Salvar modelos"}

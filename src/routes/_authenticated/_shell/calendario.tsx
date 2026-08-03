@@ -778,6 +778,11 @@ function DetailContent({
 }) {
   const meta = TYPE_META[item.event_type];
   const { active: activeChapter } = useActiveChapter();
+  const { data: chaveText } = useQuery({
+    queryKey: ["calendar-chave-text", item.id, activeChapter?.chapter_id],
+    queryFn: () =>
+      resolveCalendarChaveText(item, activeChapter?.chapter),
+  });
   const del = useMutation({
     mutationFn: () => deleteCalendarItem({ data: { id: item.id } }),
     onSuccess: () => {
@@ -866,18 +871,26 @@ function DetailContent({
           <Button
             size="sm"
             variant="outline"
-            onClick={async () => {
+            disabled={!chaveText}
+            onClick={() => {
               try {
+                if (!chaveText) {
+                  throw new Error("Aguarde o carregamento da chave.");
+                }
                 const isSindicancia = item.event_type === "sindicancia";
-                const text = await resolveCalendarChaveText(
-                  item,
-                  activeChapter?.chapter,
-                );
-                await navigator.clipboard.writeText(text);
-                toast.success(
-                  isSindicancia
-                    ? "Chave de sindicância copiada!"
-                    : "Chave do dia copiada!",
+                void navigator.clipboard.writeText(chaveText).then(
+                  () =>
+                    toast.success(
+                      isSindicancia
+                        ? "Chave de sindicância copiada!"
+                        : "Chave do dia copiada!",
+                    ),
+                  (e: unknown) =>
+                    toast.error(
+                      e instanceof Error
+                        ? e.message
+                        : "Não foi possível copiar.",
+                    ),
                 );
               } catch (e: unknown) {
                 toast.error(
@@ -1159,12 +1172,18 @@ function CreateDialog({
       </div>
       <div>
         <Label className="mb-1.5 block text-xs">Tipo</Label>
-        <Select value={type} onValueChange={(v) => setType(v as CalendarType)}>
+        <Select
+          value={type}
+          onValueChange={(v) => setType(v as CalendarType)}
+          disabled={type === "sindicancia"}
+        >
           <SelectTrigger className="h-11">
             <SelectValue placeholder="Selecione o tipo" />
           </SelectTrigger>
           <SelectContent>
-            {CALENDAR_TYPES.filter((t) => t !== "sindicancia").map((t) => (
+            {CALENDAR_TYPES.filter(
+              (t) => t !== "sindicancia" || type === "sindicancia",
+            ).map((t) => (
               <SelectItem key={t} value={t}>
                 {TYPE_META[t].label}
               </SelectItem>

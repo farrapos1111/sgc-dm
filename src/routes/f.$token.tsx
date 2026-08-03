@@ -29,6 +29,8 @@ import {
 import { fileToBase64 } from "@/lib/file-to-base64";
 import type { IdDocKind } from "@/lib/member-documents";
 
+const LGPD_CONSENT_VERSION = "v1-2026-07";
+
 export const Route = createFileRoute("/f/$token")({
   ssr: false,
   head: () => ({
@@ -125,10 +127,14 @@ function PublicInvestigationSignup() {
     };
   }, [accent]);
 
+  const sponsorSearch = (form.sponsor_text || "").trim();
   const { data: members = [] } = useQuery({
-    queryKey: ["investigation-signup-members", token],
-    enabled: !!chapter,
-    queryFn: () => listInvestigationSignupMembers({ data: { token } }),
+    queryKey: ["investigation-signup-members", token, sponsorSearch],
+    enabled: !!chapter && sponsorSearch.length >= 2 && !form.sponsor_member_id,
+    queryFn: () =>
+      listInvestigationSignupMembers({
+        data: { token, search: sponsorSearch },
+      }),
   });
 
   async function onDocPick(kind: IdDocKind, file: File) {
@@ -165,15 +171,17 @@ function PublicInvestigationSignup() {
   const submit = useMutation({
     mutationFn: () => {
       if (!lgpdConsent) {
-        throw new Error("É necessário consentir com o tratamento de dados (LGPD).");
+        throw new Error(
+          "É necessário consentir com o tratamento de dados (LGPD).",
+        );
       }
       const v = validateInvestigationForm(form);
       if (v) throw new Error(v);
-      const consentNote = `Consentimento LGPD: sim (${new Date().toISOString()})`;
-      const notes = [form.notes?.trim(), consentNote].filter(Boolean).join("\n");
       return submitInvestigationSignup({
         data: {
           token,
+          tempId: tempIdRef.current,
+          lgpd_consent_text_version: LGPD_CONSENT_VERSION,
           candidate_name: form.candidate_name,
           candidate_birth_date: form.candidate_birth_date,
           cpf: form.cpf,
@@ -195,7 +203,7 @@ function PublicInvestigationSignup() {
           has_mason_relative: form.has_mason_relative,
           mason_relative_name: form.mason_relative_name || null,
           mason_relative_lodge: form.mason_relative_lodge || null,
-          notes,
+          notes: form.notes?.trim() || null,
           docs: {
             rg_front: form.docs.rg_front!,
             rg_back: form.docs.rg_back!,

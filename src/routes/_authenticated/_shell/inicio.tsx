@@ -451,18 +451,35 @@ function NextItemCard({ chapterId }: { chapterId: string }) {
 
   const meta = TYPE_META[next.event_type as CalendarType];
 
-  async function copyChave() {
+  const { data: chaveText } = useQuery({
+    queryKey: [
+      "calendar-chave-text",
+      next.id,
+      activeChapter?.chapter_id,
+    ],
+    queryFn: () =>
+      resolveCalendarChaveText(next, activeChapter?.chapter),
+  });
+
+  function copyChave() {
     try {
+      if (!chaveText) {
+        throw new Error("Aguarde o carregamento da chave.");
+      }
       const isSindicancia = next.event_type === "sindicancia";
-      const text = await resolveCalendarChaveText(
-        next,
-        activeChapter?.chapter,
-      );
-      await navigator.clipboard.writeText(text);
-      toast.success(
-        isSindicancia
-          ? "Chave de sindicância copiada!"
-          : "Chave do dia copiada!",
+      void navigator.clipboard.writeText(chaveText).then(
+        () =>
+          toast.success(
+            isSindicancia
+              ? "Chave de sindicância copiada!"
+              : "Chave do dia copiada!",
+          ),
+        (e: unknown) =>
+          toast.error(
+            e instanceof Error
+              ? e.message
+              : "Não foi possível copiar. Copie manualmente.",
+          ),
       );
     } catch (e: unknown) {
       toast.error(
@@ -501,6 +518,7 @@ function NextItemCard({ chapterId }: { chapterId: string }) {
           variant="outline"
           className="w-full sm:w-auto"
           onClick={copyChave}
+          disabled={!chaveText}
         >
           <Copy className="mr-2 h-4 w-4" />{" "}
           {next.event_type === "sindicancia"

@@ -5,6 +5,7 @@ import { digitsOnly } from "@/lib/format";
 import {
   MEMBER_DOCS_BUCKET,
   SIGNATURE_ROLES,
+  SINDICANCIA_SIGNATURE_ROLES,
   ageBandFromBirthDate,
   docColumnForKind,
   extFromMime,
@@ -191,7 +192,7 @@ function formatAddressLine(
 }
 
 const FILE_SELECT =
-  "id, chapter_id, candidate_name, candidate_birth_date, candidate_phone, candidate_email, guardian_name, referred_by, notes, status, created_at, updated_at, cpf, rg, cpf_last2, rg_last2, celular, address, guardians, sponsor_member_id, sponsor_text, sponsor_meta, has_demolay_relative, demolay_relative_name, demolay_relative_chapter, has_mason_relative, mason_relative_name, mason_relative_lodge, opinion, signup_source, doc_rg_front_path, doc_rg_back_path, doc_cpf_front_path, doc_cpf_back_path";
+  "id, chapter_id, candidate_name, candidate_birth_date, candidate_phone, candidate_email, guardian_name, referred_by, notes, status, created_at, updated_at, cpf, rg, cpf_last2, rg_last2, cpf_encrypted, rg_encrypted, cpf_hash, celular, address, guardians, sponsor_member_id, sponsor_text, sponsor_meta, has_demolay_relative, demolay_relative_name, demolay_relative_chapter, has_mason_relative, mason_relative_name, mason_relative_lodge, opinion, signup_source, doc_rg_front_path, doc_rg_back_path, doc_cpf_front_path, doc_cpf_back_path, lgpd_consent_text_version, lgpd_consented_at";
 
 export type InvestigationFileRow = {
   id: string;
@@ -259,8 +260,8 @@ function sanitizeFileRow(row: Record<string, unknown>): InvestigationFileRow {
     ...(row as unknown as InvestigationFileRow),
     cpf: null,
     rg: null,
-    has_cpf: Boolean(row.cpf || row.cpf_last2),
-    has_rg: Boolean(row.rg || row.rg_last2),
+    has_cpf: Boolean(row.cpf || row.cpf_last2 || row.cpf_encrypted || row.cpf_hash),
+    has_rg: Boolean(row.rg || row.rg_last2 || row.rg_encrypted),
     sponsor_meta: meta,
     docs: {
       rg_front: Boolean(row.doc_rg_front_path),
@@ -530,7 +531,7 @@ export const updateFile = createServerFn({ method: "POST" })
     const { data: existing, error: eErr } = await context.supabase
       .from("investigation_files")
       .select(
-        "cpf, rg, cpf_last2, rg_last2, doc_rg_front_path, doc_rg_back_path, doc_cpf_front_path, doc_cpf_back_path",
+        "cpf, rg, cpf_last2, rg_last2, cpf_encrypted, rg_encrypted, cpf_hash, doc_rg_front_path, doc_rg_back_path, doc_cpf_front_path, doc_cpf_back_path",
       )
       .eq("id", id)
       .maybeSingle();
@@ -540,6 +541,11 @@ export const updateFile = createServerFn({ method: "POST" })
     const ex = existing as {
       cpf: string | null;
       rg: string | null;
+      cpf_last2: string | null;
+      rg_last2: string | null;
+      cpf_encrypted: string | null;
+      rg_encrypted: string | null;
+      cpf_hash: string | null;
       doc_rg_front_path: string | null;
       doc_rg_back_path: string | null;
       doc_cpf_front_path: string | null;
@@ -584,17 +590,27 @@ export const updateFile = createServerFn({ method: "POST" })
       throw new Error("Envie as 4 imagens de RG e CPF");
     }
 
-    const cpfValue =
-      keep_cpf && !digitsOnly(rest.cpf ?? "")
-        ? ex.cpf
-        : digitsOnly(rest.cpf ?? "") || null;
-    const rgValue =
-      keep_rg && !(rest.rg ?? "").trim() ? ex.rg : rest.rg?.trim() || null;
-
-    if (!cpfValue || digitsOnly(cpfValue).length < 11) {
+    const keepingCpf = Boolean(keep_cpf && !digitsOnly(rest.cpf ?? ""));
+    const cpfDigits = digitsOnly(rest.cpf ?? "");
+    const hasStoredCpf = Boolean(
+      ex.cpf || ex.cpf_encrypted || ex.cpf_hash || ex.cpf_last2,
+    );
+    if (!keepingCpf && cpfDigits.length !== 11) {
       throw new Error("Informe o CPF");
     }
-    if (!rgValue) throw new Error("Informe o RG");
+    if (keepingCpf && !hasStoredCpf) {
+      throw new Error("Informe o CPF");
+    }
+
+    const keepingRg = Boolean(keep_rg && !(rest.rg ?? "").trim());
+    const rgDigits = (rest.rg ?? "").trim();
+    const hasStoredRg = Boolean(ex.rg || ex.rg_encrypted || ex.rg_last2);
+    if (!keepingRg && !rgDigits) {
+      throw new Error("Informe o RG");
+    }
+    if (keepingRg && !hasStoredRg) {
+      throw new Error("Informe o RG");
+    }
 
     if (
       !rest.candidate_birth_date ||
@@ -610,8 +626,8 @@ export const updateFile = createServerFn({ method: "POST" })
     const payload = buildFilePayload({
       candidate_name: rest.candidate_name,
       candidate_birth_date: rest.candidate_birth_date,
-      cpf: cpfValue,
-      rg: rgValue,
+      cpf: keepingCpf ? "" : cpfDigits,
+      rg: keepingRg ? "" : rgDigits,
       candidate_email: rest.candidate_email,
       candidate_phone: rest.candidate_phone,
       celular: rest.celular,
@@ -641,6 +657,14 @@ export const updateFile = createServerFn({ method: "POST" })
     delete patch.chapter_id;
     delete patch.created_by;
     delete patch.signup_source;
+    if (keepingCpf) {
+      delete patch.cpf;
+      delete patch.cpf_last2;
+    }
+    if (keepingRg) {
+      delete patch.rg;
+      delete patch.rg_last2;
+    }
 
     const { error } = await context.supabase
       .from("investigation_files")
@@ -713,26 +737,7 @@ function assertAllowedImageMime(contentType: string): string {
 }
 
 const PUBLIC_UPLOAD_RATE_LIMIT = 30;
-const PUBLIC_UPLOAD_RATE_WINDOW_MS = 15 * 60 * 1000;
-const publicUploadRateByToken = new Map<
-  string,
-  { count: number; windowStart: number }
->();
-
-function assertPublicUploadRateLimit(token: string) {
-  const now = Date.now();
-  const entry = publicUploadRateByToken.get(token);
-  if (!entry || now - entry.windowStart >= PUBLIC_UPLOAD_RATE_WINDOW_MS) {
-    publicUploadRateByToken.set(token, { count: 1, windowStart: now });
-    return;
-  }
-  if (entry.count >= PUBLIC_UPLOAD_RATE_LIMIT) {
-    throw new Error(
-      "Limite de uploads excedido (máx. 30 por token a cada 15 minutos).",
-    );
-  }
-  entry.count += 1;
-}
+const PUBLIC_UPLOAD_RATE_WINDOW_MINUTES = 15;
 
 async function createAnonClient() {
   const { createClient } = await import("@supabase/supabase-js");
@@ -791,12 +796,11 @@ export const uploadInvestigationDocPublic = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data }) => {
-    assertPublicUploadRateLimit(data.token);
     const contentType = assertAllowedImageMime(data.contentType);
     const anon = await createAnonClient();
     const { data: rows, error: rErr } = await anon.rpc(
-      "resolve_investigation_signup_chapter" as never,
-      { _token: data.token } as never,
+      "resolve_investigation_signup_chapter",
+      { _token: data.token },
     );
     if (rErr) throw new Error(rErr.message);
     const chapter = (Array.isArray(rows) ? rows[0] : rows) as
@@ -804,13 +808,26 @@ export const uploadInvestigationDocPublic = createServerFn({ method: "POST" })
       | undefined;
     if (!chapter?.id) throw new Error("Link inválido ou expirado");
 
+    const tempId = data.tempId ?? crypto.randomUUID();
+    const { error: rateErr } = await anon.rpc(
+      "record_investigation_public_attempt",
+      {
+        _token: data.token,
+        _kind: "upload",
+        _sender_key: tempId,
+        _chapter_limit: PUBLIC_UPLOAD_RATE_LIMIT,
+        _sender_limit: 10,
+        _window_minutes: PUBLIC_UPLOAD_RATE_WINDOW_MINUTES,
+      },
+    );
+    if (rateErr) throw new Error(rateErr.message);
+
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
     const bytes = Buffer.from(data.base64, "base64");
     if (bytes.length > 3 * 1024 * 1024) throw new Error("Imagem maior que 3 MB");
     const ext = extFromMime(contentType);
-    const tempId = data.tempId ?? crypto.randomUUID();
     const path = investigationDocPath(
       chapter.id,
       tempId,
@@ -1283,7 +1300,10 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
         chapterId: z.string().uuid(),
         age_band: z.enum(["ate_14", "15_17", "18_mais"]),
         answers: z.record(z.union([z.string(), z.boolean(), z.null()])),
-        signatures: z.record(z.string().nullable()),
+        signatures: z.record(
+          z.enum(SINDICANCIA_SIGNATURE_ROLES),
+          z.string().nullable(),
+        ),
         completed: z.boolean().optional(),
       })
       .parse(raw),
@@ -1751,14 +1771,35 @@ export const getSindicanciaAtaTemplates = createServerFn({ method: "POST" })
 /* ---------------------- Templates + link público ---------------------- */
 
 async function patchChapterSettings(
-  supabase: { from: (t: string) => any; rpc: (...args: any[]) => any },
+  supabase: {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (
+          col: string,
+          val: string,
+        ) => {
+          maybeSingle: () => PromiseLike<{
+            data: { settings?: unknown } | null;
+            error: { message: string } | null;
+          }>;
+        };
+      };
+    };
+    rpc: (
+      fn: string,
+      args: Record<string, unknown>,
+    ) => PromiseLike<{
+      data: unknown;
+      error: { message: string } | null;
+    }>;
+  },
   chapterId: string,
   patch: Record<string, unknown | null>,
 ) {
-  const { data, error } = await supabase.rpc(
-    "patch_chapter_settings" as never,
-    { chapter_id: chapterId, patch } as never,
-  );
+  const { data, error } = await supabase.rpc("patch_chapter_settings", {
+    _chapter_id: chapterId,
+    _patch: patch,
+  });
   if (error) throw new Error(error.message);
   if (data && typeof data === "object" && !Array.isArray(data)) {
     return data as Record<string, unknown>;
@@ -1811,7 +1852,32 @@ export const updateSindicanciaTemplates = createServerFn({ method: "POST" })
     if (data.chave !== undefined) patch.sindicancia_chave_template = data.chave;
     if (data.parecer !== undefined)
       patch.sindicancia_parecer_template = data.parecer;
-    await patchChapterSettings(context.supabase, data.chapterId, patch);
+    await patchChapterSettings(
+      context.supabase as unknown as {
+        from: (t: string) => {
+          select: (cols: string) => {
+            eq: (
+              col: string,
+              val: string,
+            ) => {
+              maybeSingle: () => PromiseLike<{
+                data: { settings?: unknown } | null;
+                error: { message: string } | null;
+              }>;
+            };
+          };
+        };
+        rpc: (
+          fn: string,
+          args: Record<string, unknown>,
+        ) => PromiseLike<{
+          data: unknown;
+          error: { message: string } | null;
+        }>;
+      },
+      data.chapterId,
+      patch,
+    );
     return { ok: true };
   });
 
@@ -1882,15 +1948,16 @@ export const listInvestigationSignupMembers = createServerFn({ method: "POST" })
     z
       .object({
         token: z.string().min(8),
-        search: z.string().trim().max(80).optional().default(""),
+        search: z.string().trim().max(80),
       })
       .parse(raw),
   )
   .handler(async ({ data }) => {
+    if (data.search.trim().length < 2) return [];
     const anon = await createAnonClient();
     const { data: rows, error } = await anon.rpc(
-      "list_investigation_signup_members" as never,
-      { _token: data.token, _search: data.search ?? "" } as never,
+      "list_investigation_signup_members",
+      { _token: data.token, _search: data.search },
     );
     if (error) throw new Error(error.message);
     return (rows as Array<{ id: string; full_name: string }>) ?? [];
@@ -1898,7 +1965,14 @@ export const listInvestigationSignupMembers = createServerFn({ method: "POST" })
 
 export const submitInvestigationSignup = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
-    z.object({ token: z.string().min(8) }).and(fileFieldsSchema).parse(raw),
+    z
+      .object({
+        token: z.string().min(8),
+        tempId: z.string().uuid(),
+        lgpd_consent_text_version: z.string().min(1),
+      })
+      .and(fileFieldsSchema)
+      .parse(raw),
   )
   .handler(async ({ data }) => {
     const anon = await createAnonClient();
@@ -1913,37 +1987,36 @@ export const submitInvestigationSignup = createServerFn({ method: "POST" })
         email: g.email ?? "",
       }));
 
-    const { data: id, error } = await anon.rpc(
-      "submit_investigation_signup" as never,
-      {
-        _token: data.token,
-        _candidate_name: data.candidate_name,
-        _candidate_birth_date: data.candidate_birth_date,
-        _cpf: data.cpf,
-        _rg: data.rg,
-        _candidate_email: data.candidate_email,
-        _candidate_phone: data.candidate_phone,
-        _celular: data.celular,
-        _address: data.address,
-        _guardians: guardians,
-        _sponsor_member_id: data.sponsor_member_id || null,
-        _sponsor_text: data.sponsor_text || null,
-        _has_demolay_relative: data.has_demolay_relative ?? false,
-        _demolay_relative_name: data.demolay_relative_name || null,
-        _demolay_relative_chapter: data.demolay_relative_chapter || null,
-        _has_mason_relative: data.has_mason_relative ?? false,
-        _mason_relative_name: data.mason_relative_name || null,
-        _mason_relative_lodge: data.mason_relative_lodge || null,
-        _notes: data.notes || null,
-        _doc_rg_front_path: data.docs.rg_front,
-        _doc_rg_back_path: data.docs.rg_back,
-        _doc_cpf_front_path: data.docs.cpf_front,
-        _doc_cpf_back_path: data.docs.cpf_back,
-        _sponsor_meta: data.sponsor_member_id
-          ? {}
-          : { phone: data.sponsor_phone?.trim() || "" },
-      } as never,
-    );
+    const { data: id, error } = await anon.rpc("submit_investigation_signup", {
+      _token: data.token,
+      _candidate_name: data.candidate_name,
+      _candidate_birth_date: data.candidate_birth_date,
+      _cpf: data.cpf,
+      _rg: data.rg,
+      _candidate_email: data.candidate_email,
+      _candidate_phone: data.candidate_phone,
+      _celular: data.celular,
+      _address: data.address,
+      _guardians: guardians,
+      _sponsor_member_id: data.sponsor_member_id || null,
+      _sponsor_text: data.sponsor_text || null,
+      _has_demolay_relative: data.has_demolay_relative ?? false,
+      _demolay_relative_name: data.demolay_relative_name || null,
+      _demolay_relative_chapter: data.demolay_relative_chapter || null,
+      _has_mason_relative: data.has_mason_relative ?? false,
+      _mason_relative_name: data.mason_relative_name || null,
+      _mason_relative_lodge: data.mason_relative_lodge || null,
+      _notes: data.notes || null,
+      _doc_rg_front_path: data.docs.rg_front,
+      _doc_rg_back_path: data.docs.rg_back,
+      _doc_cpf_front_path: data.docs.cpf_front,
+      _doc_cpf_back_path: data.docs.cpf_back,
+      _sponsor_meta: data.sponsor_member_id
+        ? {}
+        : { phone: data.sponsor_phone?.trim() || "" },
+      _temp_id: data.tempId,
+      _lgpd_consent_text_version: data.lgpd_consent_text_version,
+    });
     if (error) throw new Error(error.message);
     return { ok: true, id: id as string };
   });

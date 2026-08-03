@@ -15,6 +15,10 @@ DECLARE
   v_chapter uuid;
   v_q text := lower(trim(coalesce(_search, '')));
 BEGIN
+  IF length(v_q) < 2 THEN
+    RETURN;
+  END IF;
+
   SELECT c.id INTO v_chapter
   FROM public.chapters c
   WHERE c.settings->>'investigation_signup_token' = nullif(trim(_token), '')
@@ -28,10 +32,7 @@ BEGIN
   FROM public.members m
   WHERE m.chapter_id = v_chapter
     AND m.status = 'regular'
-    AND (
-      v_q = ''
-      OR lower(m.full_name) LIKE '%' || v_q || '%'
-    )
+    AND lower(m.full_name) LIKE '%' || v_q || '%'
   ORDER BY m.full_name
   LIMIT 50;
 END;
