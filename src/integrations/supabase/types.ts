@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -777,6 +777,44 @@ export type Database = {
           },
         ]
       }
+      event_tables: {
+        Row: {
+          capacity: number
+          created_at: string
+          event_id: string
+          id: string
+          label: string
+          pos_x: number
+          pos_y: number
+        }
+        Insert: {
+          capacity?: number
+          created_at?: string
+          event_id: string
+          id?: string
+          label: string
+          pos_x?: number
+          pos_y?: number
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          event_id?: string
+          id?: string
+          label?: string
+          pos_x?: number
+          pos_y?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_tables_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_ticket_items: {
         Row: {
           amount: number
@@ -841,44 +879,6 @@ export type Database = {
             columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "tickets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      event_tables: {
-        Row: {
-          capacity: number
-          created_at: string
-          event_id: string
-          id: string
-          label: string
-          pos_x: number
-          pos_y: number
-        }
-        Insert: {
-          capacity?: number
-          created_at?: string
-          event_id: string
-          id?: string
-          label: string
-          pos_x?: number
-          pos_y?: number
-        }
-        Update: {
-          capacity?: number
-          created_at?: string
-          event_id?: string
-          id?: string
-          label?: string
-          pos_x?: number
-          pos_y?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "event_tables_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -2175,7 +2175,6 @@ export type Database = {
           full_name: string | null
           id: string
           must_change_password: boolean
-          is_super_admin: boolean
           phone: string | null
         }
         Insert: {
@@ -2184,7 +2183,6 @@ export type Database = {
           full_name?: string | null
           id: string
           must_change_password?: boolean
-          is_super_admin?: boolean
           phone?: string | null
         }
         Update: {
@@ -2193,7 +2191,6 @@ export type Database = {
           full_name?: string | null
           id?: string
           must_change_password?: boolean
-          is_super_admin?: boolean
           phone?: string | null
         }
         Relationships: [
@@ -2716,6 +2713,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_event_ticket_item: {
+        Args: {
+          _description?: string
+          _item_id: string
+          _qty?: number
+          _ticket_id: string
+          _unit_price?: number
+        }
+        Returns: Json
+      }
       add_member_guardian: {
         Args: { _guardian: Json; _member_id: string }
         Returns: string
@@ -2760,48 +2767,14 @@ export type Database = {
         Args: { _chapter_id: string }
         Returns: boolean
       }
+      checkout_event_ticket_comanda: {
+        Args: { _event_id: string; _paid_at?: string; _ticket_id: string }
+        Returns: Json
+      }
       cleanup_investigation_public_attempts: { Args: never; Returns: undefined }
       create_event_table_with_seats: {
         Args: { _capacity: number; _event_id: string; _label: string }
         Returns: string
-      }
-      sell_event_tickets_with_charges: {
-        Args: {
-          _event_id: string
-          _seller_member_id: string
-          _buyer_name: string
-          _buyer_email: string
-          _ticket_type_id: string | null
-          _price_paid: number
-          _quantity: number
-        }
-        Returns: Json
-      }
-      add_event_ticket_item: {
-        Args: {
-          _ticket_id: string
-          _item_id: string
-          _qty?: number
-          _unit_price?: number | null
-          _description?: string | null
-        }
-        Returns: Json
-      }
-      delete_event_ticket: {
-        Args: { _ticket_id: string }
-        Returns: Json
-      }
-      delete_event_ticket_item: {
-        Args: { _line_id: string }
-        Returns: Json
-      }
-      update_event_ticket_item: {
-        Args: {
-          _line_id: string
-          _qty?: number | null
-          _unit_price?: number | null
-        }
-        Returns: Json
       }
       create_member_with_pii: {
         Args: {
@@ -2827,6 +2800,8 @@ export type Database = {
         Returns: string
       }
       decrypt_pii: { Args: { _cipher: string }; Returns: string }
+      delete_event_ticket: { Args: { _ticket_id: string }; Returns: Json }
+      delete_event_ticket_item: { Args: { _line_id: string }; Returns: Json }
       desligar_open_dues_from: {
         Args: { _from: string; _member_id: string }
         Returns: number
@@ -2884,6 +2859,10 @@ export type Database = {
         Args: { _password: string; _token: string }
         Returns: Json
       }
+      get_public_minute_by_member: {
+        Args: { _demolay_id: string; _token: string }
+        Returns: Json
+      }
       get_public_year_dues: {
         Args: { _token: string; _year: number }
         Returns: Json
@@ -2928,21 +2907,40 @@ export type Database = {
         Args: { _demolay_id: string }
         Returns: Json
       }
+      member_can_access_minute_kind: {
+        Args: {
+          _exam_grau_demolay: string
+          _exam_grau_iniciatico: string
+          _iniciacao_grau_demolay: string
+          _iniciacao_ordem: string
+          _kind: Database["public"]["Enums"]["member_kind"]
+          _minute_kind: Database["public"]["Enums"]["minute_kind"]
+        }
+        Returns: boolean
+      }
       migrate_investigation_docs_to_member: {
         Args: { _file_id: string; _member_id: string }
         Returns: undefined
+      }
+      minute_expected_public_password: {
+        Args: {
+          _kind: Database["public"]["Enums"]["minute_kind"]
+          _settings: Json
+        }
+        Returns: string
       }
       my_org_state_ids: { Args: never; Returns: string[] }
       patch_chapter_settings: {
         Args: { _chapter_id: string; _patch: Json }
         Returns: Json
       }
+      peek_public_minute: { Args: { _token: string }; Returns: Json }
       recalc_member_status: { Args: { _chapter_id?: string }; Returns: number }
       record_investigation_public_attempt: {
         Args: {
           _chapter_limit?: number
-          _client_ip?: string | null
-          _cpf?: string | null
+          _client_ip?: string
+          _cpf?: string
           _kind: string
           _sender_limit?: number
           _token: string
@@ -3041,6 +3039,18 @@ export type Database = {
         Args: { _amount: number; _chapter_id: string }
         Returns: number
       }
+      sell_event_tickets_with_charges: {
+        Args: {
+          _buyer_email: string
+          _buyer_name: string
+          _event_id: string
+          _price_paid: number
+          _quantity: number
+          _seller_member_id: string
+          _ticket_type_id: string
+        }
+        Returns: Json
+      }
       shares_chapter_with: { Args: { _other_user: string }; Returns: boolean }
       sindicancia_vote_totals: {
         Args: { _calendar_event_id: string }
@@ -3110,11 +3120,16 @@ export type Database = {
       submit_public_minute_vote: {
         Args: {
           _decision: string
+          _demolay_id?: string
           _email: string
           _justification?: string
           _password: string
           _token: string
         }
+        Returns: Json
+      }
+      update_event_ticket_item: {
+        Args: { _line_id: string; _qty?: number; _unit_price?: number }
         Returns: Json
       }
       update_member_with_pii: {
@@ -3163,8 +3178,8 @@ export type Database = {
         | "votacao_comissao"
       member_kind: "demolay_ativo" | "senior" | "macom"
       member_status: "regular" | "irregular"
-      minute_public_vote_decision: "aprovada" | "reprovada"
       minute_kind: "publica" | "grau_iniciatico" | "grau_demolay"
+      minute_public_vote_decision: "aprovada" | "reprovada"
       minute_signer_role:
         | "presidente_conselho"
         | "mestre_conselheiro"
@@ -3323,8 +3338,8 @@ export const Constants = {
       ],
       member_kind: ["demolay_ativo", "senior", "macom"],
       member_status: ["regular", "irregular"],
-      minute_public_vote_decision: ["aprovada", "reprovada"],
       minute_kind: ["publica", "grau_iniciatico", "grau_demolay"],
+      minute_public_vote_decision: ["aprovada", "reprovada"],
       minute_signer_role: [
         "presidente_conselho",
         "mestre_conselheiro",

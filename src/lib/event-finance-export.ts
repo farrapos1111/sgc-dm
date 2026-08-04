@@ -296,7 +296,7 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
         { align: "right" },
       );
       setRgb(doc, COLOR_BLACK);
-      y += desc.length > 1 ? 5 + (desc.length - 1) * 4 : 5;
+      y += rowH;
       for (let i = 1; i < desc.length; i++) {
         doc.text(desc[i], cols[3].x + 1, y - (desc.length - i) * 4);
       }

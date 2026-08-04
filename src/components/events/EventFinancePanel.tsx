@@ -454,6 +454,20 @@ export function EventFinancePanel({
         </div>
         {budgetQ.isLoading ? (
           <div className="text-sm text-muted-foreground">Carregando…</div>
+        ) : budgetQ.isError ? (
+          <div className="space-y-2">
+            <p className="text-sm text-destructive">
+              Não foi possível carregar as despesas de orçamento.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void budgetQ.refetch()}
+            >
+              Tentar novamente
+            </Button>
+          </div>
         ) : budgetRows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nenhuma despesa de orçamento lançada.

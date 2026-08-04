@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, FileText, Loader2, Lock, XCircle } from "lucide-react";
@@ -44,6 +44,7 @@ function PublicAtaPage() {
   const [unlock, setUnlock] = useState<PublicMinuteUnlock | null>(() =>
     readPublicMinuteUnlock(storageKey),
   );
+  const [unlockAttempt, setUnlockAttempt] = useState(0);
   const [lockedInfo, setLockedInfo] = useState<{
     kind: string;
     memberName: string;
@@ -57,6 +58,7 @@ function PublicAtaPage() {
   );
   const [justification, setJustification] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const queryClient = useQueryClient();
 
   const peekQ = useQuery({
     queryKey: ["public-minute-peek", token],
@@ -65,7 +67,12 @@ function PublicAtaPage() {
   });
 
   const minuteQuery = useQuery({
-    queryKey: ["public-minute", token, unlock],
+    queryKey: [
+      "public-minute",
+      token,
+      unlock?.mode ?? null,
+      unlockAttempt,
+    ],
     queryFn: async (): Promise<PublicMinutePayload> => {
       if (!unlock) throw new Error("Sem acesso");
       if (unlock.mode === "password") {
@@ -106,6 +113,9 @@ function PublicAtaPage() {
       setLockedInfo(null);
       const next: PublicMinuteUnlock = { mode: "member", demolayId: id };
       writePublicMinuteUnlock(storageKey, next);
+      const attempt = unlockAttempt + 1;
+      setUnlockAttempt(attempt);
+      queryClient.setQueryData(["public-minute", token, next.mode, attempt], res);
       setUnlock(next);
       toast.success(
         res.member_name
@@ -121,10 +131,16 @@ function PublicAtaPage() {
       const payload = await getPublicMinute({ data: { token, password } });
       return { password, payload };
     },
-    onSuccess: ({ password }) => {
+    onSuccess: ({ password, payload }) => {
       setLockedInfo(null);
       const next: PublicMinuteUnlock = { mode: "password", password };
       writePublicMinuteUnlock(storageKey, next);
+      const attempt = unlockAttempt + 1;
+      setUnlockAttempt(attempt);
+      queryClient.setQueryData(
+        ["public-minute", token, next.mode, attempt],
+        payload,
+      );
       setUnlock(next);
       toast.success("Acesso liberado nesta sessão");
     },
@@ -175,6 +191,9 @@ function PublicAtaPage() {
     setLockedInfo(null);
     setPasswordInput("");
     setDemolayId("");
+    setEmail("");
+    setDecision(null);
+    setJustification("");
     setSubmitted(false);
   }
 

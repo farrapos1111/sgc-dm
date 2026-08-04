@@ -45,9 +45,6 @@ export const EMPTY_MINUTE_PASSWORDS: MinutePasswords = {
   grau_demolay: "",
 };
 
-/** Fallback legado da ata pública quando ainda não há senha configurada. */
-export const DEFAULT_PUBLIC_MINUTE_PASSWORD = "senha";
-
 export function isMinuteKind(value: unknown): value is MinuteKind {
   return (
     typeof value === "string" &&
@@ -77,9 +74,7 @@ export function expectedMinutePublicPassword(
   kind: MinuteKind,
 ): string | null {
   const configured = parseMinutePasswords(settings)[kind].trim();
-  if (configured) return configured;
-  if (kind === "publica") return DEFAULT_PUBLIC_MINUTE_PASSWORD;
-  return null;
+  return configured || null;
 }
 
 /** Dados mínimos do membro para decidir acesso à ata. */

@@ -954,11 +954,16 @@ function FluxoCaixa() {
                     sortDir={sortDir}
                     onSort={toggleSort}
                     onEdit={(e) => {
+                      const useOps = Boolean(
+                        catData?.operationalEvents?.length,
+                      );
                       setForm({
                         id: e.id,
                         kind: e.kind,
                         category: e.category,
-                        eventId: e.event_id ?? e.calendar_event_id ?? "",
+                        eventId: (useOps
+                          ? e.event_id
+                          : (e.calendar_event_id ?? e.event_id)) ?? "",
                         subcategoryId: e.event_finance_item_id ?? "",
                         description: e.description,
                         amount: String(e.amount),
@@ -982,11 +987,14 @@ function FluxoCaixa() {
             sortDir={sortDir}
             onSort={toggleSort}
             onEdit={(e) => {
+              const useOps = Boolean(catData?.operationalEvents?.length);
               setForm({
                 id: e.id,
                 kind: e.kind,
                 category: e.category,
-                eventId: e.event_id ?? e.calendar_event_id ?? "",
+                eventId: (useOps
+                  ? e.event_id
+                  : (e.calendar_event_id ?? e.event_id)) ?? "",
                 subcategoryId: e.event_finance_item_id ?? "",
                 description: e.description,
                 amount: String(e.amount),

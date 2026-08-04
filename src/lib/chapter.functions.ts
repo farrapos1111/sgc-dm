@@ -158,38 +158,39 @@ export const updateChapterPixKey = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { data: current, error: readErr } = await context.supabase
-      .from("chapters")
-      .select("settings")
-      .eq("id", data.chapter_id)
-      .single();
-    if (readErr) throw new Error(readErr.message);
+    const { data: allowed, error: roleErr } = await context.supabase.rpc(
+      "has_any_role",
+      {
+        _chapter_id: data.chapter_id,
+        _role_names: ["admin_total", "mestre_conselheiro", "tesoureiro"],
+      },
+    );
+    if (roleErr) throw new Error(roleErr.message);
+    if (!allowed) {
+      throw new Error(
+        "Apenas administração ou tesouraria podem alterar a chave Pix",
+      );
+    }
 
-    const settings: Record<string, unknown> = {
-      ...(((current?.settings as Record<string, unknown> | null) ??
-        {}) as Record<string, unknown>),
-    };
-
+    const patch: Record<string, string | null> = {};
     if (data.pix_key !== undefined) {
       const value = data.pix_key?.trim();
-      if (value) settings.pix_key = value;
-      else delete settings.pix_key;
+      patch.pix_key = value || null;
     }
-
     if (data.pix_qr_path !== undefined) {
       const path = data.pix_qr_path?.trim();
-      if (path) settings.pix_qr_path = path;
-      else delete settings.pix_qr_path;
+      patch.pix_qr_path = path || null;
+    }
+    if (Object.keys(patch).length === 0) {
+      throw new Error("Nenhuma alteração informada");
     }
 
-    const { data: row, error } = await context.supabase
-      .from("chapters")
-      .update({ settings: settings as never })
-      .eq("id", data.chapter_id)
-      .select("id, settings")
-      .single();
+    const { data: settings, error } = await context.supabase.rpc(
+      "patch_chapter_settings",
+      { _chapter_id: data.chapter_id, _patch: patch },
+    );
     if (error) throw new Error(error.message);
-    return row;
+    return { id: data.chapter_id, settings };
   });
 
 /** Salva o modelo da "chave do dia" dentro de chapters.settings. */
@@ -204,26 +205,16 @@ export const updateChaveTemplate = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { data: current, error: readErr } = await context.supabase
-      .from("chapters")
-      .select("settings")
-      .eq("id", data.chapter_id)
-      .single();
-    if (readErr) throw new Error(readErr.message);
-
-    const settings: Record<string, any> = { ...(((current?.settings as any) ?? {}) as Record<string, any>) };
-    const value = data.template?.trim();
-    if (value) settings.chave_template = value;
-    else delete settings.chave_template;
-
-    const { data: row, error } = await context.supabase
-      .from("chapters")
-      .update({ settings: settings as any })
-      .eq("id", data.chapter_id)
-      .select("id, settings")
-      .single();
+    const value = data.template?.trim() || null;
+    const { data: settings, error } = await context.supabase.rpc(
+      "patch_chapter_settings",
+      {
+        _chapter_id: data.chapter_id,
+        _patch: { chave_template: value },
+      },
+    );
     if (error) throw new Error(error.message);
-    return row;
+    return { id: data.chapter_id, settings };
   });
 
 /** Senhas do link público por tipo de ata (settings.minute_passwords). */
@@ -261,29 +252,18 @@ export const updateMinutePasswords = createServerFn({ method: "POST" })
       );
     }
 
-    const { data: current, error: readErr } = await context.supabase
-      .from("chapters")
-      .select("settings")
-      .eq("id", data.chapter_id)
-      .single();
-    if (readErr) throw new Error(readErr.message);
-
-    const settings: Record<string, unknown> = {
-      ...(((current?.settings as Record<string, unknown> | null) ??
-        {}) as Record<string, unknown>),
-    };
-    settings.minute_passwords = {
-      publica: data.passwords.publica.trim(),
-      grau_iniciatico: data.passwords.grau_iniciatico.trim(),
-      grau_demolay: data.passwords.grau_demolay.trim(),
+    const settingsPatch = {
+      minute_passwords: {
+        publica: data.passwords.publica.trim(),
+        grau_iniciatico: data.passwords.grau_iniciatico.trim(),
+        grau_demolay: data.passwords.grau_demolay.trim(),
+      },
     };
 
-    const { data: row, error } = await context.supabase
-      .from("chapters")
-      .update({ settings: settings as never })
-      .eq("id", data.chapter_id)
-      .select("id, settings")
-      .single();
+    const { data: settings, error } = await context.supabase.rpc(
+      "patch_chapter_settings",
+      { _chapter_id: data.chapter_id, _patch: settingsPatch },
+    );
     if (error) throw new Error(error.message);
-    return row;
+    return { id: data.chapter_id, settings };
   });

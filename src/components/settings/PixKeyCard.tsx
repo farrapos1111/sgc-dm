@@ -54,7 +54,8 @@ export function PixKeyCard() {
 
   async function onQrFile(file: File) {
     if (!active?.chapter_id) return;
-    if (!file.type.startsWith("image/")) {
+    const allowed = new Set(["image/png", "image/jpeg", "image/webp"]);
+    if (!allowed.has(file.type)) {
       toast.error("Envie uma imagem (PNG, JPG ou WEBP).");
       return;
     }

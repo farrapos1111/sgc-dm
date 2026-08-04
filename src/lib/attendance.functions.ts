@@ -163,10 +163,7 @@ export const saveMinutes = createServerFn({ method: "POST" })
         chapterId: z.string().uuid(),
         calendarEventId: z.string().uuid(),
         content: z.string(),
-        kind: z
-          .enum(["publica", "grau_iniciatico", "grau_demolay"])
-          .optional()
-          .default("publica"),
+        kind: z.enum(["publica", "grau_iniciatico", "grau_demolay"]).optional(),
       })
       .parse(raw),
   )
@@ -185,7 +182,7 @@ export const saveMinutes = createServerFn({ method: "POST" })
 
     const { data: existing, error: exErr } = await context.supabase
       .from("session_minutes")
-      .select("id, status")
+      .select("id, status, kind")
       .eq("calendar_event_id", data.calendarEventId)
       .maybeSingle();
     if (exErr) throw new Error(exErr.message);
@@ -195,6 +192,11 @@ export const saveMinutes = createServerFn({ method: "POST" })
       );
     }
 
+    const kind =
+      data.kind ??
+      (existing?.kind as "publica" | "grau_iniciatico" | "grau_demolay" | null) ??
+      "publica";
+
     const { data: saved, error } = await context.supabase
       .from("session_minutes")
       .upsert(
@@ -202,7 +204,7 @@ export const saveMinutes = createServerFn({ method: "POST" })
           chapter_id: data.chapterId,
           calendar_event_id: data.calendarEventId,
           content: data.content,
-          kind: data.kind,
+          kind,
           opened_by: context.userId,
         } as never,
         { onConflict: "calendar_event_id" },
