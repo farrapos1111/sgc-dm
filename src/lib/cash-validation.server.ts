@@ -10,6 +10,34 @@ export type ResolvedSubcategory = {
   event_finance_item_id: string | null;
 };
 
+async function resolveLegacySubcategory(
+  supabase: AnyClient,
+  chapterId: string,
+  scope: "eventos" | "hospitalaria",
+  subcategoryId: string,
+): Promise<ResolvedSubcategory> {
+  const { data, error } = await supabase
+    .from("cash_subcategories")
+    .select("id, name, scope, active, calendar_event_id, chapter_id")
+    .eq("id", subcategoryId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (
+    !data ||
+    data.chapter_id !== chapterId ||
+    data.scope !== scope ||
+    !data.active
+  ) {
+    throw new Error("Subcategoria inexistente ou desativada pela comissão");
+  }
+  return {
+    subcategory: data.name,
+    calendar_event_id: data.calendar_event_id,
+    event_id: null,
+    event_finance_item_id: null,
+  };
+}
+
 /**
  * Garante que lançamentos em categorias dinâmicas (Eventos / Hospitalaria)
  * usem apenas subcategorias previamente configuradas.
@@ -52,9 +80,10 @@ export async function resolveSubcategory(
 
     if (item) {
       if (
+        !eventId ||
         item.chapter_id !== chapterId ||
         !item.active ||
-        (eventId && item.event_id !== eventId)
+        item.event_id !== eventId
       ) {
         throw new Error("Item inexistente ou desativado no financeiro do evento");
       }
@@ -67,47 +96,13 @@ export async function resolveSubcategory(
     }
 
     // Legado: cash_subcategories + calendar_events
-    const { data, error } = await supabase
-      .from("cash_subcategories")
-      .select("id, name, scope, active, calendar_event_id, chapter_id")
-      .eq("id", subcategoryId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (
-      !data ||
-      data.chapter_id !== chapterId ||
-      data.scope !== scope ||
-      !data.active
-    ) {
-      throw new Error("Subcategoria inexistente ou desativada pela comissão");
-    }
-    return {
-      subcategory: data.name,
-      calendar_event_id: data.calendar_event_id,
-      event_id: null,
-      event_finance_item_id: null,
-    };
+    return resolveLegacySubcategory(
+      supabase,
+      chapterId,
+      scope,
+      subcategoryId,
+    );
   }
 
-  const { data, error } = await supabase
-    .from("cash_subcategories")
-    .select("id, name, scope, active, calendar_event_id, chapter_id")
-    .eq("id", subcategoryId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (
-    !data ||
-    data.chapter_id !== chapterId ||
-    data.scope !== scope ||
-    !data.active
-  ) {
-    throw new Error("Subcategoria inexistente ou desativada pela comissão");
-  }
-
-  return {
-    subcategory: data.name,
-    calendar_event_id: data.calendar_event_id,
-    event_id: null,
-    event_finance_item_id: null,
-  };
+  return resolveLegacySubcategory(supabase, chapterId, scope, subcategoryId);
 }

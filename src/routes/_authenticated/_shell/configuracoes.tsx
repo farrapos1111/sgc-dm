@@ -18,6 +18,8 @@ import { getChapterDefaultDuesAmount } from "@/lib/dues-rules";
 import { ImagePlus, Loader2, Trash2, Building2, Landmark, PlusCircle, Save, Sun, Moon, MonitorSmartphone, Palette, RotateCcw, Check, Receipt, Link2, Copy } from "lucide-react";
 import { useTheme, type ThemeMode } from "@/context/ThemeContext";
 import { ChaveTemplateCard } from "@/components/settings/ChaveTemplateCard";
+import { PixKeyCard } from "@/components/settings/PixKeyCard";
+import { MinutePasswordsCard } from "@/components/settings/MinutePasswordsCard";
 import {
   ensurePublicLobbyToken,
   getPublicLobbyToken,
@@ -41,6 +43,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const THEME_OPTIONS: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
   { value: "light", label: "Claro", icon: Sun },
@@ -347,78 +350,98 @@ function ConfiguracoesPage() {
         subtitle="Identidade visual e dados do capítulo ativo."
       />
 
-      <AppearanceCard />
-      <ChapterProfileCard />
-      <DefaultDuesCard />
-      <PublicLobbyLinkCard />
-      <LodgesCard />
-      <ChaveTemplateCard />
+      <Tabs defaultValue="secretaria">
+        <TabsList className="mb-4 w-full justify-start overflow-x-auto sm:w-auto">
+          <TabsTrigger value="secretaria">Secretaria</TabsTrigger>
+          <TabsTrigger value="tesouraria">Tesouraria</TabsTrigger>
+          <TabsTrigger value="visual">Visual</TabsTrigger>
+        </TabsList>
 
+        <TabsContent value="secretaria" className="space-y-4">
+          <ChapterProfileCard />
+          <LodgesCard />
+          <ChaveTemplateCard />
+          <MinutePasswordsCard />
+        </TabsContent>
 
+        <TabsContent value="tesouraria" className="space-y-4">
+          <DefaultDuesCard />
+          <PixKeyCard />
+          <PublicLobbyLinkCard />
+        </TabsContent>
 
-      <Card className="rounded-[12px] p-5">
-        <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <Building2 className="h-5 w-5" /> Logo do capítulo
-        </div>
+        <TabsContent value="visual" className="space-y-4">
+          <AppearanceCard />
+          <Card className="rounded-[12px] p-5">
+            <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Building2 className="h-5 w-5" /> Logo do capítulo
+            </div>
 
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="grid h-32 w-32 shrink-0 place-items-center overflow-hidden rounded-[12px] border border-dashed border-border bg-muted/40">
-            {logoUrl ? (
-              <img
-                src={logoUrl}
-                alt={`Logo do ${active?.chapter.name ?? "capítulo"}`}
-                className="h-full w-full object-contain p-2"
-              />
-            ) : (
-              <span className="px-3 text-center text-xs text-muted-foreground">
-                Nenhuma logo definida
-              </span>
-            )}
-          </div>
-
-          <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">
-              Usada no topo das atas exportadas em PDF. Envie uma imagem quadrada, preferencialmente
-              512×512 px, em PNG com fundo transparente. Tamanho máximo: 2 MB.
-            </p>
-            {allowed ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                <input
-                  ref={inputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) void onFile(f);
-                  }}
-                />
-                <Button
-                  style={{ backgroundColor: "var(--chapter-primary)" }}
-                  disabled={busy}
-                  onClick={() => inputRef.current?.click()}
-                >
-                  {busy ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <ImagePlus className="mr-2 h-4 w-4" />
-                  )}
-                  {logoPath ? "Trocar logo" : "Enviar logo"}
-                </Button>
-                {logoPath && (
-                  <Button variant="outline" disabled={busy} onClick={() => void removeLogo()}>
-                    <Trash2 className="mr-2 h-4 w-4" /> Remover
-                  </Button>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+              <div className="grid h-32 w-32 shrink-0 place-items-center overflow-hidden rounded-[12px] border border-dashed border-border bg-muted/40">
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt={`Logo do ${active?.chapter.name ?? "capítulo"}`}
+                    className="h-full w-full object-contain p-2"
+                  />
+                ) : (
+                  <span className="px-3 text-center text-xs text-muted-foreground">
+                    Nenhuma logo definida
+                  </span>
                 )}
               </div>
-            ) : (
-              <p className="mt-4 text-xs text-muted-foreground">
-                Somente a administração do capítulo pode alterar a logo.
-              </p>
-            )}
-          </div>
-        </div>
-      </Card>
+
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">
+                  Usada no topo das atas exportadas em PDF. Envie uma imagem
+                  quadrada, preferencialmente 512×512 px, em PNG com fundo
+                  transparente. Tamanho máximo: 2 MB.
+                </p>
+                {allowed ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <input
+                      ref={inputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) void onFile(f);
+                      }}
+                    />
+                    <Button
+                      style={{ backgroundColor: "var(--chapter-primary)" }}
+                      disabled={busy}
+                      onClick={() => inputRef.current?.click()}
+                    >
+                      {busy ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <ImagePlus className="mr-2 h-4 w-4" />
+                      )}
+                      {logoPath ? "Trocar logo" : "Enviar logo"}
+                    </Button>
+                    {logoPath && (
+                      <Button
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => void removeLogo()}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Remover
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    Somente a administração do capítulo pode alterar a logo.
+                  </p>
+                )}
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

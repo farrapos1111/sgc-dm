@@ -61,7 +61,7 @@ export const getOngoing = createServerFn({ method: "POST" })
         .eq("calendar_event_id", data.calendarEventId),
       context.supabase
         .from("session_minutes")
-        .select("id, content, opened_at, updated_at, status, title")
+        .select("id, content, opened_at, updated_at, status, title, kind")
         .eq("calendar_event_id", data.calendarEventId)
         .maybeSingle(),
 
@@ -163,6 +163,10 @@ export const saveMinutes = createServerFn({ method: "POST" })
         chapterId: z.string().uuid(),
         calendarEventId: z.string().uuid(),
         content: z.string(),
+        kind: z
+          .enum(["publica", "grau_iniciatico", "grau_demolay"])
+          .optional()
+          .default("publica"),
       })
       .parse(raw),
   )
@@ -198,11 +202,12 @@ export const saveMinutes = createServerFn({ method: "POST" })
           chapter_id: data.chapterId,
           calendar_event_id: data.calendarEventId,
           content: data.content,
+          kind: data.kind,
           opened_by: context.userId,
-        },
+        } as never,
         { onConflict: "calendar_event_id" },
       )
-      .select("id, status")
+      .select("id, status, kind")
       .single();
     if (error) throw new Error(error.message);
     return { ok: true, minute: saved };

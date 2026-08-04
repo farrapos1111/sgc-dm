@@ -16,6 +16,7 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,6 +110,7 @@ function chargeBucket(c: ChargeRow): ListFilter | "isento" {
 function Cobrancas() {
   const { active } = useActiveChapter();
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const writable = can(active?.role.name, "tesouraria");
   const [statusFilter, setStatusFilter] = useState<ListFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("name_asc");
@@ -610,9 +612,14 @@ function Cobrancas() {
                       variant="ghost"
                       size="icon"
                       aria-label="Excluir"
-                      onClick={() => {
-                        if (confirm("Excluir esta cobrança e seus pagamentos?"))
-                          remove.mutate(c.id);
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: "Excluir cobrança?",
+                          description:
+                            "Excluir esta cobrança e seus pagamentos?",
+                          confirmLabel: "Excluir",
+                        });
+                        if (ok) remove.mutate(c.id);
                       }}
                     >
                       <Trash2 className="h-4 w-4 text-muted-foreground" />
@@ -952,14 +959,14 @@ function Cobrancas() {
                                   size="icon"
                                   aria-label="Excluir pagamento"
                                   disabled={removePayment.isPending}
-                                  onClick={() => {
-                                    if (
-                                      confirm(
+                                  onClick={async () => {
+                                    const ok = await confirm({
+                                      title: "Excluir pagamento?",
+                                      description:
                                         "Excluir este pagamento? O lançamento correspondente será removido do fluxo e o valor voltará para a cobrança.",
-                                      )
-                                    ) {
-                                      removePayment.mutate(p.id);
-                                    }
+                                      confirmLabel: "Excluir",
+                                    });
+                                    if (ok) removePayment.mutate(p.id);
                                   }}
                                 >
                                   <Trash2 className="h-4 w-4 text-muted-foreground" />
@@ -999,6 +1006,7 @@ function Cobrancas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {dialog}
     </div>
   );
 }

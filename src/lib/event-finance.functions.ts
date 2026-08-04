@@ -1,12 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { datePartsInAppTz, todayYmd } from "@/lib/timezone";
 
 const eventIdInput = z.object({ eventId: z.string().uuid() });
 
 /** Categoria virtual sempre presente no Financeiro do evento. */
 export const INGRESSOS_CATEGORY_ID = "__ingressos__";
 export const INGRESSOS_CATEGORY_NAME = "Ingressos";
+
+/** Categoria interna de despesas de orçamento (não aparece no catálogo de receita). */
+export const BUDGET_CATEGORY_NAME = "Orçamento";
+
+export function isBudgetCategoryName(name: string) {
+  return name.trim().toLowerCase() === BUDGET_CATEGORY_NAME.toLowerCase();
+}
 
 export type EventFinanceCategory = {
   id: string;
@@ -83,9 +91,11 @@ export type EventFinanceTotals = {
 function ymdFromIso(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
-  // sold_at já vem em ISO; usa data local BR aproximada via ISO date slice
-  return iso.slice(0, 10);
+  if (Number.isNaN(d.getTime())) {
+    return /^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(0, 10) : null;
+  }
+  const { year, month, day } = datePartsInAppTz(d);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 /** Lista categorias + itens do financeiro do evento (+ Ingressos virtual). */
@@ -129,6 +139,7 @@ export const listEventFinance = createServerFn({ method: "POST" })
     if (tickets.error) throw new Error(tickets.error.message);
     if (event.error) throw new Error(event.error.message);
     if (!event.data) throw new Error("Evento não encontrado");
+    const eventRow = event.data;
 
     const soldByType = new Map<string | null, { count: number; raised: number }>();
     for (const t of tickets.data ?? []) {
@@ -143,7 +154,7 @@ export const listEventFinance = createServerFn({ method: "POST" })
     const ingressosCat: EventFinanceCategory = {
       id: INGRESSOS_CATEGORY_ID,
       event_id: data.eventId,
-      chapter_id: event.data.chapter_id,
+      chapter_id: eventRow.chapter_id,
       name: INGRESSOS_CATEGORY_NAME,
       sort_order: 0,
       is_system: true,
@@ -155,7 +166,7 @@ export const listEventFinance = createServerFn({ method: "POST" })
         id: `ticket-type:${tt.id}`,
         category_id: INGRESSOS_CATEGORY_ID,
         event_id: data.eventId,
-        chapter_id: event.data.chapter_id,
+        chapter_id: eventRow.chapter_id,
         name: tt.name,
         unit_price: Number(tt.price),
         track_stock: false,
@@ -172,7 +183,7 @@ export const listEventFinance = createServerFn({ method: "POST" })
         id: "ticket-type:avulso",
         category_id: INGRESSOS_CATEGORY_ID,
         event_id: data.eventId,
-        chapter_id: event.data.chapter_id,
+        chapter_id: eventRow.chapter_id,
         name: "Avulso",
         unit_price: null,
         track_stock: false,
@@ -183,18 +194,26 @@ export const listEventFinance = createServerFn({ method: "POST" })
       });
     }
 
-    // Evita duplicar se alguém criou categoria "Ingressos" manualmente
+    // Evita duplicar se alguém criou categoria "Ingressos" manualmente;
+    // Orçamento fica só na seção dedicada (não é catálogo de receita).
     const customCats = ((cats.data ?? []) as EventFinanceCategory[]).filter(
-      (c) => c.name.trim().toLowerCase() !== "ingressos",
+      (c) =>
+        c.name.trim().toLowerCase() !== "ingressos" &&
+        !isBudgetCategoryName(c.name),
+    );
+    const budgetCatIds = new Set(
+      ((cats.data ?? []) as EventFinanceCategory[])
+        .filter((c) => isBudgetCategoryName(c.name))
+        .map((c) => c.id),
+    );
+    const catalogItems = ((items.data ?? []) as EventFinanceItem[]).filter(
+      (i) => !budgetCatIds.has(i.category_id),
     );
 
     return {
       eventName: event.data.name as string,
       categories: [ingressosCat, ...customCats],
-      items: [
-        ...ingressosItems,
-        ...((items.data ?? []) as EventFinanceItem[]),
-      ],
+      items: [...ingressosItems, ...catalogItems],
     };
   });
 
@@ -243,6 +262,10 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
         .select("id, ticket_type_id, price_paid, status, sold_at")
         .eq("event_id", data.eventId),
     ]);
+    if (itemsRes.error) throw new Error(itemsRes.error.message);
+    if (catsRes.error) throw new Error(catsRes.error.message);
+    if (typesRes.error) throw new Error(typesRes.error.message);
+    if (ticketsRes.error) throw new Error(ticketsRes.error.message);
 
     const itemMeta = new Map(
       (itemsRes.data ?? []).map((i) => [
@@ -352,8 +375,16 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
       const name = meta?.name ?? e.subcategory ?? "Sem item";
       const categoryId = meta?.category_id ?? "other";
       const categoryName =
-        catName.get(categoryId) ??
-        (categoryId === "other" ? "Outros" : "Outros");
+        catName.get(categoryId) ?? "Outros";
+
+      // Orçamento não entra no breakdown de categorias/itens de receita
+      if (isBudgetCategoryName(categoryName)) continue;
+      if (
+        typeof e.subcategory === "string" &&
+        /^Evento .+ - Despesa /i.test(e.subcategory)
+      ) {
+        continue;
+      }
 
       const itemRow = byItem.get(itemId) ?? {
         itemId,
@@ -417,6 +448,11 @@ export const upsertEventFinanceCategory = createServerFn({ method: "POST" })
         "A categoria “Ingressos” é automática e gerenciada na aba Ingressos",
       );
     }
+    if (isBudgetCategoryName(data.name)) {
+      throw new Error(
+        "A categoria “Orçamento” é gerenciada na seção Orçamento do Financeiro",
+      );
+    }
     if (data.id) {
       const { error } = await context.supabase
         .from("event_finance_categories")
@@ -442,6 +478,24 @@ export const deleteEventFinanceCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
+    const { data: categoryItems, error: itemsError } = await context.supabase
+      .from("event_finance_items")
+      .select("id")
+      .eq("category_id", data.id);
+    if (itemsError) throw new Error(itemsError.message);
+    const itemIds = (categoryItems ?? []).map((item) => item.id);
+    if (itemIds.length > 0) {
+      const { count, error: linksError } = await context.supabase
+        .from("event_ticket_items")
+        .select("id", { count: "exact", head: true })
+        .in("item_id", itemIds);
+      if (linksError) throw new Error(linksError.message);
+      if ((count ?? 0) > 0) {
+        throw new Error(
+          "Categoria possui itens vinculados a comandas e não pode ser excluída.",
+        );
+      }
+    }
     const { error } = await context.supabase
       .from("event_finance_categories")
       .delete()
@@ -468,6 +522,16 @@ export const upsertEventFinanceItem = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const { data: category, error: categoryError } = await context.supabase
+      .from("event_finance_categories")
+      .select("id, event_id")
+      .eq("id", data.categoryId)
+      .maybeSingle();
+    if (categoryError) throw new Error(categoryError.message);
+    if (!category || category.event_id !== data.eventId) {
+      throw new Error("Categoria não pertence a este evento");
+    }
+
     const payload = {
       name: data.name,
       unit_price: data.unit_price,
@@ -498,12 +562,144 @@ export const deleteEventFinanceItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
+    const { count, error: linksError } = await context.supabase
+      .from("event_ticket_items")
+      .select("id", { count: "exact", head: true })
+      .eq("item_id", data.id);
+    if (linksError) throw new Error(linksError.message);
+    if ((count ?? 0) > 0) {
+      throw new Error(
+        "Item vinculado a comandas. Desative o item em vez de excluir.",
+      );
+    }
     const { error } = await context.supabase
       .from("event_finance_items")
       .delete()
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/** Lança despesa de orçamento do evento no caixa (saída Eventos). */
+export const addEventBudgetExpense = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        eventId: z.string().uuid(),
+        chapterId: z.string().uuid(),
+        name: z.string().trim().min(1).max(80),
+        amount: z.number().positive(),
+        entry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: event, error: eventErr } = await context.supabase
+      .from("events")
+      .select("id, name, chapter_id")
+      .eq("id", data.eventId)
+      .eq("chapter_id", data.chapterId)
+      .maybeSingle();
+    if (eventErr) throw new Error(eventErr.message);
+    if (!event) throw new Error("Evento não encontrado");
+
+    let { data: cat, error: catErr } = await context.supabase
+      .from("event_finance_categories")
+      .select("id")
+      .eq("event_id", data.eventId)
+      .ilike("name", BUDGET_CATEGORY_NAME)
+      .maybeSingle();
+    if (catErr) throw new Error(catErr.message);
+
+    if (!cat) {
+      const { data: created, error: createCatErr } = await context.supabase
+        .from("event_finance_categories")
+        .insert({
+          event_id: data.eventId,
+          chapter_id: data.chapterId,
+          name: BUDGET_CATEGORY_NAME,
+          sort_order: 200,
+        })
+        .select("id")
+        .single();
+      if (createCatErr) throw new Error(createCatErr.message);
+      cat = created;
+    }
+
+    const expenseName = data.name.trim();
+    let { data: item, error: itemErr } = await context.supabase
+      .from("event_finance_items")
+      .select("id")
+      .eq("event_id", data.eventId)
+      .eq("category_id", cat.id)
+      .ilike("name", expenseName)
+      .maybeSingle();
+    if (itemErr) throw new Error(itemErr.message);
+
+    if (!item) {
+      const { data: createdItem, error: createItemErr } = await context.supabase
+        .from("event_finance_items")
+        .insert({
+          event_id: data.eventId,
+          chapter_id: data.chapterId,
+          category_id: cat.id,
+          name: expenseName,
+          unit_price: data.amount,
+          track_stock: false,
+          stock_qty: null,
+          active: true,
+        })
+        .select("id")
+        .single();
+      if (createItemErr) throw new Error(createItemErr.message);
+      item = createdItem;
+    }
+
+    const amountLabel = data.amount.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+    const label = `Evento ${event.name} - Despesa ${expenseName} - ${amountLabel}`;
+
+    const { error: cashErr } = await context.supabase.from("cash_entries").insert({
+      chapter_id: data.chapterId,
+      kind: "saida",
+      category: "Eventos",
+      subcategory: label,
+      description: label,
+      amount: data.amount,
+      entry_date: data.entry_date,
+      event_id: data.eventId,
+      event_finance_item_id: item.id,
+      created_by: context.userId,
+    });
+    if (cashErr) throw new Error(cashErr.message);
+
+    return { ok: true, label };
+  });
+
+/** Lista despesas de orçamento (saídas Eventos) do evento. */
+export const listEventBudgetExpenses = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => eventIdInput.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("cash_entries")
+      .select(
+        "id, subcategory, description, amount, entry_date, event_finance_item_id, created_at",
+      )
+      .eq("event_id", data.eventId)
+      .eq("kind", "saida")
+      .eq("category", "Eventos")
+      .ilike("subcategory", "Evento % - Despesa %")
+      .order("entry_date", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (rows ?? []).map((r) => ({
+      ...r,
+      amount: Number(r.amount),
+    }));
   });
 
 /** Linhas da comanda de um ingresso (ou de todos do evento). */
@@ -570,13 +766,33 @@ export const addEventTicketItem = createServerFn({ method: "POST" })
       .object({
         ticketId: z.string().uuid(),
         itemId: z.string().uuid(),
-        qty: z.number().positive().default(1),
+        qty: z.number().int().positive().default(1),
         unit_price: z.number().nonnegative().nullable().optional(),
         description: z.string().max(200).optional().nullable(),
       })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    await assertComandaEditable(context.supabase, { ticketId: data.ticketId });
+
+    const { data: itemMeta, error: itemErr } = await context.supabase
+      .from("event_finance_items")
+      .select("id, category_id")
+      .eq("id", data.itemId)
+      .maybeSingle();
+    if (itemErr) throw new Error(itemErr.message);
+    if (itemMeta?.category_id) {
+      const { data: cat, error: catErr } = await context.supabase
+        .from("event_finance_categories")
+        .select("name")
+        .eq("id", itemMeta.category_id)
+        .maybeSingle();
+      if (catErr) throw new Error(catErr.message);
+      if (cat?.name?.trim().toLowerCase() === "ingressos") {
+        throw new Error("Ingressos não podem ser lançados na comanda");
+      }
+    }
+
     const { data: result, error } = await context.supabase.rpc(
       "add_event_ticket_item",
       {
@@ -603,12 +819,14 @@ export const updateEventTicketItem = createServerFn({ method: "POST" })
     z
       .object({
         lineId: z.string().uuid(),
-        qty: z.number().positive().optional(),
+        qty: z.number().int().positive().optional(),
         unit_price: z.number().nonnegative().optional(),
       })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    await assertComandaEditable(context.supabase, { lineId: data.lineId });
+
     const { data: result, error } = await context.supabase.rpc(
       "update_event_ticket_item",
       {
@@ -631,6 +849,8 @@ export const deleteEventTicketItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ lineId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
+    await assertComandaEditable(context.supabase, { lineId: data.lineId });
+
     const { data: result, error } = await context.supabase.rpc(
       "delete_event_ticket_item",
       { _line_id: data.lineId },
@@ -653,4 +873,295 @@ export const deleteEventTicket = createServerFn({ method: "POST" })
       id: string;
       comanda_items_removed: number;
     };
+  });
+
+/** Bloqueia alteração se a cobrança do vendedor já estiver quitada. */
+async function assertComandaEditable(
+  // Cliente tipado do middleware; assinatura mínima para o helper.
+  supabase: {
+    from: (table: string) => any;
+  },
+  opts: { ticketId?: string; lineId?: string },
+) {
+  let ticketId = opts.ticketId ?? null;
+  if (!ticketId && opts.lineId) {
+    const { data: line, error } = await supabase
+      .from("event_ticket_items")
+      .select("ticket_id")
+      .eq("id", opts.lineId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    ticketId = line?.ticket_id ?? null;
+  }
+  if (!ticketId) return;
+
+  const { data: ticket, error: tErr } = await supabase
+    .from("tickets")
+    .select("seller_charge_id")
+    .eq("id", ticketId)
+    .maybeSingle();
+  if (tErr) throw new Error(tErr.message);
+  if (!ticket?.seller_charge_id) return;
+
+  const { data: charge, error: cErr } = await supabase
+    .from("member_charges")
+    .select("status")
+    .eq("id", ticket.seller_charge_id)
+    .maybeSingle();
+  if (cErr) throw new Error(cErr.message);
+  if (charge?.status === "pago") {
+    throw new Error("Comanda já quitada — não é possível alterar");
+  }
+}
+
+/** Dados do recibo de checkout da comanda (ingresso + itens + Pix). */
+export const getComandaCheckout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        eventId: z.string().uuid(),
+        ticketId: z.string().uuid(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: event, error: eventErr } = await context.supabase
+      .from("events")
+      .select("id, chapter_id, name, starts_at, location")
+      .eq("id", data.eventId)
+      .maybeSingle();
+    if (eventErr) throw new Error(eventErr.message);
+    if (!event) throw new Error("Evento não encontrado");
+
+    const { data: ticket, error: ticketErr } = await context.supabase
+      .from("tickets")
+      .select(
+        "id, event_id, buyer_name, price_paid, status, seller_member_id, seller_charge_id",
+      )
+      .eq("id", data.ticketId)
+      .eq("event_id", data.eventId)
+      .maybeSingle();
+    if (ticketErr) throw new Error(ticketErr.message);
+    if (!ticket) throw new Error("Ingresso não encontrado");
+
+    const { data: lineRows, error: linesErr } = await context.supabase
+      .from("event_ticket_items")
+      .select(
+        "id, event_id, ticket_id, item_id, qty, unit_price, amount, cash_entry_id, created_at",
+      )
+      .eq("event_id", data.eventId)
+      .eq("ticket_id", data.ticketId)
+      .order("created_at", { ascending: true });
+    if (linesErr) throw new Error(linesErr.message);
+
+    const itemIds = [...new Set((lineRows ?? []).map((r) => r.item_id))];
+    const { data: items } =
+      itemIds.length === 0
+        ? { data: [] as { id: string; name: string; category_id: string }[] }
+        : await context.supabase
+            .from("event_finance_items")
+            .select("id, name, category_id")
+            .in("id", itemIds);
+    const itemMap = new Map((items ?? []).map((i) => [i.id, i]));
+    const lines = (lineRows ?? []).map((r) => {
+      const item = itemMap.get(r.item_id);
+      return {
+        ...r,
+        qty: Number(r.qty),
+        unit_price: Number(r.unit_price),
+        amount: Number(r.amount),
+        item_name: item?.name,
+      };
+    });
+
+    let charge: {
+      id: string;
+      status: string;
+      amount: number | string;
+      description: string;
+    } | null = null;
+    if (ticket.seller_charge_id) {
+      const { data: c, error: cErr } = await context.supabase
+        .from("member_charges")
+        .select("id, status, amount, description")
+        .eq("id", ticket.seller_charge_id)
+        .maybeSingle();
+      if (cErr) throw new Error(cErr.message);
+      charge = c;
+    }
+
+    const { data: chapter, error: chErr } = await context.supabase
+      .from("chapters")
+      .select("id, name, number, settings")
+      .eq("id", event.chapter_id)
+      .maybeSingle();
+    if (chErr) throw new Error(chErr.message);
+    const settings = (chapter?.settings ?? {}) as Record<string, unknown>;
+    const pixKey =
+      typeof settings.pix_key === "string" ? settings.pix_key.trim() : "";
+    const pixQrPath =
+      typeof settings.pix_qr_path === "string"
+        ? settings.pix_qr_path.trim()
+        : "";
+
+    let sellerName: string | null = null;
+    if (ticket.seller_member_id) {
+      const { data: seller } = await context.supabase
+        .from("members")
+        .select("full_name")
+        .eq("id", ticket.seller_member_id)
+        .maybeSingle();
+      sellerName = seller?.full_name ?? null;
+    }
+
+    const ticketAmount = Number(ticket.price_paid ?? 0);
+    const comandaTotal = lines.reduce((s, l) => s + Number(l.amount), 0);
+
+    return {
+      event: {
+        id: event.id,
+        name: event.name,
+        starts_at: event.starts_at,
+        location: event.location,
+        chapter_id: event.chapter_id,
+      },
+      chapterName: chapter
+        ? `${chapter.name} nº ${chapter.number}`
+        : null,
+      pixKey: pixKey || null,
+      pixQrPath: pixQrPath || null,
+      ticket: {
+        id: ticket.id,
+        buyer_name: ticket.buyer_name,
+        price_paid: ticketAmount,
+        status: ticket.status,
+        seller_member_id: ticket.seller_member_id,
+        seller_name: sellerName,
+        seller_charge_id: ticket.seller_charge_id,
+      },
+      charge: charge
+        ? {
+            id: charge.id,
+            status: charge.status,
+            amount: Number(charge.amount),
+            description: charge.description,
+          }
+        : null,
+      lines,
+      ticketAmount,
+      comandaTotal,
+      grandTotal: ticketAmount + comandaTotal,
+    };
+  });
+
+/** Quita a cobrança do ingresso vinculada ao vendedor (checkout da comanda). */
+export const checkoutEventTicketComanda = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        eventId: z.string().uuid(),
+        ticketId: z.string().uuid(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: ticket, error: ticketErr } = await context.supabase
+      .from("tickets")
+      .select("id, event_id, seller_charge_id")
+      .eq("id", data.ticketId)
+      .eq("event_id", data.eventId)
+      .maybeSingle();
+    if (ticketErr) throw new Error(ticketErr.message);
+    if (!ticket) throw new Error("Ingresso não encontrado");
+    if (!ticket.seller_charge_id) {
+      throw new Error("Ingresso sem cobrança de vendedor vinculada");
+    }
+
+    const { data: event, error: eventErr } = await context.supabase
+      .from("events")
+      .select("chapter_id")
+      .eq("id", data.eventId)
+      .maybeSingle();
+    if (eventErr) throw new Error(eventErr.message);
+    if (!event) throw new Error("Evento não encontrado");
+
+    const { data: charge, error: chargeErr } = await context.supabase
+      .from("member_charges")
+      .select(
+        "id, chapter_id, kind, category, subcategory, description, amount, status, cash_entry_id",
+      )
+      .eq("id", ticket.seller_charge_id)
+      .eq("chapter_id", event.chapter_id)
+      .maybeSingle();
+    if (chargeErr) throw new Error(chargeErr.message);
+    if (!charge) throw new Error("Cobrança não encontrada");
+
+    if (charge.status === "pago") {
+      return { ok: true, alreadyPaid: true };
+    }
+    if (charge.status === "isento") {
+      throw new Error("Cobrança isenta não pode ser quitada no checkout");
+    }
+
+    const { data: pays, error: payListErr } = await context.supabase
+      .from("member_charge_payments" as never)
+      .select("amount")
+      .eq("charge_id", charge.id);
+    if (payListErr) throw new Error(payListErr.message);
+    const alreadyPaid = (
+      (pays as Array<{ amount: number | string }>) ?? []
+    ).reduce((s, p) => s + Number(p.amount), 0);
+    const totalDue = Number(charge.amount) || 0;
+    const remaining = Math.max(0, totalDue - alreadyPaid);
+    if (remaining <= 0) {
+      return { ok: true, alreadyPaid: true };
+    }
+
+    const paidAt = todayYmd();
+    const { data: entry, error: entryErr } = await context.supabase
+      .from("cash_entries")
+      .insert({
+        chapter_id: event.chapter_id,
+        kind: charge.kind,
+        category: charge.category,
+        subcategory: charge.subcategory,
+        description: charge.description,
+        amount: remaining,
+        entry_date: paidAt,
+        created_by: context.userId,
+        event_id: data.eventId,
+      })
+      .select("id")
+      .single();
+    if (entryErr) throw new Error(entryErr.message);
+
+    const { error: payErr } = await context.supabase
+      .from("member_charge_payments" as never)
+      .insert({
+        chapter_id: event.chapter_id,
+        charge_id: charge.id,
+        amount: remaining,
+        paid_at: paidAt,
+        cash_entry_id: entry.id,
+        notes: "Checkout comanda / quitação ingresso",
+        created_by: context.userId,
+      } as never);
+    if (payErr) {
+      await context.supabase.from("cash_entries").delete().eq("id", entry.id);
+      throw new Error(payErr.message);
+    }
+
+    const { error: updErr } = await context.supabase
+      .from("member_charges")
+      .update({
+        status: "pago",
+        paid_at: paidAt,
+        cash_entry_id: entry.id,
+      })
+      .eq("id", charge.id);
+    if (updErr) throw new Error(updErr.message);
+
+    return { ok: true, alreadyPaid: false };
   });

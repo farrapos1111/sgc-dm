@@ -204,20 +204,23 @@ async function listCashEntriesRows(
   let offset = 0;
   const all: Array<{
     id: string;
-    kind: string;
+    kind: "entrada" | "saida";
     category: string;
     subcategory: string | null;
     description: string;
     amount: number | string;
     entry_date: string;
     created_at: string;
+    event_id: string | null;
+    event_finance_item_id: string | null;
+    calendar_event_id: string | null;
   }> = [];
 
   for (;;) {
     const { data, error } = await supabase
       .from("cash_entries")
       .select(
-        "id, kind, category, subcategory, description, amount, entry_date, created_at",
+        "id, kind, category, subcategory, description, amount, entry_date, created_at, event_id, event_finance_item_id, calendar_event_id",
       )
       .eq("chapter_id", chapterId)
       .gte("entry_date", periodStart)
@@ -273,8 +276,28 @@ export const listCashEntries = createServerFn({ method: "POST" })
       aggregateCashAmounts(context.supabase, data.chapterId),
     ]);
 
+    const eventIds = [
+      ...new Set(
+        entries.map((e) => e.event_id).filter((id): id is string => !!id),
+      ),
+    ];
+    const eventNameById = new Map<string, string>();
+    if (eventIds.length > 0) {
+      const { data: events, error: eventsErr } = await context.supabase
+        .from("events")
+        .select("id, name")
+        .in("id", eventIds);
+      if (eventsErr) throw new Error(eventsErr.message);
+      for (const ev of events ?? []) {
+        eventNameById.set(ev.id, ev.name);
+      }
+    }
+
     return {
-      entries,
+      entries: entries.map((e) => ({
+        ...e,
+        event_name: e.event_id ? (eventNameById.get(e.event_id) ?? null) : null,
+      })),
       totals: periodAgg,
       bank: bankAgg,
       opening: {
@@ -566,16 +589,22 @@ export const listCashCategories = createServerFn({ method: "POST" })
       context.supabase
         .from("event_finance_items")
         .select(
-          "id, event_id, category_id, name, unit_price, track_stock, stock_qty, active",
+          "id, event_id, category_id, name, unit_price, track_stock, stock_qty, active, category:event_finance_categories(name)",
         )
         .eq("chapter_id", data.chapterId)
         .eq("active", true)
         .order("name"),
     ]);
     if (cats.error) throw new Error(cats.error.message);
+    if (calendar.error) throw new Error(calendar.error.message);
     if (subs.error) throw new Error(subs.error.message);
     if (opsEvents.error) throw new Error(opsEvents.error.message);
     if (financeItems.error) throw new Error(financeItems.error.message);
+
+    const revenueFinanceItems = (financeItems.data ?? []).filter((i) => {
+      const cat = i.category as { name?: string } | null;
+      return (cat?.name ?? "").trim().toLowerCase() !== "orçamento";
+    });
 
     return {
       categories: cats.data ?? [],
@@ -588,7 +617,7 @@ export const listCashCategories = createServerFn({ method: "POST" })
         start_at: e.starts_at,
         status: e.status,
       })),
-      eventFinanceItems: (financeItems.data ?? []).map((i) => ({
+      eventFinanceItems: revenueFinanceItems.map((i) => ({
         id: i.id,
         event_id: i.event_id,
         category_id: i.category_id,

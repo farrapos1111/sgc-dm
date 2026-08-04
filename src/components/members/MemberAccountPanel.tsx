@@ -9,6 +9,7 @@ import {
   revokeMemberChapterAccess,
 } from "@/lib/accounts.functions";
 import { ROLE_LABELS, type RoleName } from "@/lib/permissions";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ type Props = {
 
 export function MemberAccountPanel({ memberId, memberEmail }: Props) {
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [roleName, setRoleName] = useState<RoleName>("membro");
   const [tempPassword, setTempPassword] = useState<string | null>(null);
 
@@ -188,14 +190,14 @@ export function MemberAccountPanel({ memberId, memberEmail }: Props) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  if (
-                    window.confirm(
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: "Desativar acesso?",
+                    description:
                       "Desativar o acesso deste usuário a este capítulo?",
-                    )
-                  ) {
-                    revoke.mutate();
-                  }
+                    confirmLabel: "Desativar",
+                  });
+                  if (ok) revoke.mutate();
                 }}
                 disabled={revoke.isPending}
               >
@@ -222,6 +224,7 @@ export function MemberAccountPanel({ memberId, memberEmail }: Props) {
           </div>
         </div>
       ) : null}
+      {dialog}
     </Card>
   );
 }

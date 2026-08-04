@@ -1,12 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { saveMinutes } from "@/lib/attendance.functions";
 import {
@@ -16,6 +25,7 @@ import {
   submitMinute,
   reopenMinute,
   signMinute,
+  deleteMinute,
   SIGNER_ROLES,
   SIGNER_LABELS,
   MINUTE_STATUS_LABELS,
@@ -24,8 +34,16 @@ import {
 import {
   ensureMinutePublicShare,
   listMinutePublicVotes,
-  MINUTE_PUBLIC_SHARE_PASSWORD,
 } from "@/lib/minutes-share.functions";
+import {
+  MINUTE_KINDS,
+  MINUTE_KIND_LABELS,
+  MINUTE_KIND_SHORT_LABELS,
+  isMinuteKind,
+  minuteKindFromLevel,
+  minuteKindToLevel,
+  type MinuteKind,
+} from "@/lib/minute-kinds";
 import { applyVars, AVAILABLE_VARS } from "@/lib/minute-vars";
 import { currentTerm } from "@/lib/terms";
 import { formatDateTimeBR } from "@/lib/format";
@@ -38,16 +56,45 @@ import {
   MessageSquareText,
   RotateCcw,
   Signature,
+  Trash2,
 } from "lucide-react";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import {
+  MinuteBodyEditor,
+  readAutocompletePref,
+  writeAutocompletePref,
+} from "@/components/minutes/MinuteBodyEditor";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
+import { cn } from "@/lib/utils";
 
 type Props = {
   chapterId: string;
   calendarEventId: string;
-  item: { title: string; start_at: string; location: string | null; address?: string | null };
-  minutes: { id: string; content: string; status: string; updated_at: string } | null;
+  item: {
+    title: string;
+    start_at: string;
+    location: string | null;
+    address?: string | null;
+  };
+  minutes: {
+    id: string;
+    content: string;
+    status: string;
+    updated_at: string;
+    kind?: string | null;
+  } | null;
   roleName: string | null | undefined;
   onChanged: () => void;
+  /** Chamado após exclusão bem-sucedida (ex.: voltar à lista de atas). */
+  onDeleted?: () => void;
+  /**
+   * Ref preenchida com flush do rascunho (salvar se houver alterações).
+   * Usar ao sair da tela / trocar de aba.
+   */
+  flushSaveRef?: MutableRefObject<(() => Promise<void>) | null>;
 };
 
 const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
@@ -56,20 +103,133 @@ const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
   aprovada: { bg: "#D1FAE5", color: "#047857" },
 };
 
-export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleName, onChanged }: Props) {
+export function MinutesPanel({
+  chapterId,
+  calendarEventId,
+  item,
+  minutes,
+  roleName,
+  onChanged,
+  onDeleted,
+  flushSaveRef,
+}: Props) {
   const qc = useQueryClient();
   const { active } = useActiveChapter();
   const term = currentTerm();
+  const { confirm, dialog } = useConfirmDialog();
   const [exporting, setExporting] = useState(false);
   const [ata, setAta] = useState(minutes?.content ?? "");
   const [templateId, setTemplateId] = useState<string>("");
+  const [kind, setKind] = useState<MinuteKind>(() =>
+    isMinuteKind(minutes?.kind) ? minutes.kind : "publica",
+  );
+  const [autocompleteOn, setAutocompleteOn] = useState(readAutocompletePref);
+
+  const status = minutes?.status ?? "rascunho";
+  const editable = status === "rascunho";
+
+  const savedContent = minutes?.content ?? "";
+  const savedKind: MinuteKind = isMinuteKind(minutes?.kind)
+    ? minutes.kind
+    : "publica";
+  const dirty =
+    editable &&
+    (ata !== savedContent ||
+      kind !== savedKind ||
+      (!minutes && ata.trim().length > 0));
+
+  const draftRef = useRef({
+    ata,
+    kind,
+    editable,
+    dirty,
+    chapterId,
+    calendarEventId,
+    hasMinute: Boolean(minutes),
+  });
+  draftRef.current = {
+    ata,
+    kind,
+    editable,
+    dirty,
+    chapterId,
+    calendarEventId,
+    hasMinute: Boolean(minutes),
+  };
+  /** Evita segundo save no unmount depois de flush explícito (voltar / trocar aba). */
+  const allowUnmountSaveRef = useRef(true);
 
   useEffect(() => {
     setAta(minutes?.content ?? "");
   }, [minutes?.content]);
 
-  const status = minutes?.status ?? "rascunho";
-  const editable = status === "rascunho";
+  useEffect(() => {
+    if (isMinuteKind(minutes?.kind)) setKind(minutes.kind);
+  }, [minutes?.kind]);
+
+  function persist(content: string, nextKind: MinuteKind = kind) {
+    return saveMinutes({
+      data: {
+        chapterId,
+        calendarEventId,
+        content,
+        kind: nextKind,
+      },
+    });
+  }
+
+  const flushSave = async () => {
+    const d = draftRef.current;
+    if (!d.editable || !d.dirty) return;
+    if (!d.ata.trim() && !d.hasMinute) return;
+    try {
+      await saveMinutes({
+        data: {
+          chapterId: d.chapterId,
+          calendarEventId: d.calendarEventId,
+          content: d.ata,
+          kind: d.kind,
+        },
+      });
+      allowUnmountSaveRef.current = false;
+      draftRef.current = { ...draftRef.current, dirty: false };
+      toast.success("Rascunho salvo");
+      onChanged();
+      void qc.invalidateQueries({ queryKey: ["ongoing", calendarEventId] });
+      void qc.invalidateQueries({ queryKey: ["chapter-minutes", chapterId] });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar rascunho");
+    }
+  };
+
+  useEffect(() => {
+    if (!flushSaveRef) return;
+    flushSaveRef.current = flushSave;
+    return () => {
+      flushSaveRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flushSaveRef, calendarEventId, chapterId, minutes?.id]);
+
+  // Ao desmontar o painel (sair da sessão / trocar aba), persiste o rascunho
+  useEffect(() => {
+    allowUnmountSaveRef.current = true;
+    return () => {
+      if (!allowUnmountSaveRef.current) return;
+      const d = draftRef.current;
+      if (!d.editable || !d.dirty) return;
+      if (!d.ata.trim() && !d.hasMinute) return;
+      void saveMinutes({
+        data: {
+          chapterId: d.chapterId,
+          calendarEventId: d.calendarEventId,
+          content: d.ata,
+          kind: d.kind,
+        },
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const templates = useQuery({
     queryKey: ["minute-templates", chapterId],
@@ -106,11 +266,11 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
     onChanged();
     qc.invalidateQueries({ queryKey: ["minute-approvals", minutes?.id] });
     qc.invalidateQueries({ queryKey: ["minute-public-votes", minutes?.id] });
+    qc.invalidateQueries({ queryKey: ["chapter-minutes", chapterId] });
   };
 
   const save = useMutation({
-    mutationFn: (content: string) =>
-      saveMinutes({ data: { chapterId, calendarEventId, content } }),
+    mutationFn: (content: string) => persist(content),
     onSuccess: () => {
       toast.success("Ata salva");
       refresh();
@@ -120,7 +280,7 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
 
   const conclude = useMutation({
     mutationFn: async () => {
-      const saved = await saveMinutes({ data: { chapterId, calendarEventId, content: ata } });
+      const saved = await persist(ata);
       return submitMinute({ data: { minuteId: (saved as any).minute.id } });
     },
     onSuccess: () => {
@@ -152,27 +312,54 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
   const sharePublic = useMutation({
     mutationFn: async () => {
       if (!ata.trim()) throw new Error("Escreva a ata antes de compartilhar");
-      const saved = await saveMinutes({
-        data: { chapterId, calendarEventId, content: ata },
-      });
+      const saved = await persist(ata);
       const minuteId = (saved as any).minute.id as string;
-      const share = await ensureMinutePublicShare({ data: { minuteId } });
-      return share;
+      return ensureMinutePublicShare({ data: { minuteId } });
     },
     onSuccess: async (share) => {
       refresh();
       const url = `${window.location.origin}/ata/${share.token}`;
+      const kindLabel =
+        MINUTE_KIND_LABELS[share.kind as MinuteKind] ?? share.kind;
       try {
         await navigator.clipboard.writeText(url);
-        toast.success(`Link copiado. Senha: ${MINUTE_PUBLIC_SHARE_PASSWORD}`);
+        toast.success(
+          `Link copiado (${kindLabel}). Senha: ${share.password}`,
+        );
       } catch {
-        toast.success(`Link gerado. Senha: ${MINUTE_PUBLIC_SHARE_PASSWORD}`, {
+        toast.success(`Link gerado (${kindLabel}). Senha: ${share.password}`, {
           description: url,
         });
       }
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao gerar link público"),
   });
+
+  const remove = useMutation({
+    mutationFn: () => deleteMinute({ data: { minuteId: minutes!.id } }),
+    onSuccess: () => {
+      allowUnmountSaveRef.current = false;
+      draftRef.current = { ...draftRef.current, dirty: false };
+      toast.success("Ata excluída");
+      void qc.invalidateQueries({ queryKey: ["chapter-minutes", chapterId] });
+      void qc.invalidateQueries({ queryKey: ["ongoing", calendarEventId] });
+      onDeleted?.();
+      onChanged();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao excluir ata"),
+  });
+
+  async function handleDelete() {
+    if (!minutes?.id) return;
+    const ok = await confirm({
+      title: "Excluir esta ata?",
+      description:
+        "O texto, o link público, votos e assinaturas serão removidos. A sessão permanece no calendário.",
+      confirmLabel: "Excluir ata",
+      destructive: true,
+    });
+    if (ok) remove.mutate();
+  }
 
   function insertTemplate(id: string) {
     setTemplateId(id);
@@ -194,84 +381,190 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
 
   return (
     <Card className="rounded-[12px] p-5">
+      {dialog}
+
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <FileText className="h-4 w-4" /> Ata da sessão
+        <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground">
+          <FileText className="h-4 w-4 shrink-0" />
+          <span>Ata da sessão</span>
           <span
             className="rounded-full px-2 py-0.5 text-[11px] font-medium"
             style={{ backgroundColor: st.bg, color: st.color }}
           >
             {MINUTE_STATUS_LABELS[status] ?? status}
           </span>
+          <Badge variant="outline" className="text-[11px] font-normal">
+            Nível {minuteKindToLevel(kind)} · {MINUTE_KIND_LABELS[kind]}
+          </Badge>
+          {dirty ? (
+            <span className="text-[11px] font-normal text-amber-600 dark:text-amber-400">
+              Não salvo
+            </span>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={exporting || !ata.trim()}
-          onClick={async () => {
-            setExporting(true);
-            try {
-              const { exportMinutePdf } = await import("@/lib/minute-pdf");
-              await exportMinutePdf({
-                chapterName: active?.chapter.name ?? "",
-                chapterCity: active?.chapter.city,
-                logoPath: active?.chapter.logo_url,
-                title: item.title,
-                dateISO: item.start_at,
-                status: MINUTE_STATUS_LABELS[status] ?? status,
-                signatures: SIGNER_ROLES.filter((r) => signedRoles.has(r)).map(
-                  (r) => SIGNER_LABELS[r],
-                ),
-                content: ata,
-              });
-            } catch (e: any) {
-              toast.error(e?.message ?? "Erro ao gerar o PDF");
-            } finally {
-              setExporting(false);
-            }
-          }}
-        >
-          <Download className="mr-2 h-4 w-4" />
-          {exporting ? "Gerando…" : "Exportar PDF"}
-        </Button>
-        {editable && (
-          <Select value={templateId} onValueChange={insertTemplate}>
-            <SelectTrigger className="h-9 w-[260px] text-xs">
-              <SelectValue placeholder="Inserir modelo de ata…" />
-            </SelectTrigger>
-            <SelectContent>
-              {((templates.data ?? []) as any[]).map((t) => (
-                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+          {editable ? (
+            <Select value={templateId} onValueChange={insertTemplate}>
+              <SelectTrigger className="h-9 w-[220px] text-xs">
+                <SelectValue placeholder="Inserir modelo…" />
+              </SelectTrigger>
+              <SelectContent>
+                {((templates.data ?? []) as any[]).map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={exporting || !ata.trim()}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const { exportMinutePdf } = await import("@/lib/minute-pdf");
+                await exportMinutePdf({
+                  chapterName: active?.chapter.name ?? "",
+                  chapterCity: active?.chapter.city,
+                  logoPath: active?.chapter.logo_url,
+                  title: item.title,
+                  dateISO: item.start_at,
+                  status: MINUTE_STATUS_LABELS[status] ?? status,
+                  signatures: SIGNER_ROLES.filter((r) =>
+                    signedRoles.has(r),
+                  ).map((r) => SIGNER_LABELS[r]),
+                  content: ata,
+                });
+              } catch (e: any) {
+                toast.error(e?.message ?? "Erro ao gerar o PDF");
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {exporting ? "Gerando…" : "PDF"}
+          </Button>
         </div>
       </div>
 
-      <Textarea
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-6">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <Label className="text-xs">Tipo da ata</Label>
+            <span className="text-[11px] text-muted-foreground">
+              1 Pública · 2 Iniciático · 3 DeMolay
+            </span>
+          </div>
+          <Slider
+            min={1}
+            max={3}
+            step={1}
+            value={[minuteKindToLevel(kind)]}
+            disabled={!editable}
+            onValueChange={(v) => setKind(minuteKindFromLevel(v[0] ?? 1))}
+            aria-label="Tipo da ata"
+          />
+          <div className="mt-1.5 grid grid-cols-3 gap-1 text-[11px] text-muted-foreground">
+            {MINUTE_KINDS.map((k) => {
+              const activeKind = k === kind;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  disabled={!editable}
+                  onClick={() => setKind(k)}
+                  className={cn(
+                    "rounded-md px-1 py-0.5 transition-colors",
+                    k === "publica" && "text-left",
+                    k === "grau_iniciatico" && "text-center",
+                    k === "grau_demolay" && "text-right",
+                    activeKind
+                      ? "font-semibold text-foreground"
+                      : "hover:text-foreground",
+                    !editable && "cursor-default",
+                  )}
+                >
+                  {MINUTE_KIND_SHORT_LABELS[k]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {editable ? (
+          <div className="flex shrink-0 items-center gap-2 self-end pb-0.5 sm:self-center sm:pb-0">
+            <Label
+              htmlFor="minute-autocomplete"
+              className="cursor-pointer whitespace-nowrap text-xs font-normal text-muted-foreground"
+            >
+              Autocomplete
+            </Label>
+            <Switch
+              id="minute-autocomplete"
+              checked={autocompleteOn}
+              onCheckedChange={(next) => {
+                setAutocompleteOn(next);
+                writeAutocompletePref(next);
+              }}
+              aria-label="Autocomplete de nomes na ata"
+            />
+          </div>
+        ) : null}
+      </div>
+
+      <MinuteBodyEditor
+        chapterId={chapterId}
         value={ata}
-        onChange={(e) => setAta(e.target.value)}
+        onChange={setAta}
+        editable={editable}
         rows={18}
-        readOnly={!editable}
         className="text-sm leading-relaxed"
         placeholder="Selecione um modelo de ata ou escreva livremente."
+        showAutocompleteToggle={false}
+        autocompleteOn={autocompleteOn}
+        onAutocompleteOnChange={(next) => {
+          setAutocompleteOn(next);
+          writeAutocompletePref(next);
+        }}
       />
 
       {editable ? (
         <>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Variáveis dinâmicas: {AVAILABLE_VARS.join(" · ")} — as não reconhecidas permanecem entre
-            colchetes para preenchimento manual.
-          </p>
+          <details className="mt-2 text-xs text-muted-foreground">
+            <summary className="cursor-pointer select-none hover:text-foreground">
+              Variáveis dinâmicas dos modelos
+            </summary>
+            <p className="mt-1.5 leading-relaxed">
+              {AVAILABLE_VARS.join(" · ")} — as não reconhecidas permanecem
+              entre colchetes para preenchimento manual.
+            </p>
+          </details>
           <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
             <span className="mr-auto text-xs text-muted-foreground">
               {minutes?.updated_at
                 ? `Última alteração: ${formatDateTimeBR(minutes.updated_at)}`
                 : "Ainda não salva"}
+              {dirty ? " · salva ao sair" : ""}
             </span>
-            <Button variant="outline" disabled={save.isPending} onClick={() => save.mutate(ata)}>
+            {minutes?.id ? (
+              <Button
+                variant="outline"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                disabled={remove.isPending}
+                onClick={() => void handleDelete()}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {remove.isPending ? "Excluindo…" : "Excluir"}
+              </Button>
+            ) : null}
+            <Button
+              variant="outline"
+              disabled={save.isPending || !dirty}
+              onClick={() => save.mutate(ata)}
+            >
               {save.isPending ? "Salvando…" : "Salvar rascunho"}
             </Button>
             <Button
@@ -280,7 +573,7 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
               onClick={() => sharePublic.mutate()}
             >
               <Link2 className="mr-2 h-4 w-4" />
-              {sharePublic.isPending ? "Gerando link…" : "Compartilhar visão pública"}
+              {sharePublic.isPending ? "Gerando…" : "Compartilhar"}
             </Button>
             <Button
               style={{ backgroundColor: "var(--chapter-primary)" }}
@@ -292,9 +585,24 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
           </div>
         </>
       ) : (
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Lock className="h-3.5 w-3.5" /> Texto bloqueado. Reabra a ata para corrigir.
-        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Lock className="h-3.5 w-3.5" /> Texto bloqueado. Reabra a ata para
+            corrigir.
+          </p>
+          {minutes?.id ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              disabled={remove.isPending}
+              onClick={() => void handleDelete()}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {remove.isPending ? "Excluindo…" : "Excluir ata"}
+            </Button>
+          ) : null}
+        </div>
       )}
 
       {minutes && (
@@ -333,7 +641,7 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
                     </Badge>
                   </div>
                   {v.justification && (
-                    <p className="mt-1.5 text-xs text-muted-foreground whitespace-pre-wrap">
+                    <p className="mt-1.5 whitespace-pre-wrap text-xs text-muted-foreground">
                       {v.justification}
                     </p>
                   )}
@@ -364,25 +672,42 @@ export function MinutesPanel({ chapterId, calendarEventId, item, minutes, roleNa
                   <span className="flex items-center gap-2 text-sm">
                     <CheckCircle2
                       className="h-4 w-4"
-                      style={{ color: signed ? "#047857" : "var(--muted-foreground)" }}
+                      style={{
+                        color: signed ? "#047857" : "var(--muted-foreground)",
+                      }}
                     />
                     {SIGNER_LABELS[r]}
                   </span>
                   {signed ? (
-                    <Badge style={{ backgroundColor: "#D1FAE5", color: "#047857" }}>Assinada</Badge>
+                    <Badge
+                      style={{ backgroundColor: "#D1FAE5", color: "#047857" }}
+                    >
+                      Assinada
+                    </Badge>
                   ) : canSign ? (
-                    <Button size="sm" variant="outline" disabled={sign.isPending} onClick={() => sign.mutate(r)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={sign.isPending}
+                      onClick={() => sign.mutate(r)}
+                    >
                       Assinar
                     </Button>
                   ) : (
-                    <span className="text-xs text-muted-foreground">Pendente</span>
+                    <span className="text-xs text-muted-foreground">
+                      Pendente
+                    </span>
                   )}
                 </li>
               );
             })}
           </ul>
           <div className="mt-3 flex justify-end">
-            <Button variant="outline" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
+            <Button
+              variant="outline"
+              disabled={reopen.isPending}
+              onClick={() => reopen.mutate()}
+            >
               <RotateCcw className="mr-2 h-4 w-4" />
               {reopen.isPending ? "Reabrindo…" : "Reabrir para correção"}
             </Button>

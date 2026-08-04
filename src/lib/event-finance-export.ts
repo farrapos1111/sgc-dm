@@ -152,13 +152,12 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
     if (y > pageH - need) {
       doc.addPage();
       y = MARGIN + 4;
+      return true;
     }
+    return false;
   };
 
-  for (const cat of totals.byCategory) {
-    ensureSpace(28);
-    const items = totals.byItem.filter((i) => i.categoryId === cat.categoryId);
-
+  const drawCategoryHeader = (cat: (typeof totals.byCategory)[number]) => {
     doc.setFillColor(240, 240, 238);
     doc.rect(MARGIN, y - 4, contentW, 8, "F");
     doc.setFont("helvetica", "bold");
@@ -173,6 +172,13 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
     doc.text(formatBRL(cat.income), pageW - MARGIN - 2, y, { align: "right" });
     setRgb(doc, COLOR_BLACK);
     y += 7;
+  };
+
+  for (const cat of totals.byCategory) {
+    ensureSpace(28);
+    const items = totals.byItem.filter((i) => i.categoryId === cat.categoryId);
+
+    drawCategoryHeader(cat);
 
     if (items.length === 0) {
       doc.setFont("helvetica", "normal");
@@ -187,9 +193,18 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     for (const it of items) {
-      ensureSpace(12);
       const left = it.qty != null ? `${it.name}  (${it.qty} un.)` : it.name;
       const lines = doc.splitTextToSize(left, contentW - 45) as string[];
+      const rowH =
+        4.5 +
+        Math.max(0, lines.length - 1) * 4 +
+        (it.expense > 0 ? 4 : 0) +
+        2;
+      if (ensureSpace(rowH + 4)) {
+        drawCategoryHeader(cat);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+      }
       doc.text(lines[0] ?? "", MARGIN + 4, y);
       setRgb(doc, COLOR_GREEN);
       doc.text(formatBRL(it.income), pageW - MARGIN - 2, y, {
@@ -203,12 +218,9 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
       }
       if (it.expense > 0) {
         setRgb(doc, COLOR_RED);
-        doc.text(
-          `saídas ${formatBRL(it.expense)}`,
-          pageW - MARGIN - 2,
-          y,
-          { align: "right" },
-        );
+        doc.text(`saídas ${formatBRL(it.expense)}`, pageW - MARGIN - 2, y, {
+          align: "right",
+        });
         setRgb(doc, COLOR_BLACK);
         y += 4;
       }
@@ -253,17 +265,16 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
     drawHeader();
 
     for (const e of totals.entries) {
-      if (y > pageH - 20) {
-        doc.addPage();
-        y = MARGIN + 4;
-        drawHeader();
-      }
       const isEntrada = e.kind === "entrada";
       const color = isEntrada ? COLOR_GREEN : COLOR_RED;
       const desc = doc.splitTextToSize(
         e.description || e.subcategory || "—",
         cols[3].w - 2,
       ) as string[];
+      const rowH = desc.length > 1 ? 5 + (desc.length - 1) * 4 : 5;
+      if (ensureSpace(rowH + 8)) {
+        drawHeader();
+      }
 
       doc.setFontSize(9);
       setRgb(doc, COLOR_BLACK);

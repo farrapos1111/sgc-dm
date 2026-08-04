@@ -7,7 +7,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  LabelList,
   Pie,
   PieChart,
   XAxis,
@@ -440,7 +439,7 @@ export function PresencasChartsTab({
               </p>
               <ChartContainer
                 config={pieConfig}
-                className="mx-auto aspect-square max-h-[260px] w-full"
+                className="mx-auto aspect-square max-h-[240px] w-full"
               >
                 <PieChart>
                   <ChartTooltip
@@ -450,19 +449,84 @@ export function PresencasChartsTab({
                     data={pieData}
                     dataKey="value"
                     nameKey="name"
-                    innerRadius={55}
+                    innerRadius={58}
+                    outerRadius={96}
                     strokeWidth={2}
+                    labelLine={false}
+                    label={({
+                      cx,
+                      cy,
+                      midAngle,
+                      innerRadius,
+                      outerRadius,
+                      value,
+                      percent,
+                    }) => {
+                      if (
+                        value == null ||
+                        value <= 0 ||
+                        !percent ||
+                        percent < 0.08 ||
+                        cx == null ||
+                        cy == null ||
+                        midAngle == null ||
+                        innerRadius == null ||
+                        outerRadius == null
+                      ) {
+                        return null;
+                      }
+                      const RADIAN = Math.PI / 180;
+                      const radius =
+                        innerRadius + (outerRadius - innerRadius) * 0.52;
+                      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                      const label = Number(value).toLocaleString("pt-BR");
+                      return (
+                        <text
+                          x={x}
+                          y={y}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#FFFFFF"
+                          stroke="rgba(0,0,0,0.45)"
+                          strokeWidth={3}
+                          paintOrder="stroke"
+                          style={{
+                            pointerEvents: "none",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            fontVariantNumeric: "tabular-nums",
+                            letterSpacing: "-0.02em",
+                          }}
+                        >
+                          {label}
+                        </text>
+                      );
+                    }}
                   >
                     {pieData.map((d) => (
                       <Cell key={d.key} fill={d.fill} />
                     ))}
-                    <LabelList
-                      dataKey="value"
-                      className="fill-background text-[11px] font-medium"
-                    />
                   </Pie>
                 </PieChart>
               </ChartContainer>
+              <ul className="mt-3 grid grid-cols-3 gap-2 text-center">
+                {pieData.map((d) => (
+                  <li key={d.key} className="min-w-0">
+                    <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: d.fill }}
+                        aria-hidden
+                      />
+                      <span className="truncate">{d.name}</span>
+                    </div>
+                    <div className="mt-0.5 text-sm font-semibold tabular-nums">
+                      {d.value.toLocaleString("pt-BR")}
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </Card>
           </div>
 

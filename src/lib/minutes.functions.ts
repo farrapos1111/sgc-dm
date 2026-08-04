@@ -109,7 +109,7 @@ export const listChapterMinutes = createServerFn({ method: "POST" })
     const { data: rows, error } = await context.supabase
       .from("session_minutes")
       .select(
-        "id, content, status, opened_at, updated_at, calendar_event_id, calendar_event:calendar_events(id, title, event_type, mandatory, start_at, end_at, location, address)",
+        "id, content, status, kind, opened_at, updated_at, calendar_event_id, calendar_event:calendar_events(id, title, event_type, mandatory, start_at, end_at, location, address)",
       )
       .eq("chapter_id", data.chapterId)
       .order("opened_at", { ascending: false })
@@ -316,4 +316,18 @@ export const signMinute = createServerFn({ method: "POST" })
       if (upd.error) throw new Error(upd.error.message);
     }
     return { ok: true, approved: complete };
+  });
+
+/** Exclui a ata da sessão (votos e assinaturas em cascade). */
+export const deleteMinute = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ minuteId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const minute = await loadMinute(context.supabase, data.minuteId);
+    const { error } = await context.supabase
+      .from("session_minutes")
+      .delete()
+      .eq("id", minute.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
   });

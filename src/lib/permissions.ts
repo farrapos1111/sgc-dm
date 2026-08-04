@@ -41,6 +41,18 @@ export function canManageAttendance(roleName: string | null | undefined): boolea
   return can(roleName, "secretaria") || can(roleName, "conselho") || can(roleName, "admin");
 }
 
+/** Escrivão, PCC (Presidente do Conselho) e MC gerenciam senhas dos tipos de ata. */
+export function canManageMinutePasswords(
+  roleName: string | null | undefined,
+): boolean {
+  return (
+    roleName === "escrivao" ||
+    roleName === "presidente_conselho" ||
+    roleName === "mestre_conselheiro" ||
+    roleName === "admin_total"
+  );
+}
+
 
 export const ROLE_LABELS: Record<string, string> = {
   admin_total: "Administrador Total",

@@ -145,6 +145,53 @@ export const updateChapterAccentColor = createServerFn({ method: "POST" })
     return row;
   });
 
+/** Salva a chave Pix e/ou o path da imagem QR em chapters.settings. */
+export const updateChapterPixKey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        chapter_id: z.string().uuid(),
+        pix_key: z.string().max(200).nullable().optional(),
+        pix_qr_path: z.string().max(500).nullable().optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: current, error: readErr } = await context.supabase
+      .from("chapters")
+      .select("settings")
+      .eq("id", data.chapter_id)
+      .single();
+    if (readErr) throw new Error(readErr.message);
+
+    const settings: Record<string, unknown> = {
+      ...(((current?.settings as Record<string, unknown> | null) ??
+        {}) as Record<string, unknown>),
+    };
+
+    if (data.pix_key !== undefined) {
+      const value = data.pix_key?.trim();
+      if (value) settings.pix_key = value;
+      else delete settings.pix_key;
+    }
+
+    if (data.pix_qr_path !== undefined) {
+      const path = data.pix_qr_path?.trim();
+      if (path) settings.pix_qr_path = path;
+      else delete settings.pix_qr_path;
+    }
+
+    const { data: row, error } = await context.supabase
+      .from("chapters")
+      .update({ settings: settings as never })
+      .eq("id", data.chapter_id)
+      .select("id, settings")
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
 /** Salva o modelo da "chave do dia" dentro de chapters.settings. */
 export const updateChaveTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -172,6 +219,68 @@ export const updateChaveTemplate = createServerFn({ method: "POST" })
     const { data: row, error } = await context.supabase
       .from("chapters")
       .update({ settings: settings as any })
+      .eq("id", data.chapter_id)
+      .select("id, settings")
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+/** Senhas do link público por tipo de ata (settings.minute_passwords). */
+export const updateMinutePasswords = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        chapter_id: z.string().uuid(),
+        passwords: z.object({
+          publica: z.string().max(64),
+          grau_iniciatico: z.string().max(64),
+          grau_demolay: z.string().max(64),
+        }),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: allowed, error: roleErr } = await context.supabase.rpc(
+      "has_any_role",
+      {
+        _chapter_id: data.chapter_id,
+        _role_names: [
+          "escrivao",
+          "presidente_conselho",
+          "mestre_conselheiro",
+          "admin_total",
+        ],
+      },
+    );
+    if (roleErr) throw new Error(roleErr.message);
+    if (!allowed) {
+      throw new Error(
+        "Apenas Escrivão, Presidente do Conselho ou Mestre Conselheiro podem alterar as senhas das atas",
+      );
+    }
+
+    const { data: current, error: readErr } = await context.supabase
+      .from("chapters")
+      .select("settings")
+      .eq("id", data.chapter_id)
+      .single();
+    if (readErr) throw new Error(readErr.message);
+
+    const settings: Record<string, unknown> = {
+      ...(((current?.settings as Record<string, unknown> | null) ??
+        {}) as Record<string, unknown>),
+    };
+    settings.minute_passwords = {
+      publica: data.passwords.publica.trim(),
+      grau_iniciatico: data.passwords.grau_iniciatico.trim(),
+      grau_demolay: data.passwords.grau_demolay.trim(),
+    };
+
+    const { data: row, error } = await context.supabase
+      .from("chapters")
+      .update({ settings: settings as never })
       .eq("id", data.chapter_id)
       .select("id, settings")
       .single();
