@@ -1,5 +1,4 @@
--- name_key normalizado (trim + lower + espaços colapsados) para upsert atômico
--- de categorias/itens; alinhamento de ingresso cancelado em delete da comanda.
+-- Fixes: name_key triggers, delete order (FK), lock order, search_path.
 
 CREATE OR REPLACE FUNCTION public.finance_name_key(p_name text)
 RETURNS text
@@ -21,65 +20,6 @@ BEGIN
 END;
 $$;
 
-ALTER TABLE public.event_finance_categories
-  ADD COLUMN IF NOT EXISTS name_key text;
-
-ALTER TABLE public.event_finance_items
-  ADD COLUMN IF NOT EXISTS name_key text;
-
-UPDATE public.event_finance_categories
-SET name_key = public.finance_name_key(name)
-WHERE name_key IS NULL OR name_key <> public.finance_name_key(name);
-
-UPDATE public.event_finance_items
-SET name_key = public.finance_name_key(name)
-WHERE name_key IS NULL OR name_key <> public.finance_name_key(name);
-
--- Desambigua colisões da chave normalizada antes do UNIQUE
-WITH d AS (
-  SELECT id,
-         row_number() OVER (
-           PARTITION BY event_id, name_key ORDER BY created_at, id
-         ) AS rn
-  FROM public.event_finance_categories
-)
-UPDATE public.event_finance_categories c
-SET name = c.name || ' (' || substring(c.id::text, 1, 8) || ')'
-FROM d
-WHERE c.id = d.id AND d.rn > 1;
-
-UPDATE public.event_finance_categories
-SET name_key = public.finance_name_key(name);
-
-WITH d AS (
-  SELECT id,
-         row_number() OVER (
-           PARTITION BY category_id, name_key ORDER BY created_at, id
-         ) AS rn
-  FROM public.event_finance_items
-)
-UPDATE public.event_finance_items i
-SET name = i.name || ' (' || substring(i.id::text, 1, 8) || ')'
-FROM d
-WHERE i.id = d.id AND d.rn > 1;
-
-UPDATE public.event_finance_items
-SET name_key = public.finance_name_key(name);
-
-ALTER TABLE public.event_finance_categories
-  ALTER COLUMN name_key SET NOT NULL;
-
-ALTER TABLE public.event_finance_items
-  ALTER COLUMN name_key SET NOT NULL;
-
-DROP INDEX IF EXISTS public.event_finance_categories_unique;
-CREATE UNIQUE INDEX event_finance_categories_unique
-  ON public.event_finance_categories (event_id, name_key);
-
-DROP INDEX IF EXISTS public.event_finance_items_unique;
-CREATE UNIQUE INDEX event_finance_items_unique
-  ON public.event_finance_items (category_id, name_key);
-
 DROP TRIGGER IF EXISTS tg_event_finance_categories_name_key
   ON public.event_finance_categories;
 CREATE TRIGGER tg_event_finance_categories_name_key
@@ -91,6 +31,86 @@ DROP TRIGGER IF EXISTS tg_event_finance_items_name_key
 CREATE TRIGGER tg_event_finance_items_name_key
   BEFORE INSERT OR UPDATE OF name, name_key ON public.event_finance_items
   FOR EACH ROW EXECUTE FUNCTION public.tg_set_finance_name_key();
+
+-- Ordem de bloqueio: event_ticket_items antes de tickets (igual delete_event_ticket_item).
+CREATE OR REPLACE FUNCTION public.delete_event_ticket(_ticket_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_ticket public.tickets%ROWTYPE;
+  v_event public.events%ROWTYPE;
+  v_line public.event_ticket_items%ROWTYPE;
+  v_item public.event_finance_items%ROWTYPE;
+  v_qty_int integer;
+  v_cash_ids uuid[] := ARRAY[]::uuid[];
+  v_lines_count integer := 0;
+BEGIN
+  -- Bloqueia linhas da comanda antes do ingresso (evita deadlock com delete_event_ticket_item).
+  PERFORM 1
+  FROM public.event_ticket_items
+  WHERE ticket_id = _ticket_id
+  ORDER BY id
+  FOR UPDATE;
+
+  SELECT * INTO v_ticket FROM public.tickets WHERE id = _ticket_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Ingresso não encontrado';
+  END IF;
+
+  SELECT * INTO v_event FROM public.events WHERE id = v_ticket.event_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Evento não encontrado';
+  END IF;
+
+  IF NOT (
+    public.has_permission(v_event.chapter_id, 'admin')
+    OR public.has_permission(v_event.chapter_id, 'tesouraria')
+    OR public.can_manage_commission(v_event.chapter_id, 'eventos')
+  ) THEN
+    RAISE EXCEPTION 'Sem permissão para excluir ingresso';
+  END IF;
+
+  FOR v_line IN
+    SELECT * FROM public.event_ticket_items
+    WHERE ticket_id = _ticket_id
+    ORDER BY id
+  LOOP
+    v_lines_count := v_lines_count + 1;
+    SELECT * INTO v_item
+    FROM public.event_finance_items
+    WHERE id = v_line.item_id
+    FOR UPDATE;
+    IF FOUND AND v_item.track_stock THEN
+      v_qty_int := ceil(v_line.qty)::integer;
+      UPDATE public.event_finance_items
+        SET stock_qty = COALESCE(stock_qty, 0) + v_qty_int
+        WHERE id = v_item.id;
+    END IF;
+    IF v_line.cash_entry_id IS NOT NULL THEN
+      v_cash_ids := array_append(v_cash_ids, v_line.cash_entry_id);
+    END IF;
+  END LOOP;
+
+  DELETE FROM public.event_ticket_items WHERE ticket_id = _ticket_id;
+
+  IF array_length(v_cash_ids, 1) IS NOT NULL THEN
+    DELETE FROM public.cash_entries WHERE id = ANY(v_cash_ids);
+  END IF;
+
+  UPDATE public.seats SET ticket_id = NULL WHERE ticket_id = _ticket_id;
+  DELETE FROM public.checkins WHERE ticket_id = _ticket_id;
+  DELETE FROM public.tickets WHERE id = _ticket_id;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'id', _ticket_id,
+    'comanda_items_removed', v_lines_count
+  );
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.delete_event_ticket_item(_line_id uuid)
 RETURNS jsonb
@@ -105,6 +125,7 @@ DECLARE
   v_ticket public.tickets%ROWTYPE;
   v_qty_int integer;
 BEGIN
+  -- Bloqueia a linha da comanda antes do ingresso.
   SELECT * INTO v_line FROM public.event_ticket_items WHERE id = _line_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Item da comanda não encontrado';
@@ -124,7 +145,6 @@ BEGIN
   END IF;
 
   SELECT * INTO v_ticket FROM public.tickets WHERE id = v_line.ticket_id FOR UPDATE;
-  -- Mesma regra de update_event_ticket_item: não alterar comanda de ingresso cancelado.
   IF v_ticket.status = 'cancelado' THEN
     RAISE EXCEPTION 'Ingresso cancelado';
   END IF;

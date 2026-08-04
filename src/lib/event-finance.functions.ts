@@ -617,7 +617,6 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
           chapter_id: data.chapterId,
           name: BUDGET_CATEGORY_NAME,
           name_key: budgetKey,
-          sort_order: 200,
         },
         { onConflict: "event_id,name_key" },
       )
@@ -637,10 +636,6 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
           category_id: cat.id,
           name: expenseName,
           name_key: expenseKey,
-          unit_price: data.amount,
-          track_stock: false,
-          stock_qty: null,
-          active: true,
         },
         { onConflict: "category_id,name_key" },
       )
