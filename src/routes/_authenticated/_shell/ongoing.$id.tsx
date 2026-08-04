@@ -67,8 +67,23 @@ function OngoingPage() {
   );
   const flushAtaSaveRef = useRef<(() => Promise<void>) | null>(null);
 
+  async function flushAtaBeforeLeave() {
+    try {
+      await flushAtaSaveRef.current?.();
+      return true;
+    } catch (e: unknown) {
+      toast.error(
+        e instanceof Error ? e.message : "Erro ao salvar rascunho da ata",
+      );
+      return false;
+    }
+  }
+
   async function leaveWithAtaFlush(to: "/atas" | "/presencas") {
-    if (tab === "ata") await flushAtaSaveRef.current?.();
+    if (tab === "ata") {
+      const ok = await flushAtaBeforeLeave();
+      if (!ok) return;
+    }
     navigate({ to });
   }
 
@@ -279,7 +294,8 @@ function OngoingPage() {
           if (v !== "ata" && v !== "chamada") return;
           if (tab === "ata" && v === "chamada") {
             void (async () => {
-              await flushAtaSaveRef.current?.();
+              const ok = await flushAtaBeforeLeave();
+              if (!ok) return;
               setTab(v);
             })();
             return;
@@ -458,7 +474,14 @@ function OngoingPage() {
 
       <div className="mt-4 text-xs text-muted-foreground">
         {tab === "ata" && hasAta ? (
-          <Link to="/atas" style={{ color: "var(--chapter-primary)" }}>
+          <Link
+            to="/atas"
+            style={{ color: "var(--chapter-primary)" }}
+            onClick={(e) => {
+              e.preventDefault();
+              void leaveWithAtaFlush("/atas");
+            }}
+          >
             Ver módulo de Atas
           </Link>
         ) : (

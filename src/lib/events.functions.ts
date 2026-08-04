@@ -147,17 +147,7 @@ export const getEvent = createServerFn({ method: "POST" })
       ),
     ];
     const sellerNameById = new Map<string, string>();
-    if (sellerIds.length > 0) {
-      const { data: sellers, error: sellersErr } = await context.supabase
-        .from("members")
-        .select("id, full_name")
-        .in("id", sellerIds);
-      if (sellersErr) throw new Error(sellersErr.message);
-      for (const s of sellers ?? []) {
-        sellerNameById.set(s.id, s.full_name);
-      }
-    }
-
+    const chargePaidById = new Map<string, boolean>();
     const chargeIds = [
       ...new Set(
         ticketRows
@@ -165,16 +155,34 @@ export const getEvent = createServerFn({ method: "POST" })
           .filter((id): id is string => !!id),
       ),
     ];
-    const chargePaidById = new Map<string, boolean>();
-    if (chargeIds.length > 0) {
-      const { data: charges, error: chargesErr } = await context.supabase
-        .from("member_charges")
-        .select("id, status")
-        .in("id", chargeIds);
-      if (chargesErr) throw new Error(chargesErr.message);
-      for (const c of charges ?? []) {
-        chargePaidById.set(c.id, c.status === "pago");
-      }
+
+    const [sellersRes, chargesRes] = await Promise.all([
+      sellerIds.length > 0
+        ? context.supabase
+            .from("members")
+            .select("id, full_name")
+            .in("id", sellerIds)
+        : Promise.resolve({
+            data: [] as Array<{ id: string; full_name: string }>,
+            error: null,
+          }),
+      chargeIds.length > 0
+        ? context.supabase
+            .from("member_charges")
+            .select("id, status")
+            .in("id", chargeIds)
+        : Promise.resolve({
+            data: [] as Array<{ id: string; status: string }>,
+            error: null,
+          }),
+    ]);
+    if (sellersRes.error) throw new Error(sellersRes.error.message);
+    if (chargesRes.error) throw new Error(chargesRes.error.message);
+    for (const s of sellersRes.data ?? []) {
+      sellerNameById.set(s.id, s.full_name);
+    }
+    for (const c of chargesRes.data ?? []) {
+      chargePaidById.set(c.id, c.status === "pago");
     }
 
     return {
@@ -375,11 +383,16 @@ export const deleteTable = createServerFn({ method: "POST" })
     z.object({ table_id: z.string().uuid() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const { data: deleted, error } = await context.supabase
       .from("event_tables")
       .delete()
-      .eq("id", data.table_id);
+      .eq("id", data.table_id)
+      .select("id")
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    if (!deleted) {
+      throw new Error("Mesa não encontrada ou sem permissão para excluir");
+    }
     return { ok: true };
   });
 
@@ -447,11 +460,12 @@ export const previewTicketByQr = createServerFn({ method: "POST" })
       throw new Error("Nome do comprador não confere com o ingresso");
     }
 
-    const { data: existing } = await context.supabase
+    const { data: existing, error: existingErr } = await context.supabase
       .from("checkins")
       .select("id, checked_in_at")
       .eq("ticket_id", t.id)
       .maybeSingle();
+    if (existingErr) throw new Error(existingErr.message);
 
     const ticketType = t.ticket_type as unknown as { name: string } | null;
 
@@ -530,11 +544,12 @@ export const checkinTicket = createServerFn({ method: "POST" })
       ticketMeta = { qr_code: t.qr_code, buyer_name: t.buyer_name };
     }
 
-    const { data: existing } = await context.supabase
+    const { data: existing, error: existingErr } = await context.supabase
       .from("checkins")
       .select("id")
       .eq("ticket_id", ticketId)
       .maybeSingle();
+    if (existingErr) throw new Error(existingErr.message);
     if (existing) {
       return {
         ok: true,
@@ -577,7 +592,7 @@ export const listChapterTicketsForCheckin = createServerFn({ method: "POST" })
       .order("starts_at", { ascending: false });
     if (eErr) throw new Error(eErr.message);
     const eventRows = events ?? [];
-    if (eventRows.length === 0) return [] as const;
+    if (eventRows.length === 0) return { tickets: [], truncated: false };
 
     const eventIds = eventRows.map((e) => e.id);
     const eventById = new Map(eventRows.map((e) => [e.id, e]));
@@ -593,9 +608,9 @@ export const listChapterTicketsForCheckin = createServerFn({ method: "POST" })
       .limit(2000);
     if (tErr) throw new Error(tErr.message);
     const ticketRows = tickets ?? [];
-    if (ticketRows.length === 0) return [];
+    const truncated = ticketRows.length >= 2000;
+    if (ticketRows.length === 0) return { tickets: [], truncated: false };
 
-    const ticketIds = ticketRows.map((t) => t.id);
     const sellerIds = [
       ...new Set(
         ticketRows
@@ -607,8 +622,8 @@ export const listChapterTicketsForCheckin = createServerFn({ method: "POST" })
     const [checkinsRes, sellersRes] = await Promise.all([
       context.supabase
         .from("checkins")
-        .select("ticket_id, checked_in_at")
-        .in("ticket_id", ticketIds),
+        .select("ticket_id, checked_in_at, event_id")
+        .in("event_id", eventIds),
       sellerIds.length
         ? context.supabase
             .from("members")
@@ -619,36 +634,42 @@ export const listChapterTicketsForCheckin = createServerFn({ method: "POST" })
     if (checkinsRes.error) throw new Error(checkinsRes.error.message);
     if (sellersRes.error) throw new Error(sellersRes.error.message);
 
+    const ticketIdSet = new Set(ticketRows.map((t) => t.id));
     const checkinByTicket = new Map(
-      (checkinsRes.data ?? []).map((c) => [c.ticket_id, c.checked_in_at]),
+      (checkinsRes.data ?? [])
+        .filter((c) => ticketIdSet.has(c.ticket_id))
+        .map((c) => [c.ticket_id, c.checked_in_at]),
     );
     const sellerById = new Map(
       (sellersRes.data ?? []).map((s) => [s.id, s.full_name]),
     );
 
-    return ticketRows.map((t) => {
-      const event = eventById.get(t.event_id)!;
-      const ticketType = t.ticket_type as unknown as { name: string } | null;
-      const checkedInAt = checkinByTicket.get(t.id) ?? null;
-      return {
-        id: t.id,
-        event_id: t.event_id,
-        event_name: event.name,
-        event_starts_at: event.starts_at,
-        event_location: event.location,
-        buyer_name: t.buyer_name,
-        buyer_email: t.buyer_email,
-        qr_code: t.qr_code,
-        price_paid: Number(t.price_paid) || 0,
-        ticket_type_name: ticketType?.name ?? "Avulso",
-        seller_name: t.seller_member_id
-          ? (sellerById.get(t.seller_member_id) ?? null)
-          : null,
-        sold_at: t.sold_at,
-        already_checked_in: !!checkedInAt,
-        checked_in_at: checkedInAt,
-      };
-    });
+    return {
+      truncated,
+      tickets: ticketRows.map((t) => {
+        const event = eventById.get(t.event_id)!;
+        const ticketType = t.ticket_type as unknown as { name: string } | null;
+        const checkedInAt = checkinByTicket.get(t.id) ?? null;
+        return {
+          id: t.id,
+          event_id: t.event_id,
+          event_name: event.name,
+          event_starts_at: event.starts_at,
+          event_location: event.location,
+          buyer_name: t.buyer_name,
+          buyer_email: t.buyer_email,
+          qr_code: t.qr_code,
+          price_paid: Number(t.price_paid) || 0,
+          ticket_type_name: ticketType?.name ?? "Avulso",
+          seller_name: t.seller_member_id
+            ? (sellerById.get(t.seller_member_id) ?? null)
+            : null,
+          sold_at: t.sold_at,
+          already_checked_in: !!checkedInAt,
+          checked_in_at: checkedInAt,
+        };
+      }),
+    };
   });
 
 /** Exclui um evento (ingressos/mesas/check-ins em cascata). */

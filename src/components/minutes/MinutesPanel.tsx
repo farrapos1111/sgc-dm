@@ -3,7 +3,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type MutableRefObject,
+  type RefObject,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -94,7 +94,7 @@ type Props = {
    * Ref preenchida com flush do rascunho (salvar se houver alterações).
    * Usar ao sair da tela / trocar de aba.
    */
-  flushSaveRef?: MutableRefObject<(() => Promise<void>) | null>;
+  flushSaveRef?: RefObject<(() => Promise<void>) | null>;
 };
 
 const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
@@ -123,7 +123,7 @@ export function MinutesPanel({
   const [kind, setKind] = useState<MinuteKind>(() =>
     isMinuteKind(minutes?.kind) ? minutes.kind : "publica",
   );
-  const [autocompleteOn, setAutocompleteOn] = useState(readAutocompletePref);
+  const [autocompleteOn, setAutocompleteOn] = useState(true);
 
   const status = minutes?.status ?? "rascunho";
   const editable = status === "rascunho";
@@ -147,17 +147,28 @@ export function MinutesPanel({
     calendarEventId,
     hasMinute: Boolean(minutes),
   });
-  draftRef.current = {
-    ata,
-    kind,
-    editable,
-    dirty,
-    chapterId,
-    calendarEventId,
-    hasMinute: Boolean(minutes),
-  };
   /** Evita segundo save no unmount depois de flush explícito (voltar / trocar aba). */
   const allowUnmountSaveRef = useRef(true);
+
+  useEffect(() => {
+    draftRef.current = {
+      ata,
+      kind,
+      editable,
+      dirty,
+      chapterId,
+      calendarEventId,
+      hasMinute: Boolean(minutes),
+    };
+  }, [ata, kind, editable, dirty, chapterId, calendarEventId, minutes]);
+
+  useEffect(() => {
+    if (dirty) allowUnmountSaveRef.current = true;
+  }, [dirty]);
+
+  useEffect(() => {
+    setAutocompleteOn(readAutocompletePref());
+  }, []);
 
   useEffect(() => {
     setAta(minutes?.content ?? "");
@@ -178,19 +189,28 @@ export function MinutesPanel({
     });
   }
 
+  function persistDraft(d: {
+    ata: string;
+    kind: MinuteKind;
+    chapterId: string;
+    calendarEventId: string;
+  }) {
+    return saveMinutes({
+      data: {
+        chapterId: d.chapterId,
+        calendarEventId: d.calendarEventId,
+        content: d.ata,
+        kind: d.kind,
+      },
+    });
+  }
+
   const flushSave = async () => {
     const d = draftRef.current;
     if (!d.editable || !d.dirty) return;
     if (!d.ata.trim() && !d.hasMinute) return;
     try {
-      await saveMinutes({
-        data: {
-          chapterId: d.chapterId,
-          calendarEventId: d.calendarEventId,
-          content: d.ata,
-          kind: d.kind,
-        },
-      });
+      await persistDraft(d);
       allowUnmountSaveRef.current = false;
       draftRef.current = { ...draftRef.current, dirty: false };
       toast.success("Rascunho salvo");
@@ -199,6 +219,7 @@ export function MinutesPanel({
       void qc.invalidateQueries({ queryKey: ["chapter-minutes", chapterId] });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar rascunho");
+      throw e;
     }
   };
 
@@ -219,13 +240,8 @@ export function MinutesPanel({
       const d = draftRef.current;
       if (!d.editable || !d.dirty) return;
       if (!d.ata.trim() && !d.hasMinute) return;
-      void saveMinutes({
-        data: {
-          chapterId: d.chapterId,
-          calendarEventId: d.calendarEventId,
-          content: d.ata,
-          kind: d.kind,
-        },
+      void persistDraft(d).catch((e: unknown) => {
+        toast.error(e instanceof Error ? e.message : "Erro ao salvar rascunho");
       });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

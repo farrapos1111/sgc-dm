@@ -8,6 +8,7 @@ import {
   type AwayPeriod,
   type DueMemberLite,
 } from "@/lib/dues-rules";
+import { isBudgetCategoryName } from "@/lib/event-finance.functions";
 import { currentYearMonthInAppTz, todayYmd } from "@/lib/timezone";
 
 const chapterInput = z.object({ chapterId: z.string().uuid() });
@@ -603,7 +604,7 @@ export const listCashCategories = createServerFn({ method: "POST" })
 
     const revenueFinanceItems = (financeItems.data ?? []).filter((i) => {
       const cat = i.category as { name?: string } | null;
-      return (cat?.name ?? "").trim().toLowerCase() !== "orçamento";
+      return !isBudgetCategoryName(cat?.name ?? "");
     });
 
     return {
@@ -807,8 +808,10 @@ async function fetchYearDues(
 
   let dues = duesRes.data ?? [];
   const duesMemberIds = [
-    ...new Set(dues.map((d: { member_id: string }) => d.member_id)),
-  ];
+    ...new Set(
+      dues.map((d: { member_id: string }) => d.member_id as string),
+    ),
+  ] as string[];
 
   let members = await resolveMembers(
     (membersRes.data ?? []) as DueMemberLite[],

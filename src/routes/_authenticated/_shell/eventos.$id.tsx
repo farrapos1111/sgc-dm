@@ -541,7 +541,10 @@ function TicketsList({
 }) {
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
-  const typeMap = new Map(types.map((t) => [t.id, t.name]));
+  const typeMap = useMemo(
+    () => new Map(types.map((t) => [t.id, t.name])),
+    [types],
+  );
   const [search, setSearch] = useState("");
   const [preview, setPreview] = useState<{
     pass: TicketPassData;
@@ -549,10 +552,9 @@ function TicketsList({
   } | null>(null);
 
   const filteredTickets = useMemo(() => {
-    const typesById = new Map(types.map((t) => [t.id, t.name]));
     return tickets.filter((t) => {
       const typeName =
-        (t.ticket_type_id ? typesById.get(t.ticket_type_id) : undefined) ??
+        (t.ticket_type_id ? typeMap.get(t.ticket_type_id) : undefined) ??
         "Avulso";
       const statusParts = [
         t.status,
@@ -566,7 +568,7 @@ function TicketsList({
       ].join(" ");
       return matchesLooseSearch(haystack, search);
     });
-  }, [tickets, search, types]);
+  }, [tickets, search, typeMap]);
 
   const removeTicket = useMutation({
     mutationFn: (ticketId: string) =>

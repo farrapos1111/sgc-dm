@@ -92,9 +92,21 @@ export function readPublicMinuteUnlock(storageKey: string): PublicMinuteUnlock |
   const raw = sessionStorage.getItem(storageKey);
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as PublicMinuteUnlock;
-    if (parsed?.mode === "password" && parsed.password) return parsed;
-    if (parsed?.mode === "member" && parsed.demolayId) return parsed;
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const obj = parsed as Record<string, unknown>;
+      if (obj.mode === "password" && typeof obj.password === "string" && obj.password) {
+        return { mode: "password", password: obj.password };
+      }
+      if (obj.mode === "member" && typeof obj.demolayId === "string" && obj.demolayId) {
+        return { mode: "member", demolayId: obj.demolayId };
+      }
+    }
+    // legado: JSON.parse de senha numérica ou string pura
+    if (typeof parsed === "string" || typeof parsed === "number") {
+      const legacy = String(parsed).trim();
+      if (legacy) return { mode: "password", password: legacy };
+    }
   } catch {
     // legado: valor era só a senha em texto
     if (raw.trim()) return { mode: "password", password: raw };
@@ -106,6 +118,7 @@ export function writePublicMinuteUnlock(
   storageKey: string,
   unlock: PublicMinuteUnlock,
 ) {
+  if (typeof window === "undefined") return;
   sessionStorage.setItem(storageKey, JSON.stringify(unlock));
 }
 
@@ -217,10 +230,9 @@ export const peekPublicMinute = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const supabase = getPublicSupabase();
-    const { data: payload, error } = await supabase.rpc(
-      "peek_public_minute" as never,
-      { _token: data.token } as never,
-    );
+    const { data: payload, error } = await supabase.rpc("peek_public_minute", {
+      _token: data.token,
+    });
     if (error) throw new Error(error.message);
     return payload as PublicMinutePeek;
   });
@@ -237,8 +249,8 @@ export const getPublicMinuteByMember = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const supabase = getPublicSupabase();
     const { data: payload, error } = await supabase.rpc(
-      "get_public_minute_by_member" as never,
-      { _token: data.token, _demolay_id: data.demolayId } as never,
+      "get_public_minute_by_member",
+      { _token: data.token, _demolay_id: data.demolayId },
     );
     if (error) throw new Error(error.message);
     return payload as PublicMinuteMemberResult;
@@ -276,7 +288,7 @@ export const submitPublicMinuteVote = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const supabase = getPublicSupabase();
     const { data: payload, error } = await supabase.rpc(
-      "submit_public_minute_vote" as never,
+      "submit_public_minute_vote",
       {
         _token: data.token,
         _password: data.password ?? "",
@@ -284,7 +296,7 @@ export const submitPublicMinuteVote = createServerFn({ method: "POST" })
         _decision: data.decision,
         _justification: data.justification ?? undefined,
         _demolay_id: data.demolayId ?? undefined,
-      } as never,
+      },
     );
     if (error) throw new Error(error.message);
     return payload as {

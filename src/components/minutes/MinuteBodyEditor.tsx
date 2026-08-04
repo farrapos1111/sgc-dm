@@ -152,11 +152,15 @@ export function MinuteBodyEditor({
   const [activeIdx, setActiveIdx] = useState(0);
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
   const [balloon, setBalloon] = useState<BalloonPos | null>(null);
-  const [autocompleteInternal, setAutocompleteInternal] = useState(
-    readAutocompletePref,
-  );
+  const [autocompleteInternal, setAutocompleteInternal] = useState(true);
 
   const autocompleteOn = autocompleteOnProp ?? autocompleteInternal;
+
+  useEffect(() => {
+    if (autocompleteOnProp == null) {
+      setAutocompleteInternal(readAutocompletePref());
+    }
+  }, [autocompleteOnProp]);
 
   function setAutocomplete(next: boolean) {
     if (onAutocompleteOnChange) onAutocompleteOnChange(next);

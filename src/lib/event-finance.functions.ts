@@ -379,12 +379,6 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
 
       // Orçamento não entra no breakdown de categorias/itens de receita
       if (isBudgetCategoryName(categoryName)) continue;
-      if (
-        typeof e.subcategory === "string" &&
-        /^Evento .+ - Despesa /i.test(e.subcategory)
-      ) {
-        continue;
-      }
 
       const itemRow = byItem.get(itemId) ?? {
         itemId,
@@ -524,12 +518,17 @@ export const upsertEventFinanceItem = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: category, error: categoryError } = await context.supabase
       .from("event_finance_categories")
-      .select("id, event_id")
+      .select("id, event_id, name")
       .eq("id", data.categoryId)
       .maybeSingle();
     if (categoryError) throw new Error(categoryError.message);
     if (!category || category.event_id !== data.eventId) {
       throw new Error("Categoria não pertence a este evento");
+    }
+    if (isBudgetCategoryName(category.name)) {
+      throw new Error(
+        "Itens de Orçamento são gerenciados na seção Orçamento, não no catálogo",
+      );
     }
 
     const payload = {
@@ -608,7 +607,7 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
       .from("event_finance_categories")
       .select("id")
       .eq("event_id", data.eventId)
-      .ilike("name", BUDGET_CATEGORY_NAME)
+      .eq("name", BUDGET_CATEGORY_NAME)
       .maybeSingle();
     if (catErr) throw new Error(catErr.message);
 
@@ -633,7 +632,7 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
       .select("id")
       .eq("event_id", data.eventId)
       .eq("category_id", cat.id)
-      .ilike("name", expenseName)
+      .eq("name", expenseName)
       .maybeSingle();
     if (itemErr) throw new Error(itemErr.message);
 
@@ -684,6 +683,21 @@ export const listEventBudgetExpenses = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => eventIdInput.parse(raw))
   .handler(async ({ data, context }) => {
+    const { data: budgetItems, error: itemsErr } = await context.supabase
+      .from("event_finance_items")
+      .select("id, category:event_finance_categories!inner(name)")
+      .eq("event_id", data.eventId);
+    if (itemsErr) throw new Error(itemsErr.message);
+
+    const budgetItemIds = (budgetItems ?? [])
+      .filter((row) => {
+        const cat = row.category as { name?: string } | null;
+        return isBudgetCategoryName(cat?.name ?? "");
+      })
+      .map((row) => row.id);
+
+    if (budgetItemIds.length === 0) return [];
+
     const { data: rows, error } = await context.supabase
       .from("cash_entries")
       .select(
@@ -692,7 +706,7 @@ export const listEventBudgetExpenses = createServerFn({ method: "POST" })
       .eq("event_id", data.eventId)
       .eq("kind", "saida")
       .eq("category", "Eventos")
-      .ilike("subcategory", "Evento % - Despesa %")
+      .in("event_finance_item_id", budgetItemIds)
       .order("entry_date", { ascending: false })
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -799,8 +813,8 @@ export const addEventTicketItem = createServerFn({ method: "POST" })
         _ticket_id: data.ticketId,
         _item_id: data.itemId,
         _qty: data.qty,
-        _unit_price: data.unit_price ?? null,
-        _description: data.description ?? null,
+        _unit_price: data.unit_price ?? undefined,
+        _description: data.description ?? undefined,
       },
     );
     if (error) throw new Error(error.message);
@@ -831,8 +845,8 @@ export const updateEventTicketItem = createServerFn({ method: "POST" })
       "update_event_ticket_item",
       {
         _line_id: data.lineId,
-        _qty: data.qty ?? null,
-        _unit_price: data.unit_price ?? null,
+        _qty: data.qty ?? undefined,
+        _unit_price: data.unit_price ?? undefined,
       },
     );
     if (error) throw new Error(error.message);
@@ -1007,11 +1021,12 @@ export const getComandaCheckout = createServerFn({ method: "POST" })
 
     let sellerName: string | null = null;
     if (ticket.seller_member_id) {
-      const { data: seller } = await context.supabase
+      const { data: seller, error: sellerErr } = await context.supabase
         .from("members")
         .select("full_name")
         .eq("id", ticket.seller_member_id)
         .maybeSingle();
+      if (sellerErr) throw new Error(sellerErr.message);
       sellerName = seller?.full_name ?? null;
     }
 
@@ -1067,101 +1082,19 @@ export const checkoutEventTicketComanda = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { data: ticket, error: ticketErr } = await context.supabase
-      .from("tickets")
-      .select("id, event_id, seller_charge_id")
-      .eq("id", data.ticketId)
-      .eq("event_id", data.eventId)
-      .maybeSingle();
-    if (ticketErr) throw new Error(ticketErr.message);
-    if (!ticket) throw new Error("Ingresso não encontrado");
-    if (!ticket.seller_charge_id) {
-      throw new Error("Ingresso sem cobrança de vendedor vinculada");
-    }
-
-    const { data: event, error: eventErr } = await context.supabase
-      .from("events")
-      .select("chapter_id")
-      .eq("id", data.eventId)
-      .maybeSingle();
-    if (eventErr) throw new Error(eventErr.message);
-    if (!event) throw new Error("Evento não encontrado");
-
-    const { data: charge, error: chargeErr } = await context.supabase
-      .from("member_charges")
-      .select(
-        "id, chapter_id, kind, category, subcategory, description, amount, status, cash_entry_id",
-      )
-      .eq("id", ticket.seller_charge_id)
-      .eq("chapter_id", event.chapter_id)
-      .maybeSingle();
-    if (chargeErr) throw new Error(chargeErr.message);
-    if (!charge) throw new Error("Cobrança não encontrada");
-
-    if (charge.status === "pago") {
-      return { ok: true, alreadyPaid: true };
-    }
-    if (charge.status === "isento") {
-      throw new Error("Cobrança isenta não pode ser quitada no checkout");
-    }
-
-    const { data: pays, error: payListErr } = await context.supabase
-      .from("member_charge_payments" as never)
-      .select("amount")
-      .eq("charge_id", charge.id);
-    if (payListErr) throw new Error(payListErr.message);
-    const alreadyPaid = (
-      (pays as Array<{ amount: number | string }>) ?? []
-    ).reduce((s, p) => s + Number(p.amount), 0);
-    const totalDue = Number(charge.amount) || 0;
-    const remaining = Math.max(0, totalDue - alreadyPaid);
-    if (remaining <= 0) {
-      return { ok: true, alreadyPaid: true };
-    }
-
     const paidAt = todayYmd();
-    const { data: entry, error: entryErr } = await context.supabase
-      .from("cash_entries")
-      .insert({
-        chapter_id: event.chapter_id,
-        kind: charge.kind,
-        category: charge.category,
-        subcategory: charge.subcategory,
-        description: charge.description,
-        amount: remaining,
-        entry_date: paidAt,
-        created_by: context.userId,
-        event_id: data.eventId,
-      })
-      .select("id")
-      .single();
-    if (entryErr) throw new Error(entryErr.message);
-
-    const { error: payErr } = await context.supabase
-      .from("member_charge_payments" as never)
-      .insert({
-        chapter_id: event.chapter_id,
-        charge_id: charge.id,
-        amount: remaining,
-        paid_at: paidAt,
-        cash_entry_id: entry.id,
-        notes: "Checkout comanda / quitação ingresso",
-        created_by: context.userId,
-      } as never);
-    if (payErr) {
-      await context.supabase.from("cash_entries").delete().eq("id", entry.id);
-      throw new Error(payErr.message);
-    }
-
-    const { error: updErr } = await context.supabase
-      .from("member_charges")
-      .update({
-        status: "pago",
-        paid_at: paidAt,
-        cash_entry_id: entry.id,
-      })
-      .eq("id", charge.id);
-    if (updErr) throw new Error(updErr.message);
-
-    return { ok: true, alreadyPaid: false };
+    const { data: checkout, error: checkoutErr } = await context.supabase.rpc(
+      "checkout_event_ticket_comanda",
+      {
+        _event_id: data.eventId,
+        _ticket_id: data.ticketId,
+        _paid_at: paidAt,
+      },
+    );
+    if (checkoutErr) throw new Error(checkoutErr.message);
+    const result = checkout as { ok: boolean; already_paid?: boolean; alreadyPaid?: boolean };
+    return {
+      ok: true as const,
+      alreadyPaid: Boolean(result?.already_paid ?? result?.alreadyPaid),
+    };
   });

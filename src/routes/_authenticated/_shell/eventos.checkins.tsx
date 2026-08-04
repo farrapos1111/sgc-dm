@@ -57,7 +57,10 @@ export const Route = createFileRoute("/_authenticated/_shell/eventos/checkins")(
   component: Checkins,
 });
 
-type TicketRow = Awaited<ReturnType<typeof listChapterTicketsForCheckin>>[number];
+type CheckinTicketsResult = Awaited<
+  ReturnType<typeof listChapterTicketsForCheckin>
+>;
+type TicketRow = CheckinTicketsResult["tickets"][number];
 type PreviewPayload = Awaited<ReturnType<typeof previewTicketByQr>>;
 type SortKey = "nome" | "evento" | "valor" | "vendedor";
 
@@ -119,7 +122,8 @@ function Checkins() {
       listChapterTicketsForCheckin({ data: { chapterId: active!.chapter_id } }),
   });
 
-  const tickets = ticketsQ.data ?? [];
+  const tickets = ticketsQ.data?.tickets ?? [];
+  const ticketsTruncated = Boolean(ticketsQ.data?.truncated);
 
   const visible = useMemo(() => {
     const q = search.trim();
@@ -200,6 +204,7 @@ function Checkins() {
       await qc.invalidateQueries({ queryKey: ["checkins"] });
     },
     onError: (e: unknown) => {
+      busyRef.current = false;
       toast.error(mutationErrorMessage(e, "Erro ao liberar acesso"));
     },
   });
@@ -240,6 +245,13 @@ function Checkins() {
         title="Check-ins"
         subtitle="Leia o QR ou libere o acesso manualmente pela lista. Ao confirmar, a comanda virtual é aberta."
       />
+
+      {ticketsTruncated ? (
+        <p className="mb-3 text-sm text-amber-700 dark:text-amber-400">
+          Lista limitada aos 2000 ingressos mais recentes. Refine a busca ou
+          filtre por evento se o ingresso esperado não aparecer.
+        </p>
+      ) : null}
 
       <Card className="mb-3 rounded-[12px] p-3 sm:mb-4 sm:p-5">
         <div className="mb-2 flex items-center justify-between gap-2 sm:mb-3">

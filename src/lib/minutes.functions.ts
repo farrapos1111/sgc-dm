@@ -324,10 +324,38 @@ export const deleteMinute = createServerFn({ method: "POST" })
   .inputValidator((raw) => z.object({ minuteId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const minute = await loadMinute(context.supabase, data.minuteId);
-    const { error } = await context.supabase
+    if (minute.status !== "rascunho") {
+      throw new Error("Somente atas em rascunho podem ser excluídas.");
+    }
+
+    const { data: allowed, error: roleErr } = await context.supabase.rpc(
+      "has_any_role",
+      {
+        _chapter_id: minute.chapter_id,
+        _role_names: [
+          "admin_total",
+          "mestre_conselheiro",
+          "escrivao",
+          "consultor",
+          "presidente_conselho",
+        ],
+      },
+    );
+    if (roleErr) throw new Error(roleErr.message);
+    if (!allowed) {
+      throw new Error("Sem permissão para excluir esta ata");
+    }
+
+    const { data: deleted, error } = await context.supabase
       .from("session_minutes")
       .delete()
-      .eq("id", minute.id);
+      .eq("id", minute.id)
+      .eq("chapter_id", minute.chapter_id)
+      .select("id")
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    if (!deleted) {
+      throw new Error("Ata não encontrada ou sem permissão para excluir");
+    }
     return { ok: true as const };
   });

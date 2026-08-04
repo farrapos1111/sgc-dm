@@ -24,23 +24,24 @@ export function detectMinuteMention(
 ): MinuteMentionMatch | null {
   // Título no fim do trecho até o cursor: (início/separador) + Irmão|Tio + espaço + ≥3 não-espaço
   const re =
-    /(?:^|[\s\n([{«"'“])((?:[Ii]rm[aã]o)|(?:[Tt]io))\s+(\S{3,})$/u;
+    /(?:^|[\s\n([{«"'“])((?:[Ii]rm[aã]o)|(?:[Tt]io))(\s+)(\S{3,})$/u;
   const m = textBeforeCursor.match(re);
   if (!m || m.index == null) return null;
 
   const rawTitle = m[1];
-  const query = m[2];
+  const spacing = m[2];
+  const query = m[3];
   const titleNorm = normalizeSearch(rawTitle);
   const title: MinuteMentionTitle =
     titleNorm === "tio" ? "Tio" : "Irmão";
 
-  // índice do título no texto = fim - (título + espaço + query)
+  // índice do título no texto = fim - (título + espaçamento + query)
   const matched = m[0];
   // m[0] pode incluir o separador à esquerda
   const titleInMatch = matched.search(/[IiTt]/);
   const titleIndex =
     m.index + (titleInMatch >= 0 ? titleInMatch : 0);
-  const queryIndex = titleIndex + rawTitle.length + 1; // + espaço
+  const queryIndex = titleIndex + rawTitle.length + spacing.length;
 
   return { title, query, titleIndex, queryIndex };
 }
