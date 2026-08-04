@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,6 +53,7 @@ import {
   SIGNER_LABELS,
   SIGNER_ROLES,
 } from "@/lib/minutes.functions";
+import { MINUTE_KIND_LABELS } from "@/lib/minute-kinds";
 import { AVAILABLE_VARS } from "@/lib/minute-vars";
 import { can } from "@/lib/permissions";
 import { formatDateTimeBR } from "@/lib/format";
@@ -160,6 +162,12 @@ function MinuteCard({ minute }: { minute: any }) {
               {minute.calendar_event?.title ?? "Sessão"}
             </h3>
             <StatusBadge status={minute.status} />
+            {minute.kind ? (
+              <Badge variant="outline" className="text-[11px] font-normal">
+                {MINUTE_KIND_LABELS[minute.kind as keyof typeof MINUTE_KIND_LABELS] ??
+                  minute.kind}
+              </Badge>
+            ) : null}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {minute.calendar_event?.start_at

@@ -5,7 +5,7 @@ import {
   useQueryClient,
   queryOptions,
 } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { PageHeader } from "@/components/PageHeader";
@@ -65,6 +65,12 @@ function OngoingPage() {
   const [tab, setTab] = useState<"chamada" | "ata">(() =>
     hasAta && searchTab === "ata" ? "ata" : "chamada",
   );
+  const flushAtaSaveRef = useRef<(() => Promise<void>) | null>(null);
+
+  async function leaveWithAtaFlush(to: "/atas" | "/presencas") {
+    if (tab === "ata") await flushAtaSaveRef.current?.();
+    navigate({ to });
+  }
 
   const allowed = canManageAttendance(active?.role.name);
   const item = data.item as {
@@ -242,28 +248,43 @@ function OngoingPage() {
             ) : null}
             <Button
               variant="outline"
-              onClick={() => navigate({ to: "/presencas" })}
+              onClick={() =>
+                void leaveWithAtaFlush(
+                  tab === "ata" && hasAta ? "/atas" : "/presencas",
+                )
+              }
             >
-              <ArrowLeft className="mr-2 h-4 w-4" /> Presenças
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {tab === "ata" && hasAta ? "Atas" : "Presenças"}
             </Button>
           </div>
         }
       />
 
-      <div className="mb-4 grid grid-cols-3 gap-2">
-        <Counter label="Presentes" value={presentes} color="#047857" />
-        <Counter label="Ausentes" value={ausentes} color="#B91C1C" />
-        <Counter
-          label="Pendentes"
-          value={Math.max(0, pendentes)}
-          color="#6B6B6B"
-        />
-      </div>
+      {tab !== "ata" ? (
+        <div className="mb-4 grid grid-cols-3 gap-2">
+          <Counter label="Presentes" value={presentes} color="#047857" />
+          <Counter label="Ausentes" value={ausentes} color="#B91C1C" />
+          <Counter
+            label="Pendentes"
+            value={Math.max(0, pendentes)}
+            color="#6B6B6B"
+          />
+        </div>
+      ) : null}
 
       <Tabs
         value={hasAta ? tab : "chamada"}
         onValueChange={(v) => {
-          if (v === "ata" || v === "chamada") setTab(v);
+          if (v !== "ata" && v !== "chamada") return;
+          if (tab === "ata" && v === "chamada") {
+            void (async () => {
+              await flushAtaSaveRef.current?.();
+              setTab(v);
+            })();
+            return;
+          }
+          setTab(v);
         }}
       >
         <TabsList className="mb-4">
@@ -425,18 +446,26 @@ function OngoingPage() {
               }}
               minutes={(data.minutes as any) ?? null}
               roleName={active?.role.name ?? null}
+              flushSaveRef={flushAtaSaveRef}
               onChanged={() =>
                 qc.invalidateQueries({ queryKey: ["ongoing", id] })
               }
+              onDeleted={() => navigate({ to: "/atas" })}
             />
           </TabsContent>
         ) : null}
       </Tabs>
 
       <div className="mt-4 text-xs text-muted-foreground">
-        <Link to="/presencas" style={{ color: "var(--chapter-primary)" }}>
-          Ver módulo de Presenças
-        </Link>
+        {tab === "ata" && hasAta ? (
+          <Link to="/atas" style={{ color: "var(--chapter-primary)" }}>
+            Ver módulo de Atas
+          </Link>
+        ) : (
+          <Link to="/presencas" style={{ color: "var(--chapter-primary)" }}>
+            Ver módulo de Presenças
+          </Link>
+        )}
       </div>
     </div>
   );

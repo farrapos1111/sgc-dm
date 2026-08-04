@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -90,6 +91,7 @@ function Fichas() {
   const { canManage } = useCommissionAccess();
   const writable = canManage("sindicancias");
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [keepPii, setKeepPii] = useState({ cpf: false, rg: false });
@@ -660,8 +662,13 @@ function Fichas() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => {
-                          if (confirm("Excluir esta ficha?")) remove.mutate(f.id);
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: "Excluir ficha?",
+                            description: "Excluir esta ficha?",
+                            confirmLabel: "Excluir",
+                          });
+                          if (ok) remove.mutate(f.id);
                         }}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -973,6 +980,7 @@ function Fichas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {dialog}
     </div>
   );
 }

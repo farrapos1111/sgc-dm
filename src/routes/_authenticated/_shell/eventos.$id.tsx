@@ -17,8 +17,7 @@ import {
   deleteTicketType,
   sellTicket,
   createTable,
-  assignSeat,
-  checkinTicket,
+  deleteTable,
   deleteEvent,
   updateEventArtwork,
 } from "@/lib/events.functions";
@@ -26,6 +25,9 @@ import {
   deleteEventTicket,
   getEventFinanceTotals,
 } from "@/lib/event-finance.functions";
+import { listChargeMembers } from "@/lib/finance.functions";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { formatEventFinanceHint } from "@/lib/event-finance-export";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -61,17 +63,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft,
+  ChevronDown,
   ImagePlus,
   Pencil,
   PlusCircle,
-  ScanLine,
   Search,
   Ticket,
   Trash2,
 } from "lucide-react";
 import { formatBRL, formatDateTimeBR } from "@/lib/format";
-import { QrScanner } from "@/components/QrScanner";
 import { can } from "@/lib/permissions";
+import { matchesLooseSearch } from "@/lib/utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { TicketPass } from "@/components/events/TicketPass";
 import { EventFinancePanel } from "@/components/events/EventFinancePanel";
 import { TicketComandaButton } from "@/components/events/TicketComandaDialog";
@@ -100,7 +107,6 @@ type EventTicket = EventDetail["tickets"][number];
 type EventTicketType = EventDetail["ticketTypes"][number];
 type EventTable = EventDetail["tables"][number];
 type EventSeat = EventDetail["seats"][number];
-type EventCheckin = EventDetail["checkins"][number];
 
 function mutationErrorMessage(e: unknown, fallback: string) {
   return e instanceof Error ? e.message : fallback;
@@ -224,9 +230,6 @@ function EventoDetalhe() {
             <span className="sm:hidden">Mesas</span>
             <span className="hidden sm:inline">Mapa de mesas</span>
           </TabsTrigger>
-          <TabsTrigger value="checkin" className="shrink-0">
-            Check-in
-          </TabsTrigger>
           <TabsTrigger value="financeiro" className="shrink-0">
             Financeiro
           </TabsTrigger>
@@ -320,6 +323,7 @@ function EventoDetalhe() {
               />
               <SellTicketCard
                 eventId={id}
+                chapterId={data.event.chapter_id}
                 event={eventMeta}
                 types={data.ticketTypes}
                 artworkUrl={artworkUrl}
@@ -332,6 +336,7 @@ function EventoDetalhe() {
                   qc.invalidateQueries({
                     queryKey: ["event-finance-totals", id],
                   });
+                  qc.invalidateQueries({ queryKey: ["member-charges"] });
                 }}
               />
             </div>
@@ -342,6 +347,7 @@ function EventoDetalhe() {
           <EventFinancePanel
             eventId={id}
             chapterId={data.event.chapter_id}
+            eventName={data.event.name}
             primary={active?.chapter.primary_color}
             canEdit={canEditFinance}
             chapterName={
@@ -362,24 +368,9 @@ function EventoDetalhe() {
             eventId={id}
             tables={data.tables}
             seats={data.seats}
-            tickets={data.tickets}
             primary={active?.chapter.primary_color}
             onChanged={() => qc.invalidateQueries({ queryKey: ["event", id] })}
           />
-        </TabsContent>
-
-        <TabsContent value="checkin">
-          {tab === "checkin" && (
-            <CheckinPanel
-              eventId={id}
-              tickets={data.tickets}
-              checkins={data.checkins}
-              primary={active?.chapter.primary_color}
-              onChanged={() =>
-                qc.invalidateQueries({ queryKey: ["event", id] })
-              }
-            />
-          )}
         </TabsContent>
       </Tabs>
     </div>
@@ -549,11 +540,33 @@ function TicketsList({
   canEditComanda?: boolean;
 }) {
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const typeMap = new Map(types.map((t) => [t.id, t.name]));
+  const [search, setSearch] = useState("");
   const [preview, setPreview] = useState<{
     pass: TicketPassData;
     qrDataUrl: string;
   } | null>(null);
+
+  const filteredTickets = useMemo(() => {
+    const typesById = new Map(types.map((t) => [t.id, t.name]));
+    return tickets.filter((t) => {
+      const typeName =
+        (t.ticket_type_id ? typesById.get(t.ticket_type_id) : undefined) ??
+        "Avulso";
+      const statusParts = [
+        t.status,
+        t.seller_charge_paid ? "paga pago" : "em aberto pendente",
+      ];
+      const haystack = [
+        t.buyer_name,
+        t.seller_name ?? "",
+        typeName,
+        ...statusParts,
+      ].join(" ");
+      return matchesLooseSearch(haystack, search);
+    });
+  }, [tickets, search, types]);
 
   const removeTicket = useMutation({
     mutationFn: (ticketId: string) =>
@@ -594,22 +607,50 @@ function TicketsList({
   }
 
   return (
+    <>
     <Card className="rounded-[12px] p-0">
+      <div className="border-b border-border p-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar nome, vendedor, tipo ou status…"
+            className="pl-9"
+            aria-label="Buscar ingressos"
+          />
+        </div>
+      </div>
       {tickets.length === 0 ? (
         <div className="p-6 text-sm text-muted-foreground">
           Nenhum ingresso vendido ainda.
         </div>
+      ) : filteredTickets.length === 0 ? (
+        <div className="p-6 text-sm text-muted-foreground">
+          Nenhum ingresso encontrado para “{search.trim()}”.
+        </div>
       ) : (
         <ul className="divide-y divide-border">
-          {tickets.map((t) => (
+          {filteredTickets.map((t) => (
             <li
               key={t.id}
-              className="flex items-center justify-between gap-3 p-4"
+              className={
+                t.seller_charge_paid
+                  ? "flex items-center justify-between gap-3 bg-emerald-500/10 p-4"
+                  : "flex items-center justify-between gap-3 p-4"
+              }
             >
               <div className="min-w-0">
-                <div className="truncate font-medium">{t.buyer_name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {t.qr_code} ·{" "}
+                <div className="truncate font-medium">
+                  {t.buyer_name}
+                  {t.seller_name ? (
+                    <span className="font-normal text-muted-foreground">
+                      {" "}
+                      · {t.seller_name}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
                   {(t.ticket_type_id
                     ? typeMap.get(t.ticket_type_id)
                     : undefined) ?? "Avulso"}{" "}
@@ -617,15 +658,22 @@ function TicketsList({
                 </div>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <Badge variant="secondary" className="capitalize">
-                  {t.status}
-                </Badge>
+                {t.seller_charge_paid ? (
+                  <Badge className="border-transparent bg-emerald-500/20 text-emerald-800 capitalize dark:text-emerald-300">
+                    Paga
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="capitalize">
+                    {t.status}
+                  </Badge>
+                )}
                 {canEditComanda && t.status !== "cancelado" && (
                   <TicketComandaButton
                     eventId={eventId}
                     ticketId={t.id}
                     buyerName={t.buyer_name}
                     primary={primary}
+                    paid={t.seller_charge_paid}
                   />
                 )}
                 <Button size="sm" variant="ghost" onClick={() => showQr(t)}>
@@ -637,14 +685,13 @@ function TicketsList({
                     variant="ghost"
                     className="text-destructive"
                     disabled={removeTicket.isPending}
-                    onClick={() => {
-                      if (
-                        confirm(
-                          `Excluir o ingresso de “${t.buyer_name}”? Isso remove comanda, check-in, assento e lançamentos de caixa vinculados.`,
-                        )
-                      ) {
-                        removeTicket.mutate(t.id);
-                      }
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: "Excluir ingresso?",
+                        description: `Excluir o ingresso de “${t.buyer_name}”? Isso remove comanda, check-in, assento e lançamentos de caixa vinculados.`,
+                        confirmLabel: "Excluir",
+                      });
+                      if (ok) removeTicket.mutate(t.id);
                     }}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -672,6 +719,8 @@ function TicketsList({
         </DialogContent>
       </Dialog>
     </Card>
+    {dialog}
+    </>
   );
 }
 
@@ -757,10 +806,34 @@ function TicketTypesCard({
     setEditQty(t.quantity_total);
   }
 
+  const [open, setOpen] = useState(true);
+
   return (
-    <Card className="rounded-[12px] p-5">
-      <h3 className="mb-3 text-sm font-semibold">Tipos de ingresso</h3>
-      <ul className="mb-4 space-y-2">
+    <Collapsible open={open} onOpenChange={setOpen}>
+    <Card className="rounded-[12px] p-0">
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-2 px-5 py-4 text-left"
+        >
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">Tipos de ingresso</h3>
+            <p className="text-xs text-muted-foreground">
+              {types.length === 0
+                ? "Nenhum tipo"
+                : `${types.length} tipo${types.length === 1 ? "" : "s"}`}
+            </p>
+          </div>
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+              open ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+      <div className="space-y-4 border-t border-border px-5 pb-5 pt-3">
+      <ul className="space-y-2">
         {types.length === 0 && (
           <li className="text-sm text-muted-foreground">
             Nenhum tipo cadastrado.
@@ -888,6 +961,8 @@ function TicketTypesCard({
           <PlusCircle className="mr-2 h-4 w-4" /> Adicionar tipo
         </Button>
       </div>
+      </div>
+      </CollapsibleContent>
 
       <Dialog
         open={!!editing}
@@ -944,11 +1019,13 @@ function TicketTypesCard({
         </DialogContent>
       </Dialog>
     </Card>
+    </Collapsible>
   );
 }
 
 function SellTicketCard({
   eventId,
+  chapterId,
   event,
   types,
   artworkUrl,
@@ -956,6 +1033,7 @@ function SellTicketCard({
   onSold,
 }: {
   eventId: string;
+  chapterId: string;
   event: { name: string; starts_at: string; location: string | null };
   types: EventTicketType[];
   artworkUrl: string | null;
@@ -964,12 +1042,27 @@ function SellTicketCard({
 }) {
   const [buyer, setBuyer] = useState("");
   const [email, setEmail] = useState("");
+  const [sellerId, setSellerId] = useState("");
   const [typeId, setTypeId] = useState<string>("");
   const [price, setPrice] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [sellOpen, setSellOpen] = useState(true);
   const [soldPasses, setSoldPasses] = useState<
     Array<{ id: string; pass: TicketPassData; qrDataUrl: string }>
   >([]);
+
+  const sellersQ = useQuery({
+    queryKey: ["charge-members", chapterId],
+    queryFn: () => listChargeMembers({ data: { chapterId } }),
+  });
+  const sellerOptions = useMemo(
+    () =>
+      (sellersQ.data ?? []).map((s) => ({
+        value: s.id,
+        label: s.full_name,
+      })),
+    [sellersQ.data],
+  );
 
   useEffect(() => {
     if (typeId) {
@@ -988,6 +1081,7 @@ function SellTicketCard({
       sellTicket({
         data: {
           event_id: eventId,
+          seller_member_id: sellerId,
           ticket_type_id: typeId || null,
           buyer_name: buyer,
           buyer_email: email,
@@ -998,8 +1092,8 @@ function SellTicketCard({
     onSuccess: async (rows) => {
       toast.success(
         rows.length === 1
-          ? "Ingresso vendido"
-          : `${rows.length} ingressos vendidos`,
+          ? "Ingresso vendido · cobrança criada no vendedor"
+          : `${rows.length} ingressos vendidos · cobranças criadas no vendedor`,
       );
       const buyerEmail = email.trim() || null;
       const buyerName = buyer;
@@ -1036,8 +1130,28 @@ function SellTicketCard({
 
   return (
     <>
-      <Card className="rounded-[12px] p-5 space-y-3">
-        <h3 className="text-sm font-semibold">Vender ingresso</h3>
+      <Collapsible open={sellOpen} onOpenChange={setSellOpen}>
+        <Card className="rounded-[12px] p-0">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 px-5 py-4 text-left"
+            >
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">Vender ingresso</h3>
+                <p className="text-xs text-muted-foreground">
+                  Registrar venda e cobrança do vendedor
+                </p>
+              </div>
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                  sellOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="space-y-3 border-t border-border px-5 pb-5 pt-3">
         <div>
           <Label className="mb-1 block text-xs">Comprador *</Label>
           <Input value={buyer} onChange={(e) => setBuyer(e.target.value)} />
@@ -1049,6 +1163,18 @@ function SellTicketCard({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Para enviar o ingresso depois"
+          />
+        </div>
+        <div>
+          <Label className="mb-1 block text-xs">Vendedor *</Label>
+          <SearchableSelect
+            value={sellerId}
+            options={sellerOptions}
+            onChange={setSellerId}
+            placeholder="Buscar membro…"
+            searchPlaceholder="Digite o nome…"
+            emptyText="Nenhum membro encontrado."
+            disabled={sellersQ.isLoading}
           />
         </div>
         <div>
@@ -1101,12 +1227,19 @@ function SellTicketCard({
               toast.error("Informe o comprador");
               return;
             }
+            if (!sellerId) {
+              toast.error("Selecione o vendedor");
+              return;
+            }
             m.mutate();
           }}
         >
           {m.isPending ? "Vendendo…" : "Registrar venda"}
         </Button>
-      </Card>
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       <Dialog
         open={soldPasses.length > 0}
@@ -1143,17 +1276,16 @@ function TablesMap({
   eventId,
   tables,
   seats,
-  tickets,
   primary,
   onChanged,
 }: {
   eventId: string;
   tables: EventTable[];
   seats: EventSeat[];
-  tickets: EventTicket[];
   primary?: string;
   onChanged: () => void;
 }) {
+  const { confirm, dialog } = useConfirmDialog();
   const [label, setLabel] = useState("");
   const [cap, setCap] = useState(8);
 
@@ -1170,10 +1302,13 @@ function TablesMap({
     onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
   });
 
-  const assignM = useMutation({
-    mutationFn: (v: { seat_id: string; ticket_id: string | null }) =>
-      assignSeat({ data: v }),
-    onSuccess: () => onChanged(),
+  const deleteM = useMutation({
+    mutationFn: (tableId: string) =>
+      deleteTable({ data: { table_id: tableId } }),
+    onSuccess: () => {
+      toast.success("Mesa excluída");
+      onChanged();
+    },
     onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
   });
 
@@ -1183,14 +1318,9 @@ function TablesMap({
     arr.push(s);
     seatsByTable.set(s.table_id, arr);
   }
-  const assignedTicketIds = new Set(
-    seats.filter((s) => s.ticket_id).map((s) => s.ticket_id),
-  );
-  const freeTickets = tickets.filter(
-    (t) => t.status !== "cancelado" && !assignedTicketIds.has(t.id),
-  );
 
   return (
+    <>
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="space-y-4">
         {tables.length === 0 && (
@@ -1205,71 +1335,52 @@ function TablesMap({
             );
             return (
               <Card key={t.id} className="rounded-[12px] p-5">
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-3 flex items-center justify-between gap-2">
                   <div className="font-semibold">{t.label}</div>
-                  <span className="text-xs text-muted-foreground">
-                    {ts.filter((s) => s.ticket_id).length}/{t.capacity} ocupados
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {t.capacity} lugares
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-destructive"
+                      aria-label={`Excluir mesa ${t.label}`}
+                      disabled={deleteM.isPending}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: "Excluir mesa?",
+                          description: `Excluir a mesa “${t.label}”? Os assentos serão removidos.`,
+                          confirmLabel: "Excluir",
+                        });
+                        if (ok) deleteM.mutate(t.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
-                  {ts.map((s) => {
-                    const ticket = tickets.find((tk) => tk.id === s.ticket_id);
-                    return (
+                  {ts.map((s) => (
+                    <div
+                      key={s.id}
+                      className="flex flex-col items-center gap-1"
+                    >
                       <div
-                        key={s.id}
-                        className="flex flex-col items-center gap-1"
+                        className="grid h-10 w-10 place-items-center rounded-full text-xs font-semibold"
+                        style={{
+                          backgroundColor: "var(--muted)",
+                          color: "var(--muted-foreground)",
+                        }}
                       >
-                        <div
-                          className="grid h-10 w-10 place-items-center rounded-full text-xs font-semibold"
-                          style={{
-                            backgroundColor: s.ticket_id
-                              ? primary
-                              : "var(--muted)",
-                            color: s.ticket_id
-                              ? "#fff"
-                              : "var(--muted-foreground)",
-                          }}
-                        >
-                          {s.seat_number}
-                        </div>
-                        <div className="w-full text-center text-[10px] text-muted-foreground truncate">
-                          {ticket?.buyer_name ?? "Livre"}
-                        </div>
-                        {s.ticket_id ? (
-                          <button
-                            className="text-[10px] underline text-muted-foreground"
-                            onClick={() =>
-                              assignM.mutate({ seat_id: s.id, ticket_id: null })
-                            }
-                          >
-                            Liberar
-                          </button>
-                        ) : (
-                          <Select
-                            onValueChange={(v) =>
-                              assignM.mutate({ seat_id: s.id, ticket_id: v })
-                            }
-                          >
-                            <SelectTrigger className="h-6 px-2 text-[10px]">
-                              <SelectValue placeholder="Atribuir" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {freeTickets.length === 0 && (
-                                <div className="px-3 py-2 text-xs text-muted-foreground">
-                                  Sem ingressos livres
-                                </div>
-                              )}
-                              {freeTickets.map((tk) => (
-                                <SelectItem key={tk.id} value={tk.id}>
-                                  {tk.buyer_name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
+                        {s.seat_number}
                       </div>
-                    );
-                  })}
+                      <div className="w-full text-center text-[10px] text-muted-foreground">
+                        Assento
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </Card>
             );
@@ -1311,166 +1422,7 @@ function TablesMap({
         </Button>
       </Card>
     </div>
-  );
-}
-
-function CheckinPanel({
-  eventId,
-  tickets,
-  checkins,
-  primary,
-  onChanged,
-}: {
-  eventId: string;
-  tickets: EventTicket[];
-  checkins: EventCheckin[];
-  primary?: string;
-  onChanged: () => void;
-}) {
-  const [useCamera, setUseCamera] = useState(false);
-  const [search, setSearch] = useState("");
-  const [liveCount, setLiveCount] = useState(checkins.length);
-  const lastScanAtRef = useRef<Map<string, number>>(new Map());
-  const SCAN_COOLDOWN_MS = 30_000;
-
-  useEffect(() => {
-    setLiveCount(checkins.length);
-  }, [checkins.length]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel(`checkins-${eventId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "checkins",
-          filter: `event_id=eq.${eventId}`,
-        },
-        () => setLiveCount((c) => c + 1),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [eventId]);
-
-  const m = useMutation({
-    mutationFn: (v: {
-      qr?: string;
-      ticket_id?: string;
-      method: "qr" | "nome";
-    }) => checkinTicket({ data: { event_id: eventId, ...v } }),
-    onSuccess: (res) => {
-      const who =
-        res.buyer_name && res.qr_code
-          ? `${res.buyer_name} · ${res.qr_code}`
-          : res.buyer_name || res.qr_code || null;
-      if (res.alreadyCheckedIn) {
-        toast.info(
-          who ? `Já havia entrado: ${who}` : "Ingresso já havia entrado",
-        );
-      } else {
-        toast.success(who ? `Check-in: ${who}` : "Check-in realizado");
-      }
-      onChanged();
-    },
-    onError: (e: unknown) =>
-      toast.error(mutationErrorMessage(e, "Erro no check-in")),
-  });
-
-  const filtered = tickets.filter((t) =>
-    t.buyer_name.toLowerCase().includes(search.toLowerCase()) ||
-    t.qr_code.toLowerCase().includes(search.toLowerCase()),
-  );
-  const checkedTicketIds = new Set(checkins.map((c) => c.ticket_id));
-
-  return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <Card className="rounded-[12px] p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <div className="text-sm text-muted-foreground">
-              Check-ins realizados
-            </div>
-            <div className="text-3xl font-bold" style={{ color: primary }}>
-              {liveCount}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              de {tickets.length} ingressos
-            </div>
-          </div>
-          <Button
-            variant={useCamera ? "default" : "outline"}
-            onClick={() => setUseCamera((v) => !v)}
-            style={useCamera ? { backgroundColor: primary } : undefined}
-          >
-            <ScanLine className="mr-2 h-4 w-4" />{" "}
-            {useCamera ? "Parar câmera" : "Ler QR"}
-          </Button>
-        </div>
-        {useCamera && (
-          <QrScanner
-            onScan={(text) => {
-              const now = Date.now();
-              const last = lastScanAtRef.current.get(text) ?? 0;
-              if (now - last < SCAN_COOLDOWN_MS) return;
-              lastScanAtRef.current.set(text, now);
-              m.mutate({ qr: text, method: "qr" });
-            }}
-          />
-        )}
-      </Card>
-      <Card className="rounded-[12px] p-5">
-        <h3 className="mb-3 text-sm font-semibold">Buscar por nome ou número</h3>
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Nome ou número do ingresso"
-            className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <ul className="max-h-[420px] space-y-2 overflow-y-auto">
-          {filtered.length === 0 && (
-            <li className="text-sm text-muted-foreground">Nenhum resultado.</li>
-          )}
-          {filtered.map((t) => {
-            const already = checkedTicketIds.has(t.id);
-            return (
-              <li
-                key={t.id}
-                className="flex items-center justify-between gap-2 rounded-[8px] border border-border px-3 py-2"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">
-                    {t.buyer_name}
-                  </div>
-                  <div className="truncate text-xs text-muted-foreground font-mono">
-                    {t.qr_code}
-                  </div>
-                </div>
-                {already ? (
-                  <Badge variant="secondary">Presente</Badge>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      m.mutate({ ticket_id: t.id, method: "nome" })
-                    }
-                    disabled={m.isPending}
-                  >
-                    Registrar
-                  </Button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </Card>
-    </div>
+    {dialog}
+    </>
   );
 }

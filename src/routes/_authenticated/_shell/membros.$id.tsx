@@ -40,7 +40,6 @@ import {
 import { currentYearMonthInAppTz } from "@/lib/timezone";
 import { Progress } from "@/components/ui/progress";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
-import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -279,45 +278,67 @@ function MembroPerfil() {
   });
 
   return (
-    <div>
-      <PageHeader
-        title={member.full_name}
-        subtitle={(() => {
-          const kind = (member as { kind?: string }).kind;
-          const parts = [statusLabel(member.status), kindLabel(kind)];
-          if (kind !== "senior" && kind !== "macom")
-            parts.push(grauOf(member).label);
-          return parts.join(" · ");
-        })()}
-        actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => navigate({ to: "/membros" })}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() =>
-                navigate({ to: "/membros/$id/editar", params: { id } })
-              }
-            >
-              <Pencil className="mr-2 h-4 w-4" /> Editar
-            </Button>
-          </div>
-        }
-      />
+    <div className="min-w-0">
+      <header className="mb-4 flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-bold leading-snug text-foreground sm:text-2xl">
+            {member.full_name}
+          </h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {(() => {
+              const kind = (member as { kind?: string }).kind;
+              const parts = [statusLabel(member.status), kindLabel(kind)];
+              if (kind !== "senior" && kind !== "macom")
+                parts.push(grauOf(member).label);
+              return parts.join(" · ");
+            })()}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="px-2 sm:px-3"
+            onClick={() => navigate({ to: "/membros" })}
+          >
+            <ArrowLeft className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Voltar</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="px-2 sm:px-3"
+            onClick={() =>
+              navigate({ to: "/membros/$id/editar", params: { id } })
+            }
+          >
+            <Pencil className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Editar</span>
+          </Button>
+        </div>
+      </header>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="dados">Dados</TabsTrigger>
-          <TabsTrigger value="cargos">Cargos</TabsTrigger>
-          <TabsTrigger value="presencas">Presenças</TabsTrigger>
-          <TabsTrigger value="timeline">Linha do tempo</TabsTrigger>
-
-          <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
-        </TabsList>
+      <Tabs value={tab} onValueChange={setTab} className="min-w-0">
+        <div className="-mx-1 mb-4 overflow-x-auto pb-0.5">
+          <TabsList className="inline-flex h-auto w-max min-w-full justify-start sm:min-w-0">
+            <TabsTrigger value="dados" className="shrink-0">
+              Dados
+            </TabsTrigger>
+            <TabsTrigger value="cargos" className="shrink-0">
+              Cargos
+            </TabsTrigger>
+            <TabsTrigger value="presencas" className="shrink-0">
+              Presenças
+            </TabsTrigger>
+            <TabsTrigger value="timeline" className="shrink-0">
+              <span className="sm:hidden">Histórico</span>
+              <span className="hidden sm:inline">Linha do tempo</span>
+            </TabsTrigger>
+            <TabsTrigger value="financeiro" className="shrink-0">
+              Financeiro
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="dados">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -331,7 +352,7 @@ function MembroPerfil() {
                 <Row
                   k="Grau"
                   v={
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex flex-wrap items-center justify-end gap-1.5">
                       <Badge variant="outline">{grauOf(member).label}</Badge>
                       {isAdminView && isAptoGrauDemolay(member) && (
                         <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 dark:bg-amber-500/20 dark:text-amber-200 dark:hover:bg-amber-500/20">
@@ -387,7 +408,7 @@ function MembroPerfil() {
                   <Row
                     k="Afastamentos"
                     v={
-                      <ul className="space-y-0.5 text-right text-sm">
+                      <ul className="space-y-0.5 text-sm sm:text-right">
                         {awayPeriods.map((p) => (
                           <li key={p.id}>
                             {formatDateBR(p.started_on)}
@@ -407,9 +428,9 @@ function MembroPerfil() {
                     </Badge>
                   }
                 />
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">CPF</dt>
-                  <dd className="flex items-center gap-2 font-mono">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                  <dt className="shrink-0 text-muted-foreground">CPF</dt>
+                  <dd className="flex min-w-0 flex-wrap items-center gap-2 font-mono sm:justify-end">
                     {revealed.cpf ?? formatCpfMask(member.cpf_last2)}
                     {!revealed.cpf && (
                       <Button
@@ -423,9 +444,9 @@ function MembroPerfil() {
                     )}
                   </dd>
                 </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">RG</dt>
-                  <dd className="flex items-center gap-2 font-mono">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                  <dt className="shrink-0 text-muted-foreground">RG</dt>
+                  <dd className="flex min-w-0 flex-wrap items-center gap-2 font-mono sm:justify-end">
                     {revealed.rg ?? formatRgMask(member.rg_last2)}
                     {!revealed.rg && (
                       <Button
@@ -1282,6 +1303,8 @@ const COMMISSION_ROLE_LABELS: Record<string, string> = {
 
 function auditActionLabel(action: string): string {
   switch (action) {
+    case "comanda_item_add":
+      return "Item adicionado na comanda";
     case "pii_reveal":
       return "Revelação de PII";
     case "member_update":
@@ -1375,9 +1398,9 @@ function AuditCadastroDiff({
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <dt className="text-muted-foreground">{k}</dt>
-      <dd>{v}</dd>
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+      <dt className="shrink-0 text-muted-foreground">{k}</dt>
+      <dd className="min-w-0 break-words sm:text-right">{v}</dd>
     </div>
   );
 }

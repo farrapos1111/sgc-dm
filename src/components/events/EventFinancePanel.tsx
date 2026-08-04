@@ -17,19 +17,31 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { formatBRL } from "@/lib/format";
+import { todayYmd } from "@/lib/timezone";
 import { exportEventFinancePdf } from "@/lib/event-finance-export";
 import {
+  addEventBudgetExpense,
   deleteEventFinanceCategory,
   deleteEventFinanceItem,
   getEventFinanceTotals,
   INGRESSOS_CATEGORY_ID,
+  isBudgetCategoryName,
+  listEventBudgetExpenses,
   listEventFinance,
   upsertEventFinanceCategory,
   upsertEventFinanceItem,
@@ -50,6 +62,7 @@ function formatDateLabel(ymd: string) {
 export function EventFinancePanel({
   eventId,
   chapterId,
+  eventName,
   primary,
   canEdit,
   chapterName,
@@ -58,6 +71,7 @@ export function EventFinancePanel({
 }: {
   eventId: string;
   chapterId: string;
+  eventName: string;
   primary?: string;
   canEdit: boolean;
   chapterName?: string;
@@ -65,6 +79,7 @@ export function EventFinancePanel({
   logoPath?: string | null;
 }) {
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [from, setFrom] = useState("");
   const [until, setUntil] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(
@@ -82,14 +97,24 @@ export function EventFinancePanel({
   const [itemCategoryId, setItemCategoryId] = useState("");
   const [itemName, setItemName] = useState("");
   const [itemPrice, setItemPrice] = useState("");
+  const [itemActive, setItemActive] = useState(true);
   const [trackStock, setTrackStock] = useState(false);
   const [stockQty, setStockQty] = useState("");
+
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [budgetName, setBudgetName] = useState("");
+  const [budgetAmount, setBudgetAmount] = useState("");
+  const [budgetDate, setBudgetDate] = useState(() => todayYmd());
 
   const [exporting, setExporting] = useState(false);
 
   const financeQ = useQuery({
     queryKey: ["event-finance", eventId],
     queryFn: () => listEventFinance({ data: { eventId } }),
+  });
+  const budgetQ = useQuery({
+    queryKey: ["event-budget", eventId],
+    queryFn: () => listEventBudgetExpenses({ data: { eventId } }),
   });
   const totalsQ = useQuery({
     queryKey: ["event-finance-totals", eventId, from, until],
@@ -103,11 +128,14 @@ export function EventFinancePanel({
       }),
   });
 
-  const categories = financeQ.data?.categories ?? [];
+  const categories = (financeQ.data?.categories ?? []).filter(
+    (c) => !isBudgetCategoryName(c.name),
+  );
   const items = financeQ.data?.items ?? [];
-  const eventName = financeQ.data?.eventName ?? "Evento";
   const totals = totalsQ.data;
   const editableCategories = categories.filter((c) => !c.is_system);
+  const budgetRows = budgetQ.data ?? [];
+  const budgetTotal = budgetRows.reduce((s, r) => s + Number(r.amount), 0);
 
   const itemsByCat = useMemo(() => {
     const map = new Map<string, EventFinanceItem[]>();
@@ -122,7 +150,9 @@ export function EventFinancePanel({
   function invalidate() {
     qc.invalidateQueries({ queryKey: ["event-finance", eventId] });
     qc.invalidateQueries({ queryKey: ["event-finance-totals", eventId] });
+    qc.invalidateQueries({ queryKey: ["event-budget", eventId] });
     qc.invalidateQueries({ queryKey: ["cash-categories"] });
+    qc.invalidateQueries({ queryKey: ["cash-entries"] });
   }
 
   const saveCat = useMutation({
@@ -133,6 +163,7 @@ export function EventFinancePanel({
           eventId,
           chapterId,
           name: catName.trim(),
+          sort_order: editingCat?.sort_order ?? 100,
         },
       }),
     onSuccess: () => {
@@ -170,7 +201,7 @@ export function EventFinancePanel({
               : trackStock
                 ? 0
                 : null,
-          active: true,
+          active: editingItem ? itemActive : true,
         },
       }),
     onSuccess: () => {
@@ -188,6 +219,28 @@ export function EventFinancePanel({
       invalidate();
     },
     onError: (e) => toast.error(mutationErrorMessage(e, "Erro ao excluir")),
+  });
+
+  const saveBudget = useMutation({
+    mutationFn: () =>
+      addEventBudgetExpense({
+        data: {
+          eventId,
+          chapterId,
+          name: budgetName.trim(),
+          amount: Number(String(budgetAmount).replace(",", ".")),
+          entry_date: budgetDate,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Despesa de orçamento lançada no caixa");
+      setBudgetOpen(false);
+      setBudgetName("");
+      setBudgetAmount("");
+      setBudgetDate(todayYmd());
+      invalidate();
+    },
+    onError: (e) => toast.error(mutationErrorMessage(e, "Erro ao lançar")),
   });
 
   function openNewCat() {
@@ -209,6 +262,7 @@ export function EventFinancePanel({
     setItemCategoryId(firstEditable);
     setItemName("");
     setItemPrice("");
+    setItemActive(true);
     setTrackStock(false);
     setStockQty("");
     setItemOpen(true);
@@ -218,6 +272,7 @@ export function EventFinancePanel({
     setItemCategoryId(it.category_id);
     setItemName(it.name);
     setItemPrice(it.unit_price == null ? "" : String(it.unit_price));
+    setItemActive(it.active);
     setTrackStock(it.track_stock);
     setStockQty(it.stock_qty == null ? "" : String(it.stock_qty));
     setItemOpen(true);
@@ -230,6 +285,26 @@ export function EventFinancePanel({
       else next.add(id);
       return next;
     });
+  }
+
+  if (financeQ.error || totalsQ.error) {
+    return (
+      <Card className="rounded-[12px] p-5">
+        <p className="text-sm text-destructive">
+          Não foi possível carregar o financeiro do evento.
+        </p>
+        <Button
+          className="mt-3"
+          variant="outline"
+          onClick={() => {
+            if (financeQ.error) void financeQ.refetch();
+            if (totalsQ.error) void totalsQ.refetch();
+          }}
+        >
+          Tentar novamente
+        </Button>
+      </Card>
+    );
   }
 
   return (
@@ -328,20 +403,21 @@ export function EventFinancePanel({
           <Card key={c.categoryId} className="rounded-[12px] p-4">
             <div className="text-sm font-medium">{c.name}</div>
             <div className="mt-1 text-xl font-bold">{formatBRL(c.income)}</div>
-            <button
-              type="button"
-              className="mt-2 text-xs text-muted-foreground underline-offset-2 hover:underline"
-              onClick={() => {
-                if (c.categoryId !== "other") {
+            {c.categoryId !== "other" &&
+              categories.some((cat) => cat.id === c.categoryId) && (
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-muted-foreground underline-offset-2 hover:underline"
+                  onClick={() => {
                   setExpanded((prev) => new Set(prev).add(c.categoryId));
-                }
-              }}
-            >
-              Ver itens
-            </button>
+                  }}
+                >
+                  Ver itens
+                </button>
+              )}
           </Card>
         ))}
-        {(totals?.byCategory ?? []).length === 0 && (
+        {totalsQ.isSuccess && (totals?.byCategory ?? []).length === 0 && (
           <Card className="rounded-[12px] p-5 sm:col-span-2 lg:col-span-3 text-sm text-muted-foreground">
             Nenhum lançamento no período. Cadastre categorias/itens e lance no
             Caixa ou nas comandas.
@@ -351,9 +427,72 @@ export function EventFinancePanel({
 
       <Card className="rounded-[12px] p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+              Orçamento
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Despesas do evento no caixa (saídas), no formato Evento{" "}
+              {eventName} - Despesa [nome] - valor.
+            </p>
+          </div>
+          {canEdit && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setBudgetName("");
+                setBudgetAmount("");
+                setBudgetDate(todayYmd());
+                setBudgetOpen(true);
+              }}
+              style={{ backgroundColor: primary }}
+            >
+              <Plus className="mr-1 h-4 w-4" /> Despesa
+            </Button>
+          )}
+        </div>
+        {budgetQ.isLoading ? (
+          <div className="text-sm text-muted-foreground">Carregando…</div>
+        ) : budgetRows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma despesa de orçamento lançada.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border rounded-md border border-border">
+            {budgetRows.map((r) => (
+              <li
+                key={r.id}
+                className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
+              >
+                <div className="min-w-0">
+                  <div className="truncate font-medium">
+                    {r.subcategory ?? r.description}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatDateLabel(r.entry_date)}
+                  </div>
+                </div>
+                <div className="shrink-0 font-semibold text-rose-600 dark:text-rose-400">
+                  − {formatBRL(r.amount)}
+                </div>
+              </li>
+            ))}
+            <li className="flex justify-between px-3 py-2.5 text-sm font-medium">
+              <span>Total orçamento</span>
+              <span className="text-rose-600 dark:text-rose-400">
+                − {formatBRL(budgetTotal)}
+              </span>
+            </li>
+          </ul>
+        )}
+      </Card>
+
+      <Card className="rounded-[12px] p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Wallet className="h-4 w-4 text-muted-foreground" />
-            Categorias e subcategorias
+            Vendas do Evento
           </div>
           {canEdit && (
             <div className="flex gap-2">
@@ -394,6 +533,7 @@ export function EventFinancePanel({
                       type="button"
                       className="shrink-0 text-muted-foreground"
                       onClick={() => toggleCat(c.id)}
+                      aria-label={`${open ? "Recolher" : "Expandir"} categoria ${c.name}`}
                     >
                       {open ? (
                         <ChevronDown className="h-4 w-4" />
@@ -424,6 +564,7 @@ export function EventFinancePanel({
                           variant="ghost"
                           className="h-8 w-8"
                           onClick={() => openNewItem(c.id)}
+                          aria-label={`Adicionar item à categoria ${c.name}`}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -432,6 +573,7 @@ export function EventFinancePanel({
                           variant="ghost"
                           className="h-8 w-8"
                           onClick={() => openEditCat(c)}
+                          aria-label={`Editar categoria ${c.name}`}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -439,14 +581,14 @@ export function EventFinancePanel({
                           size="icon"
                           variant="ghost"
                           className="h-8 w-8 text-destructive"
-                          onClick={() => {
-                            if (
-                              confirm(
-                                `Excluir categoria “${c.name}” e seus itens?`,
-                              )
-                            ) {
-                              removeCat.mutate(c.id);
-                            }
+                          aria-label={`Excluir categoria ${c.name}`}
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: "Excluir categoria?",
+                              description: `Excluir categoria “${c.name}” e seus itens?`,
+                              confirmLabel: "Excluir",
+                            });
+                            if (ok) removeCat.mutate(c.id);
                           }}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -464,12 +606,11 @@ export function EventFinancePanel({
                         </li>
                       ) : (
                         catItems.map((it) => {
-                          const itemTotal =
-                            totals?.byItem.find((x) => x.itemId === it.id)
-                              ?.income ?? 0;
-                          const itemQty = totals?.byItem.find(
+                          const itemTotals = totals?.byItem.find(
                             (x) => x.itemId === it.id,
-                          )?.qty;
+                          );
+                          const itemTotal = itemTotals?.income ?? 0;
+                          const itemQty = itemTotals?.qty;
                           return (
                             <li
                               key={it.id}
@@ -507,6 +648,7 @@ export function EventFinancePanel({
                                     variant="ghost"
                                     className="h-8 w-8"
                                     onClick={() => openEditItem(it)}
+                                    aria-label={`Editar item ${it.name}`}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
@@ -514,12 +656,14 @@ export function EventFinancePanel({
                                     size="icon"
                                     variant="ghost"
                                     className="h-8 w-8 text-destructive"
-                                    onClick={() => {
-                                      if (
-                                        confirm(`Excluir item “${it.name}”?`)
-                                      ) {
-                                        removeItem.mutate(it.id);
-                                      }
+                                    aria-label={`Excluir item ${it.name}`}
+                                    onClick={async () => {
+                                      const ok = await confirm({
+                                        title: "Excluir item?",
+                                        description: `Excluir item “${it.name}”?`,
+                                        confirmLabel: "Excluir",
+                                      });
+                                      if (ok) removeItem.mutate(it.id);
                                     }}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -578,32 +722,42 @@ export function EventFinancePanel({
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label className="mb-1.5 block text-sm">Categoria</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              <Label htmlFor="event-finance-item-category" className="mb-1.5 block text-sm">
+                Categoria
+              </Label>
+              <Select
                 value={itemCategoryId}
-                onChange={(e) => setItemCategoryId(e.target.value)}
+                onValueChange={setItemCategoryId}
               >
-                {editableCategories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="event-finance-item-category">
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {editableCategories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <Label className="mb-1.5 block text-sm">Nome</Label>
+              <Label htmlFor="event-finance-item-name" className="mb-1.5 block text-sm">
+                Nome
+              </Label>
               <Input
+                id="event-finance-item-name"
                 value={itemName}
                 onChange={(e) => setItemName(e.target.value)}
                 placeholder="Ex.: Cerveja"
               />
             </div>
             <div>
-              <Label className="mb-1.5 block text-sm">
+              <Label htmlFor="event-finance-item-price" className="mb-1.5 block text-sm">
                 Valor unitário (opcional)
               </Label>
               <Input
+                id="event-finance-item-price"
                 type="number"
                 min={0}
                 step="0.01"
@@ -614,19 +768,38 @@ export function EventFinancePanel({
             </div>
             <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
               <div>
-                <div className="text-sm font-medium">Controlar estoque</div>
+                <Label htmlFor="event-finance-item-track-stock" className="text-sm font-medium">
+                  Controlar estoque
+                </Label>
                 <div className="text-xs text-muted-foreground">
                   Útil para rifas com bilhetes limitados (baixa só na comanda)
                 </div>
               </div>
-              <Switch checked={trackStock} onCheckedChange={setTrackStock} />
+              <Switch
+                id="event-finance-item-track-stock"
+                checked={trackStock}
+                onCheckedChange={setTrackStock}
+              />
             </div>
+            {editingItem && (
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
+                <Label htmlFor="event-finance-item-active" className="text-sm font-medium">
+                  Item ativo
+                </Label>
+                <Switch
+                  id="event-finance-item-active"
+                  checked={itemActive}
+                  onCheckedChange={setItemActive}
+                />
+              </div>
+            )}
             {trackStock && (
               <div>
-                <Label className="mb-1.5 block text-sm">
+                <Label htmlFor="event-finance-item-stock" className="mb-1.5 block text-sm">
                   Quantidade disponível
                 </Label>
                 <Input
+                  id="event-finance-item-stock"
                   type="number"
                   min={0}
                   step={1}
@@ -652,6 +825,78 @@ export function EventFinancePanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={budgetOpen} onOpenChange={setBudgetOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Despesa de orçamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Será lançada no caixa como saída Eventos:
+              <br />
+              Evento {eventName} - Despesa [nome] - [valor]
+            </p>
+            <div>
+              <Label htmlFor="event-budget-name" className="mb-1.5 block text-sm">
+                Nome da despesa
+              </Label>
+              <Input
+                id="event-budget-name"
+                value={budgetName}
+                onChange={(e) => setBudgetName(e.target.value)}
+                placeholder="Ex.: Decoração"
+              />
+            </div>
+            <div>
+              <Label
+                htmlFor="event-budget-amount"
+                className="mb-1.5 block text-sm"
+              >
+                Valor
+              </Label>
+              <Input
+                id="event-budget-amount"
+                type="number"
+                min={0.01}
+                step="0.01"
+                value={budgetAmount}
+                onChange={(e) => setBudgetAmount(e.target.value)}
+                placeholder="0,00"
+              />
+            </div>
+            <div>
+              <Label htmlFor="event-budget-date" className="mb-1.5 block text-sm">
+                Data
+              </Label>
+              <Input
+                id="event-budget-date"
+                type="date"
+                value={budgetDate}
+                onChange={(e) => setBudgetDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setBudgetOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              style={{ backgroundColor: primary }}
+              disabled={
+                saveBudget.isPending ||
+                !budgetName.trim() ||
+                !(Number(String(budgetAmount).replace(",", ".")) > 0) ||
+                !budgetDate
+              }
+              onClick={() => saveBudget.mutate()}
+            >
+              {saveBudget.isPending ? "Lançando…" : "Lançar no caixa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {dialog}
     </div>
   );
 }

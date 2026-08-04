@@ -2305,6 +2305,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          kind: Database["public"]["Enums"]["minute_kind"]
           opened_at: string
           opened_by: string | null
           public_share_token: string | null
@@ -2318,6 +2319,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          kind?: Database["public"]["Enums"]["minute_kind"]
           opened_at?: string
           opened_by?: string | null
           public_share_token?: string | null
@@ -2331,6 +2333,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          kind?: Database["public"]["Enums"]["minute_kind"]
           opened_at?: string
           opened_by?: string | null
           public_share_token?: string | null
@@ -2628,6 +2631,8 @@ export type Database = {
           id: string
           price_paid: number
           qr_code: string
+          seller_charge_id: string | null
+          seller_member_id: string | null
           sold_at: string
           sold_by: string | null
           status: Database["public"]["Enums"]["ticket_status"]
@@ -2643,6 +2648,8 @@ export type Database = {
           id?: string
           price_paid?: number
           qr_code?: string
+          seller_charge_id?: string | null
+          seller_member_id?: string | null
           sold_at?: string
           sold_by?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
@@ -2658,6 +2665,8 @@ export type Database = {
           id?: string
           price_paid?: number
           qr_code?: string
+          seller_charge_id?: string | null
+          seller_member_id?: string | null
           sold_at?: string
           sold_by?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
@@ -2677,6 +2686,20 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_seller_charge_id_fkey"
+            columns: ["seller_charge_id"]
+            isOneToOne: false
+            referencedRelation: "member_charges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_seller_member_id_fkey"
+            columns: ["seller_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
             referencedColumns: ["id"]
           },
           {
@@ -2741,6 +2764,18 @@ export type Database = {
       create_event_table_with_seats: {
         Args: { _capacity: number; _event_id: string; _label: string }
         Returns: string
+      }
+      sell_event_tickets_with_charges: {
+        Args: {
+          _event_id: string
+          _seller_member_id: string
+          _buyer_name: string
+          _buyer_email: string
+          _ticket_type_id: string | null
+          _price_paid: number
+          _quantity: number
+        }
+        Returns: Json
       }
       add_event_ticket_item: {
         Args: {
@@ -3129,6 +3164,7 @@ export type Database = {
       member_kind: "demolay_ativo" | "senior" | "macom"
       member_status: "regular" | "irregular"
       minute_public_vote_decision: "aprovada" | "reprovada"
+      minute_kind: "publica" | "grau_iniciatico" | "grau_demolay"
       minute_signer_role:
         | "presidente_conselho"
         | "mestre_conselheiro"
@@ -3288,6 +3324,7 @@ export const Constants = {
       member_kind: ["demolay_ativo", "senior", "macom"],
       member_status: ["regular", "irregular"],
       minute_public_vote_decision: ["aprovada", "reprovada"],
+      minute_kind: ["publica", "grau_iniciatico", "grau_demolay"],
       minute_signer_role: [
         "presidente_conselho",
         "mestre_conselheiro",

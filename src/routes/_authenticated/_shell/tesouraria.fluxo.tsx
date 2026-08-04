@@ -167,7 +167,7 @@ function FluxoCaixa() {
   const categories = catData?.categories ?? [];
   const eventOptions = catData?.operationalEvents?.length
     ? catData.operationalEvents
-    : catData?.events ?? [];
+    : (catData?.events ?? []);
   const legacySubs = catData?.subcategories ?? [];
   const eventFinanceItems = catData?.eventFinanceItems ?? [];
   const subcategories = [
@@ -958,8 +958,8 @@ function FluxoCaixa() {
                         id: e.id,
                         kind: e.kind,
                         category: e.category,
-                        eventId: "",
-                        subcategoryId: "",
+                        eventId: e.event_id ?? e.calendar_event_id ?? "",
+                        subcategoryId: e.event_finance_item_id ?? "",
                         description: e.description,
                         amount: String(e.amount),
                         entry_date: e.entry_date,
@@ -986,8 +986,8 @@ function FluxoCaixa() {
                 id: e.id,
                 kind: e.kind,
                 category: e.category,
-                eventId: "",
-                subcategoryId: "",
+                eventId: e.event_id ?? e.calendar_event_id ?? "",
+                subcategoryId: e.event_finance_item_id ?? "",
                 description: e.description,
                 amount: String(e.amount),
                 entry_date: e.entry_date,
@@ -1439,6 +1439,10 @@ type CashEntryRow = {
   description: string;
   amount: number | string;
   entry_date: string;
+  event_id: string | null;
+  event_finance_item_id: string | null;
+  calendar_event_id: string | null;
+  event_name?: string | null;
 };
 
 type CashSortKey = "entry_date" | "kind" | "category" | "description" | "amount";
@@ -1549,9 +1553,15 @@ function CashEntriesTable({
               </td>
               <td className="px-4 py-3">
                 <div className="font-medium">{e.category}</div>
-                {e.subcategory ? (
-                  <div className="text-xs text-muted-foreground">{e.subcategory}</div>
-                ) : null}
+                {(e.event_name || e.subcategory) && (
+                  <div className="text-xs text-muted-foreground">
+                    {e.event_name && e.subcategory
+                      ? e.subcategory.includes(e.event_name)
+                        ? e.subcategory
+                        : `${e.event_name} · ${e.subcategory}`
+                      : (e.event_name ?? e.subcategory)}
+                  </div>
+                )}
               </td>
               <td className="max-w-[280px] truncate px-4 py-3" title={e.description}>
                 {e.description}

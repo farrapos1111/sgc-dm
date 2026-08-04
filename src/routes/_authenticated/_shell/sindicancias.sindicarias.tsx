@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Copy, FileText, Gavel, ListOrdered, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +83,7 @@ function SindicariasPage() {
   const writable = canManage("sindicancias");
   const isMobile = useIsMobile();
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [open, setOpen] = useState(false);
   const [ataRow, setAtaRow] = useState<SindicanciaListItem | null>(null);
   const [ataMode, setAtaMode] = useState<AtaFormMode>("ata");
@@ -484,9 +486,13 @@ function SindicariasPage() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => {
-                          if (confirm("Excluir esta sindicância?"))
-                            remove.mutate(r.calendar_event_id);
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: "Excluir sindicância?",
+                            description: "Excluir esta sindicância?",
+                            confirmLabel: "Excluir",
+                          });
+                          if (ok) remove.mutate(r.calendar_event_id);
                         }}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -660,6 +666,7 @@ function SindicariasPage() {
           )}
         </DialogContent>
       </Dialog>
+      {dialog}
     </div>
   );
 }

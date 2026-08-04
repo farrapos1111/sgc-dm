@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { CreditCard } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ export function MemberProficiencyCardPanel({
   canManage,
 }: Props) {
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const { data: cards = [], isPending } = useQuery({
     queryKey: ["member-proficiency-cards", chapterId, memberId],
     queryFn: () =>
@@ -162,14 +164,14 @@ export function MemberProficiencyCardPanel({
                   variant="destructive"
                   size="sm"
                   disabled={revoke.isPending}
-                  onClick={() => {
-                    if (
-                      window.confirm(
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: "Revogar carteirinha?",
+                      description:
                         "Revogar esta carteirinha? O membro deixará de vê-la no Perfil.",
-                      )
-                    ) {
-                      revoke.mutate(active.id);
-                    }
+                      confirmLabel: "Revogar",
+                    });
+                    if (ok) revoke.mutate(active.id);
                   }}
                 >
                   Revogar
@@ -290,6 +292,7 @@ export function MemberProficiencyCardPanel({
           ) : null}
         </DialogContent>
       </Dialog>
+      {dialog}
     </>
   );
 }

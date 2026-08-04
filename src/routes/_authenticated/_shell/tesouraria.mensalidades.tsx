@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -370,6 +371,7 @@ const StatusCell = memo(function StatusCell({
 function Mensalidades() {
   const { active, refetch } = useActiveChapter();
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [defaultAmount, setDefaultAmount] = useState(() =>
@@ -731,7 +733,7 @@ function Mensalidades() {
     },
   });
 
-  function runBulk(action: BulkAction) {
+  async function runBulk(action: BulkAction) {
     const msgs: Record<BulkAction, string> = {
       pay_all: skipCashEntry
         ? `Baixar ${openCount} em aberto sem registrar no fluxo de caixa?`
@@ -744,7 +746,18 @@ function Mensalidades() {
       exempt_all:
         "Isentar TODAS as competências do ano (remove lançamentos de caixa vinculados)?",
     };
-    if (!window.confirm(msgs[action])) return;
+    const titles: Record<BulkAction, string> = {
+      pay_all: "Confirmar baixas?",
+      pay_except_jan_dec: "Confirmar baixas?",
+      open_all: "Reabrir competências?",
+      exempt_all: "Isentar competências?",
+    };
+    const ok = await confirm({
+      title: titles[action],
+      description: msgs[action],
+      confirmLabel: action === "exempt_all" ? "Isentar" : "Confirmar",
+    });
+    if (!ok) return;
     bulkAction.mutate(action);
   }
 
@@ -1337,13 +1350,13 @@ function Mensalidades() {
                                   title="Remover inclusão manual"
                                   className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
                                   disabled={removeManual.isPending}
-                                  onClick={() => {
-                                    if (
-                                      !window.confirm(
-                                        `Remover ${m.full_name} deste calendário? As competências de ${year} serão apagadas (lançamentos no fluxo de caixa, se houver, permanecem).`,
-                                      )
-                                    )
-                                      return;
+                                  onClick={async () => {
+                                    const ok = await confirm({
+                                      title: "Remover do calendário?",
+                                      description: `Remover ${m.full_name} deste calendário? As competências de ${year} serão apagadas (lançamentos no fluxo de caixa, se houver, permanecem).`,
+                                      confirmLabel: "Remover",
+                                    });
+                                    if (!ok) return;
                                     removeManual.mutate(m.id);
                                   }}
                                 >
@@ -1444,13 +1457,13 @@ function Mensalidades() {
                                 type="button"
                                 className="text-[10px] text-destructive underline"
                                 disabled={removeManual.isPending}
-                                onClick={() => {
-                                  if (
-                                    !window.confirm(
-                                      `Remover ${m.full_name} deste calendário? As competências de ${year} serão apagadas (lançamentos no fluxo de caixa, se houver, permanecem).`,
-                                    )
-                                  )
-                                    return;
+                                onClick={async () => {
+                                  const ok = await confirm({
+                                    title: "Remover do calendário?",
+                                    description: `Remover ${m.full_name} deste calendário? As competências de ${year} serão apagadas (lançamentos no fluxo de caixa, se houver, permanecem).`,
+                                    confirmLabel: "Remover",
+                                  });
+                                  if (!ok) return;
                                   removeManual.mutate(m.id);
                                 }}
                               >
@@ -1621,6 +1634,7 @@ function Mensalidades() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {dialog}
       </div>
     </TooltipProvider>
   );

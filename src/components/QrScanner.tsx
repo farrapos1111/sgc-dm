@@ -42,7 +42,7 @@ export function QrScanner({ onScan, paused }: { onScan: (text: string) => void; 
 
   return (
     <div className="overflow-hidden rounded-[12px] border border-border bg-black">
-      <div id={containerId} className="min-h-[280px] w-full" />
+      <div id={containerId} className="min-h-[200px] w-full sm:min-h-[280px]" />
     </div>
   );
 }

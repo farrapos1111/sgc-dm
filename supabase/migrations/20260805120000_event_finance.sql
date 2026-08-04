@@ -1,14 +1,19 @@
 -- Financeiro de eventos: categorias, itens (subcategorias), comanda por ingresso
 
+CREATE UNIQUE INDEX IF NOT EXISTS events_id_chapter_uk
+  ON public.events (id, chapter_id);
+
 -- 1. Categorias financeiras do evento (ex: Rifas, Bar)
 CREATE TABLE public.event_finance_categories (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_id uuid NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+  event_id uuid NOT NULL,
   chapter_id uuid NOT NULL REFERENCES public.chapters(id) ON DELETE CASCADE,
   name text NOT NULL,
   sort_order smallint NOT NULL DEFAULT 100,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (event_id, chapter_id)
+    REFERENCES public.events(id, chapter_id) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX event_finance_categories_unique
@@ -47,7 +52,7 @@ CREATE TRIGGER set_updated_at_event_finance_categories
 CREATE TABLE public.event_finance_items (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   category_id uuid NOT NULL REFERENCES public.event_finance_categories(id) ON DELETE CASCADE,
-  event_id uuid NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+  event_id uuid NOT NULL,
   chapter_id uuid NOT NULL REFERENCES public.chapters(id) ON DELETE CASCADE,
   name text NOT NULL,
   unit_price numeric(12,2),
@@ -57,7 +62,9 @@ CREATE TABLE public.event_finance_items (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT event_finance_items_stock_nonneg
-    CHECK (stock_qty IS NULL OR stock_qty >= 0)
+    CHECK (stock_qty IS NULL OR stock_qty >= 0),
+  FOREIGN KEY (event_id, chapter_id)
+    REFERENCES public.events(id, chapter_id) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX event_finance_items_unique
@@ -111,7 +118,7 @@ CREATE TABLE public.event_ticket_items (
   qty numeric(12,2) NOT NULL DEFAULT 1 CHECK (qty > 0),
   unit_price numeric(12,2) NOT NULL CHECK (unit_price >= 0),
   amount numeric(12,2) NOT NULL CHECK (amount >= 0),
-  cash_entry_id uuid REFERENCES public.cash_entries(id) ON DELETE SET NULL,
+  cash_entry_id uuid REFERENCES public.cash_entries(id) ON DELETE RESTRICT,
   created_by uuid,
   created_at timestamptz NOT NULL DEFAULT now()
 );

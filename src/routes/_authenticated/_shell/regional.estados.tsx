@@ -7,6 +7,7 @@ import { useOrgScope } from "@/context/OrgScopeContext";
 import { deleteState, listStates, saveState } from "@/lib/org.functions";
 import { ScopeGuard } from "./regional.index";
 import { PageHeader } from "@/components/PageHeader";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ function ManageStates() {
 function StatesContent() {
   const { isSuperAdmin } = useOrgScope();
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [draft, setDraft] = useState<Draft | null>(null);
 
   const { data: states, isLoading } = useQuery({
@@ -123,14 +125,13 @@ function StatesContent() {
               variant="ghost"
               size="sm"
               className="text-destructive"
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `Excluir o estado ${s.name}? Regiões vinculadas serão removidas em cascata.`,
-                  )
-                ) {
-                  remove.mutate(s.id);
-                }
+              onClick={async () => {
+                const ok = await confirm({
+                  title: "Excluir estado?",
+                  description: `Excluir o estado ${s.name}? Regiões vinculadas serão removidas em cascata.`,
+                  confirmLabel: "Excluir",
+                });
+                if (ok) remove.mutate(s.id);
               }}
             >
               <Trash2 className="h-4 w-4" />
@@ -192,6 +193,7 @@ function StatesContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {dialog}
     </div>
   );
 }

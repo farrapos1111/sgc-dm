@@ -3,9 +3,11 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
-
-/** Senha fixa temporária da visão pública da ata. */
-export const MINUTE_PUBLIC_SHARE_PASSWORD = "senha";
+import {
+  expectedMinutePublicPassword,
+  isMinuteKind,
+  type MinuteKind,
+} from "@/lib/minute-kinds";
 
 export const minutePublicShareStorageKey = (token: string) =>
   `sgcdm.ata-public.${token}`;
@@ -43,12 +45,34 @@ export type PublicMinutePayload = {
     content: string;
     status: string;
     title: string | null;
+    kind?: MinuteKind | string | null;
     updated_at: string;
     voting_open: boolean;
   };
   chapter: PublicMinuteChapter;
   event: PublicMinuteEvent;
+  unlocked_by?: "password" | "member";
+  demolay_id?: string | null;
+  member_name?: string | null;
 };
+
+export type PublicMinutePeek = {
+  kind: MinuteKind | string;
+  status: string;
+  voting_open: boolean;
+  chapter: PublicMinuteChapter;
+  event: PublicMinuteEvent;
+};
+
+export type PublicMinuteMemberResult =
+  | (PublicMinutePayload & { locked: false })
+  | {
+      locked: true;
+      kind: MinuteKind | string;
+      member_name: string;
+      chapter: PublicMinuteChapter;
+      event: PublicMinuteEvent;
+    };
 
 export type MinutePublicVote = {
   id: string;
@@ -59,12 +83,64 @@ export type MinutePublicVote = {
   updated_at: string;
 };
 
+export type PublicMinuteUnlock =
+  | { mode: "password"; password: string }
+  | { mode: "member"; demolayId: string };
+
+export function readPublicMinuteUnlock(storageKey: string): PublicMinuteUnlock | null {
+  if (typeof window === "undefined") return null;
+  const raw = sessionStorage.getItem(storageKey);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as PublicMinuteUnlock;
+    if (parsed?.mode === "password" && parsed.password) return parsed;
+    if (parsed?.mode === "member" && parsed.demolayId) return parsed;
+  } catch {
+    // legado: valor era só a senha em texto
+    if (raw.trim()) return { mode: "password", password: raw };
+  }
+  return null;
+}
+
+export function writePublicMinuteUnlock(
+  storageKey: string,
+  unlock: PublicMinuteUnlock,
+) {
+  sessionStorage.setItem(storageKey, JSON.stringify(unlock));
+}
+
 export const ensureMinutePublicShare = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
     minuteIdInput.extend({ regenerate: z.boolean().optional().default(false) }).parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const { data: minute, error: mErr } = await context.supabase
+      .from("session_minutes")
+      .select("id, chapter_id, kind")
+      .eq("id", data.minuteId)
+      .maybeSingle();
+    if (mErr) throw new Error(mErr.message);
+    if (!minute) throw new Error("Ata não encontrada");
+
+    const { data: chapter, error: chErr } = await context.supabase
+      .from("chapters")
+      .select("settings")
+      .eq("id", minute.chapter_id)
+      .maybeSingle();
+    if (chErr) throw new Error(chErr.message);
+
+    const kind: MinuteKind = isMinuteKind(minute.kind) ? minute.kind : "publica";
+    const password = expectedMinutePublicPassword(
+      (chapter?.settings as Record<string, unknown> | null) ?? null,
+      kind,
+    );
+    if (!password) {
+      throw new Error(
+        "Configure a senha deste tipo de ata em Configurações → Secretaria",
+      );
+    }
+
     const { data: token, error } = await context.supabase.rpc(
       "ensure_minute_public_share_token",
       { _minute_id: data.minuteId, _regenerate: data.regenerate },
@@ -72,7 +148,8 @@ export const ensureMinutePublicShare = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return {
       token: token as string,
-      password: MINUTE_PUBLIC_SHARE_PASSWORD,
+      password,
+      kind,
     };
   });
 
@@ -128,7 +205,43 @@ export const getPublicMinute = createServerFn({ method: "POST" })
       _password: data.password,
     });
     if (error) throw new Error(error.message);
-    return payload as PublicMinutePayload;
+    return {
+      ...(payload as PublicMinutePayload),
+      unlocked_by: "password" as const,
+    };
+  });
+
+export const peekPublicMinute = createServerFn({ method: "POST" })
+  .inputValidator((raw) =>
+    z.object({ token: z.string().trim().min(32).max(128) }).parse(raw),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getPublicSupabase();
+    const { data: payload, error } = await supabase.rpc(
+      "peek_public_minute" as never,
+      { _token: data.token } as never,
+    );
+    if (error) throw new Error(error.message);
+    return payload as PublicMinutePeek;
+  });
+
+export const getPublicMinuteByMember = createServerFn({ method: "POST" })
+  .inputValidator((raw) =>
+    z
+      .object({
+        token: z.string().trim().min(32).max(128),
+        demolayId: z.string().trim().min(1).max(64),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getPublicSupabase();
+    const { data: payload, error } = await supabase.rpc(
+      "get_public_minute_by_member" as never,
+      { _token: data.token, _demolay_id: data.demolayId } as never,
+    );
+    if (error) throw new Error(error.message);
+    return payload as PublicMinuteMemberResult;
   });
 
 export const submitPublicMinuteVote = createServerFn({ method: "POST" })
@@ -136,12 +249,20 @@ export const submitPublicMinuteVote = createServerFn({ method: "POST" })
     z
       .object({
         token: z.string().trim().min(32).max(128),
-        password: z.string().min(1).max(64),
+        password: z.string().max(64).optional().nullable(),
+        demolayId: z.string().trim().max(64).optional().nullable(),
         email: z.string().trim().email().max(200),
         decision: z.enum(["aprovada", "reprovada"]),
         justification: z.string().trim().max(2000).optional().nullable(),
       })
       .superRefine((val, ctx) => {
+        if (!val.password?.trim() && !val.demolayId?.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Informe a senha ou o ID DeMolay",
+            path: ["password"],
+          });
+        }
         if (val.decision === "reprovada" && !val.justification?.trim()) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -154,13 +275,17 @@ export const submitPublicMinuteVote = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const supabase = getPublicSupabase();
-    const { data: payload, error } = await supabase.rpc("submit_public_minute_vote", {
-      _token: data.token,
-      _password: data.password,
-      _email: data.email,
-      _decision: data.decision,
-      _justification: data.justification ?? undefined,
-    });
+    const { data: payload, error } = await supabase.rpc(
+      "submit_public_minute_vote" as never,
+      {
+        _token: data.token,
+        _password: data.password ?? "",
+        _email: data.email,
+        _decision: data.decision,
+        _justification: data.justification ?? undefined,
+        _demolay_id: data.demolayId ?? undefined,
+      } as never,
+    );
     if (error) throw new Error(error.message);
     return payload as {
       ok: true;

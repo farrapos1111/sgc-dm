@@ -103,6 +103,12 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Item financeiro não encontrado';
   END IF;
+  IF v_ticket.status = 'cancelado' THEN
+    RAISE EXCEPTION 'Ingresso cancelado';
+  END IF;
+  IF NOT v_item.active THEN
+    RAISE EXCEPTION 'Item inexistente ou inativo neste evento';
+  END IF;
 
   v_new_qty := COALESCE(_qty, v_line.qty);
   v_new_price := COALESCE(_unit_price, v_line.unit_price);
@@ -202,7 +208,10 @@ BEGIN
   END IF;
 
   FOR v_line IN
-    SELECT * FROM public.event_ticket_items WHERE ticket_id = _ticket_id FOR UPDATE
+    SELECT * FROM public.event_ticket_items
+    WHERE ticket_id = _ticket_id
+    ORDER BY id
+    FOR UPDATE
   LOOP
     v_lines_count := v_lines_count + 1;
     SELECT * INTO v_item
