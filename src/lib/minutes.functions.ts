@@ -351,11 +351,14 @@ export const deleteMinute = createServerFn({ method: "POST" })
       .delete()
       .eq("id", minute.id)
       .eq("chapter_id", minute.chapter_id)
+      .eq("status", "rascunho")
       .select("id")
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!deleted) {
-      throw new Error("Ata não encontrada ou sem permissão para excluir");
+      throw new Error(
+        "Ata não está mais em rascunho e não pode ser excluída",
+      );
     }
     return { ok: true as const };
   });
