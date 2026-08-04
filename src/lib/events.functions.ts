@@ -605,10 +605,11 @@ export const listChapterTicketsForCheckin = createServerFn({ method: "POST" })
       .in("event_id", eventIds)
       .neq("status", "cancelado")
       .order("sold_at", { ascending: false })
-      .limit(2000);
+      .limit(2001);
     if (tErr) throw new Error(tErr.message);
-    const ticketRows = tickets ?? [];
-    const truncated = ticketRows.length >= 2000;
+    const fetched = tickets ?? [];
+    const truncated = fetched.length > 2000;
+    const ticketRows = truncated ? fetched.slice(0, 2000) : fetched;
     if (ticketRows.length === 0) return { tickets: [], truncated: false };
 
     const sellerIds = [
@@ -619,26 +620,30 @@ export const listChapterTicketsForCheckin = createServerFn({ method: "POST" })
       ),
     ];
 
-    const [checkinsRes, sellersRes] = await Promise.all([
-      context.supabase
+    const ticketIds = ticketRows.map((t) => t.id);
+    // PostgREST limita URLs; consulta check-ins em lotes por ticket_id.
+    const checkinChunks: Array<{ ticket_id: string; checked_in_at: string }> = [];
+    const chunkSize = 200;
+    for (let i = 0; i < ticketIds.length; i += chunkSize) {
+      const chunk = ticketIds.slice(i, i + chunkSize);
+      const { data: checkins, error: cErr } = await context.supabase
         .from("checkins")
-        .select("ticket_id, checked_in_at, event_id")
-        .in("event_id", eventIds),
-      sellerIds.length
-        ? context.supabase
-            .from("members")
-            .select("id, full_name")
-            .in("id", sellerIds)
-        : Promise.resolve({ data: [] as Array<{ id: string; full_name: string }>, error: null }),
-    ]);
-    if (checkinsRes.error) throw new Error(checkinsRes.error.message);
+        .select("ticket_id, checked_in_at")
+        .in("ticket_id", chunk);
+      if (cErr) throw new Error(cErr.message);
+      for (const row of checkins ?? []) checkinChunks.push(row);
+    }
+
+    const sellersRes = sellerIds.length
+      ? await context.supabase
+          .from("members")
+          .select("id, full_name")
+          .in("id", sellerIds)
+      : { data: [] as Array<{ id: string; full_name: string }>, error: null };
     if (sellersRes.error) throw new Error(sellersRes.error.message);
 
-    const ticketIdSet = new Set(ticketRows.map((t) => t.id));
     const checkinByTicket = new Map(
-      (checkinsRes.data ?? [])
-        .filter((c) => ticketIdSet.has(c.ticket_id))
-        .map((c) => [c.ticket_id, c.checked_in_at]),
+      checkinChunks.map((c) => [c.ticket_id, c.checked_in_at]),
     );
     const sellerById = new Map(
       (sellersRes.data ?? []).map((s) => [s.id, s.full_name]),

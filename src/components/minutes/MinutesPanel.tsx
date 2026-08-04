@@ -209,18 +209,13 @@ export function MinutesPanel({
     const d = draftRef.current;
     if (!d.editable || !d.dirty) return;
     if (!d.ata.trim() && !d.hasMinute) return;
-    try {
-      await persistDraft(d);
-      allowUnmountSaveRef.current = false;
-      draftRef.current = { ...draftRef.current, dirty: false };
-      toast.success("Rascunho salvo");
-      onChanged();
-      void qc.invalidateQueries({ queryKey: ["ongoing", calendarEventId] });
-      void qc.invalidateQueries({ queryKey: ["chapter-minutes", chapterId] });
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erro ao salvar rascunho");
-      throw e;
-    }
+    await persistDraft(d);
+    allowUnmountSaveRef.current = false;
+    draftRef.current = { ...draftRef.current, dirty: false };
+    toast.success("Rascunho salvo");
+    onChanged();
+    void qc.invalidateQueries({ queryKey: ["ongoing", calendarEventId] });
+    void qc.invalidateQueries({ queryKey: ["chapter-minutes", chapterId] });
   };
 
   useEffect(() => {

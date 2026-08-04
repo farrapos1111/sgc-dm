@@ -188,7 +188,22 @@ function FluxoCaixa() {
       ? s.scope === "eventos" && s.calendar_event_id === form.eventId
       : s.scope === scope,
   );
-  const eventsWithItems = eventOptions;
+  const eventsWithItems = useMemo(() => {
+    const opts = [...eventOptions];
+    if (form.eventId && !opts.some((e) => e.id === form.eventId)) {
+      const fromEntry = entries.find(
+        (e) =>
+          e.event_id === form.eventId || e.calendar_event_id === form.eventId,
+      );
+      opts.push({
+        id: form.eventId,
+        title: fromEntry?.event_name ?? "Evento selecionado",
+        start_at: fromEntry?.entry_date ?? "",
+        status: "encerrado",
+      } as (typeof eventOptions)[number]);
+    }
+    return opts;
+  }, [eventOptions, form.eventId, entries]);
   const selectedEventItem = eventFinanceItems.find(
     (i) => i.id === form.subcategoryId,
   );
@@ -954,16 +969,11 @@ function FluxoCaixa() {
                     sortDir={sortDir}
                     onSort={toggleSort}
                     onEdit={(e) => {
-                      const useOps = Boolean(
-                        catData?.operationalEvents?.length,
-                      );
                       setForm({
                         id: e.id,
                         kind: e.kind,
                         category: e.category,
-                        eventId: (useOps
-                          ? e.event_id
-                          : (e.calendar_event_id ?? e.event_id)) ?? "",
+                        eventId: e.event_id ?? e.calendar_event_id ?? "",
                         subcategoryId: e.event_finance_item_id ?? "",
                         description: e.description,
                         amount: String(e.amount),
@@ -987,14 +997,11 @@ function FluxoCaixa() {
             sortDir={sortDir}
             onSort={toggleSort}
             onEdit={(e) => {
-              const useOps = Boolean(catData?.operationalEvents?.length);
               setForm({
                 id: e.id,
                 kind: e.kind,
                 category: e.category,
-                eventId: (useOps
-                  ? e.event_id
-                  : (e.calendar_event_id ?? e.event_id)) ?? "",
+                eventId: e.event_id ?? e.calendar_event_id ?? "",
                 subcategoryId: e.event_finance_item_id ?? "",
                 description: e.description,
                 amount: String(e.amount),

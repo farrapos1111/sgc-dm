@@ -12,8 +12,13 @@ export const INGRESSOS_CATEGORY_NAME = "Ingressos";
 /** Categoria interna de despesas de orçamento (não aparece no catálogo de receita). */
 export const BUDGET_CATEGORY_NAME = "Orçamento";
 
+/** Chave única de nome (sem capitalização/espaços extras). */
+export function normalizeFinanceNameKey(name: string) {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 export function isBudgetCategoryName(name: string) {
-  return name.trim().toLowerCase() === BUDGET_CATEGORY_NAME.toLowerCase();
+  return normalizeFinanceNameKey(name) === normalizeFinanceNameKey(BUDGET_CATEGORY_NAME);
 }
 
 export type EventFinanceCategory = {
@@ -603,13 +608,17 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
     if (eventErr) throw new Error(eventErr.message);
     if (!event) throw new Error("Evento não encontrado");
 
-    let { data: cat, error: catErr } = await context.supabase
+    const budgetKey = normalizeFinanceNameKey(BUDGET_CATEGORY_NAME);
+    const { data: cats, error: catsErr } = await context.supabase
       .from("event_finance_categories")
-      .select("id")
-      .eq("event_id", data.eventId)
-      .eq("name", BUDGET_CATEGORY_NAME)
-      .maybeSingle();
-    if (catErr) throw new Error(catErr.message);
+      .select("id, name")
+      .eq("event_id", data.eventId);
+    if (catsErr) throw new Error(catsErr.message);
+
+    let cat =
+      (cats ?? []).find(
+        (c) => normalizeFinanceNameKey(c.name) === budgetKey,
+      ) ?? null;
 
     if (!cat) {
       const { data: created, error: createCatErr } = await context.supabase
@@ -620,21 +629,25 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
           name: BUDGET_CATEGORY_NAME,
           sort_order: 200,
         })
-        .select("id")
+        .select("id, name")
         .single();
       if (createCatErr) throw new Error(createCatErr.message);
       cat = created;
     }
 
     const expenseName = data.name.trim();
-    let { data: item, error: itemErr } = await context.supabase
+    const expenseKey = normalizeFinanceNameKey(expenseName);
+    const { data: items, error: itemErr } = await context.supabase
       .from("event_finance_items")
-      .select("id")
+      .select("id, name")
       .eq("event_id", data.eventId)
-      .eq("category_id", cat.id)
-      .eq("name", expenseName)
-      .maybeSingle();
+      .eq("category_id", cat.id);
     if (itemErr) throw new Error(itemErr.message);
+
+    let item =
+      (items ?? []).find(
+        (row) => normalizeFinanceNameKey(row.name) === expenseKey,
+      ) ?? null;
 
     if (!item) {
       const { data: createdItem, error: createItemErr } = await context.supabase
@@ -649,7 +662,7 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
           stock_qty: null,
           active: true,
         })
-        .select("id")
+        .select("id, name")
         .single();
       if (createItemErr) throw new Error(createItemErr.message);
       item = createdItem;
