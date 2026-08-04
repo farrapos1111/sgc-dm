@@ -609,64 +609,45 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
     if (!event) throw new Error("Evento não encontrado");
 
     const budgetKey = normalizeFinanceNameKey(BUDGET_CATEGORY_NAME);
-    const { data: cats, error: catsErr } = await context.supabase
+    const { data: cat, error: catErr } = await context.supabase
       .from("event_finance_categories")
-      .select("id, name")
-      .eq("event_id", data.eventId);
-    if (catsErr) throw new Error(catsErr.message);
-
-    let cat =
-      (cats ?? []).find(
-        (c) => normalizeFinanceNameKey(c.name) === budgetKey,
-      ) ?? null;
-
-    if (!cat) {
-      const { data: created, error: createCatErr } = await context.supabase
-        .from("event_finance_categories")
-        .insert({
+      .upsert(
+        {
           event_id: data.eventId,
           chapter_id: data.chapterId,
           name: BUDGET_CATEGORY_NAME,
+          name_key: budgetKey,
           sort_order: 200,
-        })
-        .select("id, name")
-        .single();
-      if (createCatErr) throw new Error(createCatErr.message);
-      cat = created;
-    }
+        },
+        { onConflict: "event_id,name_key" },
+      )
+      .select("id, name")
+      .single();
+    if (catErr) throw new Error(catErr.message);
+    if (!cat) throw new Error("Não foi possível resolver a categoria de Orçamento");
 
     const expenseName = data.name.trim();
     const expenseKey = normalizeFinanceNameKey(expenseName);
-    const { data: items, error: itemErr } = await context.supabase
+    const { data: item, error: itemErr } = await context.supabase
       .from("event_finance_items")
-      .select("id, name")
-      .eq("event_id", data.eventId)
-      .eq("category_id", cat.id);
-    if (itemErr) throw new Error(itemErr.message);
-
-    let item =
-      (items ?? []).find(
-        (row) => normalizeFinanceNameKey(row.name) === expenseKey,
-      ) ?? null;
-
-    if (!item) {
-      const { data: createdItem, error: createItemErr } = await context.supabase
-        .from("event_finance_items")
-        .insert({
+      .upsert(
+        {
           event_id: data.eventId,
           chapter_id: data.chapterId,
           category_id: cat.id,
           name: expenseName,
+          name_key: expenseKey,
           unit_price: data.amount,
           track_stock: false,
           stock_qty: null,
           active: true,
-        })
-        .select("id, name")
-        .single();
-      if (createItemErr) throw new Error(createItemErr.message);
-      item = createdItem;
-    }
+        },
+        { onConflict: "category_id,name_key" },
+      )
+      .select("id, name")
+      .single();
+    if (itemErr) throw new Error(itemErr.message);
+    if (!item) throw new Error("Não foi possível resolver o item de Orçamento");
 
     const amountLabel = data.amount.toLocaleString("pt-BR", {
       style: "currency",

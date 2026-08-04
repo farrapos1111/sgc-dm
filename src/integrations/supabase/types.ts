@@ -675,6 +675,7 @@ export type Database = {
           event_id: string
           id: string
           name: string
+          name_key: string
           sort_order: number
           updated_at: string
         }
@@ -684,6 +685,7 @@ export type Database = {
           event_id: string
           id?: string
           name: string
+          name_key?: string
           sort_order?: number
           updated_at?: string
         }
@@ -693,6 +695,7 @@ export type Database = {
           event_id?: string
           id?: string
           name?: string
+          name_key?: string
           sort_order?: number
           updated_at?: string
         }
@@ -722,6 +725,7 @@ export type Database = {
           event_id: string
           id: string
           name: string
+          name_key: string
           stock_qty: number | null
           track_stock: boolean
           unit_price: number | null
@@ -735,6 +739,7 @@ export type Database = {
           event_id: string
           id?: string
           name: string
+          name_key?: string
           stock_qty?: number | null
           track_stock?: boolean
           unit_price?: number | null
@@ -748,6 +753,7 @@ export type Database = {
           event_id?: string
           id?: string
           name?: string
+          name_key?: string
           stock_qty?: number | null
           track_stock?: boolean
           unit_price?: number | null

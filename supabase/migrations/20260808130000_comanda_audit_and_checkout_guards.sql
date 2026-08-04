@@ -408,6 +408,10 @@ BEGIN
   END IF;
 
   SELECT * INTO v_ticket FROM public.tickets WHERE id = v_line.ticket_id FOR UPDATE;
+  -- Mesma regra de update_event_ticket_item: não alterar comanda de ingresso cancelado.
+  IF v_ticket.status = 'cancelado' THEN
+    RAISE EXCEPTION 'Ingresso cancelado';
+  END IF;
   IF v_ticket.seller_charge_id IS NOT NULL
      AND EXISTS (
        SELECT 1 FROM public.member_charges
