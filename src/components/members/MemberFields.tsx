@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { digitsOnly, is21OrOlder, isUnder21, maskCpfInput, maskPhoneInput } from "@/lib/format";
 import { createCepLookupSeq, lookupCep, maskCepInput } from "@/lib/cep";
 import { todayYmd } from "@/lib/timezone";
+import { useIsomorphicLayoutEffect } from "@/lib/use-isomorphic-layout-effect";
 import { Loader2 } from "lucide-react";
 
 export type MemberStatus = "regular" | "irregular";
@@ -141,8 +142,12 @@ export function MemberDataFields({
   const [cepError, setCepError] = useState("");
   const lastLookedUp = useRef("");
   const cepSeq = useRef(createCepLookupSeq()).current;
+  const cepResetKeyRef = useRef(cepResetKey);
 
-  useEffect(() => {
+  // Invalida lookups pendentes antes do paint ao trocar de registro (SSR-safe).
+  useIsomorphicLayoutEffect(() => {
+    if (cepResetKeyRef.current === cepResetKey) return;
+    cepResetKeyRef.current = cepResetKey;
     cepSeq.invalidate();
     lastLookedUp.current = "";
     setCepStatus("idle");

@@ -21,6 +21,7 @@ import {
   maskPhoneInput,
 } from "@/lib/format";
 import { lookupCep, maskCepInput, createCepLookupSeq } from "@/lib/cep";
+import { useIsomorphicLayoutEffect } from "@/lib/use-isomorphic-layout-effect";
 import { Loader2 } from "lucide-react";
 import type { IdDocKind } from "@/lib/member-documents";
 
@@ -164,7 +165,9 @@ export function InvestigationFileForm({
   const lastLookedUp = useRef("");
   const cepSeq = useRef(createCepLookupSeq()).current;
   const valueRef = useRef(value);
-  valueRef.current = value;
+  useIsomorphicLayoutEffect(() => {
+    valueRef.current = value;
+  });
 
   async function doLookupCep(raw: string) {
     const cep = digitsOnly(raw);

@@ -15,9 +15,12 @@ export function isSameChapter(
 }
 
 /**
- * Forma canônica do ID DeMolay para comparação e gravação:
- * trim + lower + remove tudo que não for a-z/0-9 (espaços, hífens, etc.).
+ * Forma canônica do ID DeMolay (paridade com public.normalize_demolay_id):
+ * trim → remove fora de [A-Za-z0-9] → lower.
  */
 export function normalizeDemolayId(raw: string): string {
-  return raw.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  return raw
+    .trim()
+    .replace(/[^A-Za-z0-9]/g, "")
+    .toLowerCase();
 }

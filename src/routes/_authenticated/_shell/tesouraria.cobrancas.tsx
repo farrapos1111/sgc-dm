@@ -107,6 +107,14 @@ function chargeBucket(c: ChargeRow): ListFilter | "isento" {
   if (amountPaid > 0) return "parcial";
   return "em_aberto";
 }
+
+/** Valor monetário da cobrança: finito e ≥ R$ 0,01. */
+function parseChargeAmount(raw: string): number | null {
+  const amount = Number(String(raw).replace(",", "."));
+  if (!Number.isFinite(amount) || amount < 0.01) return null;
+  return amount;
+}
+
 function Cobrancas() {
   const { active } = useActiveChapter();
   const qc = useQueryClient();
@@ -272,9 +280,9 @@ function Cobrancas() {
 
   const save = useMutation({
     mutationFn: () => {
-      const amount = Number(String(form.amount).replace(",", "."));
-      if (!Number.isFinite(amount) || amount <= 0) {
-        throw new Error("O valor da cobrança deve ser maior que zero");
+      const amount = parseChargeAmount(form.amount);
+      if (amount == null) {
+        throw new Error("O valor da cobrança deve ser pelo menos R$ 0,01");
       }
       return upsertMemberCharge({
         data: {
@@ -300,6 +308,8 @@ function Cobrancas() {
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
+
+  const chargeAmountValid = parseChargeAmount(form.amount) != null;
 
   const pay = useMutation({
     mutationFn: () =>
@@ -711,7 +721,7 @@ function Cobrancas() {
                 save.isPending ||
                 !form.memberId ||
                 !form.description.trim() ||
-                !(Number(String(form.amount).replace(",", ".")) > 0)
+                !chargeAmountValid
               }
               onClick={() => save.mutate()}
               style={{ backgroundColor: active?.chapter.primary_color }}
