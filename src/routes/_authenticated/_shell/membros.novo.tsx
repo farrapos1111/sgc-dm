@@ -321,7 +321,7 @@ function NovoMembro() {
           exam_grau_demolay: dados.exam_grau_demolay || null,
           iniciacao_ordem: dados.iniciacao_ordem || null,
           iniciacao_grau_demolay: dados.iniciacao_grau_demolay || null,
-          demolay_id: dados.demolay_id,
+          demolay_id: normalizeDemolayId(dados.demolay_id) || null,
           masonic_id: dados.masonic_id,
           cpf: dados.cpf,
           rg: dados.rg,
@@ -469,6 +469,7 @@ function NovoMembro() {
               chapters={chapters}
               readOnlyMaster={Boolean(linkedMemberId)}
               demolayLookupStatus={demolayLookupStatus}
+              cepResetKey={linkedMemberId ?? "new"}
             />
             <div className="flex justify-end pt-2">
               <Button

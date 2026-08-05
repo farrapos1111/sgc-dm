@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -121,6 +121,7 @@ export function MemberDataFields({
   chapters = [],
   readOnlyMaster = false,
   demolayLookupStatus = "idle",
+  cepResetKey,
 }: {
   value: MemberFormData;
   onChange: (patch: Partial<MemberFormData>) => void;
@@ -133,11 +134,20 @@ export function MemberDataFields({
   readOnlyMaster?: boolean;
   /** Feedback da busca automática por ID DeMolay. */
   demolayLookupStatus?: "idle" | "loading" | "found" | "not_found" | "already_affiliated";
+  /** Invalida lookup CEP em voo ao trocar de registro (ex.: member id). */
+  cepResetKey?: string | null;
 }) {
   const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "error" | "ok">("idle");
   const [cepError, setCepError] = useState("");
   const lastLookedUp = useRef("");
   const cepSeq = useRef(createCepLookupSeq()).current;
+
+  useEffect(() => {
+    cepSeq.invalidate();
+    lastLookedUp.current = "";
+    setCepStatus("idle");
+    setCepError("");
+  }, [cepResetKey, cepSeq]);
 
   async function doLookupCep(raw: string) {
     const cep = digitsOnly(raw);
