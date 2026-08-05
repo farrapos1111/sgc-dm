@@ -11,13 +11,14 @@ export function MyAttendancePanel({ memberId }: { memberId: string }) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["my-attendance", memberId],
     queryFn: () => getMyMemberAttendance({ data: { memberId } }),
+    enabled: !!memberId,
   });
 
   const attendance = data ?? [];
 
   const { mandatoryRecs, mandatoryPresent, mandatoryPct, rows } = useMemo(() => {
     const mandatory = attendance.filter(
-      (r: any) => r.calendar_event?.mandatory && r.status !== "pendente",
+      (r: any) => r.calendar_event?.mandatory,
     );
     const present = mandatory.filter((r: any) => r.status === "presente").length;
     const pct =

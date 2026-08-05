@@ -30,11 +30,11 @@ import {
   formatRgMask,
   isUnder21,
   kindLabel,
-  maskCepInput,
   maskCpfInput,
   maskPhoneInput,
   statusLabel,
 } from "@/lib/format";
+import { lookupCep, maskCepInput } from "@/lib/cep";
 
 type EditableGuardian = {
   id: string;
@@ -44,14 +44,6 @@ type EditableGuardian = {
   phone: string;
   email: string;
   cpf_last2: string | null;
-};
-
-type BrasilApiCep = {
-  cep: string;
-  state: string;
-  city: string;
-  neighborhood: string;
-  street: string;
 };
 
 export function MyCadastroPanel({ memberId }: { memberId: string }) {
@@ -154,35 +146,29 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
     onError: (e: Error) => toast.error(e.message || "Erro ao salvar"),
   });
 
-  async function lookupCep(raw: string) {
+  async function doLookupCep(raw: string) {
     const cep = digitsOnly(raw);
     if (cep.length !== 8 || cep === lastLookedUp.current) return;
     lastLookedUp.current = cep;
     setCepStatus("loading");
     setCepError("");
     try {
-      const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
-      if (!res.ok) {
-        setCepStatus("error");
-        setCepError(
-          res.status === 404 ? "CEP não encontrado" : "Não foi possível buscar o CEP",
-        );
-        return;
-      }
-      const payload = (await res.json()) as BrasilApiCep;
+      const result = await lookupCep(raw);
       setAddress((a) => ({
         ...a,
-        zip: maskCepInput(payload.cep || cep),
-        street: payload.street ?? "",
-        neighborhood: payload.neighborhood ?? "",
-        city: payload.city ?? "",
-        state: (payload.state ?? "").toUpperCase(),
-        country: "Brasil",
+        zip: result.zip,
+        street: result.street,
+        neighborhood: result.neighborhood,
+        city: result.city,
+        state: result.state,
+        country: result.country,
       }));
       setCepStatus("ok");
-    } catch {
+    } catch (e) {
       setCepStatus("error");
-      setCepError("Não foi possível buscar o CEP");
+      setCepError(
+        e instanceof Error ? e.message : "Não foi possível buscar o CEP",
+      );
     }
   }
 
@@ -196,7 +182,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
       setCepError("");
       return;
     }
-    void lookupCep(masked);
+    void doLookupCep(masked);
   }
 
   function patchGuardian(id: string, patch: Partial<EditableGuardian>) {
@@ -312,7 +298,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
                   placeholder="00000-000"
                   inputMode="numeric"
                   onChange={(e) => handleCepChange(e.target.value)}
-                  onBlur={() => void lookupCep(address.zip)}
+                  onBlur={() => void doLookupCep(address.zip)}
                 />
                 {cepStatus === "loading" && (
                   <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />

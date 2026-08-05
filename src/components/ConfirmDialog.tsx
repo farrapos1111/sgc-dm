@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,39 +56,47 @@ export function useConfirmDialog() {
 
   const destructive = opts.destructive !== false;
 
-  const dialog = (
-    <AlertDialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) finish(false);
-      }}
-    >
-      <AlertDialogContent className="rounded-[12px] sm:rounded-[12px]">
-        <AlertDialogHeader>
-          <AlertDialogTitle>{opts.title}</AlertDialogTitle>
-          {opts.description ? (
-            <AlertDialogDescription>{opts.description}</AlertDialogDescription>
-          ) : null}
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => finish(false)}>
-            {opts.cancelLabel ?? "Cancelar"}
-          </AlertDialogCancel>
-          <AlertDialogAction
-            className={cn(
-              destructive &&
-                buttonVariants({ variant: "destructive" }),
-            )}
-            onClick={(e) => {
-              e.preventDefault();
-              finish(true);
-            }}
-          >
-            {opts.confirmLabel ?? "Excluir"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+  // Só monta o conteúdo quando aberto — evita portal/foco trap
+  // recriado a cada re-render do pai (ex.: digitação de senha).
+  const dialog = useMemo(
+    () => (
+      <AlertDialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) finish(false);
+        }}
+      >
+        {open ? (
+          <AlertDialogContent className="rounded-[12px] sm:rounded-[12px]">
+            <AlertDialogHeader>
+              <AlertDialogTitle>{opts.title}</AlertDialogTitle>
+              {opts.description ? (
+                <AlertDialogDescription>
+                  {opts.description}
+                </AlertDialogDescription>
+              ) : null}
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => finish(false)}>
+                {opts.cancelLabel ?? "Cancelar"}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className={cn(
+                  destructive && buttonVariants({ variant: "destructive" }),
+                )}
+                onClick={(e) => {
+                  e.preventDefault();
+                  finish(true);
+                }}
+              >
+                {opts.confirmLabel ?? "Excluir"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        ) : null}
+      </AlertDialog>
+    ),
+    [open, opts, destructive, finish],
   );
 
   return { confirm, dialog };

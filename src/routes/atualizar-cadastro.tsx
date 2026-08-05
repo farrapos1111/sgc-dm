@@ -32,11 +32,11 @@ import {
   formatRgMask,
   isUnder21,
   kindLabel,
-  maskCepInput,
   maskCpfInput,
   maskPhoneInput,
   statusLabel,
 } from "@/lib/format";
+import { lookupCep, maskCepInput } from "@/lib/cep";
 
 export const Route = createFileRoute("/atualizar-cadastro")({
   ssr: false,
@@ -60,14 +60,6 @@ type EditableGuardian = {
   phone: string;
   email: string;
   cpf_last2: string | null;
-};
-
-type BrasilApiCep = {
-  cep: string;
-  state: string;
-  city: string;
-  neighborhood: string;
-  street: string;
 };
 
 function AtualizarCadastroPage() {
@@ -164,33 +156,29 @@ function AtualizarCadastroPage() {
     onError: (e: Error) => toast.error(e.message || "Erro ao salvar"),
   });
 
-  async function lookupCep(raw: string) {
+  async function doLookupCep(raw: string) {
     const cep = digitsOnly(raw);
     if (cep.length !== 8 || cep === lastLookedUp.current) return;
     lastLookedUp.current = cep;
     setCepStatus("loading");
     setCepError("");
     try {
-      const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
-      if (!res.ok) {
-        setCepStatus("error");
-        setCepError(res.status === 404 ? "CEP não encontrado" : "Não foi possível buscar o CEP");
-        return;
-      }
-      const data = (await res.json()) as BrasilApiCep;
+      const data = await lookupCep(raw);
       setAddress((a) => ({
         ...a,
-        zip: maskCepInput(data.cep || cep),
-        street: data.street ?? "",
-        neighborhood: data.neighborhood ?? "",
-        city: data.city ?? "",
-        state: (data.state ?? "").toUpperCase(),
-        country: "Brasil",
+        zip: data.zip,
+        street: data.street,
+        neighborhood: data.neighborhood,
+        city: data.city,
+        state: data.state,
+        country: data.country,
       }));
       setCepStatus("ok");
-    } catch {
+    } catch (e) {
       setCepStatus("error");
-      setCepError("Não foi possível buscar o CEP");
+      setCepError(
+        e instanceof Error ? e.message : "Não foi possível buscar o CEP",
+      );
     }
   }
 
@@ -204,7 +192,7 @@ function AtualizarCadastroPage() {
       setCepError("");
       return;
     }
-    void lookupCep(masked);
+    void doLookupCep(masked);
   }
 
   function patchGuardian(id: string, patch: Partial<EditableGuardian>) {
@@ -346,7 +334,7 @@ function AtualizarCadastroPage() {
                         placeholder="00000-000"
                         inputMode="numeric"
                         onChange={(e) => handleCepChange(e.target.value)}
-                        onBlur={() => void lookupCep(address.zip)}
+                        onBlur={() => void doLookupCep(address.zip)}
                       />
                       {cepStatus === "loading" && (
                         <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />

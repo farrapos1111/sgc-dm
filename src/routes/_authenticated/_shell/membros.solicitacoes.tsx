@@ -26,25 +26,28 @@ export const Route = createFileRoute("/_authenticated/_shell/membros/solicitacoe
 function SolicitacoesPage() {
   const { active } = useActiveChapter();
   const qc = useQueryClient();
-  if (!active) return null;
+  const chapterId = active?.chapter_id;
 
-  const canReview =
-    can(active.role.name, "secretaria") || can(active.role.name, "admin");
+  const canReview = active
+    ? can(active.role.name, "secretaria") || can(active.role.name, "admin")
+    : false;
 
   const { data: changeReqs = [], isPending: loadingChanges } = useQuery({
-    queryKey: ["member-change-requests", active.chapter_id],
+    queryKey: ["member-change-requests", chapterId],
     queryFn: () =>
       listPendingChangeRequests({
-        data: { originChapterId: active.chapter_id },
+        data: { originChapterId: chapterId! },
       }),
+    enabled: !!chapterId,
   });
 
   const { data: affReqs = [], isPending: loadingAff } = useQuery({
-    queryKey: ["member-affiliation-requests", active.chapter_id],
+    queryKey: ["member-affiliation-requests", chapterId],
     queryFn: () =>
       listPendingAffiliationRequests({
-        data: { originChapterId: active.chapter_id },
+        data: { originChapterId: chapterId! },
       }),
+    enabled: !!chapterId,
   });
 
   const reviewChange = useMutation({
@@ -95,6 +98,8 @@ function SolicitacoesPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  if (!active) return null;
 
   if (loadingChanges || loadingAff) return <PageSkeleton />;
 

@@ -28,12 +28,34 @@ const listInput = z.object({
 });
 
 const MEMBER_LIST_FIELDS =
-  "id, full_name, birth_date, status, kind, phone, email, cpf_last2, rg_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, demolay_id, masonic_id, chapter_id, initiation_chapter_id, created_at";
+  "id, full_name, birth_date, status, kind, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, demolay_id, masonic_id, chapter_id, initiation_chapter_id, created_at, phone, email, cpf_last2, rg_last2" as const;
+
+function stripMemberListPii<T extends Record<string, unknown>>(row: T): T {
+  const {
+    phone: _p,
+    email: _e,
+    cpf_last2: _c,
+    rg_last2: _r,
+    ...rest
+  } = row as T & {
+    phone?: unknown;
+    email?: unknown;
+    cpf_last2?: unknown;
+    rg_last2?: unknown;
+  };
+  return rest as T;
+}
 
 export const listMembers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => listInput.parse(raw))
   .handler(async ({ data, context }) => {
+    const { data: canSeePii, error: permErr } = await context.supabase.rpc(
+      "has_permission" as never,
+      { _chapter_id: data.chapterId, _perm: "secretaria" } as never,
+    );
+    if (permErr) throw new Error(permErr.message);
+
     // Prefer afiliações ativas; fallback para chapter_id originário se a tabela ainda não existir
     const { data: affRows, error: affErr } = await context.supabase
       .from("member_chapter_affiliations" as "members")
@@ -63,6 +85,9 @@ export const listMembers = createServerFn({ method: "POST" })
       rows.sort((a, b) =>
         String(a.full_name ?? "").localeCompare(String(b.full_name ?? ""), "pt-BR"),
       );
+      if (!canSeePii) {
+        rows = rows.map((m) => stripMemberListPii(m));
+      }
       return rows as never;
     }
 
@@ -77,7 +102,8 @@ export const listMembers = createServerFn({ method: "POST" })
     if (data.search && data.search.trim().length > 0) q = q.ilike("full_name", `%${data.search}%`);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    const list = (rows ?? []) as Record<string, unknown>[];
+    return (canSeePii ? list : list.map((m) => stripMemberListPii(m))) as never;
   });
 
 export const listChaptersForSelect = createServerFn({ method: "POST" })
@@ -384,7 +410,7 @@ export const updateMember = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: current, error: curErr } = await context.supabase
       .from("members")
-      .select("id, chapter_id, status")
+      .select("id, chapter_id, status, initiation_chapter_id")
       .eq("id", data.id)
       .single();
     if (curErr) throw new Error(curErr.message);
@@ -408,6 +434,11 @@ export const updateMember = createServerFn({ method: "POST" })
     }
 
     const kind = resolveAutoKind(data.kind, data.birth_date);
+    const initiationChapterId =
+      data.initiation_chapter_id === undefined
+        ? ((current as { initiation_chapter_id?: string | null })
+            .initiation_chapter_id ?? null)
+        : data.initiation_chapter_id;
     const args = {
       _member_id: data.id,
       _full_name: data.full_name,
@@ -426,7 +457,7 @@ export const updateMember = createServerFn({ method: "POST" })
       _demolay_id: data.demolay_id || null,
       _masonic_id: kind === "macom" ? data.masonic_id || null : null,
       _guardians: data.guardians ?? [],
-      _initiation_chapter_id: data.initiation_chapter_id || null,
+      _initiation_chapter_id: initiationChapterId,
     } as unknown as Parameters<typeof context.supabase.rpc<"update_member_with_pii">>[1];
     const { error } = await context.supabase.rpc("update_member_with_pii", args);
     if (error) throw new Error(error.message);
