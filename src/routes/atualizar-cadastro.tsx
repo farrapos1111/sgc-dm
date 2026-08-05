@@ -90,6 +90,10 @@ function AtualizarCadastroPage() {
     mutationFn: () => lookupMemberCadastro({ data: { demolayId: demolayId.trim() } }),
     onSuccess: (data) => {
       setDone(false);
+      cepSeq.invalidate();
+      lastLookedUp.current = "";
+      setCepStatus("idle");
+      setCepError("");
       setMember(data.member);
       setPhone(data.member.phone ?? "");
       setEmail(data.member.email ?? "");

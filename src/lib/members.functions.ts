@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { is21OrOlder, isUnder21 } from "@/lib/format";
+import { normalizeDemolayId } from "@/lib/member-identity";
 import { todayYmd } from "@/lib/timezone";
 
 const statusEnum = z.enum(["regular", "irregular"]);
@@ -156,7 +157,7 @@ export const lookupMemberByDemolayId = createServerFn({ method: "POST" })
     const { data: raw, error } = await context.supabase.rpc(
       "lookup_member_by_demolay_id" as never,
       {
-        _demolay_id: data.demolayId,
+        _demolay_id: normalizeDemolayId(data.demolayId) || data.demolayId.trim(),
         _for_chapter_id: data.chapterId,
       } as never,
     );
@@ -361,7 +362,7 @@ export const createMember = createServerFn({ method: "POST" })
       _exam_grau_demolay: data.exam_grau_demolay || null,
       _iniciacao_ordem: data.iniciacao_ordem || null,
       _iniciacao_grau_demolay: data.iniciacao_grau_demolay || null,
-      _demolay_id: data.demolay_id || null,
+      _demolay_id: normalizeDemolayId(data.demolay_id) || null,
       _masonic_id: kind === "macom" ? data.masonic_id || null : null,
       _cpf: data.cpf || "",
       _rg: data.rg || "",
@@ -471,7 +472,7 @@ export const updateMember = createServerFn({ method: "POST" })
       _exam_grau_demolay: data.exam_grau_demolay || null,
       _iniciacao_ordem: data.iniciacao_ordem || null,
       _iniciacao_grau_demolay: data.iniciacao_grau_demolay || null,
-      _demolay_id: data.demolay_id || null,
+      _demolay_id: normalizeDemolayId(data.demolay_id) || null,
       _masonic_id: kind === "macom" ? data.masonic_id || null : null,
       _guardians: data.guardians ?? [],
       _initiation_chapter_id: initiationChapterId,

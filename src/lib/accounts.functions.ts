@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { resolveAccess, type RoleName } from "@/lib/permissions";
+import { normalizeDemolayId } from "@/lib/member-identity";
 import { currentTerm } from "@/lib/terms";
 
 const passwordSchema = z
@@ -675,15 +676,16 @@ export const signInWithIdentifier = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import(
         "@/integrations/supabase/client.server"
       );
-      const normalizedId = identifier.replace(/\s+/g, "");
-      const { data: member, error } = await supabaseAdmin
-        .from("members")
-        .select("user_id, status")
-        .eq("demolay_id", normalizedId)
-        .not("user_id", "is", null)
-        .limit(1)
-        .maybeSingle();
+      const normalizedId = normalizeDemolayId(identifier);
+      if (!normalizedId) {
+        throw new Error("Identificador ou senha inválidos.");
+      }
+      const { data: rows, error } = await supabaseAdmin.rpc(
+        "find_member_auth_by_demolay_id" as never,
+        { _demolay_id: normalizedId } as never,
+      );
       if (error) throw new Error("Identificador ou senha inválidos.");
+      const member = Array.isArray(rows) ? rows[0] : rows;
       if (!member?.user_id) {
         throw new Error("Identificador ou senha inválidos.");
       }

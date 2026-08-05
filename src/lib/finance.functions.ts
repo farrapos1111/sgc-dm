@@ -1927,7 +1927,7 @@ export const upsertMemberCharge = createServerFn({ method: "POST" })
         category: z.string().min(1).default("Outras"),
         subcategory: z.string().nullable().optional().default(null),
         description: z.string().min(1),
-        amount: z.number().nonnegative(),
+        amount: z.number().positive(),
         dueDate: z.string().min(1),
         status: z.enum(["em_aberto", "pago", "isento"]).default("em_aberto"),
         paidAt: z.string().optional(),

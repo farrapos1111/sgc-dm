@@ -14,7 +14,10 @@ export function isSameChapter(
   return Boolean(chapterId) && row.chapter_id === chapterId;
 }
 
-/** Normaliza ID DeMolay para comparação (trim + lower; preserva separadores). */
+/**
+ * Forma canônica do ID DeMolay para comparação e gravação:
+ * trim + lower + remove tudo que não for a-z/0-9 (espaços, hífens, etc.).
+ */
 export function normalizeDemolayId(raw: string): string {
-  return raw.trim().toLowerCase().replace(/\s+/g, "");
+  return raw.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 }

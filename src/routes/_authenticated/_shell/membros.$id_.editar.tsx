@@ -276,6 +276,7 @@ function EditarMembro() {
           showPiiHint={isOrigin}
           initialStatus={rawStatus === "irregular" ? "irregular" : "regular"}
           chapters={chapters}
+          cepResetKey={id}
         />
 
         {isOrigin && (

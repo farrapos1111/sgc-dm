@@ -163,6 +163,8 @@ export function InvestigationFileForm({
   const [cepError, setCepError] = useState("");
   const lastLookedUp = useRef("");
   const cepSeq = useRef(createCepLookupSeq()).current;
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   async function doLookupCep(raw: string) {
     const cep = digitsOnly(raw);
@@ -174,9 +176,10 @@ export function InvestigationFileForm({
     try {
       const data = await lookupCep(raw);
       if (!cepSeq.isCurrent(reqId)) return;
+      const current = valueRef.current;
       onChange({
         address: {
-          ...value.address,
+          ...current.address,
           zip: data.zip,
           street: data.street,
           neighborhood: data.neighborhood,

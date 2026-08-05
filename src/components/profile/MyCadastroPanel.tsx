@@ -80,6 +80,10 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
   useEffect(() => {
     if (!data) return;
     setDone(false);
+    cepSeq.invalidate();
+    lastLookedUp.current = "";
+    setCepStatus("idle");
+    setCepError("");
     setMember(data.member);
     setPhone(data.member.phone ?? "");
     setEmail(data.member.email ?? "");

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { todayYmd } from "@/lib/timezone";
 import { currentTerm } from "@/lib/terms";
+import { normalizeDemolayId } from "@/lib/member-identity";
 import { matchesLooseSearch } from "@/lib/utils";
 
 const orgRoleEnum = z.enum(["gme", "mce", "mcr", "oe"]);
@@ -856,31 +857,23 @@ export const saveOrgLeadership = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid().optional(),
         email: z.string().trim().email().optional(),
-        org_role: orgRoleEnum,
+        org_role: z.enum(["gme", "mce"]),
         state_id: z.string().uuid().nullable().optional(),
         region_id: z.string().uuid().nullable().optional(),
         active: z.boolean().optional().default(true),
       })
       .superRefine((val, ctx) => {
-        if (val.org_role === "gme" || val.org_role === "mce") {
-          if (!val.state_id) {
-            ctx.addIssue({
-              code: "custom",
-              message: "Informe o estado para GME/MCE",
-              path: ["state_id"],
-            });
-          }
-          if (val.region_id) {
-            ctx.addIssue({
-              code: "custom",
-              message: "GME/MCE não usam região",
-              path: ["region_id"],
-            });
-          }
-        } else if (!val.region_id) {
+        if (!val.state_id) {
           ctx.addIssue({
             code: "custom",
-            message: "Informe a região para MCR/OE",
+            message: "Informe o estado para GME/MCE",
+            path: ["state_id"],
+          });
+        }
+        if (val.region_id) {
+          ctx.addIssue({
+            code: "custom",
+            message: "GME/MCE não usam região",
             path: ["region_id"],
           });
         }
@@ -897,23 +890,26 @@ export const saveOrgLeadership = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertCanManageOrg(context.supabase);
 
-    if (data.org_role === "mcr" || data.org_role === "oe") {
-      throw new Error(
-        "MCR e OE devem ser nomeados pela transferência oficial (convite por ID DeMolay).",
-      );
-    }
-
     const payload = {
       org_role: data.org_role,
-      state_id:
-        data.org_role === "gme" || data.org_role === "mce"
-          ? data.state_id!
-          : null,
-      region_id: null,
+      state_id: data.state_id!,
+      region_id: null as string | null,
       active: data.active ?? true,
     };
 
     if (data.id) {
+      const { data: existing, error: fetchErr } = await context.supabase
+        .from("org_leaderships")
+        .select("org_role")
+        .eq("id", data.id)
+        .maybeSingle();
+      if (fetchErr) throw new Error(fetchErr.message);
+      if (!existing) throw new Error("Liderança não encontrada");
+      if (existing.org_role === "mcr" || existing.org_role === "oe") {
+        throw new Error(
+          "MCR e OE devem ser alterados pela transferência oficial (convite por ID DeMolay).",
+        );
+      }
       const { error } = await context.supabase
         .from("org_leaderships")
         .update(payload)
@@ -995,7 +991,8 @@ export const lookupRegionMemberByDemolay = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const needle = data.demolayId.trim().toLowerCase();
+    const needle = normalizeDemolayId(data.demolayId);
+    if (!needle) return null;
     const { data: rows, error } = await context.supabase
       .from("members")
       .select(
@@ -1004,7 +1001,7 @@ export const lookupRegionMemberByDemolay = createServerFn({ method: "POST" })
       .eq("chapters.region_id", data.regionId);
     if (error) throw new Error(error.message);
     const match = (rows ?? []).find(
-      (m) => (m.demolay_id ?? "").trim().toLowerCase() === needle,
+      (m) => normalizeDemolayId(m.demolay_id ?? "") === needle,
     );
     if (!match) return null;
     const chapterJoin = match.chapters as

@@ -271,8 +271,12 @@ function Cobrancas() {
   }
 
   const save = useMutation({
-    mutationFn: () =>
-      upsertMemberCharge({
+    mutationFn: () => {
+      const amount = Number(String(form.amount).replace(",", "."));
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error("O valor da cobrança deve ser maior que zero");
+      }
+      return upsertMemberCharge({
         data: {
           chapterId: active!.chapter_id,
           id: form.id,
@@ -280,12 +284,13 @@ function Cobrancas() {
           kind: "entrada",
           category: form.category,
           description: form.description.trim(),
-          amount: Number(String(form.amount).replace(",", ".")) || 0,
+          amount,
           dueDate: todayYmd(),
           status: form.id ? form.status : "em_aberto",
           paidAt: todayYmd(),
         },
-      }),
+      });
+    },
     onSuccess: async () => {
       toast.success("Cobrança salva");
       setOpen(false);
@@ -688,7 +693,7 @@ function Cobrancas() {
               <Label className="mb-1.5 block text-sm">Valor (R$)</Label>
               <Input
                 type="number"
-                min={0}
+                min={0.01}
                 step="0.01"
                 value={form.amount}
                 onChange={(e) =>
@@ -703,7 +708,10 @@ function Cobrancas() {
             </Button>
             <Button
               disabled={
-                save.isPending || !form.memberId || !form.description.trim()
+                save.isPending ||
+                !form.memberId ||
+                !form.description.trim() ||
+                !(Number(String(form.amount).replace(",", ".")) > 0)
               }
               onClick={() => save.mutate()}
               style={{ backgroundColor: active?.chapter.primary_color }}
