@@ -17,6 +17,8 @@ export type DueMemberLite = {
   /** Fallback de iniciação quando iniciacao_ordem está vazia. */
   exam_grau_iniciatico?: string | null;
   exam_grau_demolay?: string | null;
+  /** Telefone do cadastro (WhatsApp / cobrança). */
+  phone?: string | null;
   /** Períodos de irregularidade (afastamento). */
   awayPeriods?: AwayPeriod[];
   /** Incluído manualmente neste calendário anual. */

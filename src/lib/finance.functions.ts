@@ -712,7 +712,7 @@ export const saveDefaultDuesAmount = createServerFn({ method: "POST" })
   });
 
 const MEMBER_DUES_SELECT =
-  "id, full_name, status, kind, birth_date, iniciacao_ordem, exam_grau_iniciatico";
+  "id, full_name, status, kind, birth_date, iniciacao_ordem, exam_grau_iniciatico, phone";
 
 type YearDuesResult = {
   members: DueMemberLite[];

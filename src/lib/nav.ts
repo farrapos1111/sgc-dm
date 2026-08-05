@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   Banknote,
   UserRound,
+  AlertTriangle,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { can, type Permission } from "@/lib/permissions";
@@ -35,6 +36,7 @@ export type NavPath =
   | "/presencas"
   | "/tesouraria/fluxo"
   | "/tesouraria/mensalidades"
+  | "/tesouraria/atrasados"
   | "/tesouraria/cobrancas"
   | "/calendario"
   | "/gestao"
@@ -95,6 +97,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/tesouraria/fluxo", label: "Fluxo de Caixa", icon: Wallet },
       { to: "/tesouraria/mensalidades", label: "Mensalidades", icon: Receipt },
+      { to: "/tesouraria/atrasados", label: "Atrasados", icon: AlertTriangle },
       { to: "/tesouraria/cobrancas", label: "Cobranças", icon: Banknote },
     ],
   },

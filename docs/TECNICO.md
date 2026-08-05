@@ -284,7 +284,9 @@ O sistema lida com dados pessoais de menores de idade, o que eleva o rigor exigi
 
 O módulo mais recente e o de acoplamento mais alto — vale ler antes de mexer.
 
-Telas: `/tesouraria/fluxo` ([tesouraria.fluxo.tsx](../src/routes/_authenticated/_shell/tesouraria.fluxo.tsx)) e `/tesouraria/mensalidades`. `/financeiro` é um redirecionamento legado para `/tesouraria/fluxo`.
+Telas: `/tesouraria/fluxo` ([tesouraria.fluxo.tsx](../src/routes/_authenticated/_shell/tesouraria.fluxo.tsx)), `/tesouraria/mensalidades`, `/tesouraria/atrasados` ([tesouraria.atrasados.tsx](../src/routes/_authenticated/_shell/tesouraria.atrasados.tsx)) e `/tesouraria/cobrancas`. `/financeiro` é um redirecionamento legado para `/tesouraria/fluxo`.
+
+**Atrasados** lista todos os membros do calendário anual de mensalidades, destacando quem tem competências `em_aberto` após o dia 15 (`isDueOverdue`). Por membro dá para **copiar** ou **abrir o WhatsApp** com mensagem pronta (meses atrasados 🔴, mês corrente 🟡, total, PIX de `chapters.settings.pix_key` e nome do Tesoureiro via `getFinanceSigners`). Helpers em [dues-reminder.ts](../src/lib/dues-reminder.ts). Se o membro tiver `phone` no cadastro, o `wa.me` inclui o número; senão abre só com o texto.
 
 ### Categorias em dois níveis
 
