@@ -8,7 +8,7 @@ Documento para quem vai desenvolver, revisar ou operar o sistema. Para a visão 
 
 O SG-CDM é uma aplicação full-stack **TanStack Start** (React + SSR) com **Supabase** (Postgres, Auth, Storage) como backend. Não existe servidor de API separado: a camada de servidor são *server functions* do TanStack Start, e a autorização real mora em políticas RLS no Postgres.
 
-A aplicação é **multi-inquilino por capítulo**: quase toda tabela carrega `chapter_id`, e a associação usuário↔capítulo↔cargo vive em `chapter_members`. Acima disso há um escopo **regional/estadual** para lideranças (`org_leaderships`) — acompanhamento em leitura, com escrita de instituições/regiões para o GME. Existe ainda o flag `profiles.is_super_admin` para um operador de plataforma que cadastra estados, regiões, capítulos e lideranças em qualquer jurisdição.
+A aplicação é **multi-inquilino por capítulo**: quase toda tabela carrega `chapter_id`, e a associação usuário↔capítulo↔cargo vive em `chapter_members`. Acima disso há um escopo **regional/estadual** para lideranças (`org_leaderships`) — acompanhamento em leitura, com escrita de instituições/regiões/lideranças para o **GME** do estado. **MCR** e **OE** gerenciam instituições e membros da própria região e o calendário unificado; nomeação ritualística única por região via `transfer_region_office`. Cadastro de **estados** fica fora do produto (SQL/painel Supabase).
 
 ### Stack
 
@@ -164,7 +164,7 @@ Os arquivos em `src/lib/*.functions.ts`:
 | `members.functions.ts` | Membros, responsáveis, PII (`revealMemberPii`), histórico |
 | `minutes.functions.ts` | Atas, modelos e aprovações/assinaturas |
 | `minutes-share.functions.ts` | Link público da ata (senha), leitura e votos por e-mail |
-| `org.functions.ts` | Escopo regional/estadual, GME e **super admin**: panorama, estados, regiões, capítulos, lideranças |
+| `org.functions.ts` | Escopo regional/estadual, GME/MCR/OE: panorama, regiões, capítulos, membros, transferência MCR/OE |
 | `organization.functions.ts` | Cargos e comissões **do capítulo** (não confundir com gestão estadual) |
 
 Helpers puros relevantes em `src/lib/`: `permissions.ts` (matriz de acesso), `nav.ts` (árvores de navegação — `NAV_GROUPS`/`ORG_NAV_GROUPS` para o sidebar; `MOBILE_TABS`/`ORG_MOBILE_TABS` como atalhos da barra inferior; `visibleMobileTabs` filtra a aba Eventos por comissão; `/mais` reutiliza `visibleGroups`/`visibleOrgGroups` via `mobileOverflowGroups`), `terms.ts` (ano/semestre), `format.ts` (BRL, datas, máscaras de PII), `cash-categories.ts`, `chave-do-dia.ts`, `minute-vars.ts` (interpolação de variáveis em modelos de ata), `ics.ts`, `finance-pdf.ts`, `finance-xlsx.ts`, `minute-pdf.ts`, `chapter-logo.ts` (URLs assinadas do bucket privado), `query-keys.ts`, `error-capture.ts`, `error-page.ts`.
@@ -176,9 +176,11 @@ Helpers puros relevantes em `src/lib/`: `permissions.ts` (matriz de acesso), `na
 Schema definido pelas migrations em [supabase/migrations/](../supabase/migrations/); tipos gerados em [src/integrations/supabase/types.ts](../src/integrations/supabase/types.ts).
 
 ### Identidade e multi-inquilino
-`states` → `regions` → `chapters` (nome, número, cidade, `primary_color`, `logo_url`, `settings` JSONB, campos do encarregado LGPD) · `profiles` (1:1 com `auth.users`, guarda `active_chapter_id`, `must_change_password` e `is_super_admin`; criado pelo trigger `handle_new_user`) · `roles` (catálogo) · **`chapter_members`** (usuário + capítulo + cargo + ativo — é o que concede todo o acesso ao capítulo) · `org_leaderships` (usuário + `org_role` + estado **ou** região + termo) · `audit_logs`.
+`states` → `regions` → `chapters` (nome, número, cidade, `primary_color`, `logo_url`, `settings` JSONB, campos do encarregado LGPD) · `profiles` (1:1 com `auth.users`, guarda `active_chapter_id` e `must_change_password`; criado pelo trigger `handle_new_user`) · `roles` (catálogo) · **`chapter_members`** (usuário + capítulo + cargo + ativo — é o que concede todo o acesso ao capítulo) · `org_leaderships` (usuário + `org_role` + estado **ou** região + termo) · `audit_logs`.
 
-**Super administrador:** `profiles.is_super_admin = true` (bootstrap via SQL no painel Supabase — não há self-service). A função `is_super_admin()` amplia RLS de leitura/escrita em estados, regiões, capítulos e `org_leaderships`. Telas em `/regional/estados`, `/regional/regioes`, `/regional/capitulos`, `/regional/liderancas`. O GME continua podendo gerenciar regiões/instituições/lideranças do próprio estado; só o super admin cria/edita **estados**.
+**Gestão estadual (GME):** o Grande Mestre Estadual gerencia regiões, instituições e lideranças GME/MCE do próprio estado (`is_gme`). Telas em `/regional/regioes`, `/regional/capitulos`, `/regional/liderancas`. **Estados** não são criados/editados pelo app — apenas via SQL ou painel Supabase (operacional).
+
+**MCR / OE:** papéis regionais (`org_leaderships` + cargos ritualísticos `mestre_conselheiro_regional` / `oficial_executivo` em `member_positions`). Podem criar/inativar instituições e membros da região e usar o calendário unificado. Nomeação: GME nomeia ambos; MCR nomeia MCR; OE nomeia OE e MCR — via RPC `transfer_region_office` (um titular ativo por região).
 
 ### Pessoas
 `members` (escopo de capítulo; `user_id` opcional → `profiles` — vínculo duro com a conta de login; `status`/`kind`; `cpf_encrypted`/`cpf_last2`, `rg_encrypted`/`rg_last2`, endereço JSONB, datas de graus e exames, `demolay_id` / `masonic_id`) · `guardians` (até 2 por membro, um principal via índice único parcial) · `lgpd_consents`.

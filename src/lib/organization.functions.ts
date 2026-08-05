@@ -88,7 +88,7 @@ export const listCatalog = createServerFn({ method: "POST" })
     if (pos.error) throw new Error(pos.error.message);
     if (com.error) throw new Error(com.error.message);
     return {
-      positions: pos.data ?? [],
+      positions: (pos.data ?? []).filter((p) => p.scope !== "regional"),
       commissions: (com.data ?? []).map((c) => ({
         id: c.id,
         code: c.code,
@@ -254,6 +254,12 @@ export const assignPosition = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const REGIONAL_POSITION_IDS = [26, 27];
+    if (REGIONAL_POSITION_IDS.includes(data.positionId)) {
+      throw new Error(
+        "Cargos regionais (MCR/OE) só podem ser atribuídos pela transferência oficial.",
+      );
+    }
     const MULTI_SEAT_POSITIONS = [25]; // Conselheiro Consultor: vários titulares por vigência
     if (!MULTI_SEAT_POSITIONS.includes(data.positionId)) {
       // cargo de titular único: libera a vaga da vigência antes de atribuir
@@ -371,7 +377,7 @@ export const getMemberOrgHistory = createServerFn({ method: "POST" })
       context.supabase
         .from("member_positions")
         .select(
-          "id, chapter_id, term_year, term_semester, position:positions(id, code, label, scope), chapter:chapters(id, name, number)",
+          "id, chapter_id, term_year, term_semester, ended_at, region_id, position:positions(id, code, label, scope), chapter:chapters(id, name, number)",
         )
         .eq("member_id", data.memberId)
         .order("term_year", { ascending: false })

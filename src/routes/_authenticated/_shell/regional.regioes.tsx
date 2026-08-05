@@ -108,7 +108,7 @@ function RegionsContent() {
   if (!canManageOrg) {
     return (
       <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
-        Apenas o Grande Mestre Estadual ou super administrador podem gerenciar
+        Apenas o Grande Mestre Estadual pode gerenciar
         regiões.
       </Card>
     );

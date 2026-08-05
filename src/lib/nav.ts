@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   Banknote,
   UserRound,
+  Palette,
   AlertTriangle,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -55,8 +56,8 @@ export type NavPath =
   | "/regional/membros"
   | "/regional/capitulos"
   | "/regional/regioes"
-  | "/regional/estados"
-  | "/regional/liderancas";
+  | "/regional/liderancas"
+  | "/regional/aparencia";
 
 export type NavItem = {
   to: NavPath;
@@ -162,28 +163,37 @@ export const ORG_NAV_GROUPS: NavGroup[] = [
     label: "Gestão estadual",
     icon: Map,
     items: [
-      { to: "/regional/estados", label: "Estados", icon: Globe2 },
       { to: "/regional/capitulos", label: "Instituições", icon: Building2 },
       { to: "/regional/regioes", label: "Regiões", icon: Map },
       { to: "/regional/liderancas", label: "Lideranças", icon: Users },
+      { to: "/regional/aparencia", label: "Aparência", icon: Palette },
     ],
   },
 ];
 
-/** Grupos do escopo org: gestão estadual para GME ou super admin. */
-export function visibleOrgGroups(
-  canManageOrg: boolean,
-  isSuperAdmin = false,
-): NavGroup[] {
-  return ORG_NAV_GROUPS.filter(
-    (g) => g.id !== "org-gestao" || canManageOrg,
-  ).map((g) => {
-    if (g.id !== "org-gestao" || isSuperAdmin) return g;
+/** Grupos do escopo org: instituições para GME/MCR/OE; regiões só GME; lideranças para quem nomeia. */
+export function visibleOrgGroups(opts: {
+  canManageOrg: boolean;
+  canManageChapters: boolean;
+  canManageLeaderships: boolean;
+}): NavGroup[] {
+  const { canManageOrg, canManageChapters, canManageLeaderships } = opts;
+  if (!canManageOrg && !canManageChapters && !canManageLeaderships) {
+    return ORG_NAV_GROUPS.filter((g) => g.id !== "org-gestao");
+  }
+  return ORG_NAV_GROUPS.map((g) => {
+    if (g.id !== "org-gestao") return g;
     return {
       ...g,
-      items: (g.items ?? []).filter((i) => i.to !== "/regional/estados"),
+      items: (g.items ?? []).filter((i) => {
+        if (i.to === "/regional/regioes") return canManageOrg;
+        if (i.to === "/regional/capitulos") return canManageChapters;
+        if (i.to === "/regional/liderancas") return canManageLeaderships;
+        if (i.to === "/regional/aparencia") return canManageChapters;
+        return true;
+      }),
     };
-  });
+  }).filter((g) => g.id !== "org-gestao" || (g.items?.length ?? 0) > 0);
 }
 
 /** Atalhos da barra inferior no mobile em escopo regional/estadual. */
@@ -232,7 +242,11 @@ export function visibleGroups(
   canViewCommission: (code: string) => boolean,
   accessCtx?: AccessContext,
 ): NavGroup[] {
+  // Temporário: menus da Comissão de Hospitalaria ocultos.
+  const HIDDEN_NAV_GROUP_IDS = new Set(["hospitalaria"]);
+
   return NAV_GROUPS.filter((g) => {
+    if (HIDDEN_NAV_GROUP_IDS.has(g.id)) return false;
     if (g.permission) {
       const ok = accessCtx
         ? canAccess(accessCtx, g.permission)

@@ -195,7 +195,7 @@ function NovoMembro() {
     }
 
     const handle = window.setTimeout(async () => {
-      if (normalized === normalizeDemolayId(lastLookedUpRef.current)) return;
+      if (normalized === lastLookedUpRef.current) return;
       const seq = ++lookupSeqRef.current;
       setDemolayLookupStatus("loading");
       try {
@@ -203,7 +203,7 @@ function NovoMembro() {
           data: { demolayId: raw, chapterId: active.chapter_id },
         });
         if (seq !== lookupSeqRef.current) return;
-        lastLookedUpRef.current = raw;
+        lastLookedUpRef.current = normalized;
 
         if (!found) {
           setDemolayLookupStatus("not_found");
@@ -233,6 +233,7 @@ function NovoMembro() {
 
         const addr = (found.address ?? {}) as Record<string, string>;
         const matchedId = normalizeDemolayId(found.demolay_id ?? raw);
+        const formDemolayId = found.demolay_id ?? raw;
         setLinkedMemberId(found.id);
         setLinkedDemolayId(matchedId);
         setPositionHistory(found.position_history ?? []);
@@ -245,7 +246,7 @@ function NovoMembro() {
           exam_grau_demolay: found.exam_grau_demolay ?? "",
           iniciacao_ordem: found.iniciacao_ordem ?? "",
           iniciacao_grau_demolay: found.iniciacao_grau_demolay ?? "",
-          demolay_id: matchedId,
+          demolay_id: formDemolayId,
           masonic_id: found.masonic_id ?? "",
           initiation_chapter_id: found.initiation_chapter_id ?? found.chapter_id,
           status: (found.status as MemberFormData["status"]) || "regular",

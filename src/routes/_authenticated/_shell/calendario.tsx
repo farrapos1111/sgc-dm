@@ -6,7 +6,7 @@ import {
   useQueryClient,
   queryOptions,
 } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import {
@@ -176,7 +176,14 @@ function CalendarioPage() {
   const [typeFilters, setTypeFilters] = useState<Set<CalendarType>>(
     new Set(CALENDAR_TYPES),
   );
-  const [chapterFilter, setChapterFilter] = useState<string>("all");
+  const [chapterFilter, setChapterFilter] = useState<string>(
+    () => active?.chapter_id ?? "all",
+  );
+
+  useEffect(() => {
+    if (active?.chapter_id) setChapterFilter(active.chapter_id);
+  }, [active?.chapter_id]);
+
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
     d.setDate(1);

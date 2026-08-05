@@ -142,6 +142,7 @@ export function MyHistoryPanel({ memberId, demolay }: Props) {
                     <span className="text-muted-foreground">
                       {" "}
                       — {termLabel(p.term_year, p.term_semester)}
+                      {p.ended_at ? " (encerrado)" : ""}
                     </span>
                   </span>
                   {p.chapter?.name ? (

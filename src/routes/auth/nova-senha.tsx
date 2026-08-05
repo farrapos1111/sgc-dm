@@ -1,6 +1,5 @@
 import {
   createFileRoute,
-  Link,
   useNavigate,
   useRouter,
 } from "@tanstack/react-router";
@@ -24,6 +23,7 @@ function NovaSenhaPage() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,6 +43,19 @@ function NovaSenhaPage() {
       cancelled = true;
     };
   }, []);
+
+  async function handleBackToLogin() {
+    setSigningOut(true);
+    try {
+      await supabase.auth.signOut();
+      await router.invalidate();
+      navigate({ to: "/auth", search: { reason: undefined } });
+    } catch {
+      navigate({ to: "/auth", search: { reason: undefined } });
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -138,9 +151,14 @@ function NovaSenhaPage() {
             </form>
           )}
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            <Link to="/auth" className="underline underline-offset-2">
-              Voltar ao login
-            </Link>
+            <button
+              type="button"
+              onClick={() => void handleBackToLogin()}
+              disabled={signingOut || submitting}
+              className="underline underline-offset-2 hover:text-foreground disabled:opacity-60"
+            >
+              {signingOut ? "Saindo…" : "Voltar ao login"}
+            </button>
           </p>
         </div>
       </div>

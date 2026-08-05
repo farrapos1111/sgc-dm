@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { formatClockInAppTz } from "@/lib/timezone";
 import { useChapterLogo } from "@/lib/chapter-logo";
+import { isChapterDuesEnabled } from "@/lib/dues-rules";
 import { cn } from "@/lib/utils";
 
 /** Rotas mais pesadas — prefetch ao passar o mouse/foco. */
@@ -41,7 +42,13 @@ const PRELOAD_ROUTES = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { active, canSwitchRoleView, cycleRoleView } = useActiveChapter();
+  const {
+    active,
+    memberships,
+    setActiveChapterId,
+    canSwitchRoleView,
+    cycleRoleView,
+  } = useActiveChapter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isNavigating = useRouterState({
     select: (s) => s.status === "pending" || s.isLoading === true,
@@ -49,24 +56,73 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { canView } = useCommissionAccess();
   const { ctx: accessCtx, positionLabels } = useChapterAccess();
   const navigate = useNavigate();
-  const { scopes, activeScope, setActiveScopeKey, canManageOrg, isSuperAdmin } =
-    useOrgScope();
-  const groups = useMemo(
-    () =>
-      activeScope
-        ? visibleOrgGroups(canManageOrg, isSuperAdmin)
-        : visibleGroups(active?.role.name ?? null, canView, accessCtx),
-    [activeScope, canManageOrg, isSuperAdmin, active?.role.name, canView, accessCtx],
+  const {
+    scopes,
+    activeScope,
+    setActiveScopeKey,
+    canManageOrg,
+    canManageChapters,
+    canManageLeaderships,
+  } = useOrgScope();
+  const duesEnabled = isChapterDuesEnabled(
+    active?.chapter as { settings?: Record<string, unknown> } | undefined,
   );
+  const groups = useMemo(() => {
+    const raw = activeScope
+      ? visibleOrgGroups({
+          canManageOrg,
+          canManageChapters,
+          canManageLeaderships,
+        })
+      : visibleGroups(active?.role.name ?? null, canView, accessCtx);
+    if (activeScope || duesEnabled) return raw;
+    return raw.map((g) => ({
+      ...g,
+      items: (g.items ?? []).filter(
+        (i) => i.to !== "/tesouraria/mensalidades",
+      ),
+    }));
+  }, [
+    activeScope,
+    canManageOrg,
+    canManageChapters,
+    canManageLeaderships,
+    active?.role.name,
+    canView,
+    accessCtx,
+    duesEnabled,
+  ]);
   const tabs = useMemo(
     () => visibleMobileTabs(Boolean(activeScope)),
     [activeScope],
   );
 
+  const chapterOptionLabel = (() => {
+    if (active) return `Capítulo · ${active.chapter.name}`;
+    if (memberships.length === 1)
+      return `Capítulo · ${memberships[0].chapter.name}`;
+    if (memberships.length > 1) return "Visão do capítulo";
+    return null;
+  })();
+
+  function enterChapterView() {
+    setActiveScopeKey(null);
+    if (memberships.length === 0) return;
+    if (!active) {
+      if (memberships.length === 1) {
+        setActiveChapterId(memberships[0].chapter_id);
+        navigate({ to: "/inicio" });
+        return;
+      }
+      navigate({ to: "/selecionar-capitulo" });
+      return;
+    }
+    navigate({ to: "/inicio" });
+  }
+
   function handleScopeChange(value: string) {
     if (value === "chapter") {
-      setActiveScopeKey(null);
-      navigate({ to: "/inicio" });
+      enterChapterView();
       return;
     }
     setActiveScopeKey(value);
@@ -96,18 +152,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const scopeSwitcher =
     scopes.length > 0 ? (
       <Select
-        value={activeScope?.key ?? "chapter"}
+        value={
+          activeScope?.key ??
+          (chapterOptionLabel ? "chapter" : (scopes[0]?.key ?? ""))
+        }
         onValueChange={handleScopeChange}
       >
         <SelectTrigger
           className="h-9 w-full text-xs"
-          aria-label="Selecionar escopo"
+          aria-label="Alternar entre capítulo e visão regional"
         >
-          <SelectValue />
+          <SelectValue placeholder="Selecionar visão" />
         </SelectTrigger>
         <SelectContent>
-          {active && (
-            <SelectItem value="chapter">{active.chapter.name}</SelectItem>
+          {chapterOptionLabel && (
+            <SelectItem value="chapter">{chapterOptionLabel}</SelectItem>
           )}
           {scopes.map((s) => (
             <SelectItem key={s.key} value={s.key}>
@@ -138,22 +197,28 @@ export function AppShell({ children }: { children: ReactNode }) {
     setOpenGroupId(activeGroup?.id ?? null);
   }, [pathname, groups]);
 
-  const primary = active?.chapter.primary_color || "#9E1B32";
+  const primary =
+    (activeScope?.primaryColor || active?.chapter.primary_color) || "#9E1B32";
   const chapterName = activeScope
     ? activeScope.label
     : (active?.chapter.name ?? "SG-CDM");
   const chapterNum = activeScope ? "" : (active?.chapter.number ?? "");
   const logoUrl = useChapterLogo(
-    activeScope ? null : active?.chapter.logo_url,
+    activeScope ? activeScope.logoUrl : active?.chapter.logo_url,
   );
   const cargoLabel =
     positionLabels.length > 0
       ? positionLabels.map((p) => p.label).join(" · ")
       : null;
   const headerSubtitle = activeScope
-    ? isSuperAdmin
-      ? "Super administrador"
-      : ORG_ROLE_LABELS[activeScope.orgRole]
+    ? [
+        ORG_ROLE_LABELS[activeScope.orgRole],
+        activeScope.startsOn && activeScope.endsOn
+          ? `${activeScope.startsOn.split("-").reverse().join("/")} – ${activeScope.endsOn.split("-").reverse().join("/")}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
     : (cargoLabel ?? "Membro Regular");
   const footerTitle = cargoLabel ?? "Membro Regular";
   const footerSubtitle = active?.chapter.city ?? "";
@@ -162,6 +227,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("sgcdm.activeChapterId");
       window.localStorage.removeItem("sgcdm.roleView");
+      window.localStorage.removeItem("sgcdm.activeOrgScope");
     }
     await supabase.auth.signOut();
     window.location.assign("/auth");
@@ -510,11 +576,18 @@ function ChapterMark({
 }) {
   if (logoUrl) {
     return (
-      <img
-        src={logoUrl}
-        alt=""
-        className={cn("shrink-0 bg-muted object-contain", className)}
-      />
+      <div
+        className={cn(
+          "relative shrink-0 overflow-hidden bg-white dark:bg-zinc-900",
+          className,
+        )}
+      >
+        <img
+          src={logoUrl}
+          alt=""
+          className="absolute inset-0 m-auto box-border h-full w-full object-contain p-1.5"
+        />
+      </div>
     );
   }
 

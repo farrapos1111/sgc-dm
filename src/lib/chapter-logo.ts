@@ -28,13 +28,18 @@ export function useChapterLogo(path: string | null | undefined) {
 }
 
 /** Baixa a logo e converte para data URL (necessário para embutir no PDF). */
-export async function loadLogoDataUrl(path: string | null | undefined): Promise<string | null> {
+export async function loadLogoDataUrl(
+  path: string | null | undefined,
+): Promise<string | null> {
   if (!path) return null;
-  const { data, error } = await supabase.storage.from(LOGO_BUCKET).download(path);
+  const { data, error } = await supabase.storage
+    .from(LOGO_BUCKET)
+    .download(path);
   if (error || !data) return null;
   return await new Promise<string | null>((resolve) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null);
+    reader.onload = () =>
+      resolve(typeof reader.result === "string" ? reader.result : null);
     reader.onerror = () => resolve(null);
     reader.readAsDataURL(data);
   });

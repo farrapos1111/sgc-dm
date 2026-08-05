@@ -268,15 +268,29 @@ export function isFutureMonth(year: number, month: number, today = new Date()) {
   return month > cm;
 }
 
-/** Valor padrão de mensalidade em chapters.settings (fallback 50). */
+/** Valor padrão de mensalidade em chapters.settings (fallback R$ 20). */
+export const DEFAULT_DUES_AMOUNT = 20;
+
 export function getChapterDefaultDuesAmount(
   chapter?: { settings?: Record<string, unknown> | null } | null,
 ): number {
   const raw = chapter?.settings?.default_dues_amount;
   // null/undefined são inválidos (Number(null) === 0)
-  if (raw == null) return 50;
+  if (raw == null) return DEFAULT_DUES_AMOUNT;
   const n = typeof raw === "number" ? raw : Number(raw);
-  return Number.isFinite(n) && n >= 0 ? n : 50;
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_DUES_AMOUNT;
+}
+
+/**
+ * Capítulos podem desligar mensalidades em settings.dues_enabled.
+ * Ausente/null = ligado (compatibilidade com capítulos existentes).
+ */
+export function isChapterDuesEnabled(
+  chapter?: { settings?: Record<string, unknown> | null } | null,
+): boolean {
+  const raw = chapter?.settings?.dues_enabled;
+  if (raw === false || raw === "false" || raw === 0 || raw === "0") return false;
+  return true;
 }
 
 export const MONTH_SHORT = [

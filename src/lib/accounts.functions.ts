@@ -728,14 +728,6 @@ async function evaluateMemberLoginGate(
     "@/integrations/supabase/client.server"
   );
 
-  const { data: profile, error: profileErr } = await supabaseAdmin
-    .from("profiles")
-    .select("is_super_admin")
-    .eq("id", userId)
-    .maybeSingle();
-  if (profileErr) throw new Error(profileErr.message);
-  if (profile?.is_super_admin) return { allowed: true };
-
   const { data: members, error } = await supabaseAdmin
     .from("members")
     .select("id, status")

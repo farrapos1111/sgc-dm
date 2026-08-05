@@ -653,21 +653,8 @@ export const updateMyMemberCadastro = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    // Self-service: apenas contato/docs/endereço/responsáveis — nunca nome ou status.
-    const SELF_SERVICE_KEYS = new Set([
-      "memberId",
-      "phone",
-      "email",
-      "address",
-      "cpf",
-      "rg",
-      "guardians",
-    ]);
-    for (const key of Object.keys(data)) {
-      if (!SELF_SERVICE_KEYS.has(key)) {
-        throw new Error(`Campo não permitido no autoatendimento: ${key}`);
-      }
-    }
+    // Self-service permitido: phone, email, address, cpf, rg, guardians (+ memberId).
+    // Campos extras são rejeitados pelo .strict() do inputValidator.
 
     const email = (context.claims as { email?: string } | null)?.email ?? null;
     await assertOwnMemberId(
@@ -775,7 +762,7 @@ export const getMyMemberFinance = createServerFn({ method: "POST" })
     const defaultAmount =
       Number.isFinite(parsedDefault) && parsedDefault >= 0
         ? parsedDefault
-        : 50;
+        : 20;
 
     const [duesRes, chargesRes, memberRes] = await Promise.all([
       supabaseAdmin

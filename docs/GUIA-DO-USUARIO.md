@@ -124,9 +124,10 @@ Para quem tem cargo acima do capítulo:
 - **Panorama** — todos os capítulos da jurisdição, com número de membros ativos e a próxima atividade de cada um
 - **Calendário** — todos os compromissos de todos os capítulos em uma agenda só
 - **Membros** — busca de membros entre capítulos (com os documentos protegidos)
-- **Instituições e Regiões** — cadastro e edição de capítulos e regiões (Grande Mestre Estadual ou super administrador)
-- **Estados** — cadastro de jurisdições estaduais (**somente super administrador**)
-- **Lideranças** — atribui GME, MCE, MCR e Oficiais Executivos a contas existentes por e-mail (GME do estado ou super administrador)
+- **Instituições e Regiões** — GME cadastra regiões; GME, MCR e OE criam/inativam instituições do escopo
+- **Lideranças** — GME/MCE por e-mail; MCR/OE por convite (ID DeMolay), com transferência única por região
+- **Membros (escopo)** — GME/MCR/OE podem criar e inativar membros das instituições da região/estado
+- **Calendário unificado** — compromissos de todos os capítulos do escopo
 
 ### Documentação
 

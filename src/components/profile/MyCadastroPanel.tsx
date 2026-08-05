@@ -34,7 +34,7 @@ import {
   maskPhoneInput,
   statusLabel,
 } from "@/lib/format";
-import { lookupCep, maskCepInput } from "@/lib/cep";
+import { lookupCep, maskCepInput, createCepLookupSeq } from "@/lib/cep";
 
 type EditableGuardian = {
   id: string;
@@ -69,6 +69,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
   );
   const [cepError, setCepError] = useState("");
   const lastLookedUp = useRef("");
+  const cepSeq = useRef(createCepLookupSeq()).current;
   const [done, setDone] = useState(false);
 
   const { isLoading, error, data } = useQuery({
@@ -150,10 +151,12 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
     const cep = digitsOnly(raw);
     if (cep.length !== 8 || cep === lastLookedUp.current) return;
     lastLookedUp.current = cep;
+    const reqId = cepSeq.begin();
     setCepStatus("loading");
     setCepError("");
     try {
       const result = await lookupCep(raw);
+      if (!cepSeq.isCurrent(reqId)) return;
       setAddress((a) => ({
         ...a,
         zip: result.zip,
@@ -165,6 +168,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
       }));
       setCepStatus("ok");
     } catch (e) {
+      if (!cepSeq.isCurrent(reqId)) return;
       setCepStatus("error");
       setCepError(
         e instanceof Error ? e.message : "Não foi possível buscar o CEP",
@@ -177,6 +181,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
     setAddress((a) => ({ ...a, zip: masked }));
     const digits = digitsOnly(masked);
     if (digits.length < 8) {
+      cepSeq.invalidate();
       lastLookedUp.current = "";
       setCepStatus("idle");
       setCepError("");

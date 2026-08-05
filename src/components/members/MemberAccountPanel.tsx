@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useImperativeHandle, useRef, useState, forwardRef } from "react";
+import { useImperativeHandle, useRef, useState, type Ref } from "react";
 import { toast } from "sonner";
 import { Copy, KeyRound, Link2Off, ShieldCheck, UserPlus } from "lucide-react";
 import {
@@ -58,10 +58,15 @@ export type PasswordFieldsHandle = {
   mustChange: () => boolean;
 };
 
-const PasswordFields = forwardRef<
-  PasswordFieldsHandle,
-  { required?: boolean; idPrefix: string }
->(function PasswordFields({ required, idPrefix }, ref) {
+const PasswordFields = function PasswordFields({
+  ref,
+  required,
+  idPrefix,
+}: {
+  ref?: Ref<PasswordFieldsHandle>;
+  required?: boolean;
+  idPrefix: string;
+}) {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [mustChange, setMustChange] = useState(false);
@@ -132,7 +137,7 @@ const PasswordFields = forwardRef<
       </label>
     </div>
   );
-});
+};
 
 export function MemberAccountPanel({ memberId, memberEmail }: Props) {
   const qc = useQueryClient();

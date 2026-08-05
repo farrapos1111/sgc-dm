@@ -20,7 +20,7 @@ import {
   maskCpfInput,
   maskPhoneInput,
 } from "@/lib/format";
-import { lookupCep, maskCepInput } from "@/lib/cep";
+import { lookupCep, maskCepInput, createCepLookupSeq } from "@/lib/cep";
 import { Loader2 } from "lucide-react";
 import type { IdDocKind } from "@/lib/member-documents";
 
@@ -162,15 +162,18 @@ export function InvestigationFileForm({
   );
   const [cepError, setCepError] = useState("");
   const lastLookedUp = useRef("");
+  const cepSeq = useRef(createCepLookupSeq()).current;
 
   async function doLookupCep(raw: string) {
     const cep = digitsOnly(raw);
     if (cep.length !== 8 || cep === lastLookedUp.current) return;
     lastLookedUp.current = cep;
+    const reqId = cepSeq.begin();
     setCepStatus("loading");
     setCepError("");
     try {
       const data = await lookupCep(raw);
+      if (!cepSeq.isCurrent(reqId)) return;
       onChange({
         address: {
           ...value.address,
@@ -184,6 +187,7 @@ export function InvestigationFileForm({
       });
       setCepStatus("ok");
     } catch (e) {
+      if (!cepSeq.isCurrent(reqId)) return;
       setCepStatus("error");
       setCepError(
         e instanceof Error ? e.message : "Não foi possível buscar o CEP",
@@ -324,6 +328,7 @@ export function InvestigationFileForm({
                   });
                   const digits = digitsOnly(masked);
                   if (digits.length < 8) {
+                    cepSeq.invalidate();
                     lastLookedUp.current = "";
                     setCepStatus("idle");
                     setCepError("");

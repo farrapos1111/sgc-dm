@@ -25,29 +25,32 @@ function PublicLobbyIndex() {
 
   const accent = chapter.primary_color || "#9E1B32";
 
-  const publicLinks = useMemo(
-    () => [
+  const publicLinks = useMemo(() => {
+    const links = [
       {
         to: "/c/$token/mensalidades" as const,
         label: "Mensalidades",
         hint: "Calendário anual do capítulo",
         icon: Receipt,
+        show: chapter.dues_enabled !== false,
       },
       {
         to: "/c/$token/fluxo" as const,
         label: "Fluxo de caixa",
         hint: "Entradas e saídas",
         icon: Wallet,
+        show: true,
       },
       {
         to: "/c/$token/presencas" as const,
         label: "Presenças e frequência",
         hint: "Visão geral das chamadas",
         icon: CalendarCheck,
+        show: true,
       },
-    ],
-    [],
-  );
+    ];
+    return links.filter((l) => l.show);
+  }, [chapter.dues_enabled]);
 
   return (
     <div className="mx-auto max-w-lg space-y-8">

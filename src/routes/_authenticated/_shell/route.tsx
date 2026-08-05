@@ -18,11 +18,10 @@ function ShellLayout() {
     activeScope,
     loading: orgLoading,
     setActiveScopeKey,
-    isSuperAdmin,
   } = useOrgScope();
   const navigate = useNavigate();
 
-  // Liderança supra-capitular (ou super admin) sem vínculo de capítulo entra no escopo org.
+  // Liderança supra-capitular sem vínculo de capítulo entra no escopo org.
   useEffect(() => {
     if (loading || orgLoading) return;
     if (memberships.length === 0 && scopes.length > 0 && !activeScope) {
@@ -54,7 +53,7 @@ function ShellLayout() {
     );
   }
 
-  if (memberships.length === 0 && scopes.length === 0 && !isSuperAdmin) {
+  if (memberships.length === 0 && scopes.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="max-w-md rounded-[12px] border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
