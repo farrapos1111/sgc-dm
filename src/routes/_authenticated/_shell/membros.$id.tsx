@@ -70,6 +70,7 @@ import {
   grauOf,
   isAptoGrauDemolay,
 } from "@/lib/format";
+import { PositionHistoryCollapsible } from "@/components/members/PositionHistoryCollapsible";
 import {
   ArrowLeft,
   Banknote,
@@ -120,9 +121,25 @@ function MembroPerfil() {
     audit,
     awayPeriods = [],
     irregularSince,
-  } = data;
+    affiliations = [],
+    originChapter,
+    initiationChapter,
+  } = data as typeof data & {
+    affiliations?: {
+      id: string;
+      chapter_id: string;
+      active: boolean;
+      joined_at?: string;
+      chapter?: { id: string; name: string; number: string } | null;
+    }[];
+    originChapter?: { id: string; name: string; number: string } | null;
+    initiationChapter?: { id: string; name: string; number: string } | null;
+  };
   const chapterId =
     (member as { chapter_id?: string }).chapter_id ?? active?.chapter_id ?? "";
+  const isOriginChapter = Boolean(
+    active && active.chapter_id === (member as { chapter_id: string }).chapter_id,
+  );
 
   const needsOrg = tab === "cargos";
   const needsAttendance = tab === "presencas";
@@ -199,7 +216,7 @@ function MembroPerfil() {
   const isAdminView = canEditOrg || can(roleName, "admin");
   const canManageProficiencyCard =
     roleName === "mestre_conselheiro" || roleName === "admin_total";
-  const canManageAccount = can(roleName, "admin");
+  const canManageAccount = can(roleName, "admin") && isOriginChapter;
   const foundedAt = chapterFoundedAt(active?.chapter);
   const [term, setTerm] = useState(currentTerm());
 
@@ -313,7 +330,9 @@ function MembroPerfil() {
             }
           >
             <Pencil className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Editar</span>
+            <span className="hidden sm:inline">
+              {isOriginChapter ? "Editar" : "Solicitar alteração"}
+            </span>
           </Button>
         </div>
       </header>
@@ -370,6 +389,30 @@ function MembroPerfil() {
                   k="ID DeMolay"
                   v={
                     (member as { demolay_id?: string | null }).demolay_id || "—"
+                  }
+                />
+                <Row
+                  k="Capítulo de Iniciação"
+                  v={
+                    initiationChapter
+                      ? `${initiationChapter.name}${
+                          initiationChapter.number
+                            ? ` Nº ${initiationChapter.number}`
+                            : ""
+                        }`
+                      : "—"
+                  }
+                />
+                <Row
+                  k="Capítulo originário"
+                  v={
+                    originChapter
+                      ? `${originChapter.name}${
+                          originChapter.number
+                            ? ` Nº ${originChapter.number}`
+                            : ""
+                        }`
+                      : "—"
                   }
                 />
                 <Row
@@ -559,6 +602,48 @@ function MembroPerfil() {
                 </ul>
               </Card>
             )}
+
+            {(() => {
+              const activeAffs = (affiliations ?? []).filter((a) => a.active);
+              if (activeAffs.length <= 1) return null;
+              return (
+                <Card className="rounded-[12px] p-5 md:col-span-2">
+                  <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                    Capítulos vinculados
+                  </h3>
+                  <ul className="divide-y divide-border text-sm">
+                    {activeAffs.map((a) => {
+                      const isOrigin =
+                        a.chapter_id ===
+                        (member as { chapter_id: string }).chapter_id;
+                      const label = a.chapter
+                        ? `${a.chapter.name}${
+                            a.chapter.number ? ` Nº ${a.chapter.number}` : ""
+                          }`
+                        : a.chapter_id;
+                      return (
+                        <li
+                          key={a.id}
+                          className="flex flex-wrap items-center justify-between gap-2 py-2"
+                        >
+                          <span>{label}</span>
+                          <span className="flex items-center gap-2 text-muted-foreground">
+                            {isOrigin && (
+                              <Badge variant="secondary">Originário</Badge>
+                            )}
+                            {a.joined_at && (
+                              <span className="text-xs">
+                                desde {formatDateBR(a.joined_at.slice(0, 10))}
+                              </span>
+                            )}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </Card>
+              );
+            })()}
           </div>
         </TabsContent>
 
@@ -567,18 +652,48 @@ function MembroPerfil() {
             <PageSkeleton />
           ) : (
             <>
+              <div className="mb-4">
+                <PositionHistoryCollapsible
+                  title="Histórico de cargos (todos os capítulos)"
+                  items={(orgData.positions as {
+                    term_year: number;
+                    term_semester: number;
+                    position?: { label?: string } | null;
+                    chapter?: { name?: string; number?: string } | null;
+                  }[])
+                    .filter((p) => p.chapter?.name)
+                    .map((p) => ({
+                      label: p.position?.label ?? "Cargo",
+                      term_year: p.term_year,
+                      term_semester: p.term_semester,
+                      chapter_name: p.chapter?.name ?? "",
+                      chapter_number: p.chapter?.number,
+                    }))}
+                />
+              </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Card className="rounded-[12px] p-5">
                   <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
                     Cargos do capítulo e conselho
                   </h3>
-                  {orgData.positions.length === 0 ? (
+                  {orgData.positions.filter(
+                    (p) =>
+                      (p as { chapter_id?: string }).chapter_id === chapterId ||
+                      !(p as { chapter_id?: string }).chapter_id,
+                  ).length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      Nenhum cargo registrado.
+                      Nenhum cargo registrado neste capítulo.
                     </p>
                   ) : (
                     <ul className="divide-y divide-border text-sm">
-                      {orgData.positions.map((p) => (
+                      {orgData.positions
+                        .filter(
+                          (p) =>
+                            (p as { chapter_id?: string }).chapter_id ===
+                              chapterId ||
+                            !(p as { chapter_id?: string }).chapter_id,
+                        )
+                        .map((p) => (
                         <li
                           key={p.id}
                           className="flex items-center justify-between gap-2 py-2"
@@ -590,7 +705,10 @@ function MembroPerfil() {
                               — {termLabel(p.term_year, p.term_semester)}
                             </span>
                           </span>
-                          {canEditOrg && (
+                          {canEditOrg &&
+                            ((p as { chapter_id?: string }).chapter_id ===
+                              chapterId ||
+                              !(p as { chapter_id?: string }).chapter_id) && (
                             <Button
                               size="icon"
                               variant="ghost"
@@ -666,7 +784,10 @@ function MembroPerfil() {
                           </span>
                           <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
                             {termLabel(c.term_year, c.term_semester)}
-                            {canEditOrg && (
+                            {canEditOrg &&
+                              ((c as { chapter_id?: string }).chapter_id ===
+                                chapterId ||
+                                !(c as { chapter_id?: string }).chapter_id) && (
                               <Button
                                 size="icon"
                                 variant="ghost"

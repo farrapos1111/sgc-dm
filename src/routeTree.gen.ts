@@ -51,6 +51,7 @@ import { Route as AuthenticatedShellHospitalariaEscalaRouteImport } from './rout
 import { Route as AuthenticatedShellMembrosIndexRouteImport } from './routes/_authenticated/_shell/membros.index'
 import { Route as AuthenticatedShellMembrosIdRouteImport } from './routes/_authenticated/_shell/membros.$id'
 import { Route as AuthenticatedShellMembrosNovoRouteImport } from './routes/_authenticated/_shell/membros.novo'
+import { Route as AuthenticatedShellMembrosSolicitacoesRouteImport } from './routes/_authenticated/_shell/membros.solicitacoes'
 import { Route as AuthenticatedShellOngoingIdRouteImport } from './routes/_authenticated/_shell/ongoing.$id'
 import { Route as AuthenticatedShellRegionalIndexRouteImport } from './routes/_authenticated/_shell/regional.index'
 import { Route as AuthenticatedShellRegionalCalendarioRouteImport } from './routes/_authenticated/_shell/regional.calendario'
@@ -295,6 +296,12 @@ const AuthenticatedShellMembrosNovoRoute =
     path: '/membros/novo',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
+const AuthenticatedShellMembrosSolicitacoesRoute =
+  AuthenticatedShellMembrosSolicitacoesRouteImport.update({
+    id: '/membros/solicitacoes',
+    path: '/membros/solicitacoes',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
 const AuthenticatedShellOngoingIdRoute =
   AuthenticatedShellOngoingIdRouteImport.update({
     id: '/ongoing/$id',
@@ -443,6 +450,7 @@ export interface FileRoutesByFullPath {
   '/hospitalaria/escala': typeof AuthenticatedShellHospitalariaEscalaRoute
   '/membros/$id': typeof AuthenticatedShellMembrosIdRoute
   '/membros/novo': typeof AuthenticatedShellMembrosNovoRoute
+  '/membros/solicitacoes': typeof AuthenticatedShellMembrosSolicitacoesRoute
   '/ongoing/$id': typeof AuthenticatedShellOngoingIdRoute
   '/regional/calendario': typeof AuthenticatedShellRegionalCalendarioRoute
   '/regional/capitulos': typeof AuthenticatedShellRegionalCapitulosRoute
@@ -501,6 +509,7 @@ export interface FileRoutesByTo {
   '/hospitalaria/escala': typeof AuthenticatedShellHospitalariaEscalaRoute
   '/membros/$id': typeof AuthenticatedShellMembrosIdRoute
   '/membros/novo': typeof AuthenticatedShellMembrosNovoRoute
+  '/membros/solicitacoes': typeof AuthenticatedShellMembrosSolicitacoesRoute
   '/ongoing/$id': typeof AuthenticatedShellOngoingIdRoute
   '/regional/calendario': typeof AuthenticatedShellRegionalCalendarioRoute
   '/regional/capitulos': typeof AuthenticatedShellRegionalCapitulosRoute
@@ -564,6 +573,7 @@ export interface FileRoutesById {
   '/_authenticated/_shell/hospitalaria/escala': typeof AuthenticatedShellHospitalariaEscalaRoute
   '/_authenticated/_shell/membros/$id': typeof AuthenticatedShellMembrosIdRoute
   '/_authenticated/_shell/membros/novo': typeof AuthenticatedShellMembrosNovoRoute
+  '/_authenticated/_shell/membros/solicitacoes': typeof AuthenticatedShellMembrosSolicitacoesRoute
   '/_authenticated/_shell/ongoing/$id': typeof AuthenticatedShellOngoingIdRoute
   '/_authenticated/_shell/regional/calendario': typeof AuthenticatedShellRegionalCalendarioRoute
   '/_authenticated/_shell/regional/capitulos': typeof AuthenticatedShellRegionalCapitulosRoute
@@ -626,6 +636,7 @@ export interface FileRouteTypes {
     | '/hospitalaria/escala'
     | '/membros/$id'
     | '/membros/novo'
+    | '/membros/solicitacoes'
     | '/ongoing/$id'
     | '/regional/calendario'
     | '/regional/capitulos'
@@ -684,6 +695,7 @@ export interface FileRouteTypes {
     | '/hospitalaria/escala'
     | '/membros/$id'
     | '/membros/novo'
+    | '/membros/solicitacoes'
     | '/ongoing/$id'
     | '/regional/calendario'
     | '/regional/capitulos'
@@ -746,6 +758,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/hospitalaria/escala'
     | '/_authenticated/_shell/membros/$id'
     | '/_authenticated/_shell/membros/novo'
+    | '/_authenticated/_shell/membros/solicitacoes'
     | '/_authenticated/_shell/ongoing/$id'
     | '/_authenticated/_shell/regional/calendario'
     | '/_authenticated/_shell/regional/capitulos'
@@ -1079,6 +1092,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellMembrosNovoRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
+    '/_authenticated/_shell/membros/solicitacoes': {
+      id: '/_authenticated/_shell/membros/solicitacoes'
+      path: '/membros/solicitacoes'
+      fullPath: '/membros/solicitacoes'
+      preLoaderRoute: typeof AuthenticatedShellMembrosSolicitacoesRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
     '/_authenticated/_shell/ongoing/$id': {
       id: '/_authenticated/_shell/ongoing/$id'
       path: '/ongoing/$id'
@@ -1225,6 +1245,7 @@ interface AuthenticatedShellRouteRouteChildren {
   AuthenticatedShellHospitalariaEscalaRoute: typeof AuthenticatedShellHospitalariaEscalaRoute
   AuthenticatedShellMembrosIdRoute: typeof AuthenticatedShellMembrosIdRoute
   AuthenticatedShellMembrosNovoRoute: typeof AuthenticatedShellMembrosNovoRoute
+  AuthenticatedShellMembrosSolicitacoesRoute: typeof AuthenticatedShellMembrosSolicitacoesRoute
   AuthenticatedShellOngoingIdRoute: typeof AuthenticatedShellOngoingIdRoute
   AuthenticatedShellRegionalCalendarioRoute: typeof AuthenticatedShellRegionalCalendarioRoute
   AuthenticatedShellRegionalCapitulosRoute: typeof AuthenticatedShellRegionalCapitulosRoute
@@ -1268,6 +1289,8 @@ const AuthenticatedShellRouteRouteChildren: AuthenticatedShellRouteRouteChildren
       AuthenticatedShellHospitalariaEscalaRoute,
     AuthenticatedShellMembrosIdRoute: AuthenticatedShellMembrosIdRoute,
     AuthenticatedShellMembrosNovoRoute: AuthenticatedShellMembrosNovoRoute,
+    AuthenticatedShellMembrosSolicitacoesRoute:
+      AuthenticatedShellMembrosSolicitacoesRoute,
     AuthenticatedShellOngoingIdRoute: AuthenticatedShellOngoingIdRoute,
     AuthenticatedShellRegionalCalendarioRoute:
       AuthenticatedShellRegionalCalendarioRoute,

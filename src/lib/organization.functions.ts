@@ -371,7 +371,7 @@ export const getMemberOrgHistory = createServerFn({ method: "POST" })
       context.supabase
         .from("member_positions")
         .select(
-          "id, term_year, term_semester, position:positions(id, label, scope)",
+          "id, chapter_id, term_year, term_semester, position:positions(id, code, label, scope), chapter:chapters(id, name, number)",
         )
         .eq("member_id", data.memberId)
         .order("term_year", { ascending: false })
@@ -379,7 +379,7 @@ export const getMemberOrgHistory = createServerFn({ method: "POST" })
       context.supabase
         .from("commission_members")
         .select(
-          "id, role, term_year, term_semester, commission:commissions(id, label)",
+          "id, chapter_id, role, term_year, term_semester, commission:commissions(id, label), chapter:chapters(id, name, number)",
         )
         .eq("member_id", data.memberId)
         .order("term_year", { ascending: false })

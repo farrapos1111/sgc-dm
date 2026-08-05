@@ -26,7 +26,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import type { ComponentType } from "react";
-import { can, type Permission } from "@/lib/permissions";
+import { can, canAccess, type AccessContext, type Permission } from "@/lib/permissions";
 
 export type NavPath =
   | "/inicio"
@@ -230,9 +230,15 @@ export function mobileOverflowGroups(groups: NavGroup[], tabs: NavItem[]): NavGr
 export function visibleGroups(
   roleName: string | null,
   canViewCommission: (code: string) => boolean,
+  accessCtx?: AccessContext,
 ): NavGroup[] {
   return NAV_GROUPS.filter((g) => {
-    if (g.permission && !can(roleName, g.permission)) return false;
+    if (g.permission) {
+      const ok = accessCtx
+        ? canAccess(accessCtx, g.permission)
+        : can(roleName, g.permission);
+      if (!ok) return false;
+    }
     if (g.commission && !canViewCommission(g.commission)) return false;
     return true;
   });

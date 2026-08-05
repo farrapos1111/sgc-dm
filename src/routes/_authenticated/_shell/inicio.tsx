@@ -44,6 +44,21 @@ import {
   formatDateTimeBR,
   parseDateOnly,
 } from "@/lib/format";
+
+/** Idade que o membro completa no aniversário do ano corrente. */
+function turningAgeThisYear(
+  birthDate: string | null | undefined,
+  year: number,
+): number | null {
+  const bd = parseDateOnly(birthDate);
+  if (!bd) return null;
+  return year - bd.getFullYear();
+}
+
+/** Distância no mês: próximos primeiro (hoje → fim); já passados no fim. */
+function birthdayProximityKey(birthDay: number, todayDay: number): number {
+  return birthDay >= todayDay ? birthDay - todayDay : 100 + birthDay;
+}
 import { MONTH_LONG } from "@/lib/dues-rules";
 import { STATUS_LABELS } from "@/lib/investigation-labels";
 import { Badge } from "@/components/ui/badge";
@@ -138,13 +153,22 @@ function InicioContent({ active }: { active: Membership }) {
     .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at))[0];
 
   const birthdayMonth = now.getMonth();
+  const birthdayYear = now.getFullYear();
+  const todayDay = now.getDate();
   const birthdays = members
     .filter(
       (m) =>
         m.birth_date &&
         parseDateOnly(m.birth_date)?.getMonth() === birthdayMonth,
     )
-    .slice(0, 5);
+    .sort((a, b) => {
+      const dayA = parseDateOnly(a.birth_date)?.getDate() ?? 0;
+      const dayB = parseDateOnly(b.birth_date)?.getDate() ?? 0;
+      return (
+        birthdayProximityKey(dayA, todayDay) -
+        birthdayProximityKey(dayB, todayDay)
+      );
+    });
 
   const hasAnyData = members.length > 0 || events.length > 0;
 
@@ -361,17 +385,25 @@ function InicioContent({ active }: { active: Membership }) {
               </div>
             ) : (
               <ul className="space-y-1.5">
-                {birthdays.map((m) => (
-                  <li
-                    key={m.id}
-                    className="flex items-center justify-between text-sm"
-                  >
-                    <span className="truncate">{m.full_name}</span>
-                    <span className="text-muted-foreground">
-                      {formatDateBR(m.birth_date)}
-                    </span>
-                  </li>
-                ))}
+                {birthdays.map((m) => {
+                  const age = turningAgeThisYear(m.birth_date, birthdayYear);
+                  return (
+                    <li
+                      key={m.id}
+                      className="flex items-baseline justify-between gap-3 text-sm leading-snug"
+                    >
+                      <span className="min-w-0 truncate font-medium">
+                        {m.full_name}
+                      </span>
+                      <span className="shrink-0 text-right text-xs text-muted-foreground">
+                        {age !== null
+                          ? `aniversário de ${age} ${age === 1 ? "ano" : "anos"} `
+                          : null}
+                        {formatDateBR(m.birth_date)}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </Card>

@@ -18,6 +18,8 @@ export type MemberFormData = {
   exam_grau_demolay: string;
   demolay_id: string;
   masonic_id: string;
+  /** Capítulo de iniciação (UUID). */
+  initiation_chapter_id: string;
   status: MemberStatus;
   kind: MemberKind;
   /** Data efetiva: irregular desde / retorno à regularidade. */
@@ -53,6 +55,7 @@ export const emptyMember: MemberFormData = {
   exam_grau_demolay: "",
   demolay_id: "",
   masonic_id: "",
+  initiation_chapter_id: "",
   status: "regular",
   kind: "demolay_ativo",
   status_effective_on: "",
@@ -68,6 +71,13 @@ export const emptyMember: MemberFormData = {
   address_city: "",
   address_state: "",
   address_country: "Brasil",
+};
+
+export type ChapterOption = {
+  id: string;
+  name: string;
+  number: string;
+  city?: string | null;
 };
 
 export const emptyGuardian: GuardianFormData = {
@@ -115,12 +125,21 @@ export function MemberDataFields({
   onChange,
   showPiiHint,
   initialStatus,
+  chapters = [],
+  readOnlyMaster = false,
+  demolayLookupStatus = "idle",
 }: {
   value: MemberFormData;
   onChange: (patch: Partial<MemberFormData>) => void;
   showPiiHint?: boolean;
   /** Status ao abrir o formulário (para rótulo de retorno). */
   initialStatus?: MemberStatus;
+  /** Capítulos para o select de iniciação. */
+  chapters?: ChapterOption[];
+  /** Bloqueia edição de dados mestres (membro de outro capítulo originário). */
+  readOnlyMaster?: boolean;
+  /** Feedback da busca automática por ID DeMolay. */
+  demolayLookupStatus?: "idle" | "loading" | "found" | "not_found" | "already_affiliated";
 }) {
   const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "error" | "ok">("idle");
   const [cepError, setCepError] = useState("");
@@ -171,7 +190,12 @@ export function MemberDataFields({
   return (
     <div className="space-y-4">
       <Field label="Nome completo *">
-        <Input value={value.full_name} onChange={(e) => onChange({ full_name: e.target.value })} maxLength={120} />
+        <Input
+          value={value.full_name}
+          onChange={(e) => onChange({ full_name: e.target.value })}
+          maxLength={120}
+          disabled={readOnlyMaster}
+        />
       </Field>
 
       <div
@@ -183,6 +207,7 @@ export function MemberDataFields({
           <Input
             type="date"
             value={value.birth_date}
+            disabled={readOnlyMaster}
             onChange={(e) => {
               const birth_date = e.target.value;
               const patch: Partial<MemberFormData> = { birth_date };
@@ -201,12 +226,26 @@ export function MemberDataFields({
             placeholder="Número de identificação"
             onChange={(e) => onChange({ demolay_id: e.target.value.slice(0, 40) })}
           />
+          {demolayLookupStatus === "loading" && (
+            <p className="mt-1 text-xs text-muted-foreground">Buscando cadastro existente…</p>
+          )}
+          {demolayLookupStatus === "found" && (
+            <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+              Membro encontrado — dados preenchidos automaticamente (somente leitura).
+            </p>
+          )}
+          {demolayLookupStatus === "already_affiliated" && (
+            <p className="mt-1 text-xs text-destructive">
+              Este ID DeMolay já está vinculado a este capítulo.
+            </p>
+          )}
         </Field>
         {value.kind === "macom" && (
           <Field label="ID maçônica">
             <Input
               value={value.masonic_id}
               placeholder="Número de identificação"
+              disabled={readOnlyMaster}
               onChange={(e) => onChange({ masonic_id: e.target.value.slice(0, 40) })}
             />
           </Field>
@@ -214,6 +253,7 @@ export function MemberDataFields({
         <Field label="Status">
           <Select
             value={value.status}
+            disabled={readOnlyMaster}
             onValueChange={(v) => {
               const status = v as MemberStatus;
               const patch: Partial<MemberFormData> = { status };
@@ -235,6 +275,7 @@ export function MemberDataFields({
         <Field label="Tipo">
           <Select
             value={value.kind}
+            disabled={readOnlyMaster}
             onValueChange={(v) => {
               let kind = v as MemberKind;
               if (kind === "demolay_ativo" && is21OrOlder(value.birth_date)) kind = "senior";
@@ -254,6 +295,27 @@ export function MemberDataFields({
           </Select>
         </Field>
       </div>
+
+      <Field label="Capítulo de Iniciação">
+        <Select
+          value={value.initiation_chapter_id || undefined}
+          disabled={readOnlyMaster || chapters.length === 0}
+          onValueChange={(v) => onChange({ initiation_chapter_id: v })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione o capítulo" />
+          </SelectTrigger>
+          <SelectContent>
+            {chapters.map((ch) => (
+              <SelectItem key={ch.id} value={ch.id}>
+                {ch.name}
+                {ch.number ? ` Nº ${ch.number}` : ""}
+                {ch.city ? ` — ${ch.city}` : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
       {(value.status === "irregular" ||
         (initialStatus === "irregular" && value.status === "regular")) && (
         <Field

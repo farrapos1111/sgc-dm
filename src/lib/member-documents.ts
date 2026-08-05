@@ -1,17 +1,25 @@
 export const MEMBER_DOCS_BUCKET = "member-documents";
 
-export type IdDocKind = "rg_front" | "rg_back" | "cpf_front" | "cpf_back";
+/** Documentos de identidade exigidos no formulário (frente/verso). */
+export type IdDocKind = "rg_front" | "rg_back";
+
+/** Inclui CPF legado ainda presente em fichas antigas. */
+export type LegacyIdDocKind = IdDocKind | "cpf_front" | "cpf_back";
 
 export const ID_DOC_LABELS: Record<IdDocKind, string> = {
-  rg_front: "RG — Frente",
-  rg_back: "RG — Verso",
-  cpf_front: "CPF — Frente",
-  cpf_back: "CPF — Verso",
+  rg_front: "Identidade — Frente",
+  rg_back: "Identidade — Verso",
+};
+
+export const LEGACY_ID_DOC_LABELS: Record<LegacyIdDocKind, string> = {
+  ...ID_DOC_LABELS,
+  cpf_front: "CPF — Frente (legado)",
+  cpf_back: "CPF — Verso (legado)",
 };
 
 export const ID_DOC_KINDS = Object.keys(ID_DOC_LABELS) as IdDocKind[];
 
-export function docColumnForKind(kind: IdDocKind): string {
+export function docColumnForKind(kind: LegacyIdDocKind): string {
   switch (kind) {
     case "rg_front":
       return "doc_rg_front_path";

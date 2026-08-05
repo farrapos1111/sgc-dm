@@ -27,15 +27,49 @@ const listInput = z.object({
   kind: z.enum(["demolay_ativo", "senior", "macom", "all"]).optional().default("all"),
 });
 
+const MEMBER_LIST_FIELDS =
+  "id, full_name, birth_date, status, kind, phone, email, cpf_last2, rg_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, demolay_id, masonic_id, chapter_id, initiation_chapter_id, created_at";
+
 export const listMembers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => listInput.parse(raw))
   .handler(async ({ data, context }) => {
+    // Prefer afiliações ativas; fallback para chapter_id originário se a tabela ainda não existir
+    const { data: affRows, error: affErr } = await context.supabase
+      .from("member_chapter_affiliations" as "members")
+      .select(`member:members(${MEMBER_LIST_FIELDS})`)
+      .eq("chapter_id" as never, data.chapterId)
+      .eq("active" as never, true);
+
+    if (!affErr && affRows) {
+      let rows = (affRows as unknown as { member: Record<string, unknown> | null }[])
+        .map((r) => r.member)
+        .filter((m): m is Record<string, unknown> => !!m);
+
+      if (data.status !== "all") {
+        rows = rows.filter((m) => m.status === data.status);
+      }
+      if (data.kind !== "all") {
+        rows = rows.filter((m) => m.kind === data.kind);
+      }
+      if (data.search && data.search.trim().length > 0) {
+        const q = data.search.trim().toLowerCase();
+        rows = rows.filter((m) =>
+          String(m.full_name ?? "")
+            .toLowerCase()
+            .includes(q),
+        );
+      }
+      rows.sort((a, b) =>
+        String(a.full_name ?? "").localeCompare(String(b.full_name ?? ""), "pt-BR"),
+      );
+      return rows as never;
+    }
+
+    // Fallback legado (pré-migration)
     let q = context.supabase
       .from("members")
-      .select(
-        "id, full_name, birth_date, status, kind, phone, email, cpf_last2, rg_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, demolay_id, masonic_id, created_at",
-      )
+      .select(MEMBER_LIST_FIELDS)
       .eq("chapter_id", data.chapterId)
       .order("full_name", { ascending: true });
     if (data.status !== "all") q = q.eq("status", data.status);
@@ -46,6 +80,95 @@ export const listMembers = createServerFn({ method: "POST" })
     return rows ?? [];
   });
 
+export const listChaptersForSelect = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase.rpc(
+      "list_chapters_for_select" as never,
+    );
+    if (error) {
+      // Fallback: capítulos legíveis via RLS
+      const { data: rows, error: e2 } = await context.supabase
+        .from("chapters")
+        .select("id, name, number, city")
+        .eq("active", true)
+        .order("name");
+      if (e2) throw new Error(e2.message);
+      return rows ?? [];
+    }
+    return (data as { id: string; name: string; number: string; city: string | null }[]) ?? [];
+  });
+
+export const lookupMemberByDemolayId = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        demolayId: z.string().trim().min(1),
+        chapterId: z.string().uuid(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: raw, error } = await context.supabase.rpc(
+      "lookup_member_by_demolay_id" as never,
+      {
+        _demolay_id: data.demolayId,
+        _for_chapter_id: data.chapterId,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    if (!raw) return null;
+    return raw as {
+      id: string;
+      chapter_id: string;
+      initiation_chapter_id: string | null;
+      full_name: string;
+      birth_date: string | null;
+      status: string;
+      kind: string;
+      phone: string | null;
+      email: string | null;
+      address: Record<string, string>;
+      demolay_id: string | null;
+      masonic_id: string | null;
+      exam_grau_iniciatico: string | null;
+      exam_grau_demolay: string | null;
+      iniciacao_ordem: string | null;
+      iniciacao_grau_demolay: string | null;
+      already_affiliated: boolean;
+      position_history: {
+        label: string;
+        term_year: number;
+        term_semester: number;
+        chapter_name: string;
+        chapter_number: string;
+      }[];
+    };
+  });
+
+export const affiliateMemberToChapter = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        memberId: z.string().uuid(),
+        chapterId: z.string().uuid(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: id, error } = await context.supabase.rpc(
+      "affiliate_member_to_chapter" as never,
+      {
+        _member_id: data.memberId,
+        _chapter_id: data.chapterId,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    return { id: id as string, memberId: data.memberId };
+  });
+
 export const getMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
@@ -53,49 +176,75 @@ export const getMember = createServerFn({ method: "POST" })
     const { data: member, error } = await context.supabase
       .from("members")
       .select(
-        "id, chapter_id, full_name, birth_date, status, kind, phone, email, address, cpf_last2, rg_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, demolay_id, masonic_id, user_id, created_at, updated_at",
+        "id, chapter_id, initiation_chapter_id, full_name, birth_date, status, kind, phone, email, address, cpf_last2, rg_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, demolay_id, masonic_id, user_id, created_at, updated_at",
       )
       .eq("id", data.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!member) throw new Error("Membro não encontrado");
 
-    const [guardiansRes, consentsRes, auditRes, awayRes] = await Promise.all([
-      context.supabase
-        .from("guardians")
-        .select("id, full_name, relationship, phone, email, cpf_last2, is_primary")
-        .eq("member_id", data.id)
-        .order("is_primary", { ascending: false }),
-      context.supabase
-        .from("lgpd_consents")
-        .select("id, consent_text_version, signed_at, guardian_id")
-        .eq("member_id", data.id)
-        .order("signed_at", { ascending: false }),
-      context.supabase
-        .from("audit_logs")
-        .select("id, action, old_value, new_value, user_id, created_at")
-        .eq("table_name", "members")
-        .eq("record_id", data.id)
-        .order("created_at", { ascending: false })
-        .limit(50),
-      context.supabase
-        .from("member_away_periods")
-        .select("id, started_on, ended_on, created_at")
-        .eq("member_id", data.id)
-        .order("started_on", { ascending: false }),
-    ]);
+    const [guardiansRes, consentsRes, auditRes, awayRes, affRes, initChapterRes, originChapterRes] =
+      await Promise.all([
+        context.supabase
+          .from("guardians")
+          .select("id, full_name, relationship, phone, email, cpf_last2, is_primary")
+          .eq("member_id", data.id)
+          .order("is_primary", { ascending: false }),
+        context.supabase
+          .from("lgpd_consents")
+          .select("id, consent_text_version, signed_at, guardian_id")
+          .eq("member_id", data.id)
+          .order("signed_at", { ascending: false }),
+        context.supabase
+          .from("audit_logs")
+          .select("id, action, old_value, new_value, user_id, created_at")
+          .eq("table_name", "members")
+          .eq("record_id", data.id)
+          .order("created_at", { ascending: false })
+          .limit(50),
+        context.supabase
+          .from("member_away_periods")
+          .select("id, started_on, ended_on, created_at")
+          .eq("member_id", data.id)
+          .order("started_on", { ascending: false }),
+        context.supabase
+          .from("member_chapter_affiliations" as "members")
+          .select(
+            "id, chapter_id, active, joined_at, left_at, chapter:chapters(id, name, number)",
+          )
+          .eq("member_id" as never, data.id)
+          .order("joined_at" as never, { ascending: false }),
+        (member as { initiation_chapter_id?: string | null }).initiation_chapter_id
+          ? context.supabase
+              .from("chapters")
+              .select("id, name, number")
+              .eq("id", (member as { initiation_chapter_id: string }).initiation_chapter_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        context.supabase
+          .from("chapters")
+          .select("id, name, number")
+          .eq("id", member.chapter_id)
+          .maybeSingle(),
+      ]);
     if (guardiansRes.error) throw new Error(guardiansRes.error.message);
     if (consentsRes.error) throw new Error(consentsRes.error.message);
     if (awayRes.error) throw new Error(awayRes.error.message);
     const awayPeriods = awayRes.data ?? [];
     const openAway = awayPeriods.find((p) => p.ended_on == null) ?? null;
     return {
-      member,
+      member: {
+        ...member,
+        origin_chapter_id: member.chapter_id,
+      },
       guardians: guardiansRes.data ?? [],
       consents: consentsRes.data ?? [],
       audit: auditRes.data ?? [],
       awayPeriods,
       irregularSince: openAway?.started_on ?? null,
+      affiliations: affRes.error ? [] : (affRes.data ?? []),
+      initiationChapter: initChapterRes.data ?? null,
+      originChapter: originChapterRes.data ?? null,
     };
   });
 
@@ -131,6 +280,7 @@ const addressSchema = z
 
 const createInput = z.object({
   chapter_id: z.string().uuid(),
+  initiation_chapter_id: z.string().uuid().optional().nullable(),
   full_name: z.string().trim().min(2).max(120),
   birth_date: z.string().optional().nullable(),
   exam_grau_iniciatico: z.string().optional().nullable(),
@@ -146,7 +296,6 @@ const createInput = z.object({
   address: addressSchema,
   status: statusEnum.default("regular"),
   kind: kindEnum.default("demolay_ativo"),
-  /** Data efetiva do status irregular (obrigatória se status = irregular). */
   status_effective_on: z.string().optional().nullable(),
   guardians: z.array(guardianSchema).max(2).optional().default([]),
   consent_text_version: z.string().default("v1-2026-07"),
@@ -180,6 +329,7 @@ export const createMember = createServerFn({ method: "POST" })
       _kind: kind,
       _guardian: first ?? null,
       _consent_text_version: data.consent_text_version,
+      _initiation_chapter_id: data.initiation_chapter_id || data.chapter_id,
     } as unknown as Parameters<typeof context.supabase.rpc<"create_member_with_pii">>[1];
     const { data: id, error } = await context.supabase.rpc("create_member_with_pii", args);
     if (error) throw new Error(error.message);
@@ -216,6 +366,7 @@ const updateInput = z.object({
   iniciacao_grau_demolay: z.string().optional().nullable(),
   demolay_id: z.string().optional().default(""),
   masonic_id: z.string().optional().default(""),
+  initiation_chapter_id: z.string().uuid().optional().nullable(),
   cpf: z.string().optional().default(""),
   rg: z.string().optional().default(""),
   phone: z.string().optional().default(""),
@@ -223,12 +374,6 @@ const updateInput = z.object({
   address: addressSchema,
   status: statusEnum,
   kind: kindEnum,
-  /**
-   * Data efetiva da mudança de status:
-   * - regular → irregular: início do afastamento
-   * - irregular → regular: data do retorno
-   * - irregular → irregular: ajusta started_on do período aberto
-   */
   status_effective_on: z.string().optional().nullable(),
   guardians: z.array(guardianSchema).max(2).optional().default([]),
 });
@@ -281,11 +426,11 @@ export const updateMember = createServerFn({ method: "POST" })
       _demolay_id: data.demolay_id || null,
       _masonic_id: kind === "macom" ? data.masonic_id || null : null,
       _guardians: data.guardians ?? [],
+      _initiation_chapter_id: data.initiation_chapter_id || null,
     } as unknown as Parameters<typeof context.supabase.rpc<"update_member_with_pii">>[1];
     const { error } = await context.supabase.rpc("update_member_with_pii", args);
     if (error) throw new Error(error.message);
 
-    // Sync períodos de afastamento + mensalidades
     if (prevStatus === "regular" && nextStatus === "irregular") {
       const { error: awayErr } = await context.supabase.from("member_away_periods").insert({
         member_id: data.id,
@@ -317,7 +462,6 @@ export const updateMember = createServerFn({ method: "POST" })
           .eq("id", openPeriod.id);
         if (closeErr) throw new Error(closeErr.message);
       }
-      // Legado sem período: só atualiza status; meses passados não são auto-desligados
     } else if (
       prevStatus === "irregular" &&
       nextStatus === "irregular" &&
@@ -358,4 +502,75 @@ export const revealMemberPii = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return { value: (plain as string) ?? "" };
+  });
+
+/** Cargos do termo vigente do usuário logado no capítulo (para RBAC). */
+export type MyCurrentPosition = {
+  code: string;
+  label: string;
+};
+
+export const getMyCurrentPositions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        chapterId: z.string().uuid(),
+        year: z.number().int(),
+        semester: z.union([z.literal(1), z.literal(2)]),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }): Promise<MyCurrentPosition[]> => {
+    const email = (context.claims as { email?: string } | null)?.email ?? null;
+
+    const { data: byUser } = await context.supabase
+      .from("members")
+      .select("id")
+      .eq("user_id", context.userId)
+      .limit(5);
+
+    let memberIds = (byUser ?? []).map((m) => m.id as string);
+
+    if (memberIds.length === 0) {
+      const { data: profile } = await context.supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", context.userId)
+        .maybeSingle();
+      const filters: string[] = [];
+      if (email) filters.push(`email.eq.${email}`);
+      if (profile?.full_name) filters.push(`full_name.eq.${profile.full_name}`);
+      if (filters.length === 0) return [];
+      const { data: byIdentity } = await context.supabase
+        .from("members")
+        .select("id")
+        .or(filters.join(","));
+      memberIds = (byIdentity ?? []).map((m) => m.id as string);
+    }
+
+    if (memberIds.length === 0) return [];
+
+    const { data: rows, error } = await context.supabase
+      .from("member_positions")
+      .select("position:positions(code, label)")
+      .eq("chapter_id", data.chapterId)
+      .in("member_id", memberIds)
+      .eq("term_year", data.year)
+      .eq("term_semester", data.semester);
+    if (error) throw new Error(error.message);
+
+    const seen = new Set<string>();
+    const out: MyCurrentPosition[] = [];
+    for (const r of rows ?? []) {
+      const p = r.position as
+        | { code?: string; label?: string }
+        | { code?: string; label?: string }[]
+        | null;
+      const pos = Array.isArray(p) ? p[0] : p;
+      if (!pos?.code || seen.has(pos.code)) continue;
+      seen.add(pos.code);
+      out.push({ code: pos.code, label: pos.label ?? pos.code });
+    }
+    return out;
   });

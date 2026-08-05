@@ -131,7 +131,7 @@ export function validateInvestigationForm(
     }
   }
   for (const kind of Object.keys(value.docs) as IdDocKind[]) {
-    if (!value.docs[kind]) return "Envie as 4 imagens de RG e CPF";
+    if (!value.docs[kind]) return "Envie as imagens de Identidade (frente e verso)";
   }
   return null;
 }
@@ -308,7 +308,7 @@ export function InvestigationFileForm({
 
       <section className={sectionSpace}>
         <SectionHeading publicLayout={publicLayout}>
-          Documentos (RG e CPF)
+          Documentos de identidade
         </SectionHeading>
         <p className="text-xs text-muted-foreground">
           Envie foto nítida da frente e do verso de cada documento.

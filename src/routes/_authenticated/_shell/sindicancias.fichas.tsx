@@ -70,7 +70,7 @@ import {
   type DocPreviewState,
 } from "@/components/investigations/DocumentUploadFields";
 import { MemberSearchSelect } from "@/components/investigations/MemberSearchSelect";
-import { ID_DOC_KINDS, ID_DOC_LABELS, type IdDocKind } from "@/lib/member-documents";
+import { LEGACY_ID_DOC_LABELS, type IdDocKind, type LegacyIdDocKind } from "@/lib/member-documents";
 import { STATUS_LABELS } from "@/lib/investigation-labels";
 import { fileToBase64 } from "@/lib/file-to-base64";
 
@@ -115,9 +115,10 @@ function Fichas() {
     clerk_member_id: null as string | null,
   });
   const [revealed, setRevealed] = useState<{ cpf?: string; rg?: string }>({});
-  const [docUrl, setDocUrl] = useState<{ kind: IdDocKind; url: string } | null>(
-    null,
-  );
+  const [docUrl, setDocUrl] = useState<{
+    kind: LegacyIdDocKind;
+    url: string;
+  } | null>(null);
 
   const { data: files = [], isLoading } = useQuery({
     queryKey: ["investigation-files", active?.chapter_id],
@@ -259,8 +260,6 @@ function Fichas() {
           docs: {
             rg_front: form.docs.rg_front!,
             rg_back: form.docs.rg_back!,
-            cpf_front: form.docs.cpf_front!,
-            cpf_back: form.docs.cpf_back!,
           },
         },
       });
@@ -293,8 +292,6 @@ function Fichas() {
           keep_docs: {
             rg_front: Boolean(form.docs.rg_front),
             rg_back: Boolean(form.docs.rg_back),
-            cpf_front: Boolean(form.docs.cpf_front),
-            cpf_back: Boolean(form.docs.cpf_back),
           },
           candidate_name: form.candidate_name,
           candidate_birth_date: form.candidate_birth_date,
@@ -321,8 +318,6 @@ function Fichas() {
           docs: {
             rg_front: form.docs.rg_front ?? "",
             rg_back: form.docs.rg_back ?? "",
-            cpf_front: form.docs.cpf_front ?? "",
-            cpf_back: form.docs.cpf_back ?? "",
           },
         },
       });
@@ -364,8 +359,6 @@ function Fichas() {
         docs: {
           rg_front: data.docs.rg_front,
           rg_back: data.docs.rg_back,
-          cpf_front: data.docs.cpf_front,
-          cpf_back: data.docs.cpf_back,
         },
       });
       setKeepPii({ cpf: data.keep_cpf, rg: data.keep_rg });
@@ -473,7 +466,7 @@ function Fichas() {
     }
   }
 
-  async function viewDoc(kind: IdDocKind) {
+  async function viewDoc(kind: LegacyIdDocKind) {
     if (!detail) return;
     try {
       const res = await getIdDocumentUrl({
@@ -832,14 +825,18 @@ function Fichas() {
                 </div>
                 {revealAccess?.allowed && (
                   <div className="flex flex-wrap gap-2 pt-1">
-                    {ID_DOC_KINDS.filter((k) => detail.docs[k]).map((kind) => (
+                    {(
+                      Object.keys(LEGACY_ID_DOC_LABELS) as LegacyIdDocKind[]
+                    )
+                      .filter((k) => detail.docs[k])
+                      .map((kind) => (
                       <Button
                         key={kind}
                         size="sm"
                         variant="secondary"
                         onClick={() => viewDoc(kind)}
                       >
-                        {ID_DOC_LABELS[kind]}
+                        {LEGACY_ID_DOC_LABELS[kind]}
                       </Button>
                     ))}
                   </div>
@@ -847,11 +844,11 @@ function Fichas() {
                 {docUrl && (
                   <div className="pt-2">
                     <p className="mb-1 text-xs text-muted-foreground">
-                      {ID_DOC_LABELS[docUrl.kind]} (acesso registrado)
+                      {LEGACY_ID_DOC_LABELS[docUrl.kind]} (acesso registrado)
                     </p>
                     <img
                       src={docUrl.url}
-                      alt={ID_DOC_LABELS[docUrl.kind]}
+                      alt={LEGACY_ID_DOC_LABELS[docUrl.kind]}
                       className="max-h-64 w-full rounded-md object-contain"
                     />
                   </div>

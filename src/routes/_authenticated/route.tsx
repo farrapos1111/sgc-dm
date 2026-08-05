@@ -2,13 +2,29 @@ import { createFileRoute, Outlet, isRedirect, redirect } from "@tanstack/react-r
 import { supabase } from "@/integrations/supabase/client";
 import { ActiveChapterProvider } from "@/context/ActiveChapterContext";
 import { OrgScopeProvider } from "@/context/OrgScopeContext";
-import { getMustChangePassword } from "@/lib/accounts.functions";
+import {
+  getMemberLoginGate,
+  getMustChangePassword,
+} from "@/lib/accounts.functions";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
+
+    try {
+      const gate = await getMemberLoginGate();
+      if (!gate.allowed) {
+        await supabase.auth.signOut();
+        throw redirect({
+          to: "/auth",
+          search: { reason: "irregular" },
+        });
+      }
+    } catch (e) {
+      if (isRedirect(e)) throw e;
+    }
 
     try {
       const { mustChangePassword } = await getMustChangePassword();

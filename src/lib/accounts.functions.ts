@@ -3,19 +3,113 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
-import { ROLE_LABELS, type RoleName } from "@/lib/permissions";
+import { resolveAccess, type RoleName } from "@/lib/permissions";
+import { currentTerm } from "@/lib/terms";
 
-const PROVISIONABLE_ROLES = Object.keys(ROLE_LABELS) as RoleName[];
-
-const roleNameSchema = z.enum(
-  PROVISIONABLE_ROLES as [RoleName, ...RoleName[]],
-);
+const passwordSchema = z
+  .string()
+  .min(8, "Senha deve ter pelo menos 8 caracteres")
+  .max(100);
 
 function randomPassword(length = 16): string {
   const chars =
     "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%";
   const bytes = crypto.getRandomValues(new Uint8Array(length));
   return Array.from(bytes, (b) => chars[b % chars.length]).join("");
+}
+
+function accessSummaryFrom(
+  positions: { code: string; label: string }[],
+  commissions: { code: string; label: string; role: string }[],
+  permissions: string[],
+): string[] {
+  const lines: string[] = [];
+  if (permissions.includes("admin") || permissions.includes("conselho")) {
+    lines.push("Acesso total no capítulo (administração / conselho)");
+  } else {
+    if (permissions.includes("secretaria")) lines.push("Secretaria");
+    if (permissions.includes("tesouraria")) lines.push("Tesouraria");
+    if (permissions.includes("comissoes")) lines.push("Comissões (gestão)");
+    if (permissions.includes("visualizar_total")) {
+      lines.push("Visualização ampla no capítulo");
+    } else if (permissions.includes("visualizar")) {
+      lines.push("Acesso básico de membro (presenças, calendário, perfil…)");
+    }
+  }
+  for (const p of positions) {
+    lines.push(`Cargo ritualístico: ${p.label}`);
+  }
+  for (const c of commissions) {
+    lines.push(`Comissão ${c.label} (${c.role})`);
+  }
+  if (lines.length === 0) {
+    lines.push("Acesso básico de membro");
+  }
+  return [...new Set(lines)];
+}
+
+async function loadMemberTermAccess(
+  supabase: {
+    from: (t: string) => any;
+  },
+  memberId: string,
+  chapterId: string,
+) {
+  const term = currentTerm();
+  const [posRes, comRes] = await Promise.all([
+    supabase
+      .from("member_positions")
+      .select("position:positions(code, label)")
+      .eq("member_id", memberId)
+      .eq("chapter_id", chapterId)
+      .eq("term_year", term.year)
+      .eq("term_semester", term.semester),
+    supabase
+      .from("commission_members")
+      .select("role, commission:commissions(code, label)")
+      .eq("member_id", memberId)
+      .eq("chapter_id", chapterId)
+      .eq("term_year", term.year)
+      .eq("term_semester", term.semester),
+  ]);
+
+  const currentPositions = ((posRes.data ?? []) as {
+    position?: { code?: string; label?: string } | { code?: string; label?: string }[] | null;
+  }[])
+    .map((r) => {
+      const p = Array.isArray(r.position) ? r.position[0] : r.position;
+      if (!p?.code) return null;
+      return { code: p.code, label: p.label ?? p.code };
+    })
+    .filter((x): x is { code: string; label: string } => !!x);
+
+  const currentCommissions = ((comRes.data ?? []) as {
+    role: string;
+    commission?: { code?: string; label?: string } | { code?: string; label?: string }[] | null;
+  }[])
+    .map((r) => {
+      const c = Array.isArray(r.commission) ? r.commission[0] : r.commission;
+      if (!c?.code) return null;
+      return { code: c.code, label: c.label ?? c.code, role: r.role };
+    })
+    .filter((x): x is { code: string; label: string; role: string } => !!x);
+
+  const effectivePermissions = resolveAccess({
+    roleName: "membro",
+    currentPositions: currentPositions.map((p) => p.code),
+    commissionRoles: currentCommissions,
+  });
+
+  return {
+    currentPositions,
+    currentCommissions,
+    effectivePermissions,
+    accessSummary: accessSummaryFrom(
+      currentPositions,
+      currentCommissions,
+      effectivePermissions,
+    ),
+  };
 }
 
 function getAnonAuthClient() {
@@ -72,7 +166,7 @@ async function ensureChapterMembership(
   >["supabaseAdmin"],
   userId: string,
   chapterId: string,
-  roleName: RoleName,
+  roleName: RoleName = "membro",
 ) {
   const { data: role, error: roleErr } = await admin
     .from("roles")
@@ -134,10 +228,19 @@ export type MemberAccountStatus = {
   linked: boolean;
   userId: string | null;
   email: string | null;
+  /** Sempre base "membro"; permissões reais vêm dos cargos ritualísticos. */
   roleName: string | null;
   roleLabel: string | null;
   mustChangePassword: boolean;
   chapterMemberActive: boolean | null;
+  /** Cargos ritualísticos do semestre vigente neste capítulo. */
+  currentPositions: { code: string; label: string }[];
+  /** Comissões do semestre vigente neste capítulo. */
+  currentCommissions: { code: string; label: string; role: string }[];
+  /** Permissões efetivas resolvidas (role base + cargos). */
+  effectivePermissions: string[];
+  /** Resumo legível do acesso. */
+  accessSummary: string[];
 };
 
 export const getMemberAccountStatus = createServerFn({ method: "POST" })
@@ -155,6 +258,11 @@ export const getMemberAccountStatus = createServerFn({ method: "POST" })
     await assertChapterAdmin(context.supabase, member.chapter_id);
 
     if (!member.user_id) {
+      const access = await loadMemberTermAccess(
+        context.supabase,
+        member.id,
+        member.chapter_id,
+      );
       return {
         linked: false,
         userId: null,
@@ -163,6 +271,7 @@ export const getMemberAccountStatus = createServerFn({ method: "POST" })
         roleLabel: null,
         mustChangePassword: false,
         chapterMemberActive: null,
+        ...access,
       };
     }
 
@@ -170,7 +279,7 @@ export const getMemberAccountStatus = createServerFn({ method: "POST" })
       "@/integrations/supabase/client.server"
     );
 
-    const [profileRes, cmRes, authRes] = await Promise.all([
+    const [profileRes, cmRes, authRes, access] = await Promise.all([
       context.supabase
         .from("profiles")
         .select("must_change_password")
@@ -184,6 +293,7 @@ export const getMemberAccountStatus = createServerFn({ method: "POST" })
         .limit(1)
         .maybeSingle(),
       supabaseAdmin.auth.admin.getUserById(member.user_id),
+      loadMemberTermAccess(context.supabase, member.id, member.chapter_id),
     ]);
 
     const roleJoin = cmRes.data?.roles as
@@ -197,10 +307,11 @@ export const getMemberAccountStatus = createServerFn({ method: "POST" })
       linked: true,
       userId: member.user_id,
       email: authRes.data.user?.email ?? member.email,
-      roleName: role?.name ?? null,
-      roleLabel: role?.label ?? null,
+      roleName: role?.name ?? "membro",
+      roleLabel: role?.label ?? "Membro",
       mustChangePassword: Boolean(profileRes.data?.must_change_password),
       chapterMemberActive: cmRes.data?.active ?? null,
+      ...access,
     };
   });
 
@@ -210,7 +321,10 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
     z
       .object({
         memberId: z.string().uuid(),
-        roleName: roleNameSchema.optional().default("membro"),
+        /** Se omitida, gera senha temporária aleatória. */
+        password: passwordSchema.optional(),
+        /** Exigir troca no 1º acesso (padrão true se senha gerada; false se definida). */
+        mustChangePassword: z.boolean().optional(),
       })
       .parse(raw),
   )
@@ -242,9 +356,14 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
     let status: "created" | "linked" = "linked";
     let temporaryPassword: string | null = null;
     let userId: string;
+    const generated = !data.password;
+    const password = data.password ?? randomPassword();
+    const mustChange =
+      data.mustChangePassword !== undefined
+        ? data.mustChangePassword
+        : generated;
 
     if (existing) {
-      // Conta já usada por outro membro?
       const { data: other, error: otherErr } = await supabaseAdmin
         .from("members")
         .select("id, full_name")
@@ -262,16 +381,36 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
         .from("profiles")
         .update({ full_name: member.full_name })
         .eq("id", userId);
+
+      // Se informaram senha ao vincular conta existente, aplica
+      if (data.password) {
+        const { error: pwdErr } = await supabaseAdmin.auth.admin.updateUserById(
+          userId,
+          {
+            password: data.password,
+            user_metadata: {
+              full_name: member.full_name,
+              must_change_password: mustChange,
+            },
+          },
+        );
+        if (pwdErr) throw new Error(pwdErr.message);
+        await supabaseAdmin
+          .from("profiles")
+          .update({ must_change_password: mustChange })
+          .eq("id", userId);
+        temporaryPassword = data.password;
+      }
     } else {
-      temporaryPassword = randomPassword();
+      temporaryPassword = password;
       const { data: created, error: createErr } =
         await supabaseAdmin.auth.admin.createUser({
           email,
-          password: temporaryPassword,
+          password,
           email_confirm: true,
           user_metadata: {
             full_name: member.full_name,
-            must_change_password: true,
+            must_change_password: mustChange,
           },
         });
       if (createErr || !created.user) {
@@ -284,17 +423,18 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
         .from("profiles")
         .update({
           full_name: member.full_name,
-          must_change_password: true,
+          must_change_password: mustChange,
         })
         .eq("id", userId);
       if (profileErr) throw new Error(profileErr.message);
     }
 
+    // Acesso base sempre "membro"; permissões vêm dos cargos ritualísticos
     await ensureChapterMembership(
       supabaseAdmin,
       userId,
       member.chapter_id,
-      data.roleName,
+      "membro",
     );
 
     const { error: linkErr } = await supabaseAdmin
@@ -303,18 +443,34 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
       .eq("id", member.id);
     if (linkErr) throw new Error(linkErr.message);
 
+    const access = await loadMemberTermAccess(
+      context.supabase,
+      member.id,
+      member.chapter_id,
+    );
+
     return {
       status,
       userId,
       email,
-      roleName: data.roleName,
+      roleName: "membro" as const,
       temporaryPassword,
+      mustChangePassword: mustChange,
+      accessSummary: access.accessSummary,
     };
   });
 
-export const resetMemberTemporaryPassword = createServerFn({ method: "POST" })
+export const setMemberPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) => z.object({ memberId: z.string().uuid() }).parse(raw))
+  .inputValidator((raw) =>
+    z
+      .object({
+        memberId: z.string().uuid(),
+        password: passwordSchema,
+        mustChangePassword: z.boolean().optional().default(false),
+      })
+      .parse(raw),
+  )
   .handler(async ({ data, context }) => {
     const { data: member, error } = await context.supabase
       .from("members")
@@ -327,7 +483,73 @@ export const resetMemberTemporaryPassword = createServerFn({ method: "POST" })
 
     await assertChapterAdmin(context.supabase, member.chapter_id);
 
-    const temporaryPassword = randomPassword();
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+
+    const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(
+      member.user_id,
+      {
+        password: data.password,
+        user_metadata: {
+          full_name: member.full_name,
+          must_change_password: data.mustChangePassword,
+        },
+      },
+    );
+    if (updErr) throw new Error(updErr.message);
+
+    const { error: profileErr } = await supabaseAdmin
+      .from("profiles")
+      .update({ must_change_password: data.mustChangePassword })
+      .eq("id", member.user_id);
+    if (profileErr) throw new Error(profileErr.message);
+
+    // Garante vínculo ativo no capítulo com role base membro
+    await ensureChapterMembership(
+      supabaseAdmin,
+      member.user_id,
+      member.chapter_id,
+      "membro",
+    );
+
+    return {
+      ok: true,
+      password: data.password,
+      mustChangePassword: data.mustChangePassword,
+    };
+  });
+
+export const resetMemberTemporaryPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        memberId: z.string().uuid(),
+        password: passwordSchema.optional(),
+        mustChangePassword: z.boolean().optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: member, error } = await context.supabase
+      .from("members")
+      .select("id, chapter_id, user_id, full_name")
+      .eq("id", data.memberId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!member) throw new Error("Membro não encontrado");
+    if (!member.user_id) throw new Error("Membro sem conta vinculada");
+
+    await assertChapterAdmin(context.supabase, member.chapter_id);
+
+    const generated = !data.password;
+    const temporaryPassword = data.password ?? randomPassword();
+    const mustChange =
+      data.mustChangePassword !== undefined
+        ? data.mustChangePassword
+        : generated;
+
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
@@ -338,7 +560,7 @@ export const resetMemberTemporaryPassword = createServerFn({ method: "POST" })
         password: temporaryPassword,
         user_metadata: {
           full_name: member.full_name,
-          must_change_password: true,
+          must_change_password: mustChange,
         },
       },
     );
@@ -346,13 +568,12 @@ export const resetMemberTemporaryPassword = createServerFn({ method: "POST" })
 
     const { error: profileErr } = await supabaseAdmin
       .from("profiles")
-      .update({ must_change_password: true })
+      .update({ must_change_password: mustChange })
       .eq("id", member.user_id);
     if (profileErr) throw new Error(profileErr.message);
 
-    return { temporaryPassword };
+    return { temporaryPassword, mustChangePassword: mustChange };
   });
-
 export const revokeMemberChapterAccess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ memberId: z.string().uuid() }).parse(raw))
@@ -424,6 +645,9 @@ export const getMustChangePassword = createServerFn({ method: "POST" })
   });
 
 /** Login por ID DeMolay (ou e-mail) sem expor o e-mail ao cliente antes da autenticação. */
+const IRREGULAR_LOGIN_MESSAGE =
+  "Membros irregulares não podem acessar a plataforma. Regularize sua situação junto à secretaria ou tesouraria do capítulo.";
+
 export const signInWithIdentifier = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
     z
@@ -446,7 +670,7 @@ export const signInWithIdentifier = createServerFn({ method: "POST" })
       const normalizedId = identifier.replace(/\s+/g, "");
       const { data: member, error } = await supabaseAdmin
         .from("members")
-        .select("user_id")
+        .select("user_id, status")
         .eq("demolay_id", normalizedId)
         .not("user_id", "is", null)
         .limit(1)
@@ -454,6 +678,9 @@ export const signInWithIdentifier = createServerFn({ method: "POST" })
       if (error) throw new Error("Identificador ou senha inválidos.");
       if (!member?.user_id) {
         throw new Error("Identificador ou senha inválidos.");
+      }
+      if (member.status === "irregular") {
+        throw new Error(IRREGULAR_LOGIN_MESSAGE);
       }
       const { data: authUser, error: authErr } =
         await supabaseAdmin.auth.admin.getUserById(member.user_id);
@@ -473,10 +700,54 @@ export const signInWithIdentifier = createServerFn({ method: "POST" })
       throw new Error("Identificador ou senha inválidos.");
     }
 
+    const userId = sessionData.session.user.id;
+    const gate = await evaluateMemberLoginGate(userId);
+    if (!gate.allowed) {
+      await anon.auth.signOut();
+      throw new Error(gate.message);
+    }
+
     return {
       access_token: sessionData.session.access_token,
       refresh_token: sessionData.session.refresh_token,
     };
+  });
+
+async function evaluateMemberLoginGate(
+  userId: string,
+): Promise<{ allowed: true } | { allowed: false; message: string }> {
+  const { supabaseAdmin } = await import(
+    "@/integrations/supabase/client.server"
+  );
+
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("is_super_admin")
+    .eq("id", userId)
+    .maybeSingle();
+  if (profile?.is_super_admin) return { allowed: true };
+
+  const { data: members, error } = await supabaseAdmin
+    .from("members")
+    .select("id, status")
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+
+  // Sem cadastro de membro vinculado: acesso liberado (ex.: papéis org)
+  if (!members || members.length === 0) return { allowed: true };
+
+  const hasRegular = members.some((m) => m.status === "regular");
+  if (!hasRegular) {
+    return { allowed: false, message: IRREGULAR_LOGIN_MESSAGE };
+  }
+  return { allowed: true };
+}
+
+/** Usado no beforeLoad autenticado para expulsar sessão de irregular. */
+export const getMemberLoginGate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    return evaluateMemberLoginGate(context.userId);
   });
 
 export const requestPasswordReset = createServerFn({ method: "POST" })

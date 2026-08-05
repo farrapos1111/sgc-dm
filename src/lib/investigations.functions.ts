@@ -67,8 +67,6 @@ const guardianSchema = z.object({
 const docsSchema = z.object({
   rg_front: z.string().min(1),
   rg_back: z.string().min(1),
-  cpf_front: z.string().min(1),
-  cpf_back: z.string().min(1),
 });
 
 const fileFieldsBase = z.object({
@@ -333,8 +331,8 @@ function buildFilePayload(
     referred_by: referredBy,
     doc_rg_front_path: rest.docs.rg_front,
     doc_rg_back_path: rest.docs.rg_back,
-    doc_cpf_front_path: rest.docs.cpf_front,
-    doc_cpf_back_path: rest.docs.cpf_back,
+    doc_cpf_front_path: null,
+    doc_cpf_back_path: null,
   };
 }
 
@@ -473,8 +471,6 @@ export const getFileForEdit = createServerFn({ method: "POST" })
       docs: {
         rg_front: (r.doc_rg_front_path as string) ?? null,
         rg_back: (r.doc_rg_back_path as string) ?? null,
-        cpf_front: (r.doc_cpf_front_path as string) ?? null,
-        cpf_back: (r.doc_cpf_back_path as string) ?? null,
       },
     };
   });
@@ -517,8 +513,6 @@ export const updateFile = createServerFn({ method: "POST" })
           .object({
             rg_front: z.boolean().optional(),
             rg_back: z.boolean().optional(),
-            cpf_front: z.boolean().optional(),
-            cpf_back: z.boolean().optional(),
           })
           .optional(),
         status: statusEnum.optional(),
@@ -574,20 +568,10 @@ export const updateFile = createServerFn({ method: "POST" })
         keep_docs?.rg_back,
         ex.doc_rg_back_path,
       ),
-      cpf_front: mergeDocPath(
-        rest.docs?.cpf_front,
-        keep_docs?.cpf_front,
-        ex.doc_cpf_front_path,
-      ),
-      cpf_back: mergeDocPath(
-        rest.docs?.cpf_back,
-        keep_docs?.cpf_back,
-        ex.doc_cpf_back_path,
-      ),
     };
 
-    if (!docs.rg_front || !docs.rg_back || !docs.cpf_front || !docs.cpf_back) {
-      throw new Error("Envie as 4 imagens de RG e CPF");
+    if (!docs.rg_front || !docs.rg_back) {
+      throw new Error("Envie as imagens de Identidade (frente e verso)");
     }
 
     const keepingCpf = Boolean(keep_cpf && !digitsOnly(rest.cpf ?? ""));
@@ -647,8 +631,6 @@ export const updateFile = createServerFn({ method: "POST" })
       docs: {
         rg_front: docs.rg_front,
         rg_back: docs.rg_back,
-        cpf_front: docs.cpf_front,
-        cpf_back: docs.cpf_back,
       },
     });
 
@@ -657,6 +639,9 @@ export const updateFile = createServerFn({ method: "POST" })
     delete patch.chapter_id;
     delete patch.created_by;
     delete patch.signup_source;
+    // Mantém imagens de CPF legadas (não são mais coletadas no formulário)
+    patch.doc_cpf_front_path = ex.doc_cpf_front_path;
+    patch.doc_cpf_back_path = ex.doc_cpf_back_path;
     if (keepingCpf) {
       delete patch.cpf;
       delete patch.cpf_last2;
@@ -768,7 +753,7 @@ export const uploadInvestigationDoc = createServerFn({ method: "POST" })
     z
       .object({
         chapterId: z.string().uuid(),
-        kind: z.enum(["rg_front", "rg_back", "cpf_front", "cpf_back"]),
+        kind: z.enum(["rg_front", "rg_back"]),
         fileName: z.string().min(1),
         contentType: z.string().min(1),
         base64: z.string().min(1),
@@ -801,7 +786,7 @@ export const uploadInvestigationDocPublic = createServerFn({ method: "POST" })
     z
       .object({
         token: z.string().min(8),
-        kind: z.enum(["rg_front", "rg_back", "cpf_front", "cpf_back"]),
+        kind: z.enum(["rg_front", "rg_back"]),
         contentType: z.string().min(1),
         base64: z.string().min(1),
         tempId: z.string().uuid().optional(),
@@ -2024,8 +2009,8 @@ export const submitInvestigationSignup = createServerFn({ method: "POST" })
       _notes: data.notes || null,
       _doc_rg_front_path: data.docs.rg_front,
       _doc_rg_back_path: data.docs.rg_back,
-      _doc_cpf_front_path: data.docs.cpf_front,
-      _doc_cpf_back_path: data.docs.cpf_back,
+      _doc_cpf_front_path: null,
+      _doc_cpf_back_path: null,
       _sponsor_meta: data.sponsor_member_id
         ? {}
         : { phone: data.sponsor_phone?.trim() || "" },

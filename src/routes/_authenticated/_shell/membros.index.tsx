@@ -14,9 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Search, Users, X } from "lucide-react";
+import { PlusCircle, Search, Users, X, Inbox } from "lucide-react";
 import { formatDateBR, statusLabel, kindLabel, grauOf, isAptoGrauDemolay, ageFrom } from "@/lib/format";
 import { can } from "@/lib/permissions";
+import { countPendingMemberRequests } from "@/lib/member-change-requests.functions";
 
 export const Route = createFileRoute("/_authenticated/_shell/membros/")({
   head: () => ({ meta: [{ title: "Membros — SG-CDM" }] }),
@@ -154,6 +155,14 @@ function MembrosList() {
     can(active.role.name, "conselho") ||
     can(active.role.name, "admin");
 
+  const { data: pendingReq } = useQuery({
+    queryKey: ["member-change-requests-count", chapterId],
+    queryFn: () =>
+      countPendingMemberRequests({ data: { originChapterId: chapterId } }),
+    enabled: isAdmin,
+    refetchInterval: 60_000,
+  });
+
   function clearSearch() {
     setSearchInput("");
     setFilters((f) => ({ ...f, q: "" }));
@@ -169,11 +178,26 @@ function MembrosList() {
         title="Membros"
         subtitle={`${filteredMembers.length} ${filteredMembers.length === 1 ? "membro" : "membros"}`}
         actions={
-          <Button asChild style={{ backgroundColor: active.chapter.primary_color }}>
-            <Link to="/membros/novo">
-              <PlusCircle className="mr-2 h-4 w-4" /> Novo membro
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {isAdmin && (
+              <Button variant="outline" asChild>
+                <Link to="/membros/solicitacoes">
+                  <Inbox className="mr-2 h-4 w-4" />
+                  Solicitações
+                  {(pendingReq?.count ?? 0) > 0 && (
+                    <Badge className="ml-2" variant="destructive">
+                      {pendingReq!.count}
+                    </Badge>
+                  )}
+                </Link>
+              </Button>
+            )}
+            <Button asChild style={{ backgroundColor: active.chapter.primary_color }}>
+              <Link to="/membros/novo">
+                <PlusCircle className="mr-2 h-4 w-4" /> Novo membro
+              </Link>
+            </Button>
+          </div>
         }
       />
 

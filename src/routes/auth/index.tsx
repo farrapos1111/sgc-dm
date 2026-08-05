@@ -12,6 +12,9 @@ import { getMustChangePassword, signInWithIdentifier } from "@/lib/accounts.func
 
 export const Route = createFileRoute("/auth/")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>) => ({
+    reason: typeof search.reason === "string" ? search.reason : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Entrar — SG-CDM" },
@@ -41,9 +44,14 @@ export const Route = createFileRoute("/auth/")({
 function AuthPage() {
   const router = useRouter();
   const navigate = useNavigate();
+  const { reason } = Route.useSearch();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    reason === "irregular"
+      ? "Membros irregulares não podem acessar a plataforma. Regularize sua situação junto à secretaria ou tesouraria do capítulo."
+      : null,
+  );
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
