@@ -13,8 +13,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useChapterLogo, LOGO_BUCKET } from "@/lib/chapter-logo";
 import { can } from "@/lib/permissions";
 import { listLodges, saveLodge, deleteLodge, updateChapterProfile, updateChapterAccentColor } from "@/lib/chapter.functions";
-import { saveDefaultDuesAmount } from "@/lib/finance.functions";
-import { getChapterDefaultDuesAmount } from "@/lib/dues-rules";
+import { saveDefaultDuesAmount, saveChapterDuesEnabled } from "@/lib/finance.functions";
+import {
+  getChapterDefaultDuesAmount,
+  isChapterDuesEnabled,
+} from "@/lib/dues-rules";
 import { ImagePlus, Loader2, Trash2, Building2, Landmark, PlusCircle, Save, Sun, Moon, MonitorSmartphone, Palette, RotateCcw, Check, Receipt, Link2, Copy } from "lucide-react";
 import { useTheme, type ThemeMode } from "@/context/ThemeContext";
 import { ChaveTemplateCard } from "@/components/settings/ChaveTemplateCard";
@@ -378,12 +381,12 @@ function ConfiguracoesPage() {
             </div>
 
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-              <div className="grid h-32 w-32 shrink-0 place-items-center overflow-hidden rounded-[12px] border border-dashed border-border bg-muted/40">
+              <div className="flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-dashed border-border bg-muted/40 p-4">
                 {logoUrl ? (
                   <img
                     src={logoUrl}
                     alt={`Logo do ${active?.chapter.name ?? "capítulo"}`}
-                    className="h-full w-full object-contain p-2"
+                    className="max-h-full max-w-full object-contain"
                   />
                 ) : (
                   <span className="px-3 text-center text-xs text-muted-foreground">
@@ -451,69 +454,124 @@ function DefaultDuesCard() {
   const qc = useQueryClient();
   const allowed =
     can(active?.role.name, "tesouraria") || can(active?.role.name, "admin");
-  const saved = getChapterDefaultDuesAmount(
-    active?.chapter as { settings?: Record<string, unknown> } | undefined,
-  );
+  const chapterSettings = active?.chapter as
+    | { settings?: Record<string, unknown> }
+    | undefined;
+  const saved = getChapterDefaultDuesAmount(chapterSettings);
+  const savedEnabled = isChapterDuesEnabled(chapterSettings);
   const [amount, setAmount] = useState(saved);
+  const [enabled, setEnabled] = useState(savedEnabled);
 
   useEffect(() => {
     setAmount(saved);
-  }, [saved, active?.chapter_id]);
+    setEnabled(savedEnabled);
+  }, [saved, savedEnabled, active?.chapter_id]);
 
-  const save = useMutation({
+  const saveAmount = useMutation({
     mutationFn: () =>
       saveDefaultDuesAmount({
         data: { chapterId: active!.chapter_id, amount },
       }),
     onSuccess: async () => {
-      toast.success("Mensalidade padrão salva nas configurações do capítulo");
+      toast.success("Mensalidade padrão salva");
       await refetch();
       await qc.invalidateQueries({ queryKey: ["dues-year"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
 
+  const saveEnabled = useMutation({
+    mutationFn: (next: boolean) =>
+      saveChapterDuesEnabled({
+        data: { chapterId: active!.chapter_id, enabled: next },
+      }),
+    onSuccess: async (_data, next) => {
+      toast.success(
+        next
+          ? "Mensalidades ativadas neste capítulo"
+          : "Mensalidades desativadas neste capítulo",
+      );
+      await refetch();
+      await qc.invalidateQueries({ queryKey: ["dues-year"] });
+      await qc.invalidateQueries({ queryKey: ["memberships"] });
+    },
+    onError: (e: any) => {
+      setEnabled(savedEnabled);
+      toast.error(e?.message ?? "Erro ao salvar");
+    },
+  });
+
   return (
     <Card className="rounded-[12px] p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        <Receipt className="h-5 w-5" /> Mensalidade padrão
+        <Receipt className="h-5 w-5" /> Mensalidades
       </div>
-      <p className="mb-3 text-xs text-muted-foreground">
-        Valor usado ao gerar competências do calendário de mensalidades. Fica salvo em
-        settings do capítulo.
-      </p>
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <Label className="mb-1 block text-xs">Valor (R$)</Label>
-          <Input
-            type="number"
-            min={0}
-            step="0.01"
-            className="w-36"
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            disabled={!allowed}
-          />
-        </div>
-        {allowed ? (
-          <Button
-            type="button"
-            disabled={save.isPending || !Number.isFinite(amount) || amount < 0}
-            onClick={() => save.mutate()}
-          >
-            {save.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Salvar
-          </Button>
-        ) : (
-          <p className="pb-2 text-xs text-muted-foreground">
-            Somente tesouraria ou administração podem alterar.
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-medium">Cobrar mensalidade</div>
+          <p className="text-xs text-muted-foreground">
+            Desative se o capítulo não cobra mensalidade dos membros.
           </p>
-        )}
+        </div>
+        <Switch
+          checked={enabled}
+          disabled={!allowed || saveEnabled.isPending}
+          onCheckedChange={(v) => {
+            setEnabled(v);
+            saveEnabled.mutate(v);
+          }}
+          aria-label="Cobrar mensalidade"
+        />
       </div>
+      {enabled && (
+        <>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Valor usado ao gerar competências do calendário. Padrão sugerido:
+            R$ 20,00.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <Label className="mb-1 block text-xs">Valor (R$)</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                className="w-36"
+                value={amount}
+                onChange={(e) => setAmount(Number(e.target.value))}
+                disabled={!allowed}
+              />
+            </div>
+            {allowed ? (
+              <Button
+                type="button"
+                disabled={
+                  saveAmount.isPending ||
+                  !Number.isFinite(amount) ||
+                  amount < 0
+                }
+                onClick={() => saveAmount.mutate()}
+              >
+                {saveAmount.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                Salvar valor
+              </Button>
+            ) : (
+              <p className="pb-2 text-xs text-muted-foreground">
+                Somente tesouraria ou administração podem alterar.
+              </p>
+            )}
+          </div>
+        </>
+      )}
+      {!enabled && !allowed && (
+        <p className="text-xs text-muted-foreground">
+          Somente tesouraria ou administração podem alterar.
+        </p>
+      )}
     </Card>
   );
 }

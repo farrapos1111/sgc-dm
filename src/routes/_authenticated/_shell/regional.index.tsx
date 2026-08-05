@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Building2, Users, CalendarDays, AlertCircle } from "lucide-react";
 import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
 import { listScopeChapters } from "@/lib/org.functions";
+import { ChapterLogoAvatar } from "@/components/ChapterLogoAvatar";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { formatDateTimeBR } from "@/lib/format";
@@ -90,12 +91,12 @@ function PanoramaContent() {
         {chapters.map((c) => (
           <Card key={c.id} className="rounded-[12px] p-4">
             <div className="flex items-start gap-3">
-              <div
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] text-xs font-bold text-white"
-                style={{ backgroundColor: c.primary_color || "#9E1B32" }}
-              >
-                {c.number.slice(-3)}
-              </div>
+              <ChapterLogoAvatar
+                logoPath={c.logo_url}
+                number={c.number}
+                color={c.primary_color}
+                className="h-10 w-10 rounded-[10px]"
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-semibold">{c.name}</span>
@@ -180,3 +181,4 @@ function MetricCard({
     </Card>
   );
 }
+

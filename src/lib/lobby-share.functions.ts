@@ -38,6 +38,7 @@ export type PublicLobbyChapter = {
   city: string | null;
   logo_url: string | null;
   primary_color: string | null;
+  dues_enabled?: boolean;
 };
 
 export type PublicAttendanceEvent = {
@@ -221,7 +222,7 @@ export const getPublicMemberPortal = createServerFn({ method: "POST" })
     if (error) throwPublicRpcError(error, "getPublicMemberPortal");
     const raw = payload as PublicMemberPortal;
     const parsedDefault = Number(raw?.defaultAmount);
-    const defaultAmount = Number.isFinite(parsedDefault) ? parsedDefault : 50;
+    const defaultAmount = Number.isFinite(parsedDefault) ? parsedDefault : 20;
     return {
       ...raw,
       defaultAmount,

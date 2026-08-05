@@ -1,8 +1,37 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { todayYmd } from "@/lib/timezone";
+import { currentTerm } from "@/lib/terms";
+import { matchesLooseSearch } from "@/lib/utils";
 
 const orgRoleEnum = z.enum(["gme", "mce", "mcr", "oe"]);
+
+/** Cargos capitulares destacados na lista regional (semestre vigente). */
+const SCOPE_OFFICER_CODES = [
+  "mestre_conselheiro",
+  "escrivao",
+  "tesoureiro",
+  "hospitaleiro",
+  "presidente_conselho_consultivo",
+] as const;
+
+const SCOPE_OFFICER_LABELS: Record<(typeof SCOPE_OFFICER_CODES)[number], string> =
+  {
+    mestre_conselheiro: "Mestre Conselheiro",
+    escrivao: "Escrivão",
+    tesoureiro: "Tesoureiro",
+    hospitaleiro: "Hospitaleiro",
+    presidente_conselho_consultivo: "Presidente do Conselho",
+  };
+
+type ScopePositionRow = {
+  member_id: string;
+  position:
+    | { code?: string; label?: string; sort_order?: number }
+    | { code?: string; label?: string; sort_order?: number }[]
+    | null;
+};
 
 export type OrgRoleName = z.infer<typeof orgRoleEnum>;
 
@@ -14,12 +43,13 @@ export type OrgLeadership = {
   state_name: string | null;
   region_name: string | null;
   chapter_ids: string[];
-  /** Escopo sintético gerado para super admin (não vem de org_leaderships). */
-  synthetic?: boolean;
+  starts_on?: string | null;
+  ends_on?: string | null;
+  region_primary_color?: string | null;
+  region_logo_url?: string | null;
 };
 
 export type OrgContext = {
-  isSuperAdmin: boolean;
   leaderships: OrgLeadership[];
 };
 
@@ -31,50 +61,80 @@ async function assertCanManageOrg(
     ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
     from: (t: string) => any;
   },
-  userId: string,
 ) {
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("is_super_admin")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (profile?.is_super_admin) return { isSuperAdmin: true as const };
-
   const { data: ok, error: rpcErr } = await supabase.rpc(
     "is_gme" as never,
     { _state_id: null } as never,
   );
   if (rpcErr) throw new Error(rpcErr.message);
   if (!ok) throw new Error("Sem permissão para gestão organizacional");
-  return { isSuperAdmin: false as const };
+}
+
+async function assertCanManageRegionChapters(
+  supabase: {
+    rpc: (
+      fn: never,
+      args?: never,
+    ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  },
+  chapterId: string,
+) {
+  const { data: ok, error: rpcErr } = await supabase.rpc(
+    "can_manage_region_chapter" as never,
+    { _chapter_id: chapterId } as never,
+  );
+  if (rpcErr) throw new Error(rpcErr.message);
+  if (!ok) throw new Error("Sem permissão para gerenciar instituições nesta região");
+}
+
+async function assertCanWriteChapterScope(
+  supabase: {
+    rpc: (
+      fn: never,
+      args?: never,
+    ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  },
+  stateId: string,
+  regionId: string | null,
+) {
+  const { data: ok, error: rpcErr } = await supabase.rpc(
+    "can_write_chapter_in_scope" as never,
+    { _state_id: stateId, _region_id: regionId } as never,
+  );
+  if (rpcErr) throw new Error(rpcErr.message);
+  if (!ok) throw new Error("Sem permissão para salvar instituição neste escopo");
 }
 
 /**
  * Lideranças supra-capitulares do usuário logado, já com os capítulos
- * que cada escopo abrange. Super admin recebe um escopo por estado.
+ * que cada escopo abrange.
  */
 export const getMyOrgContext = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<OrgContext> => {
-    const { data: profile, error: profileErr } = await context.supabase
-      .from("profiles")
-      .select("is_super_admin")
-      .eq("id", context.userId)
-      .maybeSingle();
-    if (profileErr) throw new Error(profileErr.message);
-    const isSuperAdmin = Boolean(profile?.is_super_admin);
-
     const { data: leaderships, error } = await context.supabase
       .from("org_leaderships")
-      .select("id, org_role, state_id, region_id, term_year, term_semester")
+      .select(
+        "id, org_role, state_id, region_id, term_year, term_semester, starts_on, ends_on",
+      )
       .eq("user_id", context.userId)
       .eq("active", true);
     if (error) throw new Error(error.message);
 
+    const today = todayYmd();
+    const activeLeaderships = (leaderships ?? []).filter((l) => {
+      const starts = (l as { starts_on?: string | null }).starts_on;
+      const ends = (l as { ends_on?: string | null }).ends_on;
+      if (starts && starts > today) return false;
+      if (ends && ends < today) return false;
+      return true;
+    });
+
     const [statesRes, regionsRes, chaptersRes] = await Promise.all([
       context.supabase.from("states").select("id, name, uf").order("name"),
-      context.supabase.from("regions").select("id, name, code, state_id"),
+      context.supabase
+        .from("regions")
+        .select("id, name, code, state_id, primary_color, logo_url"),
       context.supabase.from("chapters").select("id, state_id, region_id, active"),
     ]);
     if (statesRes.error) throw new Error(statesRes.error.message);
@@ -85,58 +145,31 @@ export const getMyOrgContext = createServerFn({ method: "POST" })
     const regions = regionsRes.data ?? [];
     const chapters = chaptersRes.data ?? [];
 
-    const mapped: OrgLeadership[] = (leaderships ?? []).map((l) => {
-      const state = states.find((s) => s.id === l.state_id) ?? null;
+    const mapped: OrgLeadership[] = activeLeaderships.map((l) => {
       const region = regions.find((r) => r.id === l.region_id) ?? null;
+      const stateId = l.state_id ?? region?.state_id ?? null;
+      const state = states.find((s) => s.id === stateId) ?? null;
       const scopeChapters = l.region_id
         ? chapters.filter((c) => c.region_id === l.region_id)
         : chapters.filter((c) => c.state_id === l.state_id);
       return {
         id: l.id,
         org_role: l.org_role as OrgRoleName,
-        state_id: l.state_id,
+        state_id: stateId,
         region_id: l.region_id,
         state_name: state ? `${state.name} (${state.uf})` : null,
         region_name: region?.name ?? null,
         chapter_ids: scopeChapters.map((c) => c.id),
+        starts_on: (l as { starts_on?: string | null }).starts_on ?? null,
+        ends_on: (l as { ends_on?: string | null }).ends_on ?? null,
+        region_primary_color:
+          (region as { primary_color?: string } | null)?.primary_color ?? null,
+        region_logo_url:
+          (region as { logo_url?: string | null } | null)?.logo_url ?? null,
       };
     });
 
-    if (isSuperAdmin) {
-      const coveredStates = new Set(
-        mapped.filter((l) => l.state_id && !l.region_id).map((l) => l.state_id),
-      );
-      for (const s of states) {
-        if (coveredStates.has(s.id)) continue;
-        mapped.push({
-          id: `super:${s.id}`,
-          org_role: "gme",
-          state_id: s.id,
-          region_id: null,
-          state_name: `${s.name} (${s.uf})`,
-          region_name: null,
-          chapter_ids: chapters
-            .filter((c) => c.state_id === s.id)
-            .map((c) => c.id),
-          synthetic: true,
-        });
-      }
-      // Se não há estados ainda, cria escopo placeholder para entrar na gestão
-      if (mapped.length === 0) {
-        mapped.push({
-          id: "super:platform",
-          org_role: "gme",
-          state_id: null,
-          region_id: null,
-          state_name: "Plataforma",
-          region_name: null,
-          chapter_ids: [],
-          synthetic: true,
-        });
-      }
-    }
-
-    return { isSuperAdmin, leaderships: mapped };
+    return { leaderships: mapped };
   });
 
 const scopeInput = z.object({
@@ -218,24 +251,142 @@ export const listScopeMembers = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    let q = context.supabase
-      .from("members")
-      .select(
-        "id, chapter_id, full_name, birth_date, status, kind, phone, email, cpf_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay",
-      )
-      .in("chapter_id", data.chapterIds)
-      .order("full_name", { ascending: true })
-      .limit(500);
-    if (data.status !== "all") q = q.eq("status", data.status);
-    if (data.kind !== "all") q = q.eq("kind", data.kind);
-    if (data.search.trim().length > 0)
-      q = q.ilike("full_name", `%${data.search.trim()}%`);
-    const { data: rows, error } = await q;
-    if (error) throw new Error(error.message);
-    return rows ?? [];
+    const term = currentTerm();
+    const search = data.search.trim();
+    const memberSelect =
+      "id, chapter_id, full_name, birth_date, status, kind, phone, email, cpf_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay";
+
+    function applyMemberFilters<T extends { eq: Function; ilike?: Function }>(
+      q: T,
+    ): T {
+      let next = q;
+      if (data.status !== "all") next = next.eq("status", data.status) as T;
+      if (data.kind !== "all") next = next.eq("kind", data.kind) as T;
+      return next;
+    }
+
+    let posRows: ScopePositionRow[] = [];
+    const positionMatchIds = new Set<string>();
+
+    if (search) {
+      const { data: allPos, error: posScanErr } = await context.supabase
+        .from("member_positions")
+        .select("member_id, position:positions(code, label, sort_order)")
+        .in("chapter_id", data.chapterIds)
+        .eq("term_year", term.year)
+        .eq("term_semester", term.semester);
+      if (posScanErr) throw new Error(posScanErr.message);
+      posRows = (allPos ?? []) as ScopePositionRow[];
+
+      for (const row of posRows) {
+        const pos = Array.isArray(row.position) ? row.position[0] : row.position;
+        const code = pos?.code ?? "";
+        const label =
+          SCOPE_OFFICER_LABELS[code as (typeof SCOPE_OFFICER_CODES)[number]] ??
+          pos?.label ??
+          "";
+        if (
+          matchesLooseSearch(label, search) ||
+          matchesLooseSearch(code.replace(/_/g, " "), search) ||
+          (pos?.label ? matchesLooseSearch(pos.label, search) : false)
+        ) {
+          positionMatchIds.add(row.member_id);
+        }
+      }
+    }
+
+    let nameRows: Record<string, unknown>[] = [];
+    {
+      let q = context.supabase
+        .from("members")
+        .select(memberSelect)
+        .in("chapter_id", data.chapterIds)
+        .order("full_name", { ascending: true })
+        .limit(500);
+      q = applyMemberFilters(q);
+      if (search) q = q.ilike("full_name", `%${search}%`);
+      const { data: rows, error } = await q;
+      if (error) throw new Error(error.message);
+      nameRows = rows ?? [];
+    }
+
+    let positionRows: Record<string, unknown>[] = [];
+    if (search && positionMatchIds.size > 0) {
+      let q = context.supabase
+        .from("members")
+        .select(memberSelect)
+        .in("chapter_id", data.chapterIds)
+        .in("id", [...positionMatchIds])
+        .order("full_name", { ascending: true })
+        .limit(500);
+      q = applyMemberFilters(q);
+      const { data: rows, error } = await q;
+      if (error) throw new Error(error.message);
+      positionRows = rows ?? [];
+    }
+
+    const byId = new Map<string, Record<string, unknown>>();
+    for (const r of [...nameRows, ...positionRows]) {
+      byId.set(r.id as string, r);
+    }
+    const rows = [...byId.values()].sort((a, b) =>
+      String(a.full_name).localeCompare(String(b.full_name), "pt-BR", {
+        sensitivity: "base",
+      }),
+    );
+    if (!rows.length) return [];
+
+    if (!search) {
+      const memberIds = rows.map((r) => r.id as string);
+      const { data: scopedPos, error: posErr } = await context.supabase
+        .from("member_positions")
+        .select("member_id, position:positions(code, label, sort_order)")
+        .in("chapter_id", data.chapterIds)
+        .in("member_id", memberIds)
+        .eq("term_year", term.year)
+        .eq("term_semester", term.semester);
+      if (posErr) throw new Error(posErr.message);
+      posRows = (scopedPos ?? []) as ScopePositionRow[];
+    }
+
+    const officerSet = new Set<string>(SCOPE_OFFICER_CODES);
+    const byMember = new Map<
+      string,
+      { code: string; label: string; sort_order: number }[]
+    >();
+    for (const row of posRows) {
+      const pos = Array.isArray(row.position) ? row.position[0] : row.position;
+      const code = pos?.code as string | undefined;
+      if (!code || !officerSet.has(code)) continue;
+      const label =
+        SCOPE_OFFICER_LABELS[code as (typeof SCOPE_OFFICER_CODES)[number]] ??
+        pos?.label ??
+        code;
+      const list = byMember.get(row.member_id) ?? [];
+      list.push({
+        code,
+        label,
+        sort_order: pos?.sort_order ?? 99,
+      });
+      byMember.set(row.member_id, list);
+    }
+
+    return rows.map((r) => {
+      const id = r.id as string;
+      const positions = (byMember.get(id) ?? []).sort(
+        (a, b) => a.sort_order - b.sort_order,
+      );
+      return {
+        ...r,
+        current_positions: positions.map(({ code, label }) => ({
+          code,
+          label,
+        })),
+      };
+    });
   });
 
-/** Lista todos os estados (GME vê os seus; super admin vê todos). */
+/** Lista estados visíveis ao usuário (via RLS / liderança). */
 export const listStates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -262,66 +413,103 @@ export const saveState = createServerFn({ method: "POST" })
       })
       .parse(raw),
   )
-  .handler(async ({ data, context }) => {
-    await assertCanManageOrg(context.supabase, context.userId);
-    const { data: profile } = await context.supabase
-      .from("profiles")
-      .select("is_super_admin")
-      .eq("id", context.userId)
-      .maybeSingle();
-    if (!profile?.is_super_admin) {
-      throw new Error("Apenas o super administrador pode gerenciar estados");
-    }
-
-    if (data.id) {
-      const { error } = await context.supabase
-        .from("states")
-        .update({ name: data.name, uf: data.uf })
-        .eq("id", data.id);
-      if (error) throw new Error(error.message);
-      return { id: data.id };
-    }
-    const { data: row, error } = await context.supabase
-      .from("states")
-      .insert({ name: data.name, uf: data.uf })
-      .select("id")
-      .single();
-    if (error) throw new Error(error.message);
-    return { id: row.id };
+  .handler(async () => {
+    throw new Error(
+      "Cadastro de estados não está disponível no aplicativo. Use o painel operacional.",
+    );
   });
 
 export const deleteState = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
-  .handler(async ({ data, context }) => {
-    const { data: profile } = await context.supabase
-      .from("profiles")
-      .select("is_super_admin")
-      .eq("id", context.userId)
-      .maybeSingle();
-    if (!profile?.is_super_admin) {
-      throw new Error("Apenas o super administrador pode excluir estados");
-    }
-    const { error } = await context.supabase
-      .from("states")
-      .delete()
-      .eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true };
+  .handler(async () => {
+    throw new Error(
+      "Exclusão de estados não está disponível no aplicativo. Use o painel operacional.",
+    );
   });
 
-/** Regiões de um estado (para gestão do GME / super admin). */
+/** Regiões de um estado (para gestão do GME). */
 export const listRegions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ stateId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("regions")
-      .select("id, name, code, state_id")
+      .select("id, name, code, state_id, primary_color, logo_url")
       .eq("state_id", data.stateId)
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
     return rows ?? [];
+  });
+
+export const getRegionVisual = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ regionId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("regions")
+      .select("id, name, code, primary_color, logo_url, settings")
+      .eq("id", data.regionId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error("Região não encontrada");
+    return row;
+  });
+
+export const updateRegionVisual = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        regionId: z.string().uuid(),
+        primary_color: z
+          .string()
+          .regex(/^#[0-9A-Fa-f]{6}$/)
+          .optional(),
+        logo_url: z.string().nullable().optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: region, error: regionErr } = await context.supabase
+      .from("regions")
+      .select("id, state_id")
+      .eq("id", data.regionId)
+      .maybeSingle();
+    if (regionErr) throw new Error(regionErr.message);
+    if (!region) throw new Error("Região não encontrada");
+
+    const { data: ok, error: rpcErr } = await context.supabase.rpc(
+      "is_active_region_office" as never,
+      {
+        _region_id: data.regionId,
+        _roles: ["mcr", "oe"],
+      } as never,
+    );
+    if (rpcErr) throw new Error(rpcErr.message);
+
+    const { data: gmeOk, error: gmeErr } = await context.supabase.rpc(
+      "is_gme" as never,
+      { _state_id: region.state_id } as never,
+    );
+    if (gmeErr) throw new Error(gmeErr.message);
+
+    if (!ok && !gmeOk) {
+      throw new Error("Sem permissão para alterar a aparência desta região");
+    }
+
+    const patch: Record<string, unknown> = {};
+    if (data.primary_color !== undefined)
+      patch.primary_color = data.primary_color;
+    if (data.logo_url !== undefined) patch.logo_url = data.logo_url;
+    if (Object.keys(patch).length === 0) return { ok: true };
+
+    const { error } = await context.supabase
+      .from("regions")
+      .update(patch)
+      .eq("id", data.regionId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const saveRegion = createServerFn({ method: "POST" })
@@ -386,6 +574,11 @@ export const saveChapter = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    await assertCanWriteChapterScope(
+      context.supabase,
+      data.state_id,
+      data.region_id ?? null,
+    );
     const payload = {
       state_id: data.state_id,
       region_id: data.region_id ?? null,
@@ -417,12 +610,143 @@ export const setChapterActive = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), active: z.boolean() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
+    await assertCanManageRegionChapters(context.supabase, data.id);
     const { error } = await context.supabase
       .from("chapters")
       .update({ active: data.active })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/** Alterna regular/irregular de membro no escopo regional (GME/MCR/OE). */
+export const setScopeMemberStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        memberId: z.string().uuid(),
+        status: z.enum(["regular", "irregular"]),
+        effectiveOn: z.string().optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: member, error: fetchErr } = await context.supabase
+      .from("members")
+      .select(
+        "id, chapter_id, full_name, birth_date, phone, email, address, status, kind, demolay_id, masonic_id, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, initiation_chapter_id",
+      )
+      .eq("id", data.memberId)
+      .single();
+    if (fetchErr) throw new Error(fetchErr.message);
+
+    await assertCanManageRegionChapters(context.supabase, member.chapter_id);
+
+    const prevStatus = member.status as "regular" | "irregular";
+    const nextStatus = data.status;
+    if (prevStatus === nextStatus) return { ok: true };
+
+    const effectiveOn =
+      data.effectiveOn || new Date().toISOString().slice(0, 10);
+
+    const { error } = await context.supabase.rpc(
+      "update_member_with_pii" as never,
+      {
+        _member_id: member.id,
+        _full_name: member.full_name,
+        _birth_date: member.birth_date,
+        _cpf: "",
+        _rg: "",
+        _phone: member.phone ?? "",
+        _email: member.email ?? "",
+        _address: member.address ?? {},
+        _status: nextStatus,
+        _kind: member.kind,
+        _exam_grau_iniciatico: member.exam_grau_iniciatico,
+        _exam_grau_demolay: member.exam_grau_demolay,
+        _guardians: null,
+        _iniciacao_ordem: member.iniciacao_ordem,
+        _iniciacao_grau_demolay: member.iniciacao_grau_demolay,
+        _demolay_id: member.demolay_id,
+        _masonic_id: member.masonic_id,
+        _initiation_chapter_id: member.initiation_chapter_id,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+
+    if (prevStatus === "regular" && nextStatus === "irregular") {
+      const { error: awayErr } = await context.supabase
+        .from("member_away_periods")
+        .insert({
+          member_id: member.id,
+          chapter_id: member.chapter_id,
+          started_on: effectiveOn,
+          ended_on: null,
+          created_by: context.userId,
+        });
+      if (awayErr) throw new Error(awayErr.message);
+      await context.supabase.rpc("desligar_open_dues_from" as never, {
+        _member_id: member.id,
+        _from: effectiveOn,
+      } as never);
+    } else if (prevStatus === "irregular" && nextStatus === "regular") {
+      const { data: openPeriod } = await context.supabase
+        .from("member_away_periods")
+        .select("id")
+        .eq("member_id", member.id)
+        .is("ended_on", null)
+        .order("started_on", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (openPeriod) {
+        await context.supabase
+          .from("member_away_periods")
+          .update({ ended_on: effectiveOn })
+          .eq("id", openPeriod.id);
+      }
+    }
+
+    return { ok: true };
+  });
+
+/** Criação rápida de membro no escopo (GME/MCR/OE). */
+export const createScopeMember = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        chapterId: z.string().uuid(),
+        fullName: z.string().trim().min(2),
+        demolayId: z.string().trim().optional().nullable(),
+        birthDate: z.string().optional().nullable(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    await assertCanManageRegionChapters(context.supabase, data.chapterId);
+    const { data: id, error } = await context.supabase.rpc(
+      "create_member_with_pii" as never,
+      {
+        _chapter_id: data.chapterId,
+        _full_name: data.fullName,
+        _birth_date: data.birthDate || null,
+        _cpf: "",
+        _rg: "",
+        _phone: "",
+        _email: "",
+        _address: {},
+        _status: "regular",
+        _kind: "demolay_ativo",
+        _guardian: null,
+        _consent_text_version: null,
+        _demolay_id: data.demolayId || null,
+        _masonic_id: null,
+        _initiation_chapter_id: data.chapterId,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    return { id: id as string };
   });
 
 export type OrgLeadershipRow = {
@@ -436,19 +760,45 @@ export type OrgLeadershipRow = {
   email: string | null;
   state_name: string | null;
   region_name: string | null;
+  starts_on: string | null;
+  ends_on: string | null;
 };
 
 export const listOrgLeaderships = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<OrgLeadershipRow[]> => {
-    await assertCanManageOrg(context.supabase, context.userId);
+    const { data: myLead, error: myErr } = await context.supabase
+      .from("org_leaderships")
+      .select("org_role, region_id, state_id")
+      .eq("user_id", context.userId)
+      .eq("active", true);
+    if (myErr) throw new Error(myErr.message);
+    const isGme = (myLead ?? []).some((l) => l.org_role === "gme");
+    const canAppoint =
+      isGme ||
+      (myLead ?? []).some((l) => l.org_role === "mcr" || l.org_role === "oe");
+    if (!canAppoint) throw new Error("Sem permissão para ver lideranças");
 
-    const { data: rows, error } = await context.supabase
+    let q = context.supabase
       .from("org_leaderships")
       .select(
-        "id, user_id, org_role, state_id, region_id, active, profiles(full_name)",
+        "id, user_id, org_role, state_id, region_id, active, starts_on, ends_on, profiles(full_name)",
       )
       .order("created_at", { ascending: false });
+
+    if (!isGme) {
+      const regionIds = [
+        ...new Set(
+          (myLead ?? [])
+            .filter((l) => l.region_id && (l.org_role === "mcr" || l.org_role === "oe"))
+            .map((l) => l.region_id as string),
+        ),
+      ];
+      if (regionIds.length === 0) return [];
+      q = q.in("region_id", regionIds).in("org_role", ["mcr", "oe"]);
+    }
+
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
 
     const { supabaseAdmin } = await import(
@@ -492,6 +842,8 @@ export const listOrgLeaderships = createServerFn({ method: "POST" })
         email,
         state_name: state ? `${state.name} (${state.uf})` : null,
         region_name: region?.name ?? null,
+        starts_on: (row as { starts_on?: string | null }).starts_on ?? null,
+        ends_on: (row as { ends_on?: string | null }).ends_on ?? null,
       });
     }
     return result;
@@ -543,7 +895,13 @@ export const saveOrgLeadership = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    await assertCanManageOrg(context.supabase, context.userId);
+    await assertCanManageOrg(context.supabase);
+
+    if (data.org_role === "mcr" || data.org_role === "oe") {
+      throw new Error(
+        "MCR e OE devem ser nomeados pela transferência oficial (convite por ID DeMolay).",
+      );
+    }
 
     const payload = {
       org_role: data.org_role,
@@ -551,10 +909,7 @@ export const saveOrgLeadership = createServerFn({ method: "POST" })
         data.org_role === "gme" || data.org_role === "mce"
           ? data.state_id!
           : null,
-      region_id:
-        data.org_role === "mcr" || data.org_role === "oe"
-          ? data.region_id!
-          : null,
+      region_id: null,
       active: data.active ?? true,
     };
 
@@ -608,11 +963,94 @@ export const setOrgLeadershipActive = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), active: z.boolean() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
-    await assertCanManageOrg(context.supabase, context.userId);
+    await assertCanManageOrg(context.supabase);
+    const { data: row, error: fetchErr } = await context.supabase
+      .from("org_leaderships")
+      .select("org_role")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (fetchErr) throw new Error(fetchErr.message);
+    if (row?.org_role === "mcr" || row?.org_role === "oe") {
+      throw new Error(
+        "Para MCR/OE use a transferência oficial (convite). Desativar aqui não aplica.",
+      );
+    }
     const { error } = await context.supabase
       .from("org_leaderships")
       .update({ active: data.active })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/** Busca membro da região pelo ID DeMolay (para convite MCR/OE). */
+export const lookupRegionMemberByDemolay = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        demolayId: z.string().trim().min(1),
+        regionId: z.string().uuid(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const needle = data.demolayId.trim().toLowerCase();
+    const { data: rows, error } = await context.supabase
+      .from("members")
+      .select(
+        "id, full_name, demolay_id, user_id, chapter_id, status, chapters!inner(id, name, number, region_id)",
+      )
+      .eq("chapters.region_id", data.regionId);
+    if (error) throw new Error(error.message);
+    const match = (rows ?? []).find(
+      (m) => (m.demolay_id ?? "").trim().toLowerCase() === needle,
+    );
+    if (!match) return null;
+    const chapterJoin = match.chapters as
+      | { id: string; name: string; number: string; region_id: string }
+      | { id: string; name: string; number: string; region_id: string }[]
+      | null;
+    const chapter = Array.isArray(chapterJoin) ? chapterJoin[0] : chapterJoin;
+    return {
+      id: match.id,
+      full_name: match.full_name,
+      demolay_id: match.demolay_id,
+      user_id: match.user_id,
+      chapter_id: match.chapter_id,
+      status: match.status,
+      chapter_name: chapter
+        ? `${chapter.name} Nº ${chapter.number}`
+        : null,
+      has_account: Boolean(match.user_id),
+    };
+  });
+
+/** Transfere MCR ou OE (único ativo por região). */
+export const transferRegionOffice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        targetMemberId: z.string().uuid(),
+        orgRole: z.enum(["mcr", "oe"]),
+        regionId: z.string().uuid(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc(
+      "transfer_region_office" as never,
+      {
+        _target_member_id: data.targetMemberId,
+        _org_role: data.orgRole,
+        _region_id: data.regionId,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    return (result ?? {}) as {
+      leadership_id?: string;
+      member_position_id?: string;
+      user_id?: string;
+    };
   });

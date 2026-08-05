@@ -50,11 +50,28 @@ export const listMembers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => listInput.parse(raw))
   .handler(async ({ data, context }) => {
-    const { data: canSeePii, error: permErr } = await context.supabase.rpc(
+    const { data: canSecretaria, error: permErr } = await context.supabase.rpc(
       "has_permission" as never,
       { _chapter_id: data.chapterId, _perm: "secretaria" } as never,
     );
     if (permErr) throw new Error(permErr.message);
+    let canSeePii = Boolean(canSecretaria);
+    if (!canSeePii) {
+      const { data: canAdmin, error: adminErr } = await context.supabase.rpc(
+        "has_permission" as never,
+        { _chapter_id: data.chapterId, _perm: "admin" } as never,
+      );
+      if (adminErr) throw new Error(adminErr.message);
+      canSeePii = Boolean(canAdmin);
+    }
+    if (!canSeePii) {
+      const { data: canConselho, error: conselhoErr } = await context.supabase.rpc(
+        "has_permission" as never,
+        { _chapter_id: data.chapterId, _perm: "conselho" } as never,
+      );
+      if (conselhoErr) throw new Error(conselhoErr.message);
+      canSeePii = Boolean(canConselho);
+    }
 
     // Prefer afiliações ativas; fallback para chapter_id originário se a tabela ainda não existir
     const { data: affRows, error: affErr } = await context.supabase

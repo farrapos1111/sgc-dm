@@ -117,7 +117,7 @@ export const getPublicYearDues = createServerFn({ method: "POST" })
     return {
       chapter: result.chapter,
       year: data.year,
-      defaultAmount: Number(result.defaultAmount) || 50,
+      defaultAmount: Number(result.defaultAmount) || 20,
       members,
       dues,
     } satisfies PublicYearDuesPayload;

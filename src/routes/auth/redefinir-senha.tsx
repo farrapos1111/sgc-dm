@@ -1,6 +1,5 @@
 import {
   createFileRoute,
-  Link,
   redirect,
   useNavigate,
   useRouter,
@@ -19,7 +18,8 @@ export const Route = createFileRoute("/auth/redefinir-senha")({
   }),
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
+    if (error || !data.user)
+      throw redirect({ to: "/auth", search: { reason: undefined } });
     const { mustChangePassword } = await getMustChangePassword();
     if (!mustChangePassword) throw redirect({ to: "/" });
     return { user: data.user };
@@ -34,6 +34,20 @@ function RedefinirSenhaPage() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleBackToLogin() {
+    setSigningOut(true);
+    try {
+      await supabase.auth.signOut();
+      await router.invalidate();
+      navigate({ to: "/auth", search: { reason: undefined } });
+    } catch {
+      navigate({ to: "/auth", search: { reason: undefined } });
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -120,9 +134,14 @@ function RedefinirSenhaPage() {
             </button>
           </form>
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            <Link to="/auth" className="underline underline-offset-2">
-              Voltar ao login
-            </Link>
+            <button
+              type="button"
+              onClick={() => void handleBackToLogin()}
+              disabled={signingOut || submitting}
+              className="underline underline-offset-2 hover:text-foreground disabled:opacity-60"
+            >
+              {signingOut ? "Saindo…" : "Voltar ao login"}
+            </button>
           </p>
         </div>
       </div>

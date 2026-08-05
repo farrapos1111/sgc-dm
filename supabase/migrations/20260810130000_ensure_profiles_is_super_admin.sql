@@ -21,3 +21,29 @@ $$;
 
 REVOKE ALL ON FUNCTION public.is_super_admin() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.is_super_admin() TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.tg_protect_super_admin()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_role text := coalesce(auth.jwt() ->> 'role', '');
+BEGIN
+  IF NEW.is_super_admin IS DISTINCT FROM OLD.is_super_admin THEN
+    IF current_user IN ('postgres', 'supabase_admin')
+       OR v_role = 'service_role' THEN
+      RETURN NEW;
+    END IF;
+    NEW.is_super_admin := OLD.is_super_admin;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS profiles_protect_super_admin ON public.profiles;
+CREATE TRIGGER profiles_protect_super_admin
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.tg_protect_super_admin();

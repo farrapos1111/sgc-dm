@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { digitsOnly, is21OrOlder, isUnder21, maskCpfInput, maskPhoneInput } from "@/lib/format";
-import { lookupCep, maskCepInput } from "@/lib/cep";
+import { createCepLookupSeq, lookupCep, maskCepInput } from "@/lib/cep";
 import { todayYmd } from "@/lib/timezone";
 import { Loader2 } from "lucide-react";
 
@@ -137,15 +137,18 @@ export function MemberDataFields({
   const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "error" | "ok">("idle");
   const [cepError, setCepError] = useState("");
   const lastLookedUp = useRef("");
+  const cepSeq = useRef(createCepLookupSeq()).current;
 
   async function doLookupCep(raw: string) {
     const cep = digitsOnly(raw);
     if (cep.length !== 8 || cep === lastLookedUp.current) return;
     lastLookedUp.current = cep;
+    const reqId = cepSeq.begin();
     setCepStatus("loading");
     setCepError("");
     try {
       const data = await lookupCep(raw);
+      if (!cepSeq.isCurrent(reqId)) return;
       onChange({
         address_zip: data.zip,
         address_street: data.street,
@@ -156,6 +159,7 @@ export function MemberDataFields({
       });
       setCepStatus("ok");
     } catch (e) {
+      if (!cepSeq.isCurrent(reqId)) return;
       setCepStatus("error");
       setCepError(e instanceof Error ? e.message : "Não foi possível buscar o CEP");
     }
@@ -166,6 +170,7 @@ export function MemberDataFields({
     onChange({ address_zip: masked });
     const digits = digitsOnly(masked);
     if (digits.length < 8) {
+      cepSeq.invalidate();
       lastLookedUp.current = "";
       setCepStatus("idle");
       setCepError("");

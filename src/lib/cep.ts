@@ -17,6 +17,25 @@ export type CepLookupResult = {
   country: string;
 };
 
+/** Contador monotônico para descartar respostas CEP obsoletas. */
+export function createCepLookupSeq() {
+  let seq = 0;
+  return {
+    /** Incrementa e devolve o id desta consulta. */
+    begin(): number {
+      seq += 1;
+      return seq;
+    },
+    /** Invalida consultas em voo (ex.: CEP incompleto). */
+    invalidate(): void {
+      seq += 1;
+    },
+    isCurrent(id: number): boolean {
+      return id === seq;
+    },
+  };
+}
+
 /** Consulta CEP na BrasilAPI (8 dígitos). Lança Error se não encontrado/falhar. */
 export async function lookupCep(raw: string): Promise<CepLookupResult> {
   const cep = digitsOnly(raw);

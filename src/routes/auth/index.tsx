@@ -17,10 +17,10 @@ export const Route = createFileRoute("/auth/")({
   }),
   head: () => ({
     meta: [
-      { title: "Entrar — SG-CDM" },
+      { title: "Entrar — Templo Virtual" },
       {
         name: "description",
-        content: "Acesso ao Sistema Gerenciador de Capítulos DeMolay.",
+        content: "Acesso ao Sistema Gerenciador de Organizações Paramaçônicas.",
       },
     ],
   }),
@@ -98,18 +98,18 @@ function AuthPage() {
             className="w-20 h-20 rounded-3xl flex items-center justify-center mb-4"
             style={{ backgroundColor: "#9E1B32" }}
           >
-            <span className="text-white font-bold text-2xl tracking-wider">SG</span>
+            <span className="text-white font-bold text-2xl tracking-wider">TV</span>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">SG-CDM</h1>
+          <h1 className="text-2xl font-bold text-foreground">Templo Virtual</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Sistema Gerenciador de Capítulos DeMolay
+            Sistema Gerenciador de Organizações Paramaçônicas
           </p>
         </div>
 
         <div className="bg-card rounded-2xl shadow-sm border border-border p-8">
           <h2 className="text-lg font-semibold text-foreground mb-1">Entrar</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            Acesse com e-mail ou ID DeMolay e senha.
+            Acesse com e-mail ou ID da Organização e senha.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -169,20 +169,7 @@ function AuthPage() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          Contas de teste: <br />
-          <code className="text-foreground">usuario.duplo@sgcdm.test</code> ·{" "}
-          <code className="text-foreground">usuario.solo@sgcdm.test</code> <br />
-          senha: <code className="text-foreground">Teste@1234</code>
-        </p>
-        <p className="text-center text-xs text-muted-foreground mt-4 space-x-3">
-          <a
-            href="/atualizar-cadastro"
-            className="underline underline-offset-2 hover:text-foreground"
-          >
-            Atualização cadastral
-          </a>
-          <span aria-hidden>·</span>
+        <p className="mt-6 text-center text-xs text-muted-foreground">
           <a
             href="/documentacao"
             className="underline underline-offset-2 hover:text-foreground"

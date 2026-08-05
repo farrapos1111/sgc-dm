@@ -1878,10 +1878,14 @@ export type Database = {
           chapter_id: string
           created_at: string
           created_by: string | null
+          ended_at: string | null
+          ends_on: string | null
           id: string
           member_id: string
           notes: string | null
           position_id: number
+          region_id: string | null
+          starts_on: string | null
           term_semester: number
           term_year: number
           updated_at: string
@@ -1890,10 +1894,14 @@ export type Database = {
           chapter_id: string
           created_at?: string
           created_by?: string | null
+          ended_at?: string | null
+          ends_on?: string | null
           id?: string
           member_id: string
           notes?: string | null
           position_id: number
+          region_id?: string | null
+          starts_on?: string | null
           term_semester: number
           term_year: number
           updated_at?: string
@@ -1902,10 +1910,14 @@ export type Database = {
           chapter_id?: string
           created_at?: string
           created_by?: string | null
+          ended_at?: string | null
+          ends_on?: string | null
           id?: string
           member_id?: string
           notes?: string | null
           position_id?: number
+          region_id?: string | null
+          starts_on?: string | null
           term_semester?: number
           term_year?: number
           updated_at?: string
@@ -1930,6 +1942,13 @@ export type Database = {
             columns: ["position_id"]
             isOneToOne: false
             referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_positions_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
             referencedColumns: ["id"]
           },
         ]
@@ -2187,9 +2206,11 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          ends_on: string | null
           id: string
           org_role: Database["public"]["Enums"]["org_role"]
           region_id: string | null
+          starts_on: string | null
           state_id: string | null
           term_semester: number | null
           term_year: number | null
@@ -2199,9 +2220,11 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          ends_on?: string | null
           id?: string
           org_role: Database["public"]["Enums"]["org_role"]
           region_id?: string | null
+          starts_on?: string | null
           state_id?: string | null
           term_semester?: number | null
           term_year?: number | null
@@ -2211,9 +2234,11 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          ends_on?: string | null
           id?: string
           org_role?: Database["public"]["Enums"]["org_role"]
           region_id?: string | null
+          starts_on?: string | null
           state_id?: string | null
           term_semester?: number | null
           term_year?: number | null
@@ -2372,7 +2397,6 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
-          is_super_admin: boolean
           must_change_password: boolean
           phone: string | null
         }
@@ -2381,7 +2405,6 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id: string
-          is_super_admin?: boolean
           must_change_password?: boolean
           phone?: string | null
         }
@@ -2390,7 +2413,6 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
-          is_super_admin?: boolean
           must_change_password?: boolean
           phone?: string | null
         }
@@ -2409,7 +2431,10 @@ export type Database = {
           code: string | null
           created_at: string
           id: string
+          logo_url: string | null
           name: string
+          primary_color: string
+          settings: Json
           state_id: string
           updated_at: string
         }
@@ -2417,7 +2442,10 @@ export type Database = {
           code?: string | null
           created_at?: string
           id?: string
+          logo_url?: string | null
           name: string
+          primary_color?: string
+          settings?: Json
           state_id: string
           updated_at?: string
         }
@@ -2425,7 +2453,10 @@ export type Database = {
           code?: string | null
           created_at?: string
           id?: string
+          logo_url?: string | null
           name?: string
+          primary_color?: string
+          settings?: Json
           state_id?: string
           updated_at?: string
         }
@@ -2959,6 +2990,10 @@ export type Database = {
         Args: { _chapter_id: string }
         Returns: boolean
       }
+      can_manage_region_chapter: {
+        Args: { _chapter_id: string }
+        Returns: boolean
+      }
       can_read_chapter: { Args: { _chapter_id: string }; Returns: boolean }
       can_read_member: { Args: { _member_id: string }; Returns: boolean }
       can_read_sindicancia_votes: {
@@ -2967,6 +3002,10 @@ export type Database = {
       }
       can_reveal_id_documents: {
         Args: { _chapter_id: string }
+        Returns: boolean
+      }
+      can_write_chapter_in_scope: {
+        Args: { _region_id: string; _state_id: string }
         Returns: boolean
       }
       can_write_member_documents: {
@@ -3101,6 +3140,13 @@ export type Database = {
         Args: { _chapter_id: string; _role_name: string }
         Returns: boolean
       }
+      is_active_region_office: {
+        Args: {
+          _region_id: string
+          _roles: Database["public"]["Enums"]["org_role"][]
+        }
+        Returns: boolean
+      }
       is_chapter_member: { Args: { _chapter_id: string }; Returns: boolean }
       is_commission_member: {
         Args: { _chapter_id: string; _commission_code: string }
@@ -3114,7 +3160,6 @@ export type Database = {
       is_linked_member: { Args: { _member_id: string }; Returns: boolean }
       is_region_leader: { Args: { _chapter_id: string }; Returns: boolean }
       is_state_leader: { Args: { _chapter_id: string }; Returns: boolean }
-      is_super_admin: { Args: never; Returns: boolean }
       list_chapters_for_select: {
         Args: never
         Returns: {
@@ -3372,6 +3417,24 @@ export type Database = {
         }
         Returns: Json
       }
+      transfer_region_office:
+        | {
+            Args: {
+              _org_role: Database["public"]["Enums"]["org_role"]
+              _region_id: string
+              _target_member_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _org_role: Database["public"]["Enums"]["org_role"]
+              _region_id: string
+              _starts_on?: string
+              _target_member_id: string
+            }
+            Returns: Json
+          }
       update_event_ticket_item: {
         Args: { _line_id: string; _qty?: number; _unit_price?: number }
         Returns: Json

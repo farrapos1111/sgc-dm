@@ -9,7 +9,7 @@ import {
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { getMember, revealMemberPii } from "@/lib/members.functions";
-import { belongsToChapter } from "@/lib/member-identity";
+import { belongsToChapter, isSameChapter } from "@/lib/member-identity";
 import {
   getMemberOrgHistory,
   listCatalog,
@@ -702,7 +702,7 @@ function MembroPerfil() {
                             </span>
                           </span>
                           {canEditOrg &&
-                            belongsToChapter(
+                            isSameChapter(
                               p as { chapter_id?: string },
                               chapterId,
                             ) && (
@@ -782,7 +782,7 @@ function MembroPerfil() {
                           <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
                             {termLabel(c.term_year, c.term_semester)}
                             {canEditOrg &&
-                              belongsToChapter(
+                              isSameChapter(
                                 c as { chapter_id?: string },
                                 chapterId,
                               ) && (

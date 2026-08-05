@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Plus, Pencil } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowDownAZ, ArrowUpAZ, Pencil, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useOrgScope } from "@/context/OrgScopeContext";
 import { listRegions, listScopeChapters, saveChapter, setChapterActive } from "@/lib/org.functions";
+import { matchesLooseSearch } from "@/lib/utils";
+import { ChapterLogoAvatar } from "@/components/ChapterLogoAvatar";
 import { ScopeGuard } from "./regional.index";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -55,6 +57,8 @@ type Draft = {
   region_id: string | null;
 };
 
+type SortKey = "nome" | "numero" | "cidade";
+
 const EMPTY: Draft = { name: "", number: "", city: "", region_id: null };
 
 function ManageChapters() {
@@ -66,17 +70,21 @@ function ManageChapters() {
 }
 
 function ChaptersContent() {
-  const { activeScope, leaderships, canManageOrg } = useOrgScope();
+  const { activeScope, leaderships, canManageChapters, canManageOrg } =
+    useOrgScope();
   const scope = activeScope!;
   const qc = useQueryClient();
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("nome");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const regionScopeId = scope.type === "region" ? scope.id : null;
 
   const stateId =
     leaderships.find((l) => l.org_role === "gme" && l.state_id)?.state_id ??
-    (scope.type === "state" &&
-    scope.id !== "00000000-0000-0000-0000-000000000000"
-      ? scope.id
-      : leaderships.find((l) => l.state_id)?.state_id) ??
+    (scope.type === "state" ? scope.id : null) ??
+    leaderships.find((l) => l.state_id)?.state_id ??
     null;
 
   const { data: chapters, isLoading } = useQuery({
@@ -90,16 +98,49 @@ function ChaptersContent() {
   const { data: regions } = useQuery({
     queryKey: ["regions", stateId],
     queryFn: () => listRegions({ data: { stateId: stateId! } }),
-    enabled: !!stateId,
+    enabled: !!stateId && canManageOrg,
   });
+
+  const resolvedStateId = stateId;
+
+  const visible = useMemo(() => {
+    const rows = chapters ?? [];
+    const q = search.trim();
+    const filtered = q
+      ? rows.filter((c) => {
+          if (matchesLooseSearch(c.name, q)) return true;
+          if (matchesLooseSearch(c.number, q)) return true;
+          if (c.city && matchesLooseSearch(c.city, q)) return true;
+          if (c.region_name && matchesLooseSearch(c.region_name, q)) return true;
+          return false;
+        })
+      : rows;
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      if (sortKey === "numero") {
+        const an = Number(a.number.replace(/\D/g, ""));
+        const bn = Number(b.number.replace(/\D/g, ""));
+        if (!Number.isNaN(an) && !Number.isNaN(bn) && an !== bn) {
+          return (an - bn) * dir;
+        }
+        return a.number.localeCompare(b.number, "pt-BR", { numeric: true }) * dir;
+      }
+      const av = sortKey === "cidade" ? (a.city ?? "") : a.name;
+      const bv = sortKey === "cidade" ? (b.city ?? "") : b.name;
+      const cmp = av.localeCompare(bv, "pt-BR", { sensitivity: "base" });
+      if (cmp !== 0) return cmp * dir;
+      return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }) * dir;
+    });
+  }, [chapters, search, sortKey, sortDir]);
 
   const save = useMutation({
     mutationFn: (d: Draft) =>
       saveChapter({
         data: {
           id: d.id,
-          state_id: stateId!,
-          region_id: d.region_id,
+          state_id: resolvedStateId!,
+          region_id: regionScopeId ?? d.region_id,
           name: d.name,
           number: d.number,
           city: d.city || null,
@@ -120,20 +161,19 @@ function ChaptersContent() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (!canManageOrg) {
+  if (!canManageChapters) {
     return (
       <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
-        Apenas o Grande Mestre Estadual ou super administrador podem gerenciar
-        instituições.
+        Apenas GME, Mestre Conselheiro Regional ou Oficial Executivo podem
+        gerenciar instituições.
       </Card>
     );
   }
 
-  if (!stateId) {
+  if (!resolvedStateId) {
     return (
       <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
-        Cadastre um estado e selecione o escopo estadual para gerenciar
-        instituições.
+        Selecione um escopo estadual ou regional para gerenciar instituições.
       </Card>
     );
   }
@@ -144,23 +184,87 @@ function ChaptersContent() {
         title="Instituições"
         subtitle={scope.label}
         actions={
-          <Button size="sm" onClick={() => setDraft({ ...EMPTY })}>
+          <Button
+            size="sm"
+            onClick={() =>
+              setDraft({
+                ...EMPTY,
+                region_id: regionScopeId,
+              })
+            }
+          >
             <Plus className="mr-1 h-4 w-4" /> Nova
           </Button>
         }
       />
 
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
+        <div className="relative min-w-0">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9 pr-9"
+            placeholder="Buscar por nome, número ou cidade…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Buscar instituições"
+          />
+          {search ? (
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+              aria-label="Limpar busca"
+              onClick={() => setSearch("")}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
+        <Select
+          value={sortKey}
+          onValueChange={(v) => setSortKey(v as SortKey)}
+        >
+          <SelectTrigger className="w-[7.5rem] sm:w-40">
+            <SelectValue placeholder="Ordenar" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="nome">Nome</SelectItem>
+            <SelectItem value="numero">Número</SelectItem>
+            <SelectItem value="cidade">Cidade</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Inverter ordenação"
+          onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+        >
+          {sortDir === "asc" ? (
+            <ArrowUpAZ className="h-4 w-4" />
+          ) : (
+            <ArrowDownAZ className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+
       {isLoading && <div className="text-sm text-muted-foreground">Carregando…</div>}
 
+      {!isLoading && visible.length === 0 && (
+        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+          {(chapters ?? []).length === 0
+            ? "Nenhuma instituição neste escopo."
+            : "Nenhuma instituição encontrada com essa busca."}
+        </Card>
+      )}
+
       <div className="space-y-2">
-        {(chapters ?? []).map((c) => (
+        {visible.map((c) => (
           <Card key={c.id} className="flex items-center gap-3 rounded-[12px] p-4">
-            <div
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] text-xs font-bold text-white"
-              style={{ backgroundColor: c.primary_color || "#9E1B32" }}
-            >
-              {c.number.slice(-3)}
-            </div>
+            <ChapterLogoAvatar
+              logoPath={c.logo_url}
+              number={c.number}
+              color={c.primary_color}
+              className="h-10 w-10 rounded-[10px]"
+            />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-semibold">{c.name}</div>
               <div className="truncate text-xs text-muted-foreground">
@@ -228,27 +332,33 @@ function ChaptersContent() {
                   />
                 </div>
               </div>
-              <div>
-                <Label>Região</Label>
-                <Select
-                  value={draft.region_id ?? "none"}
-                  onValueChange={(v) =>
-                    setDraft({ ...draft, region_id: v === "none" ? null : v })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sem região</SelectItem>
-                    {(regions ?? []).map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {canManageOrg && !regionScopeId ? (
+                <div>
+                  <Label>Região</Label>
+                  <Select
+                    value={draft.region_id ?? "none"}
+                    onValueChange={(v) =>
+                      setDraft({ ...draft, region_id: v === "none" ? null : v })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem região</SelectItem>
+                      {(regions ?? []).map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Região fixa do escopo: {scope.label}
+                </p>
+              )}
             </div>
           )}
           <DialogFooter>
@@ -256,7 +366,12 @@ function ChaptersContent() {
               Cancelar
             </Button>
             <Button
-              disabled={!draft?.name || !draft?.number || !stateId || save.isPending}
+              disabled={
+                !draft?.name ||
+                !draft?.number ||
+                !resolvedStateId ||
+                save.isPending
+              }
               onClick={() => draft && save.mutate(draft)}
             >
               Salvar
@@ -267,3 +382,4 @@ function ChaptersContent() {
     </div>
   );
 }
+

@@ -21,6 +21,10 @@ export type OrgScope = {
   label: string;
   orgRole: OrgRoleName;
   chapterIds: string[];
+  primaryColor?: string | null;
+  logoUrl?: string | null;
+  startsOn?: string | null;
+  endsOn?: string | null;
 };
 
 type OrgScopeContextValue = {
@@ -31,15 +35,19 @@ type OrgScopeContextValue = {
   activeScope: OrgScope | null;
   setActiveScopeKey: (key: string | null) => void;
   isGme: boolean;
-  isSuperAdmin: boolean;
-  /** Pode cadastrar instituições/regiões/lideranças. */
+  isMcr: boolean;
+  isOe: boolean;
+  /** Pode cadastrar regiões e lideranças GME/MCE. */
   canManageOrg: boolean;
+  /** Pode criar/inativar instituições e membros do escopo (GME, MCR, OE). */
+  canManageChapters: boolean;
+  canAppointMcr: boolean;
+  canAppointOe: boolean;
+  /** Pode abrir a tela de lideranças (nomear ou ver). */
+  canManageLeaderships: boolean;
 };
 
 const STORAGE_KEY = "sgcdm.activeOrgScope";
-
-/** Sentinel usado quando o super admin ainda não tem estados cadastrados. */
-export const PLATFORM_SCOPE_ID = "00000000-0000-0000-0000-000000000000";
 
 const OrgScopeContext = createContext<OrgScopeContextValue | null>(null);
 
@@ -57,15 +65,15 @@ export function OrgScopeProvider({ children }: { children: ReactNode }) {
     staleTime: 60_000,
   });
 
-  const isSuperAdmin = Boolean(data?.isSuperAdmin);
   const leaderships = useMemo(() => data?.leaderships ?? [], [data]);
 
   const scopes = useMemo<OrgScope[]>(
     () =>
       leaderships
+        .filter((l) => Boolean(l.region_id ?? l.state_id))
         .map((l) => {
           const type = l.region_id ? "region" : "state";
-          const id = (l.region_id ?? l.state_id ?? PLATFORM_SCOPE_ID) as string;
+          const id = (l.region_id ?? l.state_id) as string;
           return {
             key: `${type}:${id}`,
             type: type as "region" | "state",
@@ -73,9 +81,12 @@ export function OrgScopeProvider({ children }: { children: ReactNode }) {
             label: l.region_name ?? l.state_name ?? "Escopo",
             orgRole: l.org_role,
             chapterIds: l.chapter_ids,
+            primaryColor: l.region_primary_color ?? null,
+            logoUrl: l.region_logo_url ?? null,
+            startsOn: l.starts_on ?? null,
+            endsOn: l.ends_on ?? null,
           };
-        })
-        .filter((s) => Boolean(s.id)),
+        }),
     [leaderships],
   );
 
@@ -104,7 +115,14 @@ export function OrgScopeProvider({ children }: { children: ReactNode }) {
   );
 
   const isGme = leaderships.some((l) => l.org_role === "gme");
-  const canManageOrg = isGme || isSuperAdmin;
+  const isMcr = leaderships.some((l) => l.org_role === "mcr");
+  const isOe = leaderships.some((l) => l.org_role === "oe");
+  const canManageOrg = isGme;
+  const canManageChapters = isGme || isMcr || isOe;
+  // Hierarquia: GME → ambos; MCR → MCR; OE → OE e MCR
+  const canAppointMcr = isGme || isMcr || isOe;
+  const canAppointOe = isGme || isOe;
+  const canManageLeaderships = canAppointMcr || canAppointOe;
 
   const value = useMemo<OrgScopeContextValue>(
     () => ({
@@ -114,8 +132,13 @@ export function OrgScopeProvider({ children }: { children: ReactNode }) {
       activeScope,
       setActiveScopeKey,
       isGme,
-      isSuperAdmin,
+      isMcr,
+      isOe,
       canManageOrg,
+      canManageChapters,
+      canAppointMcr,
+      canAppointOe,
+      canManageLeaderships,
     }),
     [
       leaderships,
@@ -124,8 +147,13 @@ export function OrgScopeProvider({ children }: { children: ReactNode }) {
       activeScope,
       setActiveScopeKey,
       isGme,
-      isSuperAdmin,
+      isMcr,
+      isOe,
       canManageOrg,
+      canManageChapters,
+      canAppointMcr,
+      canAppointOe,
+      canManageLeaderships,
     ],
   );
 

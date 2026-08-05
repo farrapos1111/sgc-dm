@@ -34,6 +34,9 @@ const MASTER_FIELDS = new Set([
   "address_country",
 ]);
 
+const STATUS_VALUES = new Set(["regular", "irregular"]);
+const KIND_VALUES = new Set(["demolay_ativo", "senior", "macom"]);
+
 function pickPatched<T>(
   patch: Record<string, unknown>,
   field: string,
@@ -80,6 +83,7 @@ async function applyStatusSideEffects(
       .from("member_away_periods")
       .select("id")
       .eq("member_id", memberId)
+      .eq("chapter_id", chapterId)
       .is("ended_on", null)
       .maybeSingle();
     if (openErr) throw new Error(openErr.message);
@@ -227,6 +231,24 @@ export const reviewMemberChangeRequest = createServerFn({ method: "POST" })
       throw new Error("Esta solicitação já foi analisada.");
     }
 
+    // Consome a solicitação primeiro (evita estado inconsistente se side effects falharem depois).
+    const { data: claimed, error: claimErr } = await context.supabase
+      .from("member_change_requests" as "members")
+      .update({
+        status: data.decision,
+        reviewed_by: context.userId,
+        reviewed_at: new Date().toISOString(),
+        review_note: data.reviewNote || null,
+      } as never)
+      .eq("id" as never, data.requestId)
+      .eq("status" as never, "pending")
+      .select("id")
+      .maybeSingle();
+    if (claimErr) throw new Error(claimErr.message);
+    if (!claimed) {
+      throw new Error("Esta solicitação já foi analisada.");
+    }
+
     if (data.decision === "approved") {
       const { data: member, error: mErr } = await context.supabase
         .from("members")
@@ -246,7 +268,17 @@ export const reviewMemberChangeRequest = createServerFn({ method: "POST" })
         if (!MASTER_FIELDS.has(f)) {
           throw new Error(`Campo não permitido na aprovação: ${f}`);
         }
-        if (f.startsWith("address_")) {
+        if (f === "status") {
+          if (change.after == null || !STATUS_VALUES.has(change.after)) {
+            throw new Error(`Status inválido na solicitação: ${change.after}`);
+          }
+          patch[f] = change.after;
+        } else if (f === "kind") {
+          if (change.after == null || !KIND_VALUES.has(change.after)) {
+            throw new Error(`Tipo inválido na solicitação: ${change.after}`);
+          }
+          patch[f] = change.after;
+        } else if (f.startsWith("address_")) {
           const key = f.replace(/^address_/, "");
           addressPatch[key] = change.after;
         } else {
@@ -309,17 +341,6 @@ export const reviewMemberChangeRequest = createServerFn({ method: "POST" })
         nextStatus,
       });
     }
-
-    const { error: upErr } = await context.supabase
-      .from("member_change_requests" as "members")
-      .update({
-        status: data.decision,
-        reviewed_by: context.userId,
-        reviewed_at: new Date().toISOString(),
-        review_note: data.reviewNote || null,
-      } as never)
-      .eq("id" as never, data.requestId);
-    if (upErr) throw new Error(upErr.message);
 
     return { ok: true };
   });

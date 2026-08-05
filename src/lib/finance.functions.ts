@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { competenceLabel, duesDescription } from "@/lib/cash-categories";
 import {
   autoDueStatus,
+  getChapterDefaultDuesAmount,
   memberInYearTable,
   type AwayPeriod,
   type DueMemberLite,
@@ -676,8 +677,6 @@ export const deleteCashCategory = createServerFn({ method: "POST" })
 
 /* ------------------------------ Mensalidades ----------------------------- */
 
-const DEFAULT_DUES_AMOUNT = 50;
-
 async function readDefaultDuesAmount(
   supabase: { from: (t: string) => any },
   chapterId: string,
@@ -687,10 +686,30 @@ async function readDefaultDuesAmount(
     .select("settings")
     .eq("id", chapterId)
     .single();
+  return getChapterDefaultDuesAmount({
+    settings: (data?.settings ?? {}) as Record<string, unknown>,
+  });
+}
+
+async function readDuesEnabled(
+  supabase: { from: (t: string) => any },
+  chapterId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("chapters")
+    .select("settings")
+    .eq("id", chapterId)
+    .single();
   const settings = (data?.settings ?? {}) as Record<string, unknown>;
-  const raw = settings.default_dues_amount;
-  const n = typeof raw === "number" ? raw : Number(raw);
-  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_DUES_AMOUNT;
+  if (
+    settings.dues_enabled === false ||
+    settings.dues_enabled === "false" ||
+    settings.dues_enabled === 0 ||
+    settings.dues_enabled === "0"
+  ) {
+    return false;
+  }
+  return true;
 }
 
 /** Persistência do valor padrão de mensalidade em chapters.settings. */
@@ -709,6 +728,24 @@ export const saveDefaultDuesAmount = createServerFn({ method: "POST" })
     );
     if (error) throw new Error(error.message);
     return { amount: Number(amount ?? data.amount) };
+  });
+
+/** Liga/desliga cobrança de mensalidade do capítulo (settings.dues_enabled). */
+export const saveChapterDuesEnabled = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    chapterInput.extend({ enabled: z.boolean() }).parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: settings, error } = await context.supabase.rpc(
+      "patch_chapter_settings" as never,
+      {
+        _chapter_id: data.chapterId,
+        _patch: { dues_enabled: data.enabled },
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    return { enabled: data.enabled, settings };
   });
 
 const MEMBER_DUES_SELECT =
@@ -797,12 +834,14 @@ async function fetchYearDues(
     );
   }
 
-  const [defaultAmount, membersRes, duesRes, inclusionIds] = await Promise.all([
-    readDefaultDuesAmount(supabase, chapterId),
-    membersQuery,
-    duesQuery,
-    loadManualInclusionIds(supabase, chapterId, year),
-  ]);
+  const [defaultAmount, duesEnabled, membersRes, duesRes, inclusionIds] =
+    await Promise.all([
+      readDefaultDuesAmount(supabase, chapterId),
+      readDuesEnabled(supabase, chapterId),
+      membersQuery,
+      duesQuery,
+      loadManualInclusionIds(supabase, chapterId, year),
+    ]);
   if (membersRes.error) throw new Error(membersRes.error.message);
   if (duesRes.error) throw new Error(duesRes.error.message);
 
@@ -825,7 +864,7 @@ async function fetchYearDues(
   );
   members = withAwayPeriods(members, away);
 
-  if (ensure && members.length > 0) {
+  if (ensure && duesEnabled && members.length > 0) {
     const rows = members.flatMap((m) =>
       Array.from({ length: 12 }, (_, i) => {
         const month = i + 1;
@@ -1366,6 +1405,11 @@ export const generateDues = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    if (!(await readDuesEnabled(context.supabase, data.chapterId))) {
+      throw new Error(
+        "Este capítulo não cobra mensalidade. Ative em Configurações.",
+      );
+    }
     const amount =
       data.amount ??
       (await readDefaultDuesAmount(context.supabase, data.chapterId));

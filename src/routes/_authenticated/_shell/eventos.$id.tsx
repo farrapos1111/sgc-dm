@@ -692,7 +692,7 @@ function TicketsList({
                     onClick={async () => {
                       const ok = await confirm({
                         title: "Excluir ingresso?",
-                        description: `Excluir o ingresso de “${t.buyer_name}”? Isso remove comanda, check-in, assento e lançamentos de caixa vinculados.`,
+                        description: `Excluir o ingresso de “${t.buyer_name}”? Isso remove comanda, cobrança do vendedor, check-in, assento e lançamentos de caixa vinculados.`,
                         confirmLabel: "Excluir",
                       });
                       if (ok) removeTicket.mutate(t.id);

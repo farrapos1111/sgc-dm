@@ -90,6 +90,7 @@ import {
   autoDueExemptTip,
   isFutureMonth,
   getChapterDefaultDuesAmount,
+  isChapterDuesEnabled,
   type DueMemberLite,
 } from "@/lib/dues-rules";
 
@@ -373,6 +374,9 @@ function Mensalidades() {
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
   const now = new Date();
+  const duesEnabled = isChapterDuesEnabled(
+    active?.chapter as { settings?: Record<string, unknown> } | undefined,
+  );
   const [year, setYear] = useState(now.getFullYear());
   const [defaultAmount, setDefaultAmount] = useState(() =>
     getChapterDefaultDuesAmount(
@@ -936,6 +940,21 @@ function Mensalidades() {
     } catch {
       toast.error("Não foi possível copiar o link");
     }
+  }
+
+  if (!duesEnabled) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Mensalidades" />
+        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+          Este capítulo não cobra mensalidade. Ative a opção em{" "}
+          <span className="font-medium text-foreground">
+            Configurações → Tesouraria
+          </span>
+          .
+        </Card>
+      </div>
+    );
   }
 
   const showLoading = isLoading && !data;

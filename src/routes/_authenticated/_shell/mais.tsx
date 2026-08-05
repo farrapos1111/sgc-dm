@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
+import { isChapterDuesEnabled } from "@/lib/dues-rules";
 import {
   mobileOverflowGroups,
   visibleGroups,
@@ -26,11 +27,21 @@ export const Route = createFileRoute("/_authenticated/_shell/mais")({
 });
 
 function MaisPage() {
-  const { active, memberships } = useActiveChapter();
+  const { active, memberships, setActiveChapterId } = useActiveChapter();
   const { canView } = useCommissionAccess();
-  const { activeScope, canManageOrg, isSuperAdmin } = useOrgScope();
+  const {
+    scopes,
+    activeScope,
+    setActiveScopeKey,
+    canManageOrg,
+    canManageChapters,
+    canManageLeaderships,
+  } = useOrgScope();
   const navigate = useNavigate();
-  const primary = active?.chapter.primary_color || "var(--chapter-primary)";
+  const primary =
+    activeScope?.primaryColor ||
+    active?.chapter.primary_color ||
+    "var(--chapter-primary)";
 
   const tabs = useMemo(
     () => visibleMobileTabs(Boolean(activeScope)),
@@ -38,20 +49,70 @@ function MaisPage() {
   );
 
   const groups = useMemo(() => {
+    const duesEnabled = isChapterDuesEnabled(
+      active?.chapter as { settings?: Record<string, unknown> } | undefined,
+    );
     const all = activeScope
-      ? visibleOrgGroups(canManageOrg, isSuperAdmin)
+      ? visibleOrgGroups({
+          canManageOrg,
+          canManageChapters,
+          canManageLeaderships,
+        })
       : visibleGroups(active?.role.name ?? null, canView);
-    return mobileOverflowGroups(all, tabs);
-  }, [activeScope, canManageOrg, isSuperAdmin, active?.role.name, canView, tabs]);
+    const filtered =
+      activeScope || duesEnabled
+        ? all
+        : all.map((g) => ({
+            ...g,
+            items: (g.items ?? []).filter(
+              (i) => i.to !== "/tesouraria/mensalidades",
+            ),
+          }));
+    return mobileOverflowGroups(filtered, tabs);
+  }, [
+    activeScope,
+    canManageOrg,
+    canManageChapters,
+    canManageLeaderships,
+    active?.role.name,
+    active?.chapter,
+    canView,
+    tabs,
+  ]);
+
+  function enterChapterView() {
+    setActiveScopeKey(null);
+    if (memberships.length === 0) return;
+    if (!active) {
+      if (memberships.length === 1) {
+        setActiveChapterId(memberships[0].chapter_id);
+        navigate({ to: "/inicio" });
+        return;
+      }
+      navigate({ to: "/selecionar-capitulo" });
+      return;
+    }
+    navigate({ to: "/inicio" });
+  }
+
+  function enterOrgScope(key: string) {
+    setActiveScopeKey(key);
+    navigate({ to: "/regional" });
+  }
 
   async function signOut() {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("sgcdm.activeChapterId");
       window.localStorage.removeItem("sgcdm.roleView");
+      window.localStorage.removeItem("sgcdm.activeOrgScope");
     }
     await supabase.auth.signOut();
     window.location.assign("/auth");
   }
+
+  const chapterLabel =
+    active?.chapter.name ??
+    (memberships.length === 1 ? memberships[0].chapter.name : null);
 
   return (
     <div
@@ -60,7 +121,9 @@ function MaisPage() {
     >
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-white">Mais</h1>
-        <p className="mt-1 text-sm text-white/75">Menu completo, preferências e sessão.</p>
+        <p className="mt-1 text-sm text-white/75">
+          Menu completo, preferências e sessão.
+        </p>
       </header>
 
       <div className="space-y-3">
@@ -69,31 +132,58 @@ function MaisPage() {
             <div className="mb-2 flex items-center gap-2 text-sm font-medium text-white/75">
               <Building2 className="h-5 w-5" /> Escopo ativo
             </div>
-            <div className="text-base font-semibold text-white">{activeScope.label}</div>
-            <div className="text-sm text-white/75">
-              {isSuperAdmin
-                ? "Super administrador"
-                : ORG_ROLE_LABELS[activeScope.orgRole]}
+            <div className="text-base font-semibold text-white">
+              {activeScope.label}
             </div>
+            <div className="text-sm text-white/75">
+              {ORG_ROLE_LABELS[activeScope.orgRole]}
+            </div>
+            {memberships.length > 0 && (
+              <Button
+                variant="outline"
+                className="mt-4 border-white/40 bg-transparent text-white hover:bg-white/15 hover:text-white"
+                onClick={enterChapterView}
+              >
+                <Repeat className="mr-2 h-4 w-4" />
+                {chapterLabel
+                  ? `Entrar no capítulo · ${chapterLabel}`
+                  : "Entrar na visão do capítulo"}
+              </Button>
+            )}
           </section>
         ) : (
           <section className="rounded-[12px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium text-white/75">
               <Building2 className="h-5 w-5" /> Capítulo ativo
             </div>
-            <div className="text-base font-semibold text-white">{active?.chapter.name}</div>
+            <div className="text-base font-semibold text-white">
+              {active?.chapter.name}
+            </div>
             <div className="text-sm text-white/75">
               Nº {active?.chapter.number} · {active?.role.label}
             </div>
-            {memberships.length > 1 && (
-              <Button
-                variant="outline"
-                className="mt-4 border-white/40 bg-transparent text-white hover:bg-white/15 hover:text-white"
-                onClick={() => navigate({ to: "/selecionar-capitulo" })}
-              >
-                <Repeat className="mr-2 h-4 w-4" /> Trocar de capítulo
-              </Button>
-            )}
+            <div className="mt-4 flex flex-col gap-2">
+              {memberships.length > 1 && (
+                <Button
+                  variant="outline"
+                  className="border-white/40 bg-transparent text-white hover:bg-white/15 hover:text-white"
+                  onClick={() => navigate({ to: "/selecionar-capitulo" })}
+                >
+                  <Repeat className="mr-2 h-4 w-4" /> Trocar de capítulo
+                </Button>
+              )}
+              {scopes.map((s) => (
+                <Button
+                  key={s.key}
+                  variant="outline"
+                  className="border-white/40 bg-transparent text-white hover:bg-white/15 hover:text-white"
+                  onClick={() => enterOrgScope(s.key)}
+                >
+                  <Repeat className="mr-2 h-4 w-4" />
+                  Visão {ORG_ROLE_LABELS[s.orgRole]} · {s.label}
+                </Button>
+              ))}
+            </div>
           </section>
         )}
 
@@ -133,34 +223,25 @@ function MaisPage() {
 
 function NavGroupCard({ group }: { group: NavGroup }) {
   const GroupIcon = group.icon;
-  const linkClass = cn(
-    "flex min-h-[48px] items-center gap-3 rounded-[8px] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/15",
-  );
-
-  if (group.to) {
-    return (
-      <section className="rounded-[12px] border border-white/15 bg-white/10 p-2 backdrop-blur-sm">
-        <Link to={group.to} className={linkClass}>
-          <GroupIcon className="h-5 w-5 shrink-0 text-white/80" />
-          <span>{group.label}</span>
-        </Link>
-      </section>
-    );
-  }
-
   return (
-    <section className="rounded-[12px] border border-white/15 bg-white/10 p-2 backdrop-blur-sm">
-      <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white/70">
-        <GroupIcon className="h-4 w-4" />
+    <section className="rounded-[12px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
+      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-white/75">
+        <GroupIcon className="h-5 w-5" />
         {group.label}
       </div>
-      <div className="space-y-0.5">
+      <div className="space-y-1">
         {(group.items ?? []).map((item) => {
-          const ItemIcon = item.icon;
+          const Icon = item.icon;
           return (
-            <Link key={item.to} to={item.to} className={linkClass}>
-              <ItemIcon className="h-5 w-5 shrink-0 text-white/80" />
-              <span>{item.label}</span>
+            <Link
+              key={item.to}
+              to={item.to}
+              className={cn(
+                "flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium text-white/90 transition-colors hover:bg-white/15",
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0 opacity-80" />
+              {item.label}
             </Link>
           );
         })}

@@ -115,7 +115,7 @@ export function PublicMensalidadesView({
   });
 
   const chapter = data?.chapter;
-  const defaultAmount = data?.defaultAmount ?? 50;
+  const defaultAmount = data?.defaultAmount ?? 20;
   const members = (data?.members ?? []) as DueMemberLite[];
   const dues = data?.dues ?? [];
 

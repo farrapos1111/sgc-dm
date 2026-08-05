@@ -29,7 +29,7 @@ import {
   maskPhoneInput,
   statusLabel,
 } from "@/lib/format";
-import { lookupCep, maskCepInput } from "@/lib/cep";
+import { lookupCep, maskCepInput, createCepLookupSeq } from "@/lib/cep";
 import { typeLabel } from "@/lib/calendar-types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -266,7 +266,7 @@ function MemberChargesTab({
   }, [data?.payments]);
 
   const parsedDefault = Number(data?.defaultAmount);
-  const defaultAmount = Number.isFinite(parsedDefault) ? parsedDefault : 50;
+  const defaultAmount = Number.isFinite(parsedDefault) ? parsedDefault : 20;
 
   const memberLite: DueMemberLite | null = data
     ? {
@@ -626,6 +626,7 @@ function MemberCadastroTab({
   const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "error" | "ok">("idle");
   const [cepError, setCepError] = useState("");
   const lastLookedUp = useRef("");
+  const cepSeq = useRef(createCepLookupSeq()).current;
   const [done, setDone] = useState(false);
 
   const lookup = useMutation({
@@ -707,10 +708,12 @@ function MemberCadastroTab({
     const cep = digitsOnly(raw);
     if (cep.length !== 8 || cep === lastLookedUp.current) return;
     lastLookedUp.current = cep;
+    const reqId = cepSeq.begin();
     setCepStatus("loading");
     setCepError("");
     try {
       const data = await lookupCep(raw);
+      if (!cepSeq.isCurrent(reqId)) return;
       setAddress((a) => ({
         ...a,
         zip: data.zip,
@@ -722,6 +725,7 @@ function MemberCadastroTab({
       }));
       setCepStatus("ok");
     } catch (e) {
+      if (!cepSeq.isCurrent(reqId)) return;
       setCepStatus("error");
       setCepError(
         e instanceof Error ? e.message : "Não foi possível buscar o CEP",
@@ -735,6 +739,7 @@ function MemberCadastroTab({
     setAddress((a) => ({ ...a, zip: masked }));
     const digits = digitsOnly(masked);
     if (digits.length < 8) {
+      cepSeq.invalidate();
       lastLookedUp.current = "";
       setCepStatus("idle");
       setCepError("");
