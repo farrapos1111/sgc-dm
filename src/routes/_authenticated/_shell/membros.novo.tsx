@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { createMember, lookupMemberByDemolayId, listChaptersForSelect } from "@/lib/members.functions";
 import { createMemberAffiliationRequest } from "@/lib/member-change-requests.functions";
+import { normalizeDemolayId } from "@/lib/member-identity";
 import {
   listCatalog,
   assignPosition,
@@ -164,9 +165,10 @@ function NovoMembro() {
   // Autocomplete: ao digitar ID DeMolay, busca e preenche dados existentes
   useEffect(() => {
     const raw = dados.demolay_id.trim();
+    const normalized = normalizeDemolayId(raw);
     if (!active?.chapter_id) return;
 
-    if (!raw) {
+    if (!normalized) {
       lastLookedUpRef.current = "";
       setDemolayLookupStatus("idle");
       if (linkedMemberId) {
@@ -180,7 +182,7 @@ function NovoMembro() {
     if (
       linkedMemberId &&
       linkedDemolayId &&
-      linkedDemolayId.toLowerCase() === raw.toLowerCase()
+      normalizeDemolayId(linkedDemolayId) === normalized
     ) {
       setDemolayLookupStatus("found");
       return;
@@ -193,7 +195,7 @@ function NovoMembro() {
     }
 
     const handle = window.setTimeout(async () => {
-      if (raw.toLowerCase() === lastLookedUpRef.current.toLowerCase()) return;
+      if (normalized === normalizeDemolayId(lastLookedUpRef.current)) return;
       const seq = ++lookupSeqRef.current;
       setDemolayLookupStatus("loading");
       try {
@@ -230,7 +232,7 @@ function NovoMembro() {
         }
 
         const addr = (found.address ?? {}) as Record<string, string>;
-        const matchedId = found.demolay_id ?? raw;
+        const matchedId = normalizeDemolayId(found.demolay_id ?? raw);
         setLinkedMemberId(found.id);
         setLinkedDemolayId(matchedId);
         setPositionHistory(found.position_history ?? []);

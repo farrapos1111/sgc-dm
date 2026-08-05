@@ -54,6 +54,7 @@ async function loadMemberTermAccess(
   },
   memberId: string,
   chapterId: string,
+  roleName: string | null = "membro",
 ) {
   const term = currentTerm();
   const [posRes, comRes] = await Promise.all([
@@ -95,7 +96,7 @@ async function loadMemberTermAccess(
     .filter((x): x is { code: string; label: string; role: string } => !!x);
 
   const effectivePermissions = resolveAccess({
-    roleName: "membro",
+    roleName: roleName ?? "membro",
     currentPositions: currentPositions.map((p) => p.code),
     commissionRoles: currentCommissions,
   });
@@ -279,7 +280,7 @@ export const getMemberAccountStatus = createServerFn({ method: "POST" })
       "@/integrations/supabase/client.server"
     );
 
-    const [profileRes, cmRes, authRes, access] = await Promise.all([
+    const [profileRes, cmRes, authRes] = await Promise.all([
       context.supabase
         .from("profiles")
         .select("must_change_password")
@@ -293,7 +294,6 @@ export const getMemberAccountStatus = createServerFn({ method: "POST" })
         .limit(1)
         .maybeSingle(),
       supabaseAdmin.auth.admin.getUserById(member.user_id),
-      loadMemberTermAccess(context.supabase, member.id, member.chapter_id),
     ]);
 
     const roleJoin = cmRes.data?.roles as
@@ -302,12 +302,20 @@ export const getMemberAccountStatus = createServerFn({ method: "POST" })
       | null
       | undefined;
     const role = Array.isArray(roleJoin) ? roleJoin[0] : roleJoin;
+    const roleName = role?.name ?? "membro";
+
+    const access = await loadMemberTermAccess(
+      context.supabase,
+      member.id,
+      member.chapter_id,
+      roleName,
+    );
 
     return {
       linked: true,
       userId: member.user_id,
       email: authRes.data.user?.email ?? member.email,
-      roleName: role?.name ?? "membro",
+      roleName,
       roleLabel: role?.label ?? "Membro",
       mustChangePassword: Boolean(profileRes.data?.must_change_password),
       chapterMemberActive: cmRes.data?.active ?? null,
@@ -720,11 +728,12 @@ async function evaluateMemberLoginGate(
     "@/integrations/supabase/client.server"
   );
 
-  const { data: profile } = await supabaseAdmin
+  const { data: profile, error: profileErr } = await supabaseAdmin
     .from("profiles")
     .select("is_super_admin")
     .eq("id", userId)
     .maybeSingle();
+  if (profileErr) throw new Error(profileErr.message);
   if (profile?.is_super_admin) return { allowed: true };
 
   const { data: members, error } = await supabaseAdmin

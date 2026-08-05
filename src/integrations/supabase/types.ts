@@ -685,7 +685,7 @@ export type Database = {
           event_id: string
           id?: string
           name: string
-          name_key?: string
+          name_key: string
           sort_order?: number
           updated_at?: string
         }
@@ -739,7 +739,7 @@ export type Database = {
           event_id: string
           id?: string
           name: string
-          name_key?: string
+          name_key: string
           stock_qty?: number | null
           track_stock?: boolean
           unit_price?: number | null
@@ -1397,6 +1397,70 @@ export type Database = {
           },
         ]
       }
+      member_affiliation_requests: {
+        Row: {
+          created_at: string
+          id: string
+          member_id: string
+          origin_chapter_id: string
+          requested_by: string
+          requesting_chapter_id: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["member_change_request_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          member_id: string
+          origin_chapter_id: string
+          requested_by: string
+          requesting_chapter_id: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["member_change_request_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          member_id?: string
+          origin_chapter_id?: string
+          requested_by?: string
+          requesting_chapter_id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["member_change_request_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_affiliation_requests_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_affiliation_requests_origin_chapter_id_fkey"
+            columns: ["origin_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_affiliation_requests_requesting_chapter_id_fkey"
+            columns: ["requesting_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_away_periods: {
         Row: {
           chapter_id: string
@@ -1435,6 +1499,124 @@ export type Database = {
           },
           {
             foreignKeyName: "member_away_periods_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_change_requests: {
+        Row: {
+          changes: Json
+          created_at: string
+          id: string
+          member_id: string
+          origin_chapter_id: string
+          requested_by: string
+          requesting_chapter_id: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["member_change_request_status"]
+          updated_at: string
+        }
+        Insert: {
+          changes?: Json
+          created_at?: string
+          id?: string
+          member_id: string
+          origin_chapter_id: string
+          requested_by: string
+          requesting_chapter_id: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["member_change_request_status"]
+          updated_at?: string
+        }
+        Update: {
+          changes?: Json
+          created_at?: string
+          id?: string
+          member_id?: string
+          origin_chapter_id?: string
+          requested_by?: string
+          requesting_chapter_id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["member_change_request_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_change_requests_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_change_requests_origin_chapter_id_fkey"
+            columns: ["origin_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_change_requests_requesting_chapter_id_fkey"
+            columns: ["requesting_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_chapter_affiliations: {
+        Row: {
+          active: boolean
+          chapter_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          joined_at: string
+          left_at: string | null
+          member_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          chapter_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          joined_at?: string
+          left_at?: string | null
+          member_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          chapter_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          joined_at?: string
+          left_at?: string | null
+          member_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_chapter_affiliations_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_chapter_affiliations_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
@@ -2190,6 +2372,7 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
+          is_super_admin: boolean
           must_change_password: boolean
           phone: string | null
         }
@@ -2198,6 +2381,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id: string
+          is_super_admin?: boolean
           must_change_password?: boolean
           phone?: string | null
         }
@@ -2206,6 +2390,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          is_super_admin?: boolean
           must_change_password?: boolean
           phone?: string | null
         }
@@ -2743,6 +2928,10 @@ export type Database = {
         Args: { _guardian: Json; _member_id: string }
         Returns: string
       }
+      affiliate_member_to_chapter: {
+        Args: { _chapter_id: string; _member_id: string }
+        Returns: string
+      }
       auth_member_id_in_chapter: {
         Args: { _chapter_id: string }
         Returns: string
@@ -2771,6 +2960,7 @@ export type Database = {
         Returns: boolean
       }
       can_read_chapter: { Args: { _chapter_id: string }; Returns: boolean }
+      can_read_member: { Args: { _member_id: string }; Returns: boolean }
       can_read_sindicancia_votes: {
         Args: { _chapter_id: string }
         Returns: boolean
@@ -2816,6 +3006,8 @@ export type Database = {
         }
         Returns: string
       }
+      current_term_semester: { Args: never; Returns: number }
+      current_term_year: { Args: never; Returns: number }
       decrypt_pii: { Args: { _cipher: string }; Returns: string }
       delete_event_ticket: { Args: { _ticket_id: string }; Returns: Json }
       delete_event_ticket_item: { Args: { _line_id: string }; Returns: Json }
@@ -2844,6 +3036,7 @@ export type Database = {
         Args: { _chapter_id: string; _regenerate?: boolean }
         Returns: string
       }
+      finance_name_key: { Args: { p_name: string }; Returns: string }
       get_cash_share_token: { Args: { _chapter_id: string }; Returns: string }
       get_dues_share_token: { Args: { _chapter_id: string }; Returns: string }
       get_id_document_path: {
@@ -2888,6 +3081,18 @@ export type Database = {
         Args: { _chapter_id: string; _role_names: string[] }
         Returns: boolean
       }
+      has_commission_role: {
+        Args: {
+          _chapter_id: string
+          _commission_code: string
+          _roles?: string[]
+        }
+        Returns: boolean
+      }
+      has_current_position: {
+        Args: { _chapter_id: string; _codes: string[] }
+        Returns: boolean
+      }
       has_permission: {
         Args: { _chapter_id: string; _perm: string }
         Returns: boolean
@@ -2909,6 +3114,16 @@ export type Database = {
       is_linked_member: { Args: { _member_id: string }; Returns: boolean }
       is_region_leader: { Args: { _chapter_id: string }; Returns: boolean }
       is_state_leader: { Args: { _chapter_id: string }; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
+      list_chapters_for_select: {
+        Args: never
+        Returns: {
+          city: string
+          id: string
+          name: string
+          number: string
+        }[]
+      }
       list_investigation_signup_members: {
         Args: { _search?: string; _token: string }
         Returns: {
@@ -2918,6 +3133,10 @@ export type Database = {
       }
       lookup_lobby_member_cadastro: {
         Args: { _demolay_id: string; _token: string }
+        Returns: Json
+      }
+      lookup_member_by_demolay_id: {
+        Args: { _demolay_id: string; _for_chapter_id: string }
         Returns: Json
       }
       lookup_member_cadastro_by_demolay_id: {
@@ -2933,6 +3152,10 @@ export type Database = {
           _kind: Database["public"]["Enums"]["member_kind"]
           _minute_kind: Database["public"]["Enums"]["minute_kind"]
         }
+        Returns: boolean
+      }
+      member_visible_in_chapter: {
+        Args: { _chapter_id: string; _member_id: string }
         Returns: boolean
       }
       migrate_investigation_docs_to_member: {
@@ -3032,6 +3255,10 @@ export type Database = {
         Args: { _field: string; _member_id: string }
         Returns: string
       }
+      review_member_affiliation_request: {
+        Args: { _decision: string; _request_id: string; _review_note?: string }
+        Returns: string
+      }
       revoke_cash_share_token: {
         Args: { _chapter_id: string }
         Returns: boolean
@@ -3089,8 +3316,8 @@ export type Database = {
           _cpf: string
           _demolay_relative_chapter: string
           _demolay_relative_name: string
-          _doc_cpf_back_path: string
-          _doc_cpf_front_path: string
+          _doc_cpf_back_path?: string
+          _doc_cpf_front_path?: string
           _doc_rg_back_path: string
           _doc_rg_front_path: string
           _guardians: Json
@@ -3172,23 +3399,6 @@ export type Database = {
         }
         Returns: string
       }
-      affiliate_member_to_chapter: {
-        Args: { _chapter_id: string; _member_id: string }
-        Returns: string
-      }
-      list_chapters_for_select: {
-        Args: never
-        Returns: {
-          city: string | null
-          id: string
-          name: string
-          number: string
-        }[]
-      }
-      lookup_member_by_demolay_id: {
-        Args: { _demolay_id: string; _for_chapter_id: string }
-        Returns: Json
-      }
     }
     Enums: {
       attendance_status: "presente" | "ausente"
@@ -3211,6 +3421,7 @@ export type Database = {
         | "reprovada"
         | "arquivada"
         | "votacao_comissao"
+      member_change_request_status: "pending" | "approved" | "rejected"
       member_kind: "demolay_ativo" | "senior" | "macom"
       member_status: "regular" | "irregular"
       minute_kind: "publica" | "grau_iniciatico" | "grau_demolay"
@@ -3371,6 +3582,7 @@ export const Constants = {
         "arquivada",
         "votacao_comissao",
       ],
+      member_change_request_status: ["pending", "approved", "rejected"],
       member_kind: ["demolay_ativo", "senior", "macom"],
       member_status: ["regular", "irregular"],
       minute_kind: ["publica", "grau_iniciatico", "grau_demolay"],

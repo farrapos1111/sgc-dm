@@ -649,9 +649,26 @@ export const updateMyMemberCadastro = createServerFn({ method: "POST" })
         rg: z.string().optional().default(""),
         guardians: z.array(guardianUpdateSchema).max(2).optional().default([]),
       })
+      .strict()
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    // Self-service: apenas contato/docs/endereço/responsáveis — nunca nome ou status.
+    const SELF_SERVICE_KEYS = new Set([
+      "memberId",
+      "phone",
+      "email",
+      "address",
+      "cpf",
+      "rg",
+      "guardians",
+    ]);
+    for (const key of Object.keys(data)) {
+      if (!SELF_SERVICE_KEYS.has(key)) {
+        throw new Error(`Campo não permitido no autoatendimento: ${key}`);
+      }
+    }
+
     const email = (context.claims as { email?: string } | null)?.email ?? null;
     await assertOwnMemberId(
       context.supabase,

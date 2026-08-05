@@ -2,7 +2,8 @@ import { useRef, useState, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { digitsOnly, is21OrOlder, isUnder21, maskCepInput, maskCpfInput, maskPhoneInput } from "@/lib/format";
+import { digitsOnly, is21OrOlder, isUnder21, maskCpfInput, maskPhoneInput } from "@/lib/format";
+import { lookupCep, maskCepInput } from "@/lib/cep";
 import { todayYmd } from "@/lib/timezone";
 import { Loader2 } from "lucide-react";
 
@@ -103,14 +104,6 @@ export const GUARDIAN_RELATIONSHIPS = [
   "Outro",
 ] as const;
 
-type BrasilApiCep = {
-  cep: string;
-  state: string;
-  city: string;
-  neighborhood: string;
-  street: string;
-};
-
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
@@ -145,32 +138,26 @@ export function MemberDataFields({
   const [cepError, setCepError] = useState("");
   const lastLookedUp = useRef("");
 
-  async function lookupCep(raw: string) {
+  async function doLookupCep(raw: string) {
     const cep = digitsOnly(raw);
     if (cep.length !== 8 || cep === lastLookedUp.current) return;
     lastLookedUp.current = cep;
     setCepStatus("loading");
     setCepError("");
     try {
-      const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
-      if (!res.ok) {
-        setCepStatus("error");
-        setCepError(res.status === 404 ? "CEP não encontrado" : "Não foi possível buscar o CEP");
-        return;
-      }
-      const data = (await res.json()) as BrasilApiCep;
+      const data = await lookupCep(raw);
       onChange({
-        address_zip: maskCepInput(data.cep || cep),
-        address_street: data.street ?? "",
-        address_neighborhood: data.neighborhood ?? "",
-        address_city: data.city ?? "",
-        address_state: (data.state ?? "").toUpperCase(),
-        address_country: "Brasil",
+        address_zip: data.zip,
+        address_street: data.street,
+        address_neighborhood: data.neighborhood,
+        address_city: data.city,
+        address_state: data.state,
+        address_country: data.country,
       });
       setCepStatus("ok");
-    } catch {
+    } catch (e) {
       setCepStatus("error");
-      setCepError("Não foi possível buscar o CEP");
+      setCepError(e instanceof Error ? e.message : "Não foi possível buscar o CEP");
     }
   }
 
@@ -184,7 +171,7 @@ export function MemberDataFields({
       setCepError("");
       return;
     }
-    void lookupCep(masked);
+    void doLookupCep(masked);
   }
 
   return (
@@ -426,7 +413,7 @@ export function MemberDataFields({
                 placeholder="00000-000"
                 inputMode="numeric"
                 onChange={(e) => handleCepChange(e.target.value)}
-                onBlur={() => void lookupCep(value.address_zip)}
+                onBlur={() => void doLookupCep(value.address_zip)}
               />
               {cepStatus === "loading" && (
                 <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />

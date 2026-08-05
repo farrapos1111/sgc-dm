@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { todayYmd } from "@/lib/timezone";
 
 const changeItemSchema = z.object({
   field: z.string().min(1),
@@ -33,6 +34,66 @@ const MASTER_FIELDS = new Set([
   "address_country",
 ]);
 
+function pickPatched<T>(
+  patch: Record<string, unknown>,
+  field: string,
+  existing: T,
+): T {
+  return field in patch ? (patch[field] as T) : existing;
+}
+
+async function applyStatusSideEffects(
+  supabase: {
+    from: (t: string) => any;
+    rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
+  },
+  opts: {
+    memberId: string;
+    chapterId: string;
+    userId: string;
+    prevStatus: string;
+    nextStatus: string;
+  },
+) {
+  const { memberId, chapterId, userId, prevStatus, nextStatus } = opts;
+  if (prevStatus === nextStatus) return;
+
+  const effectiveOn = todayYmd();
+
+  if (prevStatus === "regular" && nextStatus === "irregular") {
+    const { error: awayErr } = await supabase.from("member_away_periods").insert({
+      member_id: memberId,
+      chapter_id: chapterId,
+      started_on: effectiveOn,
+      ended_on: null,
+      created_by: userId,
+    });
+    if (awayErr) throw new Error(awayErr.message);
+
+    const { error: duesErr } = await supabase.rpc("desligar_open_dues_from", {
+      _member_id: memberId,
+      _from: effectiveOn,
+    });
+    if (duesErr) throw new Error(duesErr.message);
+  } else if (prevStatus === "irregular" && nextStatus === "regular") {
+    const { data: openPeriod, error: openErr } = await supabase
+      .from("member_away_periods")
+      .select("id")
+      .eq("member_id", memberId)
+      .is("ended_on", null)
+      .maybeSingle();
+    if (openErr) throw new Error(openErr.message);
+
+    if (openPeriod) {
+      const { error: closeErr } = await supabase
+        .from("member_away_periods")
+        .update({ ended_on: effectiveOn })
+        .eq("id", openPeriod.id);
+      if (closeErr) throw new Error(closeErr.message);
+    }
+  }
+}
+
 export const createMemberChangeRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
@@ -46,7 +107,7 @@ export const createMemberChangeRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     for (const c of data.changes) {
-      if (!MASTER_FIELDS.has(c.field) && !c.field.startsWith("address_")) {
+      if (!MASTER_FIELDS.has(c.field)) {
         throw new Error(`Campo não permitido na solicitação: ${c.field}`);
       }
     }
@@ -64,13 +125,14 @@ export const createMemberChangeRequest = createServerFn({ method: "POST" })
       );
     }
 
-    const { data: pending } = await context.supabase
+    const { data: pending, error: pendingErr } = await context.supabase
       .from("member_change_requests" as "members")
       .select("id")
       .eq("member_id" as never, data.memberId)
       .eq("requesting_chapter_id" as never, data.requestingChapterId)
       .eq("status" as never, "pending")
       .maybeSingle();
+    if (pendingErr) throw new Error(pendingErr.message);
     if (pending) {
       throw new Error("Já existe uma solicitação pendente deste capítulo para este membro.");
     }
@@ -87,7 +149,15 @@ export const createMemberChangeRequest = createServerFn({ method: "POST" })
       } as never)
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      // Unique violation = race com outra solicitação pendente
+      if ((error as { code?: string }).code === "23505") {
+        throw new Error(
+          "Já existe uma solicitação pendente deste capítulo para este membro.",
+        );
+      }
+      throw new Error(error.message);
+    }
     return { id: (row as { id: string }).id };
   });
 
@@ -161,50 +231,68 @@ export const reviewMemberChangeRequest = createServerFn({ method: "POST" })
       const { data: member, error: mErr } = await context.supabase
         .from("members")
         .select(
-          "id, full_name, birth_date, phone, email, address, status, kind, demolay_id, masonic_id, iniciacao_ordem, exam_grau_iniciatico, iniciacao_grau_demolay, exam_grau_demolay, initiation_chapter_id",
+          "id, chapter_id, full_name, birth_date, phone, email, address, status, kind, demolay_id, masonic_id, iniciacao_ordem, exam_grau_iniciatico, iniciacao_grau_demolay, exam_grau_demolay, initiation_chapter_id",
         )
         .eq("id", request.member_id)
         .single();
       if (mErr) throw new Error(mErr.message);
 
-      const addr = (member.address ?? {}) as Record<string, string>;
+      const addr = (member.address ?? {}) as Record<string, string | null>;
       const patch: Record<string, unknown> = {};
       const addressPatch = { ...addr };
 
       for (const change of request.changes ?? []) {
         const f = change.field;
+        if (!MASTER_FIELDS.has(f)) {
+          throw new Error(`Campo não permitido na aprovação: ${f}`);
+        }
         if (f.startsWith("address_")) {
           const key = f.replace(/^address_/, "");
-          addressPatch[key] = change.after ?? "";
+          addressPatch[key] = change.after;
         } else {
           patch[f] = change.after;
         }
       }
 
+      const prevStatus = member.status as string;
+      const nextStatus = pickPatched(patch, "status", member.status) as string;
+
       const args = {
         _member_id: member.id,
-        _full_name: (patch.full_name as string) ?? member.full_name,
-        _birth_date: (patch.birth_date as string) ?? member.birth_date,
+        _full_name: pickPatched(patch, "full_name", member.full_name),
+        _birth_date: pickPatched(patch, "birth_date", member.birth_date),
         _cpf: "",
         _rg: "",
-        _phone: (patch.phone as string) ?? member.phone ?? "",
-        _email: (patch.email as string) ?? member.email ?? "",
+        _phone: pickPatched(patch, "phone", member.phone ?? ""),
+        _email: pickPatched(patch, "email", member.email ?? ""),
         _address: addressPatch,
-        _status: (patch.status as string) ?? member.status,
-        _kind: (patch.kind as string) ?? member.kind,
-        _exam_grau_iniciatico:
-          (patch.exam_grau_iniciatico as string) ?? member.exam_grau_iniciatico,
-        _exam_grau_demolay: (patch.exam_grau_demolay as string) ?? member.exam_grau_demolay,
-        _iniciacao_ordem: (patch.iniciacao_ordem as string) ?? member.iniciacao_ordem,
-        _iniciacao_grau_demolay:
-          (patch.iniciacao_grau_demolay as string) ?? member.iniciacao_grau_demolay,
-        _demolay_id: (patch.demolay_id as string) ?? member.demolay_id,
-        _masonic_id: (patch.masonic_id as string) ?? member.masonic_id,
+        _status: nextStatus,
+        _kind: pickPatched(patch, "kind", member.kind),
+        _exam_grau_iniciatico: pickPatched(
+          patch,
+          "exam_grau_iniciatico",
+          member.exam_grau_iniciatico,
+        ),
+        _exam_grau_demolay: pickPatched(
+          patch,
+          "exam_grau_demolay",
+          member.exam_grau_demolay,
+        ),
+        _iniciacao_ordem: pickPatched(patch, "iniciacao_ordem", member.iniciacao_ordem),
+        _iniciacao_grau_demolay: pickPatched(
+          patch,
+          "iniciacao_grau_demolay",
+          member.iniciacao_grau_demolay,
+        ),
+        _demolay_id: pickPatched(patch, "demolay_id", member.demolay_id),
+        _masonic_id: pickPatched(patch, "masonic_id", member.masonic_id),
         _guardians: null,
-        _initiation_chapter_id:
-          (patch.initiation_chapter_id as string) ??
-          (member as { initiation_chapter_id?: string }).initiation_chapter_id ??
-          null,
+        _initiation_chapter_id: pickPatched(
+          patch,
+          "initiation_chapter_id",
+          (member as { initiation_chapter_id?: string | null }).initiation_chapter_id ??
+            null,
+        ),
       };
 
       const { error: updErr } = await context.supabase.rpc(
@@ -212,6 +300,14 @@ export const reviewMemberChangeRequest = createServerFn({ method: "POST" })
         args as never,
       );
       if (updErr) throw new Error(updErr.message);
+
+      await applyStatusSideEffects(context.supabase as never, {
+        memberId: member.id,
+        chapterId: member.chapter_id,
+        userId: context.userId,
+        prevStatus,
+        nextStatus,
+      });
     }
 
     const { error: upErr } = await context.supabase
@@ -251,24 +347,26 @@ export const createMemberAffiliationRequest = createServerFn({ method: "POST" })
       throw new Error("Este capítulo já é o originário do cadastro.");
     }
 
-    const { data: existingAff } = await context.supabase
+    const { data: existingAff, error: affErr } = await context.supabase
       .from("member_chapter_affiliations" as "members")
       .select("id")
       .eq("member_id" as never, data.memberId)
       .eq("chapter_id" as never, data.requestingChapterId)
       .eq("active" as never, true)
       .maybeSingle();
+    if (affErr) throw new Error(affErr.message);
     if (existingAff) {
       throw new Error("Este membro já está vinculado a este capítulo.");
     }
 
-    const { data: pending } = await context.supabase
+    const { data: pending, error: pendingErr } = await context.supabase
       .from("member_affiliation_requests" as "members")
       .select("id")
       .eq("member_id" as never, data.memberId)
       .eq("requesting_chapter_id" as never, data.requestingChapterId)
       .eq("status" as never, "pending")
       .maybeSingle();
+    if (pendingErr) throw new Error(pendingErr.message);
     if (pending) {
       throw new Error(
         "Já existe uma solicitação de vínculo pendente deste capítulo para este membro.",
@@ -286,7 +384,14 @@ export const createMemberAffiliationRequest = createServerFn({ method: "POST" })
       } as never)
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if ((error as { code?: string }).code === "23505") {
+        throw new Error(
+          "Já existe uma solicitação de vínculo pendente deste capítulo para este membro.",
+        );
+      }
+      throw new Error(error.message);
+    }
     return { id: (row as { id: string }).id };
   });
 

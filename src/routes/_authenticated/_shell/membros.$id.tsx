@@ -9,6 +9,7 @@ import {
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { getMember, revealMemberPii } from "@/lib/members.functions";
+import { belongsToChapter } from "@/lib/member-identity";
 import {
   getMemberOrgHistory,
   listCatalog,
@@ -676,10 +677,8 @@ function MembroPerfil() {
                   <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
                     Cargos do capítulo e conselho
                   </h3>
-                  {orgData.positions.filter(
-                    (p) =>
-                      (p as { chapter_id?: string }).chapter_id === chapterId ||
-                      !(p as { chapter_id?: string }).chapter_id,
+                  {orgData.positions.filter((p) =>
+                    belongsToChapter(p as { chapter_id?: string }, chapterId),
                   ).length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       Nenhum cargo registrado neste capítulo.
@@ -687,11 +686,8 @@ function MembroPerfil() {
                   ) : (
                     <ul className="divide-y divide-border text-sm">
                       {orgData.positions
-                        .filter(
-                          (p) =>
-                            (p as { chapter_id?: string }).chapter_id ===
-                              chapterId ||
-                            !(p as { chapter_id?: string }).chapter_id,
+                        .filter((p) =>
+                          belongsToChapter(p as { chapter_id?: string }, chapterId),
                         )
                         .map((p) => (
                         <li
@@ -706,9 +702,10 @@ function MembroPerfil() {
                             </span>
                           </span>
                           {canEditOrg &&
-                            ((p as { chapter_id?: string }).chapter_id ===
-                              chapterId ||
-                              !(p as { chapter_id?: string }).chapter_id) && (
+                            belongsToChapter(
+                              p as { chapter_id?: string },
+                              chapterId,
+                            ) && (
                             <Button
                               size="icon"
                               variant="ghost"
@@ -785,9 +782,10 @@ function MembroPerfil() {
                           <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
                             {termLabel(c.term_year, c.term_semester)}
                             {canEditOrg &&
-                              ((c as { chapter_id?: string }).chapter_id ===
-                                chapterId ||
-                                !(c as { chapter_id?: string }).chapter_id) && (
+                              belongsToChapter(
+                                c as { chapter_id?: string },
+                                chapterId,
+                              ) && (
                               <Button
                                 size="icon"
                                 variant="ghost"

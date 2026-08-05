@@ -17,10 +17,10 @@ import {
 } from "@/components/investigations/DocumentUploadFields";
 import {
   digitsOnly,
-  maskCepInput,
   maskCpfInput,
   maskPhoneInput,
 } from "@/lib/format";
+import { lookupCep, maskCepInput } from "@/lib/cep";
 import { Loader2 } from "lucide-react";
 import type { IdDocKind } from "@/lib/member-documents";
 
@@ -163,45 +163,31 @@ export function InvestigationFileForm({
   const [cepError, setCepError] = useState("");
   const lastLookedUp = useRef("");
 
-  async function lookupCep(raw: string) {
+  async function doLookupCep(raw: string) {
     const cep = digitsOnly(raw);
     if (cep.length !== 8 || cep === lastLookedUp.current) return;
     lastLookedUp.current = cep;
     setCepStatus("loading");
     setCepError("");
     try {
-      const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
-      if (!res.ok) {
-        setCepStatus("error");
-        setCepError(
-          res.status === 404
-            ? "CEP não encontrado"
-            : "Não foi possível buscar o CEP",
-        );
-        return;
-      }
-      const data = (await res.json()) as {
-        cep?: string;
-        street?: string;
-        neighborhood?: string;
-        city?: string;
-        state?: string;
-      };
+      const data = await lookupCep(raw);
       onChange({
         address: {
           ...value.address,
-          zip: maskCepInput(data.cep || cep),
-          street: data.street ?? "",
-          neighborhood: data.neighborhood ?? "",
-          city: data.city ?? "",
-          state: (data.state ?? "").toUpperCase(),
-          country: "Brasil",
+          zip: data.zip,
+          street: data.street,
+          neighborhood: data.neighborhood,
+          city: data.city,
+          state: data.state,
+          country: data.country,
         },
       });
       setCepStatus("ok");
-    } catch {
+    } catch (e) {
       setCepStatus("error");
-      setCepError("Não foi possível buscar o CEP");
+      setCepError(
+        e instanceof Error ? e.message : "Não foi possível buscar o CEP",
+      );
     }
   }
 
@@ -343,7 +329,7 @@ export function InvestigationFileForm({
                     setCepError("");
                     return;
                   }
-                  void lookupCep(masked);
+                  void doLookupCep(masked);
                 }}
                 className={inputClass}
                 required
