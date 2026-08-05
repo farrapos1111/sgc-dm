@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { can } from "@/lib/permissions";
+import { parseChargeAmount } from "@/lib/charge-amount";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { todayYmd } from "@/lib/timezone";
 import { FIXED_CATEGORIES } from "@/lib/cash-categories";
@@ -106,13 +107,6 @@ function chargeBucket(c: ChargeRow): ListFilter | "isento" {
     return "baixada";
   if (amountPaid > 0) return "parcial";
   return "em_aberto";
-}
-
-/** Valor monetário da cobrança: finito e ≥ R$ 0,01. */
-function parseChargeAmount(raw: string): number | null {
-  const amount = Number(String(raw).replace(",", "."));
-  if (!Number.isFinite(amount) || amount < 0.01) return null;
-  return amount;
 }
 
 function Cobrancas() {

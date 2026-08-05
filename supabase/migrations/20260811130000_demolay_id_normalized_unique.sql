@@ -102,8 +102,14 @@ BEGIN
 END;
 $$;
 
-DROP INDEX IF EXISTS public.members_demolay_id_normalized_unique;
-CREATE UNIQUE INDEX members_demolay_id_normalized_unique
+-- CONCURRENTLY não pode rodar dentro de BEGIN/COMMIT. Em deploys com migrator
+-- transacional, aplique este bloco via sessão sem transação (psql / execute_sql).
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS members_demolay_id_normalized_unique_new
   ON public.members (public.normalize_demolay_id(demolay_id))
   WHERE demolay_id IS NOT NULL
     AND length(public.normalize_demolay_id(demolay_id)) > 0;
+
+DROP INDEX CONCURRENTLY IF EXISTS public.members_demolay_id_normalized_unique;
+
+ALTER INDEX IF EXISTS public.members_demolay_id_normalized_unique_new
+  RENAME TO members_demolay_id_normalized_unique;
