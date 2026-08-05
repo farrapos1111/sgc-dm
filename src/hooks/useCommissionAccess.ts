@@ -3,9 +3,10 @@ import { useCallback, useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { listMyCommissions, type MyCommission } from "@/lib/commissions.functions";
 import { getMySindicanciaAccess } from "@/lib/investigations.functions";
+import { getMyCurrentPositions } from "@/lib/members.functions";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { currentTerm } from "@/lib/terms";
-import { can } from "@/lib/permissions";
+import { canAccess, canAction, type AccessContext } from "@/lib/permissions";
 
 export type CommissionAccess = {
   commissions: MyCommission[];
@@ -22,9 +23,10 @@ export function useCommissionAccess(): CommissionAccess {
   const term = currentTerm();
   const fetchMine = useServerFn(listMyCommissions);
   const fetchSindAccess = useServerFn(getMySindicanciaAccess);
+  const chapterId = active?.chapter_id;
 
   const { data } = useQuery({
-    queryKey: ["my-commissions", active?.chapter_id, term.year, term.semester],
+    queryKey: ["my-commissions", chapterId, term.year, term.semester],
     enabled: !!active,
     staleTime: 5 * 60 * 1000,
     queryFn: () =>
@@ -37,8 +39,27 @@ export function useCommissionAccess(): CommissionAccess {
       }),
   });
 
+  const { data: positionRows = [] } = useQuery({
+    queryKey: ["my-positions", chapterId, term.year, term.semester],
+    enabled: !!active,
+    staleTime: 5 * 60 * 1000,
+    queryFn: () =>
+      getMyCurrentPositions({
+        data: {
+          chapterId: active!.chapter_id,
+          year: term.year,
+          semester: term.semester as 1 | 2,
+        },
+      }),
+  });
+
+  const positions = useMemo(
+    () => positionRows.map((p) => p.code),
+    [positionRows],
+  );
+
   const { data: sindAccess } = useQuery({
-    queryKey: ["sindicancia-access", active?.chapter_id, term.year, term.semester],
+    queryKey: ["sindicancia-access", chapterId, term.year, term.semester],
     enabled: !!active,
     staleTime: 5 * 60 * 1000,
     queryFn: () =>
@@ -47,22 +68,33 @@ export function useCommissionAccess(): CommissionAccess {
 
   const commissions = data ?? [];
   const role = active?.role.name ?? null;
-  const isAdmin = can(role, "admin") || can(role, "conselho");
-  const isMC = role === "mestre_conselheiro";
+
+  const ctx: AccessContext = useMemo(
+    () => ({
+      roleName: role,
+      currentPositions: positions,
+      commissionRoles: commissions.map((c) => ({ code: c.code, role: c.role })),
+    }),
+    [role, positions, commissions],
+  );
+
+  const isAdmin = canAccess(ctx, "admin") || canAccess(ctx, "conselho");
+  const isMC =
+    role === "mestre_conselheiro" || positions.includes("mestre_conselheiro");
   const voteAccess = Boolean(sindAccess?.canAccess);
 
   const canView = useCallback(
     (code: string) =>
       isAdmin ||
+      canAction(ctx, "comissao.view", code) ||
       commissions.some((c) => c.code === code) ||
       (code === "sindicancias" && voteAccess),
-    [commissions, isAdmin, voteAccess],
+    [commissions, isAdmin, voteAccess, ctx],
   );
 
   const canManage = useCallback(
-    (code: string) =>
-      isAdmin || commissions.some((c) => c.code === code && c.isPresident),
-    [commissions, isAdmin],
+    (code: string) => isAdmin || canAction(ctx, "comissao.edit", code),
+    [isAdmin, ctx],
   );
 
   const canEditSindicanciasTemplates = useCallback(

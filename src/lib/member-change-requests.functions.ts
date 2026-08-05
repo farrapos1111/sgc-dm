@@ -1,0 +1,382 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+const changeItemSchema = z.object({
+  field: z.string().min(1),
+  label: z.string().min(1),
+  before: z.string().nullable(),
+  after: z.string().nullable(),
+});
+
+const MASTER_FIELDS = new Set([
+  "full_name",
+  "birth_date",
+  "phone",
+  "email",
+  "demolay_id",
+  "masonic_id",
+  "iniciacao_ordem",
+  "exam_grau_iniciatico",
+  "iniciacao_grau_demolay",
+  "exam_grau_demolay",
+  "initiation_chapter_id",
+  "status",
+  "kind",
+  "address_zip",
+  "address_street",
+  "address_number",
+  "address_complement",
+  "address_neighborhood",
+  "address_city",
+  "address_state",
+  "address_country",
+]);
+
+export const createMemberChangeRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        memberId: z.string().uuid(),
+        requestingChapterId: z.string().uuid(),
+        changes: z.array(changeItemSchema).min(1),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    for (const c of data.changes) {
+      if (!MASTER_FIELDS.has(c.field) && !c.field.startsWith("address_")) {
+        throw new Error(`Campo não permitido na solicitação: ${c.field}`);
+      }
+    }
+
+    const { data: member, error: mErr } = await context.supabase
+      .from("members")
+      .select("id, chapter_id")
+      .eq("id", data.memberId)
+      .single();
+    if (mErr) throw new Error(mErr.message);
+
+    if (member.chapter_id === data.requestingChapterId) {
+      throw new Error(
+        "Este capítulo é o originário do cadastro — edite os dados diretamente.",
+      );
+    }
+
+    const { data: pending } = await context.supabase
+      .from("member_change_requests" as "members")
+      .select("id")
+      .eq("member_id" as never, data.memberId)
+      .eq("requesting_chapter_id" as never, data.requestingChapterId)
+      .eq("status" as never, "pending")
+      .maybeSingle();
+    if (pending) {
+      throw new Error("Já existe uma solicitação pendente deste capítulo para este membro.");
+    }
+
+    const { data: row, error } = await context.supabase
+      .from("member_change_requests" as "members")
+      .insert({
+        member_id: data.memberId,
+        requesting_chapter_id: data.requestingChapterId,
+        origin_chapter_id: member.chapter_id,
+        requested_by: context.userId,
+        status: "pending",
+        changes: data.changes,
+      } as never)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { id: (row as { id: string }).id };
+  });
+
+export const listPendingChangeRequests = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z.object({ originChapterId: z.string().uuid() }).parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("member_change_requests" as "members")
+      .select(
+        `id, member_id, requesting_chapter_id, origin_chapter_id, status, changes, created_at,
+         member:members(id, full_name, demolay_id),
+         requesting_chapter:chapters!member_change_requests_requesting_chapter_id_fkey(id, name, number)`,
+      )
+      .eq("origin_chapter_id" as never, data.originChapterId)
+      .eq("status" as never, "pending")
+      .order("created_at" as never, { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const countPendingChangeRequests = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z.object({ originChapterId: z.string().uuid() }).parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { count, error } = await context.supabase
+      .from("member_change_requests" as "members")
+      .select("id", { count: "exact", head: true })
+      .eq("origin_chapter_id" as never, data.originChapterId)
+      .eq("status" as never, "pending");
+    if (error) throw new Error(error.message);
+    return { count: count ?? 0 };
+  });
+
+export const reviewMemberChangeRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        requestId: z.string().uuid(),
+        decision: z.enum(["approved", "rejected"]),
+        reviewNote: z.string().optional().default(""),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: req, error: rErr } = await context.supabase
+      .from("member_change_requests" as "members")
+      .select("id, member_id, origin_chapter_id, status, changes")
+      .eq("id" as never, data.requestId)
+      .single();
+    if (rErr) throw new Error(rErr.message);
+
+    const request = req as unknown as {
+      id: string;
+      member_id: string;
+      origin_chapter_id: string;
+      status: string;
+      changes: { field: string; before: string | null; after: string | null }[];
+    };
+
+    if (request.status !== "pending") {
+      throw new Error("Esta solicitação já foi analisada.");
+    }
+
+    if (data.decision === "approved") {
+      const { data: member, error: mErr } = await context.supabase
+        .from("members")
+        .select(
+          "id, full_name, birth_date, phone, email, address, status, kind, demolay_id, masonic_id, iniciacao_ordem, exam_grau_iniciatico, iniciacao_grau_demolay, exam_grau_demolay, initiation_chapter_id",
+        )
+        .eq("id", request.member_id)
+        .single();
+      if (mErr) throw new Error(mErr.message);
+
+      const addr = (member.address ?? {}) as Record<string, string>;
+      const patch: Record<string, unknown> = {};
+      const addressPatch = { ...addr };
+
+      for (const change of request.changes ?? []) {
+        const f = change.field;
+        if (f.startsWith("address_")) {
+          const key = f.replace(/^address_/, "");
+          addressPatch[key] = change.after ?? "";
+        } else {
+          patch[f] = change.after;
+        }
+      }
+
+      const args = {
+        _member_id: member.id,
+        _full_name: (patch.full_name as string) ?? member.full_name,
+        _birth_date: (patch.birth_date as string) ?? member.birth_date,
+        _cpf: "",
+        _rg: "",
+        _phone: (patch.phone as string) ?? member.phone ?? "",
+        _email: (patch.email as string) ?? member.email ?? "",
+        _address: addressPatch,
+        _status: (patch.status as string) ?? member.status,
+        _kind: (patch.kind as string) ?? member.kind,
+        _exam_grau_iniciatico:
+          (patch.exam_grau_iniciatico as string) ?? member.exam_grau_iniciatico,
+        _exam_grau_demolay: (patch.exam_grau_demolay as string) ?? member.exam_grau_demolay,
+        _iniciacao_ordem: (patch.iniciacao_ordem as string) ?? member.iniciacao_ordem,
+        _iniciacao_grau_demolay:
+          (patch.iniciacao_grau_demolay as string) ?? member.iniciacao_grau_demolay,
+        _demolay_id: (patch.demolay_id as string) ?? member.demolay_id,
+        _masonic_id: (patch.masonic_id as string) ?? member.masonic_id,
+        _guardians: null,
+        _initiation_chapter_id:
+          (patch.initiation_chapter_id as string) ??
+          (member as { initiation_chapter_id?: string }).initiation_chapter_id ??
+          null,
+      };
+
+      const { error: updErr } = await context.supabase.rpc(
+        "update_member_with_pii",
+        args as never,
+      );
+      if (updErr) throw new Error(updErr.message);
+    }
+
+    const { error: upErr } = await context.supabase
+      .from("member_change_requests" as "members")
+      .update({
+        status: data.decision,
+        reviewed_by: context.userId,
+        reviewed_at: new Date().toISOString(),
+        review_note: data.reviewNote || null,
+      } as never)
+      .eq("id" as never, data.requestId);
+    if (upErr) throw new Error(upErr.message);
+
+    return { ok: true };
+  });
+
+/** Solicita vínculo do membro a outro capítulo (aprovação do originário). */
+export const createMemberAffiliationRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        memberId: z.string().uuid(),
+        requestingChapterId: z.string().uuid(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: member, error: mErr } = await context.supabase
+      .from("members")
+      .select("id, chapter_id")
+      .eq("id", data.memberId)
+      .single();
+    if (mErr) throw new Error(mErr.message);
+
+    if (member.chapter_id === data.requestingChapterId) {
+      throw new Error("Este capítulo já é o originário do cadastro.");
+    }
+
+    const { data: existingAff } = await context.supabase
+      .from("member_chapter_affiliations" as "members")
+      .select("id")
+      .eq("member_id" as never, data.memberId)
+      .eq("chapter_id" as never, data.requestingChapterId)
+      .eq("active" as never, true)
+      .maybeSingle();
+    if (existingAff) {
+      throw new Error("Este membro já está vinculado a este capítulo.");
+    }
+
+    const { data: pending } = await context.supabase
+      .from("member_affiliation_requests" as "members")
+      .select("id")
+      .eq("member_id" as never, data.memberId)
+      .eq("requesting_chapter_id" as never, data.requestingChapterId)
+      .eq("status" as never, "pending")
+      .maybeSingle();
+    if (pending) {
+      throw new Error(
+        "Já existe uma solicitação de vínculo pendente deste capítulo para este membro.",
+      );
+    }
+
+    const { data: row, error } = await context.supabase
+      .from("member_affiliation_requests" as "members")
+      .insert({
+        member_id: data.memberId,
+        requesting_chapter_id: data.requestingChapterId,
+        origin_chapter_id: member.chapter_id,
+        requested_by: context.userId,
+        status: "pending",
+      } as never)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { id: (row as { id: string }).id };
+  });
+
+export const listPendingAffiliationRequests = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z.object({ originChapterId: z.string().uuid() }).parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("member_affiliation_requests" as "members")
+      .select(
+        `id, member_id, requesting_chapter_id, origin_chapter_id, status, created_at,
+         member:members(id, full_name, demolay_id),
+         requesting_chapter:chapters!member_affiliation_requests_requesting_chapter_id_fkey(id, name, number)`,
+      )
+      .eq("origin_chapter_id" as never, data.originChapterId)
+      .eq("status" as never, "pending")
+      .order("created_at" as never, { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const reviewMemberAffiliationRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        requestId: z.string().uuid(),
+        decision: z.enum(["approved", "rejected"]),
+        reviewNote: z.string().optional().default(""),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: req, error: rErr } = await context.supabase
+      .from("member_affiliation_requests" as "members")
+      .select("id, member_id, requesting_chapter_id, origin_chapter_id, status")
+      .eq("id" as never, data.requestId)
+      .single();
+    if (rErr) throw new Error(rErr.message);
+
+    const request = req as unknown as {
+      id: string;
+      member_id: string;
+      requesting_chapter_id: string;
+      origin_chapter_id: string;
+      status: string;
+    };
+
+    if (request.status !== "pending") {
+      throw new Error("Esta solicitação já foi analisada.");
+    }
+
+    const { error: upErr } = await context.supabase.rpc(
+      "review_member_affiliation_request" as never,
+      {
+        _request_id: data.requestId,
+        _decision: data.decision,
+        _review_note: data.reviewNote || null,
+      } as never,
+    );
+    if (upErr) throw new Error(upErr.message);
+
+    return { ok: true };
+  });
+
+export const countPendingMemberRequests = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z.object({ originChapterId: z.string().uuid() }).parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const [changes, affiliations] = await Promise.all([
+      context.supabase
+        .from("member_change_requests" as "members")
+        .select("id", { count: "exact", head: true })
+        .eq("origin_chapter_id" as never, data.originChapterId)
+        .eq("status" as never, "pending"),
+      context.supabase
+        .from("member_affiliation_requests" as "members")
+        .select("id", { count: "exact", head: true })
+        .eq("origin_chapter_id" as never, data.originChapterId)
+        .eq("status" as never, "pending"),
+    ]);
+    if (changes.error) throw new Error(changes.error.message);
+    if (affiliations.error) throw new Error(affiliations.error.message);
+    return {
+      count: (changes.count ?? 0) + (affiliations.count ?? 0),
+      changes: changes.count ?? 0,
+      affiliations: affiliations.count ?? 0,
+    };
+  });

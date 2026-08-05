@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createMember } from "@/lib/members.functions";
+import { createMember, lookupMemberByDemolayId, listChaptersForSelect } from "@/lib/members.functions";
+import { createMemberAffiliationRequest } from "@/lib/member-change-requests.functions";
 import {
   listCatalog,
   assignPosition,
@@ -39,6 +40,7 @@ import {
   type MemberFormData,
   type GuardianFormData,
 } from "@/components/members/MemberFields";
+import { PositionHistoryCollapsible } from "@/components/members/PositionHistoryCollapsible";
 import { ArrowLeft, ArrowRight, Check, Plus, Trash2, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/membros/novo")({
@@ -63,6 +65,13 @@ const COMMISSION_ROLES = [
 
 type StepId = "dados" | "cargos" | "pais";
 
+type DemolayLookupStatus =
+  | "idle"
+  | "loading"
+  | "found"
+  | "not_found"
+  | "already_affiliated";
+
 type PendingPosition = {
   key: number;
   positionId: string;
@@ -84,7 +93,10 @@ function NovoMembro() {
   const qc = useQueryClient();
   const [stepIndex, setStepIndex] = useState(0);
 
-  const [dados, setDados] = useState<MemberFormData>(emptyMember);
+  const [dados, setDados] = useState<MemberFormData>(() => ({
+    ...emptyMember,
+    initiation_chapter_id: "",
+  }));
   const [guardian1, setGuardian1] = useState<GuardianFormData>(emptyGuardian);
   const [guardian2, setGuardian2] = useState<GuardianFormData | null>(null);
   const [consent, setConsent] = useState(false);
@@ -92,6 +104,27 @@ function NovoMembro() {
   const [pendingCommissions, setPendingCommissions] = useState<PendingCommission[]>([]);
   const [posKey, setPosKey] = useState(1);
   const [comKey, setComKey] = useState(1);
+  const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
+  const [linkedDemolayId, setLinkedDemolayId] = useState<string | null>(null);
+  const [demolayLookupStatus, setDemolayLookupStatus] =
+    useState<DemolayLookupStatus>("idle");
+  const [positionHistory, setPositionHistory] = useState<
+    {
+      label: string;
+      term_year: number;
+      term_semester: number;
+      chapter_name: string;
+      chapter_number?: string | null;
+    }[]
+  >([]);
+  const lastLookedUpRef = useRef("");
+  const lookupSeqRef = useRef(0);
+
+  useEffect(() => {
+    if (active?.chapter_id && !dados.initiation_chapter_id) {
+      setDados((d) => ({ ...d, initiation_chapter_id: active.chapter_id }));
+    }
+  }, [active?.chapter_id]);
 
   const menor = isUnder21(dados.birth_date);
   const hasGrauDemolay = grauOf(dados).code === "DM";
@@ -100,11 +133,13 @@ function NovoMembro() {
   const terms = useMemo(() => termOptions({ foundedAt }), [foundedAt]);
 
   const steps = useMemo<StepId[]>(() => {
+    // Vínculo a membro existente: só dados (solicitação ao originário); cargos após aprovação
+    if (linkedMemberId) return ["dados"];
     const list: StepId[] = ["dados"];
     if (hasGrauDemolay) list.push("cargos");
     if (menor) list.push("pais");
     return list;
-  }, [hasGrauDemolay, menor]);
+  }, [hasGrauDemolay, menor, linkedMemberId]);
 
   const step = steps[Math.min(stepIndex, steps.length - 1)] ?? "dados";
   const totalSteps = steps.length;
@@ -120,6 +155,120 @@ function NovoMembro() {
     queryFn: () => listCatalog({ data: { chapterId } }),
     enabled: hasGrauDemolay && Boolean(chapterId),
   });
+
+  const { data: chapters = [] } = useQuery({
+    queryKey: ["chapters-for-select"],
+    queryFn: () => listChaptersForSelect(),
+  });
+
+  // Autocomplete: ao digitar ID DeMolay, busca e preenche dados existentes
+  useEffect(() => {
+    const raw = dados.demolay_id.trim();
+    if (!active?.chapter_id) return;
+
+    if (!raw) {
+      lastLookedUpRef.current = "";
+      setDemolayLookupStatus("idle");
+      if (linkedMemberId) {
+        setLinkedMemberId(null);
+        setLinkedDemolayId(null);
+        setPositionHistory([]);
+      }
+      return;
+    }
+
+    if (
+      linkedMemberId &&
+      linkedDemolayId &&
+      linkedDemolayId.toLowerCase() === raw.toLowerCase()
+    ) {
+      setDemolayLookupStatus("found");
+      return;
+    }
+
+    if (linkedMemberId) {
+      setLinkedMemberId(null);
+      setLinkedDemolayId(null);
+      setPositionHistory([]);
+    }
+
+    const handle = window.setTimeout(async () => {
+      if (raw.toLowerCase() === lastLookedUpRef.current.toLowerCase()) return;
+      const seq = ++lookupSeqRef.current;
+      setDemolayLookupStatus("loading");
+      try {
+        const found = await lookupMemberByDemolayId({
+          data: { demolayId: raw, chapterId: active.chapter_id },
+        });
+        if (seq !== lookupSeqRef.current) return;
+        lastLookedUpRef.current = raw;
+
+        if (!found) {
+          setDemolayLookupStatus("not_found");
+          setLinkedMemberId(null);
+          setLinkedDemolayId(null);
+          setPositionHistory([]);
+          return;
+        }
+
+        if (found.already_affiliated) {
+          setDemolayLookupStatus("already_affiliated");
+          setLinkedMemberId(null);
+          setLinkedDemolayId(null);
+          setPositionHistory([]);
+          toast.error("Este membro já está vinculado a este capítulo.");
+          return;
+        }
+
+        if (found.chapter_id === active.chapter_id) {
+          setDemolayLookupStatus("already_affiliated");
+          setLinkedMemberId(null);
+          setLinkedDemolayId(null);
+          setPositionHistory([]);
+          toast.error("Este membro já é originário deste capítulo.");
+          return;
+        }
+
+        const addr = (found.address ?? {}) as Record<string, string>;
+        const matchedId = found.demolay_id ?? raw;
+        setLinkedMemberId(found.id);
+        setLinkedDemolayId(matchedId);
+        setPositionHistory(found.position_history ?? []);
+        setDemolayLookupStatus("found");
+        setDados((d) => ({
+          ...d,
+          full_name: found.full_name ?? "",
+          birth_date: found.birth_date ?? "",
+          exam_grau_iniciatico: found.exam_grau_iniciatico ?? "",
+          exam_grau_demolay: found.exam_grau_demolay ?? "",
+          iniciacao_ordem: found.iniciacao_ordem ?? "",
+          iniciacao_grau_demolay: found.iniciacao_grau_demolay ?? "",
+          demolay_id: matchedId,
+          masonic_id: found.masonic_id ?? "",
+          initiation_chapter_id: found.initiation_chapter_id ?? found.chapter_id,
+          status: (found.status as MemberFormData["status"]) || "regular",
+          kind: (found.kind as MemberFormData["kind"]) || "demolay_ativo",
+          phone: found.phone ?? "",
+          email: found.email ?? "",
+          address_zip: addr.zip ?? "",
+          address_street: addr.street ?? "",
+          address_number: addr.number ?? "",
+          address_complement: addr.complement ?? "",
+          address_neighborhood: addr.neighborhood ?? "",
+          address_city: addr.city ?? "",
+          address_state: addr.state ?? "",
+          address_country: addr.country ?? "Brasil",
+        }));
+        toast.success("Dados preenchidos a partir do cadastro existente.");
+      } catch (e) {
+        if (seq !== lookupSeqRef.current) return;
+        setDemolayLookupStatus("idle");
+        toast.error(e instanceof Error ? e.message : "Erro ao buscar ID DeMolay");
+      }
+    }, 450);
+
+    return () => window.clearTimeout(handle);
+  }, [dados.demolay_id, active?.chapter_id, linkedMemberId, linkedDemolayId]);
 
   const positionOptions = useMemo(() => {
     const eligible = (catalog?.positions ?? []).filter((p) => {
@@ -144,12 +293,25 @@ function NovoMembro() {
   const mutation = useMutation({
     mutationFn: async () => {
       if (!active) throw new Error("Sem capítulo ativo");
+
+      // Membro global existente: solicita vínculo ao capítulo originário (não afilia direto)
+      if (linkedMemberId) {
+        await createMemberAffiliationRequest({
+          data: {
+            memberId: linkedMemberId,
+            requestingChapterId: active.chapter_id,
+          },
+        });
+        return { id: linkedMemberId, kind: "affiliation_request" as const };
+      }
+
       const guardians = menor
         ? [guardian1, ...(guardian2 && guardian2.full_name.trim() ? [guardian2] : [])]
         : [];
       const created = await createMember({
         data: {
           chapter_id: active.chapter_id,
+          initiation_chapter_id: dados.initiation_chapter_id || active.chapter_id,
           full_name: dados.full_name.trim(),
           birth_date: dados.birth_date || null,
           exam_grau_iniciatico: dados.exam_grau_iniciatico || null,
@@ -206,11 +368,18 @@ function NovoMembro() {
           },
         });
       }
-      return created;
+      return { id: memberId, kind: "created" as const };
     },
-    onSuccess: async () => {
-      toast.success("Membro cadastrado");
+    onSuccess: async (res) => {
+      if (res.kind === "affiliation_request") {
+        toast.success(
+          "Solicitação de vínculo enviada ao capítulo originário. Aguarde a aprovação.",
+        );
+      } else {
+        toast.success("Membro cadastrado");
+      }
       await qc.invalidateQueries({ queryKey: ["members"] });
+      await qc.invalidateQueries({ queryKey: ["member-change-requests"] });
       await qc.invalidateQueries({ queryKey: ["chapter-positions"] });
       await qc.invalidateQueries({ queryKey: ["commission-members"] });
       navigate({ to: "/membros" });
@@ -220,6 +389,10 @@ function NovoMembro() {
 
   function goNext() {
     if (step === "dados") {
+      if (demolayLookupStatus === "already_affiliated") {
+        toast.error("Este ID DeMolay já está vinculado a este capítulo.");
+        return;
+      }
       const parsed = stepDadosSchema.safeParse(dados);
       if (!parsed.success) {
         toast.error(parsed.error.issues[0]?.message ?? "Preencha os campos obrigatórios");
@@ -233,7 +406,7 @@ function NovoMembro() {
       }
     }
     if (isLast) {
-      if (menor && !consent) {
+      if (menor && !consent && !linkedMemberId) {
         toast.error("O responsável precisa assinalar o consentimento LGPD");
         return;
       }
@@ -268,12 +441,42 @@ function NovoMembro() {
       <Card className="rounded-[12px] p-6">
         {step === "dados" && (
           <div className="space-y-4">
-            <MemberDataFields value={dados} onChange={(p) => setDados((d) => ({ ...d, ...p }))} />
+            <p className="text-sm text-muted-foreground">
+              Ao informar um <strong>ID DeMolay</strong> já cadastrado, os dados são preenchidos
+              automaticamente (somente leitura). O vínculo a este capítulo só ocorre após o
+              capítulo originário aprovar a solicitação.
+            </p>
+
+            {(positionHistory.length > 0 || linkedMemberId) && (
+              <div className="space-y-2">
+                {linkedMemberId && (
+                  <p className="text-xs text-muted-foreground">
+                    Cadastro global encontrado — ao concluir, uma notificação será enviada ao
+                    capítulo originário solicitando o vínculo. Altere o ID DeMolay para
+                    desfazer.
+                  </p>
+                )}
+                <PositionHistoryCollapsible items={positionHistory} />
+              </div>
+            )}
+
+            <MemberDataFields
+              value={dados}
+              onChange={(p) => setDados((d) => ({ ...d, ...p }))}
+              chapters={chapters}
+              readOnlyMaster={Boolean(linkedMemberId)}
+              demolayLookupStatus={demolayLookupStatus}
+            />
             <div className="flex justify-end pt-2">
-              <Button onClick={goNext} style={{ backgroundColor: active?.chapter.primary_color }}>
+              <Button
+                onClick={goNext}
+                disabled={mutation.isPending}
+                style={{ backgroundColor: active?.chapter.primary_color }}
+              >
                 {isLast ? (
                   <>
-                    <Check className="mr-2 h-4 w-4" /> Concluir cadastro
+                    <Check className="mr-2 h-4 w-4" />{" "}
+                    {linkedMemberId ? "Solicitar vínculo" : "Concluir cadastro"}
                   </>
                 ) : (
                   <>

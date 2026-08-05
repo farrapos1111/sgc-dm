@@ -72,7 +72,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { formatBRL, formatDateTimeBR } from "@/lib/format";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { matchesLooseSearch } from "@/lib/utils";
 import {
   Collapsible,
@@ -117,6 +117,7 @@ function EventoDetalhe() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { active } = useActiveChapter();
+  const { can: canPerm, canDo } = useChapterAccess();
   const { data } = useSuspenseQuery(eventQO(id));
   const artworkUrl = useEventArtwork(data.event.ticket_artwork_url);
 
@@ -146,13 +147,14 @@ function EventoDetalhe() {
       : 0;
   const [tab, setTab] = useState("resumo");
   const canDelete =
-    can(active?.role.name, "admin") ||
-    can(active?.role.name, "comissoes") ||
-    can(active?.role.name, "secretaria");
+    canPerm("admin") ||
+    canPerm("comissoes") ||
+    canPerm("secretaria");
   const canEditFinance =
-    can(active?.role.name, "admin") ||
-    can(active?.role.name, "tesouraria") ||
-    can(active?.role.name, "comissoes");
+    canPerm("admin") ||
+    canPerm("tesouraria") ||
+    canPerm("comissoes") ||
+    canDo("eventos.orcamento");
 
   const remove = useMutation({
     mutationFn: () => deleteEvent({ data: { id } }),

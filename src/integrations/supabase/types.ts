@@ -1773,6 +1773,7 @@ export type Database = {
           id: string
           iniciacao_grau_demolay: string | null
           iniciacao_ordem: string | null
+          initiation_chapter_id: string | null
           kind: Database["public"]["Enums"]["member_kind"]
           masonic_id: string | null
           phone: string | null
@@ -1802,6 +1803,7 @@ export type Database = {
           id?: string
           iniciacao_grau_demolay?: string | null
           iniciacao_ordem?: string | null
+          initiation_chapter_id?: string | null
           kind?: Database["public"]["Enums"]["member_kind"]
           masonic_id?: string | null
           phone?: string | null
@@ -1831,6 +1833,7 @@ export type Database = {
           id?: string
           iniciacao_grau_demolay?: string | null
           iniciacao_ordem?: string | null
+          initiation_chapter_id?: string | null
           kind?: Database["public"]["Enums"]["member_kind"]
           masonic_id?: string | null
           phone?: string | null
@@ -1844,6 +1847,13 @@ export type Database = {
           {
             foreignKeyName: "members_chapter_id_fkey"
             columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_initiation_chapter_id_fkey"
+            columns: ["initiation_chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
             referencedColumns: ["id"]
@@ -2797,6 +2807,7 @@ export type Database = {
           _guardian: Json
           _iniciacao_grau_demolay?: string
           _iniciacao_ordem?: string
+          _initiation_chapter_id?: string
           _kind: Database["public"]["Enums"]["member_kind"]
           _masonic_id?: string
           _phone: string
@@ -3151,6 +3162,7 @@ export type Database = {
           _guardians?: Json
           _iniciacao_grau_demolay?: string
           _iniciacao_ordem?: string
+          _initiation_chapter_id?: string
           _kind: Database["public"]["Enums"]["member_kind"]
           _masonic_id?: string
           _member_id: string
@@ -3159,6 +3171,23 @@ export type Database = {
           _status: Database["public"]["Enums"]["member_status"]
         }
         Returns: string
+      }
+      affiliate_member_to_chapter: {
+        Args: { _chapter_id: string; _member_id: string }
+        Returns: string
+      }
+      list_chapters_for_select: {
+        Args: never
+        Returns: {
+          city: string | null
+          id: string
+          name: string
+          number: string
+        }[]
+      }
+      lookup_member_by_demolay_id: {
+        Args: { _demolay_id: string; _for_chapter_id: string }
+        Returns: Json
       }
     }
     Enums: {

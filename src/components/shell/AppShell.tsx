@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import {
   visibleGroups,
   visibleMobileTabs,
@@ -27,6 +28,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { formatClockInAppTz } from "@/lib/timezone";
+import { useChapterLogo } from "@/lib/chapter-logo";
+import { cn } from "@/lib/utils";
 
 /** Rotas mais pesadas — prefetch ao passar o mouse/foco. */
 const PRELOAD_ROUTES = [
@@ -44,6 +47,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     select: (s) => s.status === "pending" || s.isLoading === true,
   });
   const { canView } = useCommissionAccess();
+  const { ctx: accessCtx, positionLabels } = useChapterAccess();
   const navigate = useNavigate();
   const { scopes, activeScope, setActiveScopeKey, canManageOrg, isSuperAdmin } =
     useOrgScope();
@@ -51,8 +55,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     () =>
       activeScope
         ? visibleOrgGroups(canManageOrg, isSuperAdmin)
-        : visibleGroups(active?.role.name ?? null, canView),
-    [activeScope, canManageOrg, isSuperAdmin, active?.role.name, canView],
+        : visibleGroups(active?.role.name ?? null, canView, accessCtx),
+    [activeScope, canManageOrg, isSuperAdmin, active?.role.name, canView, accessCtx],
   );
   const tabs = useMemo(
     () => visibleMobileTabs(Boolean(activeScope)),
@@ -139,11 +143,20 @@ export function AppShell({ children }: { children: ReactNode }) {
     ? activeScope.label
     : (active?.chapter.name ?? "SG-CDM");
   const chapterNum = activeScope ? "" : (active?.chapter.number ?? "");
+  const logoUrl = useChapterLogo(
+    activeScope ? null : active?.chapter.logo_url,
+  );
+  const cargoLabel =
+    positionLabels.length > 0
+      ? positionLabels.map((p) => p.label).join(" · ")
+      : null;
   const headerSubtitle = activeScope
     ? isSuperAdmin
       ? "Super administrador"
       : ORG_ROLE_LABELS[activeScope.orgRole]
-    : (active?.role.label ?? "");
+    : (cargoLabel ?? "Membro Regular");
+  const footerTitle = cargoLabel ?? "Membro Regular";
+  const footerSubtitle = active?.chapter.city ?? "";
 
   async function handleSignOut() {
     if (typeof window !== "undefined") {
@@ -183,12 +196,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Sidebar (desktop) */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-card lg:flex">
         <div className="flex items-center gap-3 border-b border-border px-5 py-5">
-          <div
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] text-sm font-bold text-white"
-            style={{ backgroundColor: primary }}
-          >
-            {chapterNum ? chapterNum.slice(-3) : "SG"}
-          </div>
+          <ChapterMark
+            logoUrl={logoUrl}
+            number={chapterNum}
+            primary={primary}
+            className="h-10 w-10 rounded-[10px] text-sm"
+          />
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold">{chapterName}</div>
             {chapterNum ? (
@@ -244,11 +257,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             {active && (
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium">
-                  {active.role.label}
+                  {footerTitle}
                 </div>
-                <div className="truncate text-xs text-muted-foreground">
-                  {active.chapter.city}
-                </div>
+                {footerSubtitle ? (
+                  <div className="truncate text-xs text-muted-foreground">
+                    {footerSubtitle}
+                  </div>
+                ) : null}
               </div>
             )}
             {roleSwitchButton}
@@ -268,12 +283,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Main */}
       <div className="flex min-h-screen flex-col lg:pl-64">
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-card/95 px-4 py-3 backdrop-blur lg:hidden">
-          <div
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] text-xs font-bold text-white"
-            style={{ backgroundColor: primary }}
-          >
-            {chapterNum ? chapterNum.slice(-3) : "SG"}
-          </div>
+          <ChapterMark
+            logoUrl={logoUrl}
+            number={chapterNum}
+            primary={primary}
+            className="h-9 w-9 rounded-[8px] text-xs"
+          />
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-semibold">{chapterName}</div>
             {headerSubtitle && (
@@ -478,6 +493,41 @@ function SidebarGroup({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ChapterMark({
+  logoUrl,
+  number,
+  primary,
+  className,
+}: {
+  logoUrl: string | null;
+  number: string;
+  primary: string;
+  className?: string;
+}) {
+  if (logoUrl) {
+    return (
+      <img
+        src={logoUrl}
+        alt=""
+        className={cn("shrink-0 bg-muted object-contain", className)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "grid shrink-0 place-items-center font-bold text-white",
+        className,
+      )}
+      style={{ backgroundColor: primary }}
+      aria-hidden
+    >
+      {number ? number.slice(-3) : "SG"}
     </div>
   );
 }

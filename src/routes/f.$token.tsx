@@ -207,8 +207,6 @@ function PublicInvestigationSignup() {
           docs: {
             rg_front: form.docs.rg_front!,
             rg_back: form.docs.rg_back!,
-            cpf_front: form.docs.cpf_front!,
-            cpf_back: form.docs.cpf_back!,
           },
         },
       });

@@ -14,8 +14,6 @@ export type DocPreviewState = Record<IdDocKind, string | null>;
 export const emptyDocPaths = (): DocPathsState => ({
   rg_front: null,
   rg_back: null,
-  cpf_front: null,
-  cpf_back: null,
 });
 
 type Props = {

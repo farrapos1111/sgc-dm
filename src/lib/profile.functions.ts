@@ -289,7 +289,7 @@ export const getMyDemolayProfile = createServerFn({ method: "POST" })
       .select(
         `id, chapter_id, full_name, demolay_id, masonic_id, status, kind,
          exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay,
-         chapter:chapters(id, name, number, city, state:states(uf))`,
+         chapter:chapters!members_chapter_id_fkey(id, name, number, city, state:states(uf))`,
       )
       .in("id", ids)
       .order("full_name", { ascending: true });
@@ -479,4 +479,451 @@ export const revokeProficiencyCard = createServerFn({ method: "POST" })
       .eq("status", "active");
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+// ---------------------------------------------------------------------------
+// Self-service: próprio perfil (cadastro, frequência, cobranças, histórico)
+// ---------------------------------------------------------------------------
+
+async function assertOwnMemberId(
+  supabase: { from: (t: string) => any },
+  userId: string,
+  email: string | null,
+  memberId: string,
+): Promise<void> {
+  const { ids } = await findLinkedMemberIds(supabase, userId, email);
+  if (!ids.includes(memberId)) {
+    throw new Error("Este cadastro não está vinculado à sua conta");
+  }
+}
+
+const addressSchema = z.object({
+  zip: z.string().optional().default(""),
+  street: z.string().optional().default(""),
+  number: z.string().optional().default(""),
+  complement: z.string().optional().default(""),
+  neighborhood: z.string().optional().default(""),
+  city: z.string().optional().default(""),
+  state: z.string().optional().default(""),
+  country: z.string().optional().default("Brasil"),
+});
+
+const guardianUpdateSchema = z.object({
+  id: z.string().uuid(),
+  relationship: z.string().optional().default(""),
+  cpf: z.string().optional().default(""),
+  phone: z.string().optional().default(""),
+  email: z.string().optional().default(""),
+});
+
+export type MyCadastroMember = {
+  id: string;
+  chapter_id: string;
+  chapter_name: string | null;
+  full_name: string;
+  birth_date: string | null;
+  status: string;
+  kind: string;
+  demolay_id: string | null;
+  masonic_id: string | null;
+  phone: string;
+  email: string;
+  address: Record<string, string>;
+  cpf_last2: string | null;
+  rg_last2: string | null;
+  iniciacao_ordem: string | null;
+  exam_grau_iniciatico: string | null;
+  iniciacao_grau_demolay: string | null;
+  exam_grau_demolay: string | null;
+};
+
+export type MyCadastroGuardian = {
+  id: string;
+  full_name: string;
+  relationship: string;
+  phone: string;
+  email: string;
+  cpf_last2: string | null;
+  is_primary: boolean;
+};
+
+export const getMyMemberCadastro = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ memberId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const email = (context.claims as { email?: string } | null)?.email ?? null;
+    await assertOwnMemberId(
+      context.supabase,
+      context.userId,
+      email,
+      data.memberId,
+    );
+
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+
+    const { data: member, error } = await supabaseAdmin
+      .from("members")
+      .select(
+        `id, chapter_id, full_name, birth_date, status, kind, demolay_id, masonic_id,
+         phone, email, address, cpf_last2, rg_last2,
+         iniciacao_ordem, exam_grau_iniciatico, iniciacao_grau_demolay, exam_grau_demolay,
+         chapter:chapters!members_chapter_id_fkey(name, number)`,
+      )
+      .eq("id", data.memberId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!member) throw new Error("Membro não encontrado");
+
+    const { data: guardians, error: gErr } = await supabaseAdmin
+      .from("guardians")
+      .select("id, full_name, relationship, phone, email, cpf_last2, is_primary")
+      .eq("member_id", data.memberId)
+      .order("is_primary", { ascending: false });
+    if (gErr) throw new Error(gErr.message);
+
+    const chapter = member.chapter as
+      | { name?: string; number?: string }
+      | { name?: string; number?: string }[]
+      | null;
+    const ch = Array.isArray(chapter) ? chapter[0] : chapter;
+    const addr = (member.address ?? {}) as Record<string, string>;
+
+    const cadastro: MyCadastroMember = {
+      id: member.id,
+      chapter_id: member.chapter_id,
+      chapter_name: ch?.name
+        ? `${ch.name}${ch.number ? ` nº ${ch.number}` : ""}`
+        : null,
+      full_name: member.full_name,
+      birth_date: member.birth_date,
+      status: member.status,
+      kind: member.kind,
+      demolay_id: member.demolay_id,
+      masonic_id: member.masonic_id,
+      phone: member.phone ?? "",
+      email: member.email ?? "",
+      address: {
+        zip: addr.zip ?? "",
+        street: addr.street ?? "",
+        number: addr.number ?? "",
+        complement: addr.complement ?? "",
+        neighborhood: addr.neighborhood ?? "",
+        city: addr.city ?? "",
+        state: addr.state ?? "",
+        country: addr.country ?? "Brasil",
+      },
+      cpf_last2: member.cpf_last2 ?? null,
+      rg_last2: member.rg_last2 ?? null,
+      iniciacao_ordem: member.iniciacao_ordem,
+      exam_grau_iniciatico: member.exam_grau_iniciatico,
+      iniciacao_grau_demolay: member.iniciacao_grau_demolay,
+      exam_grau_demolay: member.exam_grau_demolay,
+    };
+
+    return {
+      member: cadastro,
+      guardians: (guardians ?? []).map((g) => ({
+        id: g.id,
+        full_name: g.full_name,
+        relationship: g.relationship ?? "",
+        phone: g.phone ?? "",
+        email: g.email ?? "",
+        cpf_last2: g.cpf_last2 ?? null,
+        is_primary: Boolean(g.is_primary),
+      })) as MyCadastroGuardian[],
+    };
+  });
+
+export const updateMyMemberCadastro = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        memberId: z.string().uuid(),
+        phone: z.string().optional().default(""),
+        email: z.string().optional().default(""),
+        address: addressSchema,
+        cpf: z.string().optional().default(""),
+        rg: z.string().optional().default(""),
+        guardians: z.array(guardianUpdateSchema).max(2).optional().default([]),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const email = (context.claims as { email?: string } | null)?.email ?? null;
+    await assertOwnMemberId(
+      context.supabase,
+      context.userId,
+      email,
+      data.memberId,
+    );
+
+    const { data: member, error } = await context.supabase
+      .from("members")
+      .select("id, demolay_id")
+      .eq("id", data.memberId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!member?.demolay_id) {
+      throw new Error(
+        "Seu cadastro ainda não possui ID DeMolay. Peça à secretaria para preencher.",
+      );
+    }
+
+    const { data: payload, error: rpcErr } = await context.supabase.rpc(
+      "submit_member_cadastro_update" as never,
+      {
+        _demolay_id: member.demolay_id,
+        _phone: data.phone || null,
+        _email: data.email || null,
+        _address: data.address,
+        _cpf: data.cpf || null,
+        _rg: data.rg || null,
+        _guardians: data.guardians,
+      } as never,
+    );
+    if (rpcErr) throw new Error(rpcErr.message);
+    return payload as { ok: boolean; changed: boolean; member_id: string };
+  });
+
+export const getMyMemberAttendance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ memberId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const email = (context.claims as { email?: string } | null)?.email ?? null;
+    await assertOwnMemberId(
+      context.supabase,
+      context.userId,
+      email,
+      data.memberId,
+    );
+
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+
+    const { data: rows, error } = await supabaseAdmin
+      .from("attendance_records")
+      .select(
+        "id, status, justification, calendar_event:calendar_events(id, title, event_type, mandatory, start_at)",
+      )
+      .eq("member_id", data.memberId);
+    if (error) throw new Error(error.message);
+    return (rows ?? []).sort((a: any, b: any) =>
+      (b.calendar_event?.start_at ?? "").localeCompare(
+        a.calendar_event?.start_at ?? "",
+      ),
+    );
+  });
+
+export const getMyMemberFinance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        memberId: z.string().uuid(),
+        chapterId: z.string().uuid(),
+        year: z.number().int().optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const email = (context.claims as { email?: string } | null)?.email ?? null;
+    await assertOwnMemberId(
+      context.supabase,
+      context.userId,
+      email,
+      data.memberId,
+    );
+
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const { currentYearMonthInAppTz } = await import("@/lib/timezone");
+
+    const { year: appYear, month: appMonth } = currentYearMonthInAppTz();
+    const year = data.year ?? appYear;
+
+    const { data: chapterRow } = await supabaseAdmin
+      .from("chapters")
+      .select("settings")
+      .eq("id", data.chapterId)
+      .maybeSingle();
+    const settings = (chapterRow?.settings ?? {}) as Record<string, unknown>;
+    const rawDefault = settings.default_dues_amount;
+    const parsedDefault =
+      typeof rawDefault === "number" ? rawDefault : Number(rawDefault);
+    const defaultAmount =
+      Number.isFinite(parsedDefault) && parsedDefault >= 0
+        ? parsedDefault
+        : 50;
+
+    const [duesRes, chargesRes, memberRes] = await Promise.all([
+      supabaseAdmin
+        .from("member_dues")
+        .select(
+          "id, competence_year, competence_month, amount, status, paid_at, cash_entry_id",
+        )
+        .eq("chapter_id", data.chapterId)
+        .eq("member_id", data.memberId)
+        .eq("competence_year", year)
+        .order("competence_month", { ascending: true }),
+      supabaseAdmin
+        .from("member_charges")
+        .select(
+          "id, kind, category, description, amount, due_date, status, paid_at, cash_entry_id, created_at",
+        )
+        .eq("chapter_id", data.chapterId)
+        .eq("member_id", data.memberId)
+        .order("due_date", { ascending: false })
+        .limit(200),
+      supabaseAdmin
+        .from("members")
+        .select("id, full_name, status, kind, birth_date, iniciacao_ordem")
+        .eq("id", data.memberId)
+        .maybeSingle(),
+    ]);
+    if (duesRes.error) throw new Error(duesRes.error.message);
+    if (chargesRes.error) throw new Error(chargesRes.error.message);
+    if (memberRes.error) throw new Error(memberRes.error.message);
+
+    const charges = chargesRes.data ?? [];
+    const chargeIds = charges.map((c) => c.id);
+    const paidByCharge = new Map<string, number>();
+    if (chargeIds.length) {
+      const { data: payments, error: payErr } = await supabaseAdmin
+        .from("member_charge_payments" as never)
+        .select("charge_id, amount")
+        .eq("chapter_id", data.chapterId)
+        .in("charge_id", chargeIds);
+      if (payErr) throw new Error(payErr.message);
+      for (const p of (payments as Array<{
+        charge_id: string;
+        amount: number | string;
+      }>) ?? []) {
+        paidByCharge.set(
+          p.charge_id,
+          (paidByCharge.get(p.charge_id) ?? 0) + Number(p.amount),
+        );
+      }
+    }
+
+    const dues = (duesRes.data ?? []).map((d) => {
+      const stored = Number(d.amount);
+      const status = d.status as string;
+      const amount =
+        status === "pago" && Number.isFinite(stored) ? stored : defaultAmount;
+      return {
+        id: d.id,
+        year: d.competence_year,
+        month: d.competence_month,
+        amount,
+        status,
+        paid_at: d.paid_at as string | null,
+      };
+    });
+
+    const chargesOut = charges.map((c) => {
+      const amount = Number(c.amount) || 0;
+      let amountPaid = paidByCharge.get(c.id) ?? 0;
+      if (amountPaid === 0 && c.status === "pago" && c.cash_entry_id) {
+        amountPaid = amount;
+      }
+      amountPaid = Math.min(amountPaid, amount);
+      return {
+        id: c.id,
+        kind: c.kind as string,
+        category: c.category,
+        description: c.description,
+        amount,
+        amount_paid: amountPaid,
+        remaining: Math.max(0, amount - amountPaid),
+        due_date: c.due_date as string,
+        status: c.status as string,
+        paid_at: c.paid_at as string | null,
+      };
+    });
+
+    let duesOpenAmount = 0;
+    let duesOpenCount = 0;
+    for (const d of dues) {
+      if (d.status !== "em_aberto") continue;
+      if (d.year > appYear || (d.year === appYear && d.month > appMonth)) continue;
+      duesOpenCount += 1;
+      duesOpenAmount += d.amount;
+    }
+
+    let chargesOpenAmount = 0;
+    let chargesOpenCount = 0;
+    for (const c of chargesOut) {
+      if (c.status === "isento") continue;
+      if (c.remaining <= 0) continue;
+      chargesOpenCount += 1;
+      chargesOpenAmount += c.remaining;
+    }
+
+    return {
+      year,
+      defaultAmount,
+      dues,
+      charges: chargesOut,
+      member: memberRes.data
+        ? {
+            id: memberRes.data.id,
+            full_name: memberRes.data.full_name,
+            status: memberRes.data.status,
+            kind: memberRes.data.kind,
+            birth_date: memberRes.data.birth_date,
+            iniciacao_ordem: memberRes.data.iniciacao_ordem,
+          }
+        : null,
+      summary: {
+        duesOpenCount,
+        duesOpenAmount,
+        chargesOpenCount,
+        chargesOpenAmount,
+        totalOpen: duesOpenAmount + chargesOpenAmount,
+      },
+    };
+  });
+
+export const getMyMemberOrgHistory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ memberId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const email = (context.claims as { email?: string } | null)?.email ?? null;
+    await assertOwnMemberId(
+      context.supabase,
+      context.userId,
+      email,
+      data.memberId,
+    );
+
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+
+    const [pos, com] = await Promise.all([
+      supabaseAdmin
+        .from("member_positions")
+        .select(
+          "id, chapter_id, term_year, term_semester, position:positions(id, code, label, scope), chapter:chapters(id, name, number)",
+        )
+        .eq("member_id", data.memberId)
+        .order("term_year", { ascending: false })
+        .order("term_semester", { ascending: false }),
+      supabaseAdmin
+        .from("commission_members")
+        .select(
+          "id, chapter_id, role, term_year, term_semester, commission:commissions(id, label), chapter:chapters(id, name, number)",
+        )
+        .eq("member_id", data.memberId)
+        .order("term_year", { ascending: false })
+        .order("term_semester", { ascending: false }),
+    ]);
+    if (pos.error) throw new Error(pos.error.message);
+    if (com.error) throw new Error(com.error.message);
+    return { positions: pos.data ?? [], commissions: com.data ?? [] };
   });
