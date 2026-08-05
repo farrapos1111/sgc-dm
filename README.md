@@ -5,7 +5,7 @@ Aplicação web para a gestão de capítulos da Ordem DeMolay: membros, atas, pr
 ## O que faz
 
 - **Secretaria** — cadastro de membros (com responsáveis para menores e consentimento LGPD), atas com fluxo de rascunho → revisão → aprovação e três assinaturas, presenças e frequência
-- **Tesouraria** — fluxo de caixa com categorias e subcategorias por comissão, mensalidades que viram lançamento de caixa automaticamente, importação/exportação em XLSX e relatório em PDF
+- **Tesouraria** — fluxo de caixa com categorias e subcategorias por comissão, mensalidades que viram lançamento de caixa automaticamente, cobrança de atrasados por membro (WhatsApp), importação/exportação em XLSX e relatório em PDF
 - **Gestão** — calendário com exportação `.ics`/Google/Outlook, cargos e comissões por semestre, identidade do capítulo
 - **Comissão de Eventos** — ingressos, mapa de mesas e assentos, QR Code e check-in pela câmera
 - **Comissão de Sindicâncias** — fichas de candidatos e processos com parecer

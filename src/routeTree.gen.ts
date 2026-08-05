@@ -65,6 +65,7 @@ import { Route as AuthenticatedShellSindicanciasConfigRouteImport } from './rout
 import { Route as AuthenticatedShellSindicanciasFichasRouteImport } from './routes/_authenticated/_shell/sindicancias.fichas'
 import { Route as AuthenticatedShellSindicanciasProcessosRouteImport } from './routes/_authenticated/_shell/sindicancias.processos'
 import { Route as AuthenticatedShellSindicanciasSindicariasRouteImport } from './routes/_authenticated/_shell/sindicancias.sindicarias'
+import { Route as AuthenticatedShellTesourariaAtrasadosRouteImport } from './routes/_authenticated/_shell/tesouraria.atrasados'
 import { Route as AuthenticatedShellTesourariaCobrancasRouteImport } from './routes/_authenticated/_shell/tesouraria.cobrancas'
 import { Route as AuthenticatedShellTesourariaFluxoRouteImport } from './routes/_authenticated/_shell/tesouraria.fluxo'
 import { Route as AuthenticatedShellTesourariaMensalidadesRouteImport } from './routes/_authenticated/_shell/tesouraria.mensalidades'
@@ -380,6 +381,12 @@ const AuthenticatedShellSindicanciasSindicariasRoute =
     path: '/sindicancias/sindicarias',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
+const AuthenticatedShellTesourariaAtrasadosRoute =
+  AuthenticatedShellTesourariaAtrasadosRouteImport.update({
+    id: '/tesouraria/atrasados',
+    path: '/tesouraria/atrasados',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
 const AuthenticatedShellTesourariaCobrancasRoute =
   AuthenticatedShellTesourariaCobrancasRouteImport.update({
     id: '/tesouraria/cobrancas',
@@ -463,6 +470,7 @@ export interface FileRoutesByFullPath {
   '/sindicancias/fichas': typeof AuthenticatedShellSindicanciasFichasRoute
   '/sindicancias/processos': typeof AuthenticatedShellSindicanciasProcessosRoute
   '/sindicancias/sindicarias': typeof AuthenticatedShellSindicanciasSindicariasRoute
+  '/tesouraria/atrasados': typeof AuthenticatedShellTesourariaAtrasadosRoute
   '/tesouraria/cobrancas': typeof AuthenticatedShellTesourariaCobrancasRoute
   '/tesouraria/fluxo': typeof AuthenticatedShellTesourariaFluxoRoute
   '/tesouraria/mensalidades': typeof AuthenticatedShellTesourariaMensalidadesRoute
@@ -522,6 +530,7 @@ export interface FileRoutesByTo {
   '/sindicancias/fichas': typeof AuthenticatedShellSindicanciasFichasRoute
   '/sindicancias/processos': typeof AuthenticatedShellSindicanciasProcessosRoute
   '/sindicancias/sindicarias': typeof AuthenticatedShellSindicanciasSindicariasRoute
+  '/tesouraria/atrasados': typeof AuthenticatedShellTesourariaAtrasadosRoute
   '/tesouraria/cobrancas': typeof AuthenticatedShellTesourariaCobrancasRoute
   '/tesouraria/fluxo': typeof AuthenticatedShellTesourariaFluxoRoute
   '/tesouraria/mensalidades': typeof AuthenticatedShellTesourariaMensalidadesRoute
@@ -586,6 +595,7 @@ export interface FileRoutesById {
   '/_authenticated/_shell/sindicancias/fichas': typeof AuthenticatedShellSindicanciasFichasRoute
   '/_authenticated/_shell/sindicancias/processos': typeof AuthenticatedShellSindicanciasProcessosRoute
   '/_authenticated/_shell/sindicancias/sindicarias': typeof AuthenticatedShellSindicanciasSindicariasRoute
+  '/_authenticated/_shell/tesouraria/atrasados': typeof AuthenticatedShellTesourariaAtrasadosRoute
   '/_authenticated/_shell/tesouraria/cobrancas': typeof AuthenticatedShellTesourariaCobrancasRoute
   '/_authenticated/_shell/tesouraria/fluxo': typeof AuthenticatedShellTesourariaFluxoRoute
   '/_authenticated/_shell/tesouraria/mensalidades': typeof AuthenticatedShellTesourariaMensalidadesRoute
@@ -649,6 +659,7 @@ export interface FileRouteTypes {
     | '/sindicancias/fichas'
     | '/sindicancias/processos'
     | '/sindicancias/sindicarias'
+    | '/tesouraria/atrasados'
     | '/tesouraria/cobrancas'
     | '/tesouraria/fluxo'
     | '/tesouraria/mensalidades'
@@ -708,6 +719,7 @@ export interface FileRouteTypes {
     | '/sindicancias/fichas'
     | '/sindicancias/processos'
     | '/sindicancias/sindicarias'
+    | '/tesouraria/atrasados'
     | '/tesouraria/cobrancas'
     | '/tesouraria/fluxo'
     | '/tesouraria/mensalidades'
@@ -771,6 +783,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/sindicancias/fichas'
     | '/_authenticated/_shell/sindicancias/processos'
     | '/_authenticated/_shell/sindicancias/sindicarias'
+    | '/_authenticated/_shell/tesouraria/atrasados'
     | '/_authenticated/_shell/tesouraria/cobrancas'
     | '/_authenticated/_shell/tesouraria/fluxo'
     | '/_authenticated/_shell/tesouraria/mensalidades'
@@ -1190,6 +1203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellSindicanciasSindicariasRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
+    '/_authenticated/_shell/tesouraria/atrasados': {
+      id: '/_authenticated/_shell/tesouraria/atrasados'
+      path: '/tesouraria/atrasados'
+      fullPath: '/tesouraria/atrasados'
+      preLoaderRoute: typeof AuthenticatedShellTesourariaAtrasadosRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
     '/_authenticated/_shell/tesouraria/cobrancas': {
       id: '/_authenticated/_shell/tesouraria/cobrancas'
       path: '/tesouraria/cobrancas'
@@ -1258,6 +1278,7 @@ interface AuthenticatedShellRouteRouteChildren {
   AuthenticatedShellSindicanciasFichasRoute: typeof AuthenticatedShellSindicanciasFichasRoute
   AuthenticatedShellSindicanciasProcessosRoute: typeof AuthenticatedShellSindicanciasProcessosRoute
   AuthenticatedShellSindicanciasSindicariasRoute: typeof AuthenticatedShellSindicanciasSindicariasRoute
+  AuthenticatedShellTesourariaAtrasadosRoute: typeof AuthenticatedShellTesourariaAtrasadosRoute
   AuthenticatedShellTesourariaCobrancasRoute: typeof AuthenticatedShellTesourariaCobrancasRoute
   AuthenticatedShellTesourariaFluxoRoute: typeof AuthenticatedShellTesourariaFluxoRoute
   AuthenticatedShellTesourariaMensalidadesRoute: typeof AuthenticatedShellTesourariaMensalidadesRoute
@@ -1314,6 +1335,8 @@ const AuthenticatedShellRouteRouteChildren: AuthenticatedShellRouteRouteChildren
       AuthenticatedShellSindicanciasProcessosRoute,
     AuthenticatedShellSindicanciasSindicariasRoute:
       AuthenticatedShellSindicanciasSindicariasRoute,
+    AuthenticatedShellTesourariaAtrasadosRoute:
+      AuthenticatedShellTesourariaAtrasadosRoute,
     AuthenticatedShellTesourariaCobrancasRoute:
       AuthenticatedShellTesourariaCobrancasRoute,
     AuthenticatedShellTesourariaFluxoRoute:

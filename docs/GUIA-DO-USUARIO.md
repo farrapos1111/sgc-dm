@@ -95,6 +95,8 @@ Também é possível **importar uma planilha** de lançamentos (com uma tela de 
 
 O ponto mais prático: **mensalidade paga vira lançamento no caixa sozinha.** Ao marcar como paga, a entrada aparece no fluxo de caixa na categoria Mensalidades; se o status for desfeito, o lançamento sai junto. Não há risco de contar o dinheiro duas vezes nem de esquecer de lançar. Para pagamentos negociados ou de vários meses de uma vez, há um lançamento manual que divide o valor entre as competências escolhidas.
 
+**Atrasados.** Visão por membro das mensalidades em aberto (atrasadas e do mês atual), com destaque para quem está atrasado. Em cada card dá para **copiar a mensagem de cobrança** ou **abrir o WhatsApp** já com o texto pronto — incluindo o PIX do capítulo e o nome do Tesoureiro. Se o membro tiver telefone no cadastro, o WhatsApp abre direto no chat; se não tiver, abre só com a mensagem para você escolher o contato.
+
 ### Gestão
 
 **Calendário.** Todos os compromissos do capítulo, em cinco tipos: sessão ritualística, sessão administrativa, evento, filantropia e entretenimento. Cada compromisso pode indicar obrigatoriedade, se é aberto ao público, traje e local. Dá para baixar o compromisso para o calendário do celular ou abrir direto no Google Agenda ou no Outlook, e gerar o texto da chave do dia. Há ainda um assistente que ajuda a escrever a descrição do evento.
