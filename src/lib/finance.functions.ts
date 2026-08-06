@@ -249,6 +249,7 @@ async function listCashEntriesRows(
       .lt("entry_date", periodEnd)
       .order("entry_date", { ascending: false })
       .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
       .range(offset, offset + pageSize - 1);
     if (error) throw new Error(error.message);
     const rows = data ?? [];
