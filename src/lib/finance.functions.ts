@@ -1665,6 +1665,8 @@ export const listMemberCharges = createServerFn({ method: "POST" })
     })();
 
     const visibleRows = (rows ?? []).filter((r: any) => {
+      // Cobranças de R$ 0 (ex.: ingresso gratuito) não entram na lista.
+      if ((Number(r.amount) || 0) < 0.01) return false;
       if (r.status !== "pago") return true;
       const paidAt = typeof r.paid_at === "string" ? r.paid_at.slice(0, 10) : "";
       if (!paidAt) return true;
