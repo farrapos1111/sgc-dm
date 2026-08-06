@@ -270,12 +270,6 @@ export function TicketComandaDialog({
   const [editPrice, setEditPrice] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
-  useTicketComandaRealtime({
-    eventId,
-    ticketId,
-    enabled: open,
-  });
-
   const financeQ = useQuery({
     queryKey: ["event-finance", eventId],
     queryFn: () => listEventFinance({ data: { eventId } }),
@@ -290,6 +284,13 @@ export function TicketComandaDialog({
   const checkoutQ = useQuery({
     queryKey: ["comanda-checkout", eventId, ticketId],
     queryFn: () => getComandaCheckout({ data: { eventId, ticketId } }),
+    enabled: open,
+  });
+
+  useTicketComandaRealtime({
+    eventId,
+    ticketId,
+    chargeId: checkoutQ.data?.charge?.id ?? null,
     enabled: open,
   });
 
@@ -441,11 +442,13 @@ export function TicketComandaDialog({
     },
     onSuccess: () => {
       toast.success("Pendências baixadas e lançadas no caixa");
-      invalidateComanda(qc, eventId);
       setCheckoutOpen(false);
     },
     onError: (e) =>
       toast.error(mutationErrorMessage(e, "Erro ao baixar pendências")),
+    onSettled: () => {
+      invalidateComanda(qc, eventId);
+    },
   });
 
   function pickItem(id: string) {
@@ -808,7 +811,15 @@ export function TicketComandaDialog({
               <Button
                 style={{ backgroundColor: primary }}
                 disabled={payAllPending.isPending}
-                onClick={() => payAllPending.mutate()}
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: "Baixar todas as pendências?",
+                    description:
+                      "Quita o ingresso em aberto e todos os itens não baixados, lançando cada valor no fluxo de caixa.",
+                    confirmLabel: "Baixar tudo",
+                  });
+                  if (ok) payAllPending.mutate();
+                }}
               >
                 {payAllPending.isPending
                   ? "Baixando…"

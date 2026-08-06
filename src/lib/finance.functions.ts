@@ -1739,7 +1739,7 @@ export const addChargePayment = createServerFn({ method: "POST" })
     const { data: charge, error: chargeErr } = await context.supabase
       .from("member_charges")
       .select(
-        "id, chapter_id, kind, category, subcategory, description, amount, status, cash_entry_id, member_id, members(full_name)",
+        "id, chapter_id, kind, category, subcategory, description, amount, status, cash_entry_id, member_id",
       )
       .eq("id", data.chargeId)
       .eq("chapter_id", data.chapterId)
@@ -1774,10 +1774,7 @@ export const addChargePayment = createServerFn({ method: "POST" })
       );
     }
 
-    const memberName =
-      (charge.members as { full_name?: string } | null)?.full_name?.trim() ||
-      "Membro";
-    const cashDescription = `${charge.description} - ${memberName}`;
+    const cashDescription = charge.description;
 
     const { data: entry, error: entryErr } = await context.supabase
       .from("cash_entries")
@@ -1864,7 +1861,7 @@ export const updateChargePayment = createServerFn({ method: "POST" })
     const { data: charge, error: chErr } = await context.supabase
       .from("member_charges")
       .select(
-        "id, amount, status, kind, category, subcategory, description, members(full_name)",
+        "id, amount, status, kind, category, subcategory, description",
       )
       .eq("id", pay.charge_id)
       .single();
@@ -1900,10 +1897,7 @@ export const updateChargePayment = createServerFn({ method: "POST" })
       .eq("id", pay.id);
     if (updPayErr) throw new Error(updPayErr.message);
 
-    const memberName =
-      (charge.members as { full_name?: string } | null)?.full_name?.trim() ||
-      "Membro";
-    const cashDescription = `${charge.description} - ${memberName}`;
+    const cashDescription = charge.description;
 
     if (pay.cash_entry_id) {
       const { error: cashErr } = await context.supabase
@@ -2037,7 +2031,7 @@ export const upsertMemberCharge = createServerFn({ method: "POST" })
       }
 
       if (data.status === "pago" && !cashEntryId && data.amount > 0) {
-        const cashDescription = `${data.description} - ${member.full_name}`;
+        const cashDescription = data.description;
         const { data: entry, error: entryErr } = await context.supabase
           .from("cash_entries")
           .insert({

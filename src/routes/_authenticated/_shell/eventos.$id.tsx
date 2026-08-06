@@ -691,7 +691,7 @@ function TicketsList({
                     <Select
                       value={t.ticket_type_id ?? "__avulso__"}
                       disabled={changeType.isPending}
-                      onValueChange={(v) => {
+                      onValueChange={async (v) => {
                         const ticketTypeId = v === "__avulso__" ? null : v;
                         if (ticketTypeId === (t.ticket_type_id ?? null)) return;
                         const type = ticketTypeId
@@ -700,6 +700,16 @@ function TicketsList({
                         const pricePaid = type
                           ? Number(type.price) || 0
                           : Number(t.price_paid) || 0;
+                        const currentPrice = Number(t.price_paid) || 0;
+                        const typeLabel =
+                          type?.name ??
+                          (ticketTypeId ? "Tipo" : "Avulso");
+                        const ok = await confirm({
+                          title: "Alterar tipo de ingresso?",
+                          description: `De ${formatBRL(currentPrice)} para ${typeLabel} · ${formatBRL(pricePaid)}. A cobrança do vendedor será sincronizada com o novo valor.`,
+                          confirmLabel: "Alterar",
+                        });
+                        if (!ok) return;
                         changeType.mutate({
                           ticketId: t.id,
                           ticketTypeId,

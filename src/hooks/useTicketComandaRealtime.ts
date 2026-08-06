@@ -6,9 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 export function useTicketComandaRealtime(opts: {
   eventId: string;
   ticketId: string;
+  chargeId?: string | null;
   enabled?: boolean;
 }) {
-  const { eventId, ticketId, enabled = true } = opts;
+  const { eventId, ticketId, chargeId = null, enabled = true } = opts;
   const qc = useQueryClient();
   const [live, setLive] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -30,7 +31,7 @@ export function useTicketComandaRealtime(opts: {
       }, 150);
     };
 
-    const channel = supabase
+    let channel = supabase
       .channel(`comanda-${ticketId}`)
       .on(
         "postgres_changes",
@@ -51,17 +52,31 @@ export function useTicketComandaRealtime(opts: {
           filter: `id=eq.${ticketId}`,
         },
         bump,
-      )
-      .subscribe((status) => {
-        setLive(status === "SUBSCRIBED");
-      });
+      );
+
+    if (chargeId) {
+      channel = channel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "member_charge_payments",
+          filter: `charge_id=eq.${chargeId}`,
+        },
+        bump,
+      );
+    }
+
+    channel.subscribe((status) => {
+      setLive(status === "SUBSCRIBED");
+    });
 
     return () => {
       if (timer.current) clearTimeout(timer.current);
       setLive(false);
       void supabase.removeChannel(channel);
     };
-  }, [enabled, eventId, ticketId, qc]);
+  }, [enabled, eventId, ticketId, chargeId, qc]);
 
   return { live };
 }

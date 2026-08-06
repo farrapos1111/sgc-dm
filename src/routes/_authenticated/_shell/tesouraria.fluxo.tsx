@@ -240,7 +240,7 @@ function FluxoCaixa() {
     const names = new Set<string>();
     for (const e of entries) {
       if (selectedCategories.length && !selectedCategories.includes(e.category)) continue;
-      if (e.subcategory) names.add(e.subcategory);
+      if (e.category === "Eventos" && e.subcategory) names.add(e.subcategory);
     }
     for (const s of subcategories) {
       if (!s.name) continue;
