@@ -624,8 +624,7 @@ function Cobrancas() {
                       onClick={async () => {
                         const ok = await confirm({
                           title: "Excluir cobrança?",
-                          description:
-                            "Excluir esta cobrança e seus pagamentos?",
+                          description: `Excluir a cobrança “${c.description}” de ${c.member_name || "membro"} e seus pagamentos?`,
                           confirmLabel: "Excluir",
                         });
                         if (ok) remove.mutate(c.id);

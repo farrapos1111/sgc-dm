@@ -24,6 +24,25 @@ function periodEndDate(year: number, month: number | null): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-01`;
 }
 
+/** Soma N dias a uma data YYYY-MM-DD (calendário civil, UTC). */
+function ymdPlusDays(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+}
+
+/**
+ * Limite exclusivo de entry_date: lançamentos com data futura ainda não
+ * contabilizam no fluxo (só a partir da data marcada).
+ */
+function cashEffectiveUntilExclusive(requestedExclusive?: string): string {
+  const cap = ymdPlusDays(todayYmd(), 1);
+  if (!requestedExclusive) return cap;
+  return requestedExclusive < cap ? requestedExclusive : cap;
+}
+
 type CashAggRow = { kind: string; amount: number | string };
 
 /** Soma entradas/saídas paginando para não cortar no limite padrão do PostgREST. */
@@ -261,22 +280,31 @@ export const listCashEntries = createServerFn({ method: "POST" })
       ? `${data.year}-${String(data.month).padStart(2, "0")}-01`
       : `${data.year}-01-01`;
     const periodEnd = periodEndDate(data.year, data.month);
+    const periodEndEff = cashEffectiveUntilExclusive(periodEnd);
+    const openingUntil = cashEffectiveUntilExclusive(periodStart);
+    const bankUntil = cashEffectiveUntilExclusive();
 
     const [entries, openingAgg, periodAgg, bankAgg] = await Promise.all([
-      listCashEntriesRows(
-        context.supabase,
-        data.chapterId,
-        periodStart,
-        periodEnd,
-      ),
+      periodStart >= periodEndEff
+        ? Promise.resolve([])
+        : listCashEntriesRows(
+            context.supabase,
+            data.chapterId,
+            periodStart,
+            periodEndEff,
+          ),
       aggregateCashAmounts(context.supabase, data.chapterId, {
-        until: periodStart,
+        until: openingUntil,
       }),
+      periodStart >= periodEndEff
+        ? Promise.resolve({ income: 0, expense: 0, balance: 0 })
+        : aggregateCashAmounts(context.supabase, data.chapterId, {
+            from: periodStart,
+            until: periodEndEff,
+          }),
       aggregateCashAmounts(context.supabase, data.chapterId, {
-        from: periodStart,
-        until: periodEnd,
+        until: bankUntil,
       }),
-      aggregateCashAmounts(context.supabase, data.chapterId),
     ]);
 
     const eventIds = [
@@ -555,8 +583,9 @@ export const importCashEntries = createServerFn({ method: "POST" })
 /* ------------------------------- Categorias ------------------------------ */
 
 /**
- * Categorias fixas do capítulo + subcategorias dinâmicas configuradas pelas
- * comissões de Eventos e Hospitalaria (com os eventos do calendário).
+ * Categorias fixas do capítulo + subcategorias dinâmicas da Comissão de Eventos
+ * (e itens do financeiro dos eventos operacionais).
+ * Hospitalaria é categoria padrão — sem subcategorias na UI do fluxo.
  */
 export const listCashCategories = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -580,6 +609,7 @@ export const listCashCategories = createServerFn({ method: "POST" })
         .from("cash_subcategories")
         .select("id, scope, calendar_event_id, name, active")
         .eq("chapter_id", data.chapterId)
+        .eq("scope", "eventos")
         .eq("active", true)
         .order("name"),
       context.supabase
@@ -1624,7 +1654,23 @@ export const listMemberCharges = createServerFn({ method: "POST" })
     const { data: rows, error } = await query;
     if (error) throw new Error(error.message);
 
-    const chargeIds = (rows ?? []).map((r: any) => r.id as string);
+    // Cobranças pagas há mais de 7 dias saem do registro (lista padrão).
+    const cutoff = (() => {
+      const [y, m, d] = todayYmd().split("-").map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d));
+      dt.setUTCDate(dt.getUTCDate() - 7);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+    })();
+
+    const visibleRows = (rows ?? []).filter((r: any) => {
+      if (r.status !== "pago") return true;
+      const paidAt = typeof r.paid_at === "string" ? r.paid_at.slice(0, 10) : "";
+      if (!paidAt) return true;
+      return paidAt >= cutoff;
+    });
+
+    const chargeIds = visibleRows.map((r: any) => r.id as string);
     const paidByCharge = new Map<string, number>();
     if (chargeIds.length) {
       const { data: payments, error: payErr } = await context.supabase
@@ -1648,7 +1694,7 @@ export const listMemberCharges = createServerFn({ method: "POST" })
       }
     }
 
-    return (rows ?? []).map((r: any) => {
+    return visibleRows.map((r: any) => {
       const amount = Number(r.amount) || 0;
       let amountPaid = paidByCharge.get(r.id) ?? 0;
       // Legacy: pago com cash_entry e sem linhas de pagamento
@@ -1693,7 +1739,7 @@ export const addChargePayment = createServerFn({ method: "POST" })
     const { data: charge, error: chargeErr } = await context.supabase
       .from("member_charges")
       .select(
-        "id, chapter_id, kind, category, subcategory, description, amount, status, cash_entry_id",
+        "id, chapter_id, kind, category, subcategory, description, amount, status, cash_entry_id, member_id, members(full_name)",
       )
       .eq("id", data.chargeId)
       .eq("chapter_id", data.chapterId)
@@ -1728,6 +1774,11 @@ export const addChargePayment = createServerFn({ method: "POST" })
       );
     }
 
+    const memberName =
+      (charge.members as { full_name?: string } | null)?.full_name?.trim() ||
+      "Membro";
+    const cashDescription = `${charge.description} - ${memberName}`;
+
     const { data: entry, error: entryErr } = await context.supabase
       .from("cash_entries")
       .insert({
@@ -1735,7 +1786,7 @@ export const addChargePayment = createServerFn({ method: "POST" })
         kind: charge.kind,
         category: charge.category,
         subcategory: charge.subcategory,
-        description: charge.description,
+        description: cashDescription,
         amount: data.amount,
         entry_date: data.paidAt,
         created_by: context.userId,
@@ -1812,7 +1863,9 @@ export const updateChargePayment = createServerFn({ method: "POST" })
 
     const { data: charge, error: chErr } = await context.supabase
       .from("member_charges")
-      .select("id, amount, status, kind, category, subcategory, description")
+      .select(
+        "id, amount, status, kind, category, subcategory, description, members(full_name)",
+      )
       .eq("id", pay.charge_id)
       .single();
     if (chErr) throw new Error(chErr.message);
@@ -1847,13 +1900,18 @@ export const updateChargePayment = createServerFn({ method: "POST" })
       .eq("id", pay.id);
     if (updPayErr) throw new Error(updPayErr.message);
 
+    const memberName =
+      (charge.members as { full_name?: string } | null)?.full_name?.trim() ||
+      "Membro";
+    const cashDescription = `${charge.description} - ${memberName}`;
+
     if (pay.cash_entry_id) {
       const { error: cashErr } = await context.supabase
         .from("cash_entries")
         .update({
           amount: data.amount,
           entry_date: data.paidAt,
-          description: charge.description,
+          description: cashDescription,
           category: charge.category,
           subcategory: charge.subcategory,
           kind: charge.kind,
@@ -1979,6 +2037,7 @@ export const upsertMemberCharge = createServerFn({ method: "POST" })
       }
 
       if (data.status === "pago" && !cashEntryId && data.amount > 0) {
+        const cashDescription = `${data.description} - ${member.full_name}`;
         const { data: entry, error: entryErr } = await context.supabase
           .from("cash_entries")
           .insert({
@@ -1986,7 +2045,7 @@ export const upsertMemberCharge = createServerFn({ method: "POST" })
             kind: data.kind,
             category: data.category,
             subcategory: data.subcategory,
-            description: data.description,
+            description: cashDescription,
             amount: data.amount,
             entry_date: paidAt,
             created_by: context.userId,

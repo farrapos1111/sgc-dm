@@ -311,6 +311,8 @@ function CalendarioPage() {
                     setCreateOpen(false);
                     setCreateDate(null);
                     qc.invalidateQueries({ queryKey: ["calendar"] });
+                    qc.invalidateQueries({ queryKey: ["calendar-chave-text"] });
+                    qc.invalidateQueries({ queryKey: ["calendar-next"] });
                   }}
                 />
               </Dialog>
@@ -469,6 +471,8 @@ function CalendarioPage() {
               onDeleted={() => {
                 setDetail(null);
                 qc.invalidateQueries({ queryKey: ["calendar"] });
+                qc.invalidateQueries({ queryKey: ["calendar-chave-text"] });
+                qc.invalidateQueries({ queryKey: ["calendar-next"] });
               }}
             />
           )}
@@ -487,6 +491,8 @@ function CalendarioPage() {
             onCreated={() => {
               setEditItem(null);
               qc.invalidateQueries({ queryKey: ["calendar"] });
+              qc.invalidateQueries({ queryKey: ["calendar-chave-text"] });
+              qc.invalidateQueries({ queryKey: ["calendar-next"] });
             }}
           />
         )}
@@ -786,7 +792,19 @@ function DetailContent({
   const meta = TYPE_META[item.event_type];
   const { active: activeChapter } = useActiveChapter();
   const { data: chaveText } = useQuery({
-    queryKey: ["calendar-chave-text", item.id, activeChapter?.chapter_id],
+    queryKey: [
+      "calendar-chave-text",
+      item.id,
+      activeChapter?.chapter_id,
+      item.dress_code,
+      item.location,
+      item.address,
+      item.title,
+      item.description,
+      item.start_at,
+      item.end_at,
+      item.event_type,
+    ],
     queryFn: () =>
       resolveCalendarChaveText(item, activeChapter?.chapter),
   });

@@ -54,6 +54,8 @@ export type EventTicketItemRow = {
   unit_price: number;
   amount: number;
   cash_entry_id: string | null;
+  /** true quando já há lançamento no caixa (baixado). */
+  paid: boolean;
   created_at: string;
   item_name?: string;
   category_name?: string;
@@ -242,7 +244,11 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
       .eq("event_id", data.eventId)
       .eq("category", "Eventos");
     if (data.from) q = q.gte("entry_date", data.from);
-    if (data.until) q = q.lte("entry_date", data.until);
+    // Lançamentos futuros (após hoje) ainda não contabilizam.
+    const today = todayYmd();
+    const untilCap =
+      data.until && data.until < today ? data.until : today;
+    q = q.lte("entry_date", untilCap);
 
     const { data: entries, error } = await q.order("entry_date", {
       ascending: true,
@@ -756,6 +762,7 @@ export const listEventTicketItems = createServerFn({ method: "POST" })
         qty: Number(r.qty),
         unit_price: Number(r.unit_price),
         amount: Number(r.amount),
+        paid: !!r.cash_entry_id,
         item_name: item?.name,
         category_name: item ? catMap.get(item.category_id) : undefined,
       } satisfies EventTicketItemRow;
@@ -852,7 +859,10 @@ export const deleteEventTicketItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ lineId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    await assertComandaEditable(context.supabase, { lineId: data.lineId });
+    await assertComandaEditable(context.supabase, {
+      lineId: data.lineId,
+      allowPaidLine: true,
+    });
 
     const { data: result, error } = await context.supabase.rpc(
       "delete_event_ticket_item",
@@ -878,42 +888,53 @@ export const deleteEventTicket = createServerFn({ method: "POST" })
     };
   });
 
-/** Bloqueia alteração se a cobrança do vendedor já estiver quitada. */
+/** Bloqueia alteração se o ingresso estiver cancelado. */
 async function assertComandaEditable(
-  // Cliente tipado do middleware; assinatura mínima para o helper.
   supabase: {
     from: (table: string) => any;
   },
-  opts: { ticketId?: string; lineId?: string },
+  opts: {
+    ticketId?: string;
+    lineId?: string;
+    /** Se true, permite linhas já baixadas (ex.: exclusão com estorno no caixa). */
+    allowPaidLine?: boolean;
+  },
 ) {
   let ticketId = opts.ticketId ?? null;
   if (!ticketId && opts.lineId) {
     const { data: line, error } = await supabase
       .from("event_ticket_items")
-      .select("ticket_id")
+      .select("ticket_id, cash_entry_id")
       .eq("id", opts.lineId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     ticketId = line?.ticket_id ?? null;
+    if (!opts.allowPaidLine && line?.cash_entry_id) {
+      throw new Error("Item já baixado — não é possível alterar");
+    }
   }
   if (!ticketId) return;
 
   const { data: ticket, error: tErr } = await supabase
     .from("tickets")
-    .select("seller_charge_id")
+    .select("status")
     .eq("id", ticketId)
     .maybeSingle();
   if (tErr) throw new Error(tErr.message);
-  if (!ticket?.seller_charge_id) return;
+  if (ticket?.status === "cancelado") {
+    throw new Error("Ingresso cancelado");
+  }
 
-  const { data: charge, error: cErr } = await supabase
-    .from("member_charges")
-    .select("status")
-    .eq("id", ticket.seller_charge_id)
+  const { data: checkin, error: cinErr } = await supabase
+    .from("checkins")
+    .select("id")
+    .eq("ticket_id", ticketId)
     .maybeSingle();
-  if (cErr) throw new Error(cErr.message);
-  if (charge?.status === "pago") {
-    throw new Error("Comanda já quitada — não é possível alterar");
+  if (cinErr) throw new Error(cinErr.message);
+  if (!checkin) {
+    throw new Error(
+      "Comanda disponível somente após o check-in no evento",
+    );
   }
 }
 
@@ -974,6 +995,7 @@ export const getComandaCheckout = createServerFn({ method: "POST" })
         qty: Number(r.qty),
         unit_price: Number(r.unit_price),
         amount: Number(r.amount),
+        paid: !!r.cash_entry_id,
         item_name: item?.name,
       };
     });
@@ -983,6 +1005,8 @@ export const getComandaCheckout = createServerFn({ method: "POST" })
       status: string;
       amount: number | string;
       description: string;
+      amount_paid: number;
+      remaining: number;
     } | null = null;
     if (ticket.seller_charge_id) {
       const { data: c, error: cErr } = await context.supabase
@@ -991,7 +1015,28 @@ export const getComandaCheckout = createServerFn({ method: "POST" })
         .eq("id", ticket.seller_charge_id)
         .maybeSingle();
       if (cErr) throw new Error(cErr.message);
-      charge = c;
+      if (c) {
+        const totalDue = Number(c.amount) || 0;
+        const { data: pays, error: payErr } = await context.supabase
+          .from("member_charge_payments" as never)
+          .select("amount")
+          .eq("charge_id", c.id);
+        if (payErr) throw new Error(payErr.message);
+        let amountPaid = (
+          (pays as Array<{ amount: number | string }> | null) ?? []
+        ).reduce((s, p) => s + Number(p.amount), 0);
+        // Baixas antigas sem linhas em member_charge_payments.
+        // Não tratar cobrança R$ 0 como “paga no valor atual” (evita mascarar
+        // troca de cortesia → ingresso pago se o status ainda estiver pago).
+        if (amountPaid === 0 && c.status === "pago" && totalDue > 0) {
+          amountPaid = totalDue;
+        }
+        charge = {
+          ...c,
+          amount_paid: Math.min(amountPaid, totalDue),
+          remaining: Math.max(0, totalDue - amountPaid),
+        };
+      }
     }
 
     const { data: chapter, error: chErr } = await context.supabase
@@ -1050,16 +1095,58 @@ export const getComandaCheckout = createServerFn({ method: "POST" })
             status: charge.status,
             amount: Number(charge.amount),
             description: charge.description,
+            amount_paid: charge.amount_paid,
+            remaining: charge.remaining,
           }
         : null,
       lines,
       ticketAmount,
       comandaTotal,
+      unpaidComandaTotal: lines
+        .filter((l) => !l.paid)
+        .reduce((s, l) => s + Number(l.amount), 0),
       grandTotal: ticketAmount + comandaTotal,
     };
   });
 
-/** Quita a cobrança do ingresso vinculada ao vendedor (checkout da comanda). */
+/** Baixa um item da comanda (lança no fluxo de caixa). */
+export const payEventTicketItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        lineId: z.string().uuid(),
+        paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    await assertComandaEditable(context.supabase, {
+      lineId: data.lineId,
+      allowPaidLine: true,
+    });
+    const paidAt = data.paidAt ?? todayYmd();
+    const { data: result, error } = await context.supabase.rpc(
+      "pay_event_ticket_item" as never,
+      {
+        _line_id: data.lineId,
+        _paid_at: paidAt,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    const row = result as {
+      ok?: boolean;
+      already_paid?: boolean;
+      amount?: number;
+    };
+    return {
+      ok: true as const,
+      alreadyPaid: Boolean(row?.already_paid),
+      amount: Number(row?.amount) || 0,
+    };
+  });
+
+/** Baixa a cobrança do ingresso (parcial ou total) e lança no fluxo. */
 export const checkoutEventTicketComanda = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
@@ -1067,23 +1154,35 @@ export const checkoutEventTicketComanda = createServerFn({ method: "POST" })
       .object({
         eventId: z.string().uuid(),
         ticketId: z.string().uuid(),
+        amount: z.number().positive().optional(),
       })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    await assertComandaEditable(context.supabase, { ticketId: data.ticketId });
     const paidAt = todayYmd();
     const { data: checkout, error: checkoutErr } = await context.supabase.rpc(
-      "checkout_event_ticket_comanda",
+      "checkout_event_ticket_comanda" as never,
       {
         _event_id: data.eventId,
         _ticket_id: data.ticketId,
         _paid_at: paidAt,
-      },
+        _amount: data.amount ?? null,
+      } as never,
     );
     if (checkoutErr) throw new Error(checkoutErr.message);
-    const result = checkout as { ok: boolean; already_paid?: boolean; alreadyPaid?: boolean };
+    const result = checkout as {
+      ok?: boolean;
+      already_paid?: boolean;
+      fully_paid?: boolean;
+      amount?: number;
+      remaining?: number;
+    };
     return {
       ok: true as const,
-      alreadyPaid: Boolean(result?.already_paid ?? result?.alreadyPaid),
+      alreadyPaid: Boolean(result?.already_paid),
+      fullyPaid: Boolean(result?.fully_paid),
+      amount: Number(result?.amount) || 0,
+      remaining: Number(result?.remaining) || 0,
     };
   });

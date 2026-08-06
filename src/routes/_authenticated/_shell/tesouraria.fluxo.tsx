@@ -13,12 +13,14 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Search,
   Settings2,
   Trash2,
   TrendingDown,
   TrendingUp,
   Upload,
   Wallet,
+  X,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
@@ -43,6 +45,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { can } from "@/lib/permissions";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { todayYmd } from "@/lib/timezone";
@@ -117,6 +120,7 @@ const emptyForm = (): EntryForm => ({
 function FluxoCaixa() {
   const { active } = useActiveChapter();
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
 
@@ -137,6 +141,7 @@ function FluxoCaixa() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
   const writable = can(active?.role.name, "tesouraria");
 
   const [form, setForm] = useState<EntryForm>(emptyForm());
@@ -183,10 +188,11 @@ function FluxoCaixa() {
   ];
 
   const scope = scopeOfCategory(form.category);
-  const scopedSubs = subcategories.filter((s) =>
-    scope === "eventos"
-      ? s.scope === "eventos" && s.calendar_event_id === form.eventId
-      : s.scope === scope,
+  const scopedSubs = subcategories.filter(
+    (s) =>
+      scope === "eventos" &&
+      s.scope === "eventos" &&
+      s.calendar_event_id === form.eventId,
   );
   const eventsWithItems = useMemo(() => {
     const opts = [...eventOptions];
@@ -228,7 +234,7 @@ function FluxoCaixa() {
 
   /**
    * Subcategorias para filtro: nomes presentes nos lançamentos + configuradas
-   * (eventos/hospitalaria). Pronto para quando subcategorias por evento forem mais usadas.
+   * (eventos). Hospitalaria não usa subcategorias na UI.
    */
   const filterSubcategoryOptions = useMemo(() => {
     const names = new Set<string>();
@@ -238,13 +244,10 @@ function FluxoCaixa() {
     }
     for (const s of subcategories) {
       if (!s.name) continue;
-      // Escopos dinâmicos ligados a categorias conhecidas
       if (selectedCategories.length) {
         const matchesEventos =
           selectedCategories.includes("Eventos") && s.scope === "eventos";
-        const matchesHosp =
-          selectedCategories.includes("Hospitalaria") && s.scope === "hospitalaria";
-        if (!matchesEventos && !matchesHosp) continue;
+        if (!matchesEventos) continue;
       }
       names.add(s.name);
     }
@@ -252,6 +255,7 @@ function FluxoCaixa() {
   }, [entries, subcategories, selectedCategories]);
 
   const filteredEntries = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return entries.filter((e) => {
       if (selectedCategories.length && !selectedCategories.includes(e.category)) {
         return false;
@@ -261,9 +265,26 @@ function FluxoCaixa() {
           return false;
         }
       }
+      if (q) {
+        const hay = [
+          e.description,
+          e.category,
+          e.subcategory,
+          e.kind,
+          e.kind === "entrada" ? "entrada" : "saída saida",
+          formatBRL(Number(e.amount)),
+          String(e.amount),
+          e.entry_date,
+          formatDateBR(e.entry_date),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
-  }, [entries, selectedCategories, selectedSubcategories]);
+  }, [entries, selectedCategories, selectedSubcategories, search]);
 
   // Lançamento manual de mensalidade (uma ou várias competências).
   const [duesMemberId, setDuesMemberId] = useState("");
@@ -298,8 +319,10 @@ function FluxoCaixa() {
 
   const periodTotals = useMemo(() => {
     const hasClientFilters =
-      selectedCategories.length > 0 || selectedSubcategories.length > 0;
-    // Sem filtro de categoria: usar agregação completa do servidor
+      selectedCategories.length > 0 ||
+      selectedSubcategories.length > 0 ||
+      search.trim().length > 0;
+    // Sem filtro de categoria/busca: usar agregação completa do servidor
     // (evita totais incompletos quando a lista de lançamentos é limitada).
     if (!hasClientFilters && data?.totals) {
       return {
@@ -315,7 +338,13 @@ function FluxoCaixa() {
       else expense += Number(e.amount);
     }
     return { income, expense, balance: income - expense };
-  }, [filteredEntries, selectedCategories.length, selectedSubcategories.length, data?.totals]);
+  }, [
+    filteredEntries,
+    selectedCategories.length,
+    selectedSubcategories.length,
+    search,
+    data?.totals,
+  ]);
 
   const periodLabel = month ? `${monthName(month)} de ${year}` : `Ano de ${year}`;
 
@@ -361,14 +390,26 @@ function FluxoCaixa() {
   );
 
   // Remove subcategorias selecionadas que deixaram de existir nas opções
+  // ou quando nenhuma categoria com subcategorias está filtrada.
+  const categoryFilterHasSubs = selectedCategories.some(
+    (c) => scopeOfCategory(c) != null,
+  );
   useEffect(() => {
+    if (!categoryFilterHasSubs) {
+      if (selectedSubcategories.length) setSelectedSubcategories([]);
+      return;
+    }
     if (!selectedSubcategories.length) return;
     const allowed = new Set(filterSubcategoryOptions);
     setSelectedSubcategories((prev) => {
       const next = prev.filter((s) => allowed.has(s));
       return next.length === prev.length ? prev : next;
     });
-  }, [filterSubcategoryOptions, selectedSubcategories.length]);
+  }, [
+    categoryFilterHasSubs,
+    filterSubcategoryOptions,
+    selectedSubcategories.length,
+  ]);
 
   function toggleFilterValue(
     list: string[],
@@ -657,159 +698,209 @@ function FluxoCaixa() {
       />
 
       {/* Filtros e ações */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Select
-          value={month === null ? "all" : String(month)}
-          onValueChange={(v) => setMonth(v === "all" ? null : Number(v))}
-        >
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Geral (todos)</SelectItem>
-            {MONTHS.map((m) => (
-              <SelectItem key={m} value={String(m)}>{monthName(m)}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-          <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {availableYears.map((y) => (
-              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="min-w-36 justify-between">
-              <span>
-                Categorias
-                {selectedCategories.length > 0 ? ` (${selectedCategories.length})` : ""}
-              </span>
-              <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel>Filtrar categorias</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {filterCategoryOptions.map((name) => (
-              <DropdownMenuCheckboxItem
-                key={name}
-                checked={selectedCategories.includes(name)}
-                onCheckedChange={() =>
-                  toggleFilterValue(selectedCategories, name, setSelectedCategories)
-                }
-                onSelect={(e) => e.preventDefault()}
+      <div className="mb-4 flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-8 pr-8"
+              placeholder="Buscar descrição, categoria…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search ? (
+              <button
+                type="button"
+                aria-label="Limpar busca"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                onClick={() => setSearch("")}
               >
-                {name}
-              </DropdownMenuCheckboxItem>
-            ))}
-            {selectedCategories.length > 0 && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => setSelectedCategories([])}>
-                  Limpar filtro
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+          <Select
+            value={month === null ? "all" : String(month)}
+            onValueChange={(v) => setMonth(v === "all" ? null : Number(v))}
+          >
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Geral (todos)</SelectItem>
+              {MONTHS.map((m) => (
+                <SelectItem key={m} value={String(m)}>{monthName(m)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {availableYears.map((y) => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="min-w-40 justify-between"
-              disabled={filterSubcategoryOptions.length === 0}
-            >
-              <span>
-                Subcategorias
-                {selectedSubcategories.length > 0
-                  ? ` (${selectedSubcategories.length})`
-                  : ""}
-              </span>
-              <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64 max-h-72">
-            <DropdownMenuLabel>Filtrar subcategorias</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {filterSubcategoryOptions.length === 0 ? (
-              <DropdownMenuItem disabled>
-                Nenhuma subcategoria no período
-              </DropdownMenuItem>
-            ) : (
-              filterSubcategoryOptions.map((name) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="min-w-36 justify-between">
+                <span>
+                  Categorias
+                  {selectedCategories.length > 0 ? ` (${selectedCategories.length})` : ""}
+                </span>
+                <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuLabel>Filtrar categorias</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {filterCategoryOptions.map((name) => (
                 <DropdownMenuCheckboxItem
                   key={name}
-                  checked={selectedSubcategories.includes(name)}
+                  checked={selectedCategories.includes(name)}
                   onCheckedChange={() =>
-                    toggleFilterValue(selectedSubcategories, name, setSelectedSubcategories)
+                    toggleFilterValue(selectedCategories, name, setSelectedCategories)
                   }
                   onSelect={(e) => e.preventDefault()}
                 >
                   {name}
                 </DropdownMenuCheckboxItem>
-              ))
-            )}
-            {selectedSubcategories.length > 0 && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => setSelectedSubcategories([])}>
-                  Limpar filtro
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              ))}
+              {selectedCategories.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setSelectedCategories([])}>
+                    Limpar filtro
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-        <div className="ml-auto flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={() => openShare.mutate()}
-            disabled={openShare.isPending || !writable}
-          >
-            <Link2 className="mr-2 h-4 w-4" />
-            {openShare.isPending ? "Abrindo…" : "Compartilhar"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() =>
-              exportCashXlsx(
-                filteredEntries,
-                `fluxo-de-caixa-${month ? `${year}-${String(month).padStart(2, "0")}` : year}.xlsx`,
-                {
-                  periodLabel,
-                  cashBalance: cashBalanceValue,
-                  cashBalanceLabel,
-                  opening: {
-                    balance: openingBalance,
-                    previousYear: opening.previousYear,
-                    title:
-                      month === null
-                        ? `Saldo remanescente do ano ${opening.previousYear} (caixa transferido)`
-                        : `Saldo inicial do período (inclui restante de ${opening.previousYear})`,
+          {categoryFilterHasSubs ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="min-w-40 justify-between"
+                  disabled={filterSubcategoryOptions.length === 0}
+                >
+                  <span>
+                    Subcategorias
+                    {selectedSubcategories.length > 0
+                      ? ` (${selectedSubcategories.length})`
+                      : ""}
+                  </span>
+                  <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64 max-h-72">
+                <DropdownMenuLabel>Filtrar subcategorias</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {filterSubcategoryOptions.length === 0 ? (
+                  <DropdownMenuItem disabled>
+                    Nenhuma subcategoria no período
+                  </DropdownMenuItem>
+                ) : (
+                  filterSubcategoryOptions.map((name) => (
+                    <DropdownMenuCheckboxItem
+                      key={name}
+                      checked={selectedSubcategories.includes(name)}
+                      onCheckedChange={() =>
+                        toggleFilterValue(
+                          selectedSubcategories,
+                          name,
+                          setSelectedSubcategories,
+                        )
+                      }
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      {name}
+                    </DropdownMenuCheckboxItem>
+                  ))
+                )}
+                {selectedSubcategories.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => setSelectedSubcategories([])}>
+                      Limpar filtro
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <div className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              onClick={() => openShare.mutate()}
+              disabled={openShare.isPending || !writable}
+            >
+              <Link2 className="mr-1.5 h-4 w-4" />
+              {openShare.isPending ? "Abrindo…" : "Compartilhar"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              onClick={() =>
+                exportCashXlsx(
+                  filteredEntries,
+                  `fluxo-de-caixa-${month ? `${year}-${String(month).padStart(2, "0")}` : year}.xlsx`,
+                  {
+                    periodLabel,
+                    cashBalance: cashBalanceValue,
+                    cashBalanceLabel,
+                    opening: {
+                      balance: openingBalance,
+                      previousYear: opening.previousYear,
+                      title:
+                        month === null
+                          ? `Saldo remanescente do ano ${opening.previousYear} (caixa transferido)`
+                          : `Saldo inicial do período (inclui restante de ${opening.previousYear})`,
+                    },
+                    totals: periodTotals,
                   },
-                  totals: periodTotals,
-                },
-              )
-            }
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
-          </Button>
-          <Button variant="outline" onClick={() => exportPdf.mutate()} disabled={exportPdf.isPending}>
-            <FileText className="mr-2 h-4 w-4" /> {exportPdf.isPending ? "Gerando…" : "PDF"}
-          </Button>
-          {writable && (
-            <>
-              <Button variant="outline" onClick={() => fileRef.current?.click()}>
-                <Upload className="mr-2 h-4 w-4" /> Importar
-              </Button>
-              <Button variant="outline" onClick={() => setCatsOpen(true)}>
-                <Settings2 className="mr-2 h-4 w-4" /> Categorias
-              </Button>
-            </>
-          )}
+                )
+              }
+            >
+              <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Excel
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              onClick={() => exportPdf.mutate()}
+              disabled={exportPdf.isPending}
+            >
+              <FileText className="mr-1.5 h-4 w-4" />
+              {exportPdf.isPending ? "Gerando…" : "PDF"}
+            </Button>
+            {writable ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <Upload className="mr-1.5 h-4 w-4" /> Importar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setCatsOpen(true)}
+                >
+                  <Settings2 className="mr-1.5 h-4 w-4" /> Categorias
+                </Button>
+              </>
+            ) : null}
+          </div>
           <input
             ref={fileRef}
             type="file"
@@ -893,11 +984,12 @@ function FluxoCaixa() {
         <EmptyState
           icon={<Wallet className="h-7 w-7" />}
           title="Nenhum lançamento com esses filtros"
-          description="Ajuste as categorias ou subcategorias selecionadas para ver os lançamentos."
+          description="Ajuste a busca, categorias ou subcategorias para ver os lançamentos."
           action={
             <Button
               variant="outline"
               onClick={() => {
+                setSearch("");
                 setSelectedCategories([]);
                 setSelectedSubcategories([]);
               }}
@@ -981,7 +1073,17 @@ function FluxoCaixa() {
                       });
                       setEntryOpen(true);
                     }}
-                    onDelete={(id) => remove.mutate(id)}
+                    onDelete={async (id) => {
+                      const e = group.entries.find((row) => row.id === id);
+                      const ok = await confirm({
+                        title: "Excluir lançamento?",
+                        description: e
+                          ? `Excluir “${e.description}” (${e.kind === "entrada" ? "+" : "−"} ${formatBRL(Number(e.amount))}) do fluxo de caixa?`
+                          : "Excluir este lançamento do fluxo de caixa?",
+                        confirmLabel: "Excluir",
+                      });
+                      if (ok) remove.mutate(id);
+                    }}
                   />
                 )}
               </Card>
@@ -1009,7 +1111,17 @@ function FluxoCaixa() {
               });
               setEntryOpen(true);
             }}
-            onDelete={(id) => remove.mutate(id)}
+            onDelete={async (id) => {
+              const e = sortedMonthEntries.find((row) => row.id === id);
+              const ok = await confirm({
+                title: "Excluir lançamento?",
+                description: e
+                  ? `Excluir “${e.description}” (${e.kind === "entrada" ? "+" : "−"} ${formatBRL(Number(e.amount))}) do fluxo de caixa?`
+                  : "Excluir este lançamento do fluxo de caixa?",
+                confirmLabel: "Excluir",
+              });
+              if (ok) remove.mutate(id);
+            }}
           />
         </Card>
       )}
@@ -1078,11 +1190,9 @@ function FluxoCaixa() {
               </div>
             )}
 
-            {scope && (scope === "hospitalaria" || form.eventId) && (
+            {scope && form.eventId && (
               <div className="sm:col-span-2">
-                <Label className="mb-1.5 block text-sm">
-                  {scope === "eventos" ? "Tipo de movimentação *" : "Item da hospitalaria *"}
-                </Label>
+                <Label className="mb-1.5 block text-sm">Tipo de movimentação *</Label>
                 <Select
                   value={form.subcategoryId}
                   onValueChange={(v) => {
@@ -1334,6 +1444,7 @@ function FluxoCaixa() {
       </Dialog>
 
       <CategoriesDialog open={catsOpen} onOpenChange={setCatsOpen} />
+      {dialog}
     </div>
   );
 }
@@ -1347,6 +1458,7 @@ function CategoriesDialog({
 }) {
   const { active } = useActiveChapter();
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [name, setName] = useState("");
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
 
@@ -1434,7 +1546,14 @@ function CategoriesDialog({
                 variant="ghost"
                 size="icon"
                 aria-label="Excluir categoria"
-                onClick={() => remove.mutate(c.id)}
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: "Excluir categoria?",
+                    description: `Excluir a categoria “${c.name}”?`,
+                    confirmLabel: "Excluir",
+                  });
+                  if (ok) remove.mutate(c.id);
+                }}
               >
                 <Trash2 className="h-4 w-4 text-muted-foreground" />
               </Button>
@@ -1442,6 +1561,7 @@ function CategoriesDialog({
           ))}
         </div>
       </DialogContent>
+      {dialog}
     </Dialog>
   );
 }

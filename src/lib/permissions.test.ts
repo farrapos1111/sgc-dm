@@ -84,7 +84,31 @@ for (const role of ["membro", "vice", "auxiliar_senior"] as const) {
   assert.ok(canAction(c, "eventos.orcamento"));
   assert.ok(canAction(c, "comissao.view", "eventos"));
   assert.ok(canAction(c, "comissao.vote", "eventos"));
+  assert.ok(!canAction(c, "eventos.manage"));
 }
+
+// Excluir evento/ingresso / trocar tipo: só MC ou presidente da Com. Eventos
+assert.ok(canAction(ctx("mestre_conselheiro"), "eventos.manage"));
+assert.ok(
+  canAction(ctx("membro", ["mestre_conselheiro"]), "eventos.manage"),
+);
+assert.ok(
+  canAction(
+    ctx("membro", [], [{ code: "eventos", role: "presidente" }]),
+    "eventos.manage",
+  ),
+);
+assert.ok(
+  !canAction(
+    ctx("membro", [], [{ code: "eventos", role: "vice" }]),
+    "eventos.manage",
+  ),
+);
+assert.ok(!canAction(ctx("tesoureiro"), "eventos.manage"));
+assert.ok(!canAction(ctx("consultor"), "eventos.manage"));
+assert.ok(!canAction(ctx("presidente_conselho"), "eventos.manage"));
+assert.ok(!canAction(ctx("escrivao"), "eventos.manage"));
+assert.ok(canAction(ctx("admin_total"), "eventos.manage"));
 
 // Membro comum: só visualizar
 const comum = resolveAccess(ctx("membro"));

@@ -32,6 +32,7 @@ import {
 import { applySindicanciaAtaVars } from "@/lib/sindicancia-ata-vars";
 import { exportSindicanciaQuestionnairePdf } from "@/lib/sindicancia-questionnaire-pdf";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
+import { useSindicanciaVotingRealtime } from "@/hooks/useSindicanciaVotingRealtime";
 
 export type AtaFormMode = "roteiro" | "ata" | "votacao";
 
@@ -99,6 +100,11 @@ export function SindicanciaAtaForm({
   const isRoteiro = mode === "roteiro";
   const isVotacao = mode === "votacao" || row.status === "votacao_comissao";
   const answersWritable = writable && mode === "ata" && !isVotacao;
+
+  useSindicanciaVotingRealtime({
+    calendarEventId: row.calendar_event_id,
+    enabled: isVotacao && !isRoteiro,
+  });
 
   const { data: templates } = useQuery({
     queryKey: ["sindicancia-ata-templates", chapterId],

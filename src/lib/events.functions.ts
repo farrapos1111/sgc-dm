@@ -185,6 +185,10 @@ export const getEvent = createServerFn({ method: "POST" })
       chargePaidById.set(c.id, c.status === "pago");
     }
 
+    const checkedInTicketIds = new Set(
+      (checkins.data ?? []).map((c) => c.ticket_id),
+    );
+
     return {
       event: eventRes.data,
       ticketTypes: types.data ?? [],
@@ -196,6 +200,7 @@ export const getEvent = createServerFn({ method: "POST" })
         seller_charge_paid: t.seller_charge_id
           ? (chargePaidById.get(t.seller_charge_id) ?? false)
           : false,
+        checked_in: checkedInTicketIds.has(t.id),
       })),
       tables,
       seats: seats.data ?? [],
@@ -332,6 +337,40 @@ export const sellTicket = createServerFn({ method: "POST" })
       seller_charge_id: string;
     }>;
     return rows;
+  });
+
+/** Altera o tipo (e opcionalmente o valor) de um ingresso já vendido. */
+export const updateSoldTicketType = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        ticketId: z.string().uuid(),
+        ticketTypeId: z.string().uuid().nullable(),
+        pricePaid: z.number().min(0).optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc(
+      "update_sold_ticket_type" as never,
+      {
+        _ticket_id: data.ticketId,
+        _ticket_type_id: data.ticketTypeId,
+        _price_paid: data.pricePaid ?? null,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    const row = result as {
+      ok?: boolean;
+      price_paid?: number | string;
+      seller_charge_id?: string | null;
+    } | null;
+    return {
+      ok: true as const,
+      price_paid: Number(row?.price_paid) || 0,
+      seller_charge_id: row?.seller_charge_id ?? null,
+    };
   });
 
 export const createTable = createServerFn({ method: "POST" })
@@ -690,17 +729,12 @@ export const deleteEvent = createServerFn({ method: "POST" })
     if (eErr) throw new Error(eErr.message);
     if (!event) throw new Error("Evento não encontrado");
 
-    const checks = await Promise.all(
-      (["admin", "comissoes", "secretaria"] as const).map(async (perm) => {
-        const { data: ok, error } = await context.supabase.rpc(
-          "has_permission" as never,
-          { _chapter_id: event.chapter_id, _perm: perm } as never,
-        );
-        if (error) throw new Error(error.message);
-        return Boolean(ok);
-      }),
+    const { data: allowed, error: permErr } = await context.supabase.rpc(
+      "can_manage_event_destructive" as never,
+      { _chapter_id: event.chapter_id } as never,
     );
-    if (!checks.some(Boolean)) {
+    if (permErr) throw new Error(permErr.message);
+    if (!allowed) {
       throw new Error("Sem permissão para excluir eventos neste capítulo");
     }
 
