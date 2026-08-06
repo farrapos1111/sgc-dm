@@ -327,7 +327,7 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
       if (t.status === "cancelado") continue;
       const day = ymdFromIso(t.sold_at);
       if (data.from && day && day < data.from) continue;
-      if (data.until && day && day > data.until) continue;
+      if (day && day > untilCap) continue;
       const amount = Number(t.price_paid ?? 0);
       ticketsIncome += amount;
       totalIncome += amount;

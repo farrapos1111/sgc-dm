@@ -367,7 +367,7 @@ export const updateSoldTicketType = createServerFn({ method: "POST" })
       seller_charge_id?: string | null;
     } | null;
     return {
-      ok: true as const,
+      ok: row?.ok !== false,
       price_paid: Number(row?.price_paid) || 0,
       seller_charge_id: row?.seller_charge_id ?? null,
     };
