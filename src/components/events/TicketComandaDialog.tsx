@@ -451,6 +451,16 @@ export function TicketComandaDialog({
     },
   });
 
+  async function confirmPayAllPending() {
+    const ok = await confirm({
+      title: "Baixar todas as pendências?",
+      description:
+        "Quita o ingresso em aberto e todos os itens não baixados, lançando cada valor no fluxo de caixa.",
+      confirmLabel: "Baixar tudo",
+    });
+    if (ok) payAllPending.mutate();
+  }
+
   function pickItem(id: string) {
     setItemId(id);
     const it = items.find((i) => i.id === id);
@@ -766,15 +776,7 @@ export function TicketComandaDialog({
                   <Button
                     style={{ backgroundColor: primary }}
                     disabled={payAllPending.isPending}
-                    onClick={async () => {
-                      const ok = await confirm({
-                        title: "Baixar todas as pendências?",
-                        description:
-                          "Quita o ingresso em aberto e todos os itens não baixados, lançando cada valor no fluxo de caixa.",
-                        confirmLabel: "Baixar tudo",
-                      });
-                      if (ok) payAllPending.mutate();
-                    }}
+                    onClick={() => void confirmPayAllPending()}
                   >
                     <Banknote className="mr-2 h-4 w-4" /> Baixar pendências
                   </Button>
@@ -811,15 +813,7 @@ export function TicketComandaDialog({
               <Button
                 style={{ backgroundColor: primary }}
                 disabled={payAllPending.isPending}
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: "Baixar todas as pendências?",
-                    description:
-                      "Quita o ingresso em aberto e todos os itens não baixados, lançando cada valor no fluxo de caixa.",
-                    confirmLabel: "Baixar tudo",
-                  });
-                  if (ok) payAllPending.mutate();
-                }}
+                onClick={() => void confirmPayAllPending()}
               >
                 {payAllPending.isPending
                   ? "Baixando…"

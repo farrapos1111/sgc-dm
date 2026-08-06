@@ -319,7 +319,11 @@ BEGIN
     RAISE EXCEPTION 'Evento nao encontrado';
   END IF;
 
-  IF NOT (
+  IF v_line.cash_entry_id IS NOT NULL THEN
+    IF NOT public.can_manage_event_destructive(v_event.chapter_id) THEN
+      RAISE EXCEPTION 'Sem permissao para remover item ja baixado no caixa';
+    END IF;
+  ELSIF NOT (
     public.has_permission(v_event.chapter_id, 'admin')
     OR public.has_permission(v_event.chapter_id, 'tesouraria')
     OR public.can_manage_commission(v_event.chapter_id, 'eventos')
@@ -371,7 +375,7 @@ BEGIN
 
   DELETE FROM public.event_ticket_items WHERE id = v_line.id;
 
-  RETURN jsonb_build_object('ok', true);
+  RETURN jsonb_build_object('ok', true, 'id', v_line.id);
 END;
 $$;
 
