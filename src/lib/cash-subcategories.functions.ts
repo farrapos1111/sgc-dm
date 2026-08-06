@@ -1,14 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { DynamicScope } from "@/lib/cash-categories";
 
 const chapterInput = z.object({ chapterId: z.string().uuid() });
 
+/** Escopos persistidos em cash_subcategories (legado hospitalaria mantido no banco). */
+export type CashSubcategoryScope = "eventos" | "hospitalaria";
 
 export type CashSubcategory = {
   id: string;
-  scope: DynamicScope;
+  scope: CashSubcategoryScope;
   calendar_event_id: string | null;
   name: string;
   active: boolean;

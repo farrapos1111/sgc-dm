@@ -483,6 +483,14 @@ function NextItemCard({ chapterId }: { chapterId: string }) {
       "calendar-chave-text",
       next?.id,
       activeChapter?.chapter_id,
+      next?.dress_code,
+      next?.location,
+      next?.address,
+      next?.title,
+      next?.description,
+      next?.start_at,
+      next?.end_at,
+      next?.event_type,
     ],
     queryFn: () => {
       if (!next) throw new Error("Sem próximo compromisso");

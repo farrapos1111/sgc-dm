@@ -63,6 +63,7 @@ export function EventFinancePanel({
   eventId,
   chapterId,
   eventName,
+  eventStartsAt,
   primary,
   canEdit,
   chapterName,
@@ -72,6 +73,7 @@ export function EventFinancePanel({
   eventId: string;
   chapterId: string;
   eventName: string;
+  eventStartsAt: string;
   primary?: string;
   canEdit: boolean;
   chapterName?: string;
@@ -101,13 +103,13 @@ export function EventFinancePanel({
   const [trackStock, setTrackStock] = useState(false);
   const [stockQty, setStockQty] = useState("");
 
+  const eventDay = String(eventStartsAt).slice(0, 10) || todayYmd();
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [budgetName, setBudgetName] = useState("");
   const [budgetAmount, setBudgetAmount] = useState("");
-  const [budgetDate, setBudgetDate] = useState(() => todayYmd());
+  const [budgetDate, setBudgetDate] = useState(eventDay);
 
   const [exporting, setExporting] = useState(false);
-
   const financeQ = useQuery({
     queryKey: ["event-finance", eventId],
     queryFn: () => listEventFinance({ data: { eventId } }),
@@ -233,11 +235,15 @@ export function EventFinancePanel({
         },
       }),
     onSuccess: () => {
-      toast.success("Despesa de orçamento lançada no caixa");
+      toast.success(
+        budgetDate > todayYmd()
+          ? "Despesa registrada — entra no fluxo na data informada"
+          : "Despesa de orçamento lançada no caixa",
+      );
       setBudgetOpen(false);
       setBudgetName("");
       setBudgetAmount("");
-      setBudgetDate(todayYmd());
+      setBudgetDate(eventDay);
       invalidate();
     },
     onError: (e) => toast.error(mutationErrorMessage(e, "Erro ao lançar")),
@@ -433,8 +439,8 @@ export function EventFinancePanel({
               Orçamento
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Despesas do evento no caixa (saídas), no formato Evento{" "}
-              {eventName} - Despesa [nome] - valor.
+              Despesas do evento (saídas Eventos). Podem ser cadastradas antes;
+              só entram no fluxo de caixa a partir da data informada.
             </p>
           </div>
           {canEdit && (
@@ -443,7 +449,7 @@ export function EventFinancePanel({
               onClick={() => {
                 setBudgetName("");
                 setBudgetAmount("");
-                setBudgetDate(todayYmd());
+                setBudgetDate(eventDay);
                 setBudgetOpen(true);
               }}
               style={{ backgroundColor: primary }}
@@ -483,8 +489,11 @@ export function EventFinancePanel({
                   <div className="truncate font-medium">
                     {r.subcategory ?? r.description}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatDateLabel(r.entry_date)}
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>{formatDateLabel(r.entry_date)}</span>
+                    {r.entry_date > todayYmd() ? (
+                      <Badge variant="secondary">Despesa Agendada</Badge>
+                    ) : null}
                   </div>
                 </div>
                 <div className="shrink-0 font-semibold text-rose-600 dark:text-rose-400">
@@ -847,9 +856,8 @@ export function EventFinancePanel({
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Será lançada no caixa como saída Eventos:
-              <br />
-              Evento {eventName} - Despesa [nome] - [valor]
+              Formato no caixa: Evento {eventName} - Despesa [nome] - [valor].
+              Contabiliza no fluxo somente a partir da data abaixo.
             </p>
             <div>
               <Label htmlFor="event-budget-name" className="mb-1.5 block text-sm">
@@ -881,7 +889,7 @@ export function EventFinancePanel({
             </div>
             <div>
               <Label htmlFor="event-budget-date" className="mb-1.5 block text-sm">
-                Data
+                Data no fluxo de caixa
               </Label>
               <Input
                 id="event-budget-date"
@@ -905,7 +913,7 @@ export function EventFinancePanel({
               }
               onClick={() => saveBudget.mutate()}
             >
-              {saveBudget.isPending ? "Lançando…" : "Lançar no caixa"}
+              {saveBudget.isPending ? "Salvando…" : "Registrar despesa"}
             </Button>
           </DialogFooter>
         </DialogContent>

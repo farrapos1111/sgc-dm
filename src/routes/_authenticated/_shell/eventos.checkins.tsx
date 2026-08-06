@@ -42,6 +42,7 @@ import {
   previewTicketByQr,
 } from "@/lib/events.functions";
 import { matchesLooseSearch } from "@/lib/utils";
+import { useEventCheckinRealtime } from "@/hooks/useEventCheckinRealtime";
 
 export const Route = createFileRoute("/_authenticated/_shell/eventos/checkins")({
   head: () => ({
@@ -94,6 +95,7 @@ function Checkins() {
   const { active } = useActiveChapter();
   const qc = useQueryClient();
   const primary = active?.chapter.primary_color ?? undefined;
+  useEventCheckinRealtime({ enabled: !!active?.chapter_id });
 
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("nome");
@@ -202,6 +204,7 @@ function Checkins() {
       });
       await qc.invalidateQueries({ queryKey: ["checkin-tickets"] });
       await qc.invalidateQueries({ queryKey: ["checkins"] });
+      await qc.invalidateQueries({ queryKey: ["event"] });
     },
     onError: (e: unknown) => {
       busyRef.current = false;
@@ -220,6 +223,15 @@ function Checkins() {
   }
 
   function openManual(row: TicketRow) {
+    if (row.already_checked_in) {
+      setComanda({
+        eventId: row.event_id,
+        ticketId: row.id,
+        buyerName: row.buyer_name,
+        eventName: row.event_name,
+      });
+      return;
+    }
     setPreviewMethod("nome");
     setPreview(rowToPreview(row));
     setPreviewOpen(true);

@@ -23,6 +23,8 @@ export type ActionPermission =
   | "eventos.comandas"
   | "eventos.checkout"
   | "eventos.orcamento"
+  /** Excluir evento/ingresso e alterar tipo de ingresso vendido. */
+  | "eventos.manage"
   | "comissao.view"
   | "comissao.edit"
   | "comissao.vote";
@@ -114,6 +116,11 @@ function commissionEntry(ctx: AccessContext, code: string): CommissionRoleCtx | 
   return (ctx.commissionRoles ?? []).find((c) => c.code === code);
 }
 
+function isMestreConselheiro(ctx: AccessContext): boolean {
+  if (ctx.roleName === "mestre_conselheiro") return true;
+  return (ctx.currentPositions ?? []).includes("mestre_conselheiro");
+}
+
 /**
  * Ações específicas (comissões / eventos).
  * Escopo sempre implícito no capítulo do contexto carregado.
@@ -123,6 +130,14 @@ export function canAction(
   action: ActionPermission,
   commissionCode?: string,
 ): boolean {
+  // Excluir evento/ingresso e trocar tipo: só MC ou presidente da Com. Eventos.
+  // Não incluir PCC/consultor (mesmo com poder amplo no restante do sistema).
+  if (action === "eventos.manage") {
+    if (ctx.roleName === "admin_total") return true;
+    if (isMestreConselheiro(ctx)) return true;
+    return commissionEntry(ctx, "eventos")?.role === "presidente";
+  }
+
   if (hasFullChapterPower(ctx)) return true;
 
   if (action === "comissao.view" || action === "comissao.vote") {

@@ -3013,7 +3013,16 @@ export type Database = {
         Returns: boolean
       }
       checkout_event_ticket_comanda: {
-        Args: { _event_id: string; _paid_at?: string; _ticket_id: string }
+        Args: {
+          _event_id: string
+          _paid_at?: string
+          _ticket_id: string
+          _amount?: number
+        }
+        Returns: Json
+      }
+      pay_event_ticket_item: {
+        Args: { _line_id: string; _paid_at?: string }
         Returns: Json
       }
       cleanup_investigation_public_attempts: { Args: never; Returns: undefined }

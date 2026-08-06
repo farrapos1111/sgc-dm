@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { scopeOfCategory } from "./cash-categories";
+import { scopeOfCategory, type DynamicScope } from "./cash-categories";
 
 type AnyClient = SupabaseClient<any, any, any>;
 
@@ -13,7 +13,7 @@ export type ResolvedSubcategory = {
 async function resolveLegacySubcategory(
   supabase: AnyClient,
   chapterId: string,
-  scope: "eventos" | "hospitalaria",
+  scope: DynamicScope,
   subcategoryId: string,
 ): Promise<ResolvedSubcategory> {
   const { data, error } = await supabase
@@ -39,10 +39,11 @@ async function resolveLegacySubcategory(
 }
 
 /**
- * Garante que lançamentos em categorias dinâmicas (Eventos / Hospitalaria)
- * usem apenas subcategorias previamente configuradas.
+ * Garante que lançamentos em categorias dinâmicas (Eventos) usem apenas
+ * subcategorias/itens previamente configurados.
  * Eventos: prioriza event_finance_items (módulo de eventos);
  * fallback legado: cash_subcategories + calendar_events.
+ * Hospitalaria é categoria padrão (sem subcategoria obrigatória).
  */
 export async function resolveSubcategory(
   supabase: AnyClient,
@@ -63,46 +64,40 @@ export async function resolveSubcategory(
 
   if (!subcategoryId) {
     throw new Error(
-      scope === "eventos"
-        ? "Selecione o evento e o tipo de movimentação configurados pela Comissão de Eventos"
-        : "Selecione o item configurado pela Comissão de Hospitalaria",
+      "Selecione o evento e o tipo de movimentação configurados pela Comissão de Eventos",
     );
   }
 
-  if (scope === "eventos") {
-    // Novo fluxo: item do financeiro do evento (events)
-    const { data: item, error: itemErr } = await supabase
-      .from("event_finance_items")
-      .select("id, name, active, event_id, chapter_id")
-      .eq("id", subcategoryId)
-      .maybeSingle();
-    if (itemErr) throw new Error(itemErr.message);
+  // Novo fluxo: item do financeiro do evento (events)
+  const { data: item, error: itemErr } = await supabase
+    .from("event_finance_items")
+    .select("id, name, active, event_id, chapter_id")
+    .eq("id", subcategoryId)
+    .maybeSingle();
+  if (itemErr) throw new Error(itemErr.message);
 
-    if (item) {
-      if (
-        !eventId ||
-        item.chapter_id !== chapterId ||
-        !item.active ||
-        item.event_id !== eventId
-      ) {
-        throw new Error("Item inexistente ou desativado no financeiro do evento");
-      }
-      return {
-        subcategory: item.name,
-        calendar_event_id: null,
-        event_id: item.event_id,
-        event_finance_item_id: item.id,
-      };
+  if (item) {
+    if (
+      !eventId ||
+      item.chapter_id !== chapterId ||
+      !item.active ||
+      item.event_id !== eventId
+    ) {
+      throw new Error("Item inexistente ou desativado no financeiro do evento");
     }
-
-    // Legado: cash_subcategories + calendar_events
-    return resolveLegacySubcategory(
-      supabase,
-      chapterId,
-      scope,
-      subcategoryId,
-    );
+    return {
+      subcategory: item.name,
+      calendar_event_id: null,
+      event_id: item.event_id,
+      event_finance_item_id: item.id,
+    };
   }
 
-  return resolveLegacySubcategory(supabase, chapterId, scope, subcategoryId);
+  // Legado: cash_subcategories + calendar_events
+  return resolveLegacySubcategory(
+    supabase,
+    chapterId,
+    scope,
+    subcategoryId,
+  );
 }
