@@ -256,6 +256,7 @@ function FluxoCaixa() {
 
   const filteredEntries = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const dateFilter = q ? parseCashSearchDateFilter(q, year) : null;
     return entries.filter((e) => {
       if (selectedCategories.length && !selectedCategories.includes(e.category)) {
         return false;
@@ -266,6 +267,18 @@ function FluxoCaixa() {
         }
       }
       if (q) {
+        if (dateFilter) {
+          if (dateFilter.kind === "day" && e.entry_date === dateFilter.ymd) {
+            return true;
+          }
+          if (
+            dateFilter.kind === "range" &&
+            e.entry_date >= dateFilter.from &&
+            e.entry_date <= dateFilter.to
+          ) {
+            return true;
+          }
+        }
         const hay = [
           e.description,
           e.category,
@@ -276,6 +289,7 @@ function FluxoCaixa() {
           String(e.amount),
           e.entry_date,
           formatDateBR(e.entry_date),
+          formatCashSearchDateHints(e.entry_date),
         ]
           .filter(Boolean)
           .join(" ")
@@ -284,7 +298,7 @@ function FluxoCaixa() {
       }
       return true;
     });
-  }, [entries, selectedCategories, selectedSubcategories, search]);
+  }, [entries, selectedCategories, selectedSubcategories, search, year]);
 
   // Lançamento manual de mensalidade (uma ou várias competências).
   const [duesMemberId, setDuesMemberId] = useState("");
@@ -1574,6 +1588,8 @@ type CashEntryRow = {
   description: string;
   amount: number | string;
   entry_date: string;
+  /** Ordem de inserção (oculto na UI); desempate ao ordenar por data. */
+  created_at?: string | null;
   event_id: string | null;
   event_finance_item_id: string | null;
   calendar_event_id: string | null;
@@ -1581,6 +1597,121 @@ type CashEntryRow = {
 };
 
 type CashSortKey = "entry_date" | "kind" | "category" | "description" | "amount";
+
+const CASH_MONTH_NAMES = [
+  "janeiro",
+  "fevereiro",
+  "marco",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
+] as const;
+
+function stripDiacritics(s: string) {
+  return s.normalize("NFD").replace(/\p{M}/gu, "");
+}
+
+/** Interpreta busca de data ou intervalo (1.8 - 5.8) no ano do filtro. */
+function parseCashSearchDateFilter(
+  raw: string,
+  year: number,
+): { kind: "day"; ymd: string } | { kind: "range"; from: string; to: string } | null {
+  const q = stripDiacritics(raw.trim().toLowerCase());
+  if (!q) return null;
+
+  const rangeParts = splitCashSearchDateRange(q);
+  if (rangeParts) {
+    const from = parseCashSearchDatePart(rangeParts[0], year);
+    const to = parseCashSearchDatePart(rangeParts[1], year);
+    if (from && to) {
+      return from <= to
+        ? { kind: "range", from, to }
+        : { kind: "range", from: to, to: from };
+    }
+  }
+
+  const ymd = parseCashSearchDatePart(q, year);
+  return ymd ? { kind: "day", ymd } : null;
+}
+
+function splitCashSearchDateRange(q: string): [string, string] | null {
+  const spaced = q.split(/\s+(?:-|–|—|a|ate|até)\s+/);
+  if (spaced.length === 2 && spaced[0] && spaced[1]) {
+    return [spaced[0].trim(), spaced[1].trim()];
+  }
+
+  // Compacto: 1.8-5.8 ou 1/8-5/8 (evita confundir com 1-8 como dia-mês)
+  const compact = q.match(
+    /^(\d{1,2}[/.]\d{1,2}(?:[/.]\d{2,4})?)\s*[-–—]\s*(\d{1,2}[/.]\d{1,2}(?:[/.]\d{2,4})?)$/,
+  );
+  if (compact) return [compact[1], compact[2]];
+
+  const named = q.match(
+    /^(\d{1,2}\s+de\s+[a-z]+)\s*[-–—]\s*(\d{1,2}\s+de\s+[a-z]+)$/,
+  );
+  if (named) return [named[1], named[2]];
+
+  return null;
+}
+
+function parseCashSearchDatePart(raw: string, year: number): string | null {
+  const q = stripDiacritics(raw.trim().toLowerCase());
+  if (!q) return null;
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const toYmd = (y: number, m: number, d: number) => {
+    if (m < 1 || m > 12 || d < 1) return null;
+    const dim = new Date(y, m, 0).getDate();
+    if (d > dim) return null;
+    return `${y}-${pad(m)}-${pad(d)}`;
+  };
+
+  const slash = q.match(/^(\d{1,2})[/\-.](\d{1,2})(?:[/\-.](\d{2,4}))?$/);
+  if (slash) {
+    const d = Number(slash[1]);
+    const m = Number(slash[2]);
+    let y = year;
+    if (slash[3]) {
+      y = Number(slash[3]);
+      if (slash[3].length === 2) y += y >= 70 ? 1900 : 2000;
+    }
+    return toYmd(y, m, d);
+  }
+
+  const named = q.match(/^(\d{1,2})\s+de\s+([a-z]+)$/);
+  if (named) {
+    const d = Number(named[1]);
+    const monthIdx = CASH_MONTH_NAMES.findIndex(
+      (name) => name === named[2] || name.startsWith(named[2]),
+    );
+    if (monthIdx >= 0) return toYmd(year, monthIdx + 1, d);
+  }
+
+  return null;
+}
+
+/** Formas alternativas da data para match parcial no haystack (ex.: 6/8). */
+function formatCashSearchDateHints(entryDate: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(entryDate);
+  if (!m) return "";
+  const y = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const monthName = CASH_MONTH_NAMES[month - 1] ?? "";
+  return [
+    `${day}/${month}`,
+    `${day}/${month}/${y}`,
+    `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}`,
+    `${day} de ${monthName}`,
+    `${String(day).padStart(2, "0")} de ${monthName}`,
+  ].join(" ");
+}
 
 function sortCashEntries(
   list: CashEntryRow[],
@@ -1610,6 +1741,12 @@ function sortCashEntries(
       case "amount":
         cmp = Number(a.amount) - Number(b.amount);
         break;
+    }
+    if (cmp === 0) {
+      cmp = (a.created_at ?? "").localeCompare(b.created_at ?? "");
+    }
+    if (cmp === 0) {
+      cmp = a.id.localeCompare(b.id);
     }
     return cmp * mul;
   });

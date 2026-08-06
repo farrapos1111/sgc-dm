@@ -32,7 +32,7 @@ export function useTicketComandaRealtime(opts: {
     };
 
     let channel = supabase
-      .channel(`comanda-${ticketId}`)
+      .channel(`comanda-${ticketId}-${chargeId ?? "none"}`)
       .on(
         "postgres_changes",
         {
