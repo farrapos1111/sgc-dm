@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowDownAZ,
@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { formatBRL, formatDateTimeBR } from "@/lib/format";
 import {
   checkinTicket,
@@ -64,6 +65,10 @@ type CheckinTicketsResult = Awaited<
 type TicketRow = CheckinTicketsResult["tickets"][number];
 type PreviewPayload = Awaited<ReturnType<typeof previewTicketByQr>>;
 type SortKey = "nome" | "evento" | "valor" | "vendedor";
+
+const FILTER_ALL = "all";
+const FILTER_TODAY = "today";
+const FILTER_UPCOMING = "upcoming";
 
 function mutationErrorMessage(e: unknown, fallback: string) {
   return e instanceof Error ? e.message : fallback;
@@ -98,6 +103,7 @@ function Checkins() {
   useEventCheckinRealtime({ enabled: !!active?.chapter_id });
 
   const [search, setSearch] = useState("");
+  const [eventFilter, setEventFilter] = useState(FILTER_ALL);
   const [sortKey, setSortKey] = useState<SortKey>("nome");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   // Câmera começa pausada para a lista de ingressos caber na tela no mobile
@@ -125,14 +131,55 @@ function Checkins() {
   });
 
   const tickets = ticketsQ.data?.tickets ?? [];
+  const events = ticketsQ.data?.events ?? [];
   const ticketsTruncated = Boolean(ticketsQ.data?.truncated);
+
+  const eventFilterOptions = useMemo(() => {
+    const opts = [
+      { value: FILTER_ALL, label: "Todos (hoje e próximos)" },
+      { value: FILTER_TODAY, label: "Acontecendo hoje" },
+      { value: FILTER_UPCOMING, label: "Próximos eventos" },
+    ];
+    for (const e of events) {
+      opts.push({
+        value: e.id,
+        label: `${e.is_today ? "Hoje · " : ""}${e.name}`,
+      });
+    }
+    return opts;
+  }, [events]);
+
+  // Se o evento filtrado sumiu da lista, volta para "Todos"
+  useEffect(() => {
+    if (
+      eventFilter !== FILTER_ALL &&
+      eventFilter !== FILTER_TODAY &&
+      eventFilter !== FILTER_UPCOMING &&
+      !events.some((e) => e.id === eventFilter)
+    ) {
+      setEventFilter(FILTER_ALL);
+    }
+  }, [events, eventFilter]);
 
   const visible = useMemo(() => {
     const q = search.trim();
     let rows = tickets;
+
+    if (eventFilter === FILTER_TODAY) {
+      rows = rows.filter((t) => t.event_is_today);
+    } else if (eventFilter === FILTER_UPCOMING) {
+      rows = rows.filter((t) => !t.event_is_today);
+    } else if (
+      eventFilter !== FILTER_ALL &&
+      events.some((e) => e.id === eventFilter)
+    ) {
+      rows = rows.filter((t) => t.event_id === eventFilter);
+    }
+
     if (q) {
       const qNum = Number(q.replace(",", "."));
-      const hasNum = q.replace(",", ".").match(/^\d+(\.\d+)?$/) && !Number.isNaN(qNum);
+      const hasNum =
+        q.replace(",", ".").match(/^\d+(\.\d+)?$/) && !Number.isNaN(qNum);
       rows = rows.filter((t) => {
         if (matchesLooseSearch(t.buyer_name, q)) return true;
         if (matchesLooseSearch(t.event_name, q)) return true;
@@ -161,7 +208,7 @@ function Checkins() {
             : (b.seller_name ?? "");
       return av.localeCompare(bv, "pt-BR", { sensitivity: "base" }) * dir;
     });
-  }, [tickets, search, sortKey, sortDir]);
+  }, [tickets, events, search, eventFilter, sortKey, sortDir]);
 
   const lookup = useMutation({
     mutationFn: (qr: string) =>
@@ -251,11 +298,19 @@ function Checkins() {
     }
   }
 
+  const filterActive = eventFilter !== FILTER_ALL;
+  const emptyTitle = search || filterActive
+    ? "Nenhum ingresso encontrado"
+    : "Nenhum ingresso ativo";
+  const emptyDescription = search || filterActive
+    ? "Ajuste a busca ou o filtro de evento."
+    : "Só aparecem eventos de hoje ou futuros. Venda ingressos em Eventos para liberar acessos aqui.";
+
   return (
     <div>
       <PageHeader
         title="Check-ins"
-        subtitle="Leia o QR ou libere o acesso manualmente pela lista. Ao confirmar, a comanda virtual é aberta."
+        subtitle="Leia o QR ou libere o acesso manualmente pela lista. Ao confirmar, a comanda virtual é aberta. Eventos passados não aparecem; ingressos somem 30 dias após o evento."
       />
 
       {ticketsTruncated ? (
@@ -300,42 +355,52 @@ function Checkins() {
         )}
       </Card>
 
-      <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
-        <div className="relative min-w-0">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder="Nome, valor…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div className="mb-3 space-y-2">
+        <SearchableSelect
+          value={eventFilter}
+          onChange={setEventFilter}
+          options={eventFilterOptions}
+          placeholder="Filtrar evento…"
+          searchPlaceholder="Buscar evento…"
+          className="w-full"
+        />
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
+          <div className="relative min-w-0">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Nome, valor…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Select
+            value={sortKey}
+            onValueChange={(v) => setSortKey(v as SortKey)}
+          >
+            <SelectTrigger className="w-[7.5rem] sm:w-40">
+              <SelectValue placeholder="Ordenar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="nome">Nome</SelectItem>
+              <SelectItem value="evento">Evento</SelectItem>
+              <SelectItem value="valor">Valor</SelectItem>
+              <SelectItem value="vendedor">Vendedor</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Inverter ordenação"
+            onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+          >
+            {sortDir === "asc" ? (
+              <ArrowUpAZ className="h-4 w-4" />
+            ) : (
+              <ArrowDownAZ className="h-4 w-4" />
+            )}
+          </Button>
         </div>
-        <Select
-          value={sortKey}
-          onValueChange={(v) => setSortKey(v as SortKey)}
-        >
-          <SelectTrigger className="w-[7.5rem] sm:w-40">
-            <SelectValue placeholder="Ordenar" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="nome">Nome</SelectItem>
-            <SelectItem value="evento">Evento</SelectItem>
-            <SelectItem value="valor">Valor</SelectItem>
-            <SelectItem value="vendedor">Vendedor</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Inverter ordenação"
-          onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-        >
-          {sortDir === "asc" ? (
-            <ArrowUpAZ className="h-4 w-4" />
-          ) : (
-            <ArrowDownAZ className="h-4 w-4" />
-          )}
-        </Button>
       </div>
 
       {ticketsQ.isLoading ? (
@@ -343,12 +408,8 @@ function Checkins() {
       ) : visible.length === 0 ? (
         <EmptyState
           icon={<QrCode className="h-7 w-7" />}
-          title={search ? "Nenhum ingresso encontrado" : "Nenhum ingresso"}
-          description={
-            search
-              ? "Ajuste a busca por nome, valor ou vendedor."
-              : "Venda ingressos em Eventos para liberar acessos aqui."
-          }
+          title={emptyTitle}
+          description={emptyDescription}
         />
       ) : (
         <Card className="overflow-hidden rounded-[12px]">
@@ -428,6 +489,7 @@ function Checkins() {
                   <div className="truncate text-sm">{row.event_name}</div>
                   <div className="truncate text-xs text-muted-foreground">
                     {formatDateTimeBR(row.event_starts_at)}
+                    {row.event_is_today ? " · Hoje" : ""}
                   </div>
                 </div>
                 <div className="hidden text-sm font-medium sm:block sm:text-right">
@@ -453,7 +515,7 @@ function Checkins() {
           </ul>
           <div className="border-t border-border px-3 py-2 text-xs text-muted-foreground sm:px-4">
             {visible.length} ingresso{visible.length === 1 ? "" : "s"}
-            {search ? " (filtrados)" : ""}
+            {search || filterActive ? " (filtrados)" : ""}
           </div>
         </Card>
       )}

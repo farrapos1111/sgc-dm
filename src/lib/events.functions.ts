@@ -1,6 +1,24 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { todayYmd } from "@/lib/timezone";
+
+/** Evento ainda elegível a check-in: dia de referência (fim ou início) ≥ hoje no fuso do app. */
+export function isEventCheckinActive(event: {
+  starts_at: string;
+  ends_at?: string | null;
+}): boolean {
+  const ref = event.ends_at || event.starts_at;
+  return todayYmd(ref) >= todayYmd();
+}
+
+export function isEventToday(event: {
+  starts_at: string;
+  ends_at?: string | null;
+}): boolean {
+  const ref = event.ends_at || event.starts_at;
+  return todayYmd(ref) === todayYmd();
+}
 
 export const listEvents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -473,7 +491,7 @@ export const previewTicketByQr = createServerFn({ method: "POST" })
     const { data: t, error } = await context.supabase
       .from("tickets")
       .select(
-        "id, event_id, status, buyer_name, buyer_email, qr_code, price_paid, ticket_type:ticket_types(name), event:events(id, name, starts_at, location, chapter_id)",
+        "id, event_id, status, buyer_name, buyer_email, qr_code, price_paid, ticket_type:ticket_types(name), event:events(id, name, starts_at, ends_at, location, chapter_id)",
       )
       .eq("qr_code", qrCode)
       .maybeSingle();
@@ -484,6 +502,7 @@ export const previewTicketByQr = createServerFn({ method: "POST" })
       id: string;
       name: string;
       starts_at: string;
+      ends_at: string | null;
       location: string | null;
       chapter_id: string;
     } | null;
@@ -492,6 +511,9 @@ export const previewTicketByQr = createServerFn({ method: "POST" })
       throw new Error("Ingresso de outro capítulo");
     }
     if (t.status !== "valido") throw new Error("Ingresso inválido ou cancelado");
+    if (!isEventCheckinActive(event)) {
+      throw new Error("Evento já encerrado — check-in indisponível");
+    }
     if (
       buyerName &&
       t.buyer_name.trim().toLowerCase() !== buyerName.toLowerCase()
@@ -543,6 +565,17 @@ export const checkinTicket = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const { data: evRow, error: evErr } = await context.supabase
+      .from("events")
+      .select("id, starts_at, ends_at")
+      .eq("id", data.event_id)
+      .maybeSingle();
+    if (evErr) throw new Error(evErr.message);
+    if (!evRow) throw new Error("Evento não encontrado");
+    if (!isEventCheckinActive(evRow)) {
+      throw new Error("Evento já encerrado — check-in indisponível");
+    }
+
     let ticketId = data.ticket_id;
     let ticketMeta: { qr_code: string; buyer_name: string } | null = null;
 
@@ -617,24 +650,29 @@ export const checkinTicket = createServerFn({ method: "POST" })
     };
   });
 
-/** Ingressos do capítulo para a tela global de check-ins. */
+/** Ingressos do capítulo para a tela global de check-ins (só eventos de hoje ou futuros). */
 export const listChapterTicketsForCheckin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
     z.object({ chapterId: z.string().uuid() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
+    // Limpeza oportunista (cron diário também roda)
+    await context.supabase.rpc("purge_expired_event_tickets" as never);
+
     const { data: events, error: eErr } = await context.supabase
       .from("events")
-      .select("id, name, starts_at, location")
+      .select("id, name, starts_at, ends_at, location")
       .eq("chapter_id", data.chapterId)
-      .order("starts_at", { ascending: false });
+      .order("starts_at", { ascending: true });
     if (eErr) throw new Error(eErr.message);
-    const eventRows = events ?? [];
-    if (eventRows.length === 0) return { tickets: [], truncated: false };
+    const activeEvents = (events ?? []).filter(isEventCheckinActive);
+    if (activeEvents.length === 0) {
+      return { tickets: [], events: [], truncated: false };
+    }
 
-    const eventIds = eventRows.map((e) => e.id);
-    const eventById = new Map(eventRows.map((e) => [e.id, e]));
+    const eventIds = activeEvents.map((e) => e.id);
+    const eventById = new Map(activeEvents.map((e) => [e.id, e]));
 
     const { data: tickets, error: tErr } = await context.supabase
       .from("tickets")
@@ -649,7 +687,20 @@ export const listChapterTicketsForCheckin = createServerFn({ method: "POST" })
     const fetched = tickets ?? [];
     const truncated = fetched.length > 2000;
     const ticketRows = truncated ? fetched.slice(0, 2000) : fetched;
-    if (ticketRows.length === 0) return { tickets: [], truncated: false };
+    if (ticketRows.length === 0) {
+      return {
+        truncated: false,
+        tickets: [],
+        events: activeEvents.map((e) => ({
+          id: e.id,
+          name: e.name,
+          starts_at: e.starts_at,
+          ends_at: e.ends_at,
+          location: e.location,
+          is_today: isEventToday(e),
+        })),
+      };
+    }
 
     const sellerIds = [
       ...new Set(
@@ -690,6 +741,14 @@ export const listChapterTicketsForCheckin = createServerFn({ method: "POST" })
 
     return {
       truncated,
+      events: activeEvents.map((e) => ({
+        id: e.id,
+        name: e.name,
+        starts_at: e.starts_at,
+        ends_at: e.ends_at,
+        location: e.location,
+        is_today: isEventToday(e),
+      })),
       tickets: ticketRows.map((t) => {
         const event = eventById.get(t.event_id)!;
         const ticketType = t.ticket_type as unknown as { name: string } | null;
@@ -699,7 +758,9 @@ export const listChapterTicketsForCheckin = createServerFn({ method: "POST" })
           event_id: t.event_id,
           event_name: event.name,
           event_starts_at: event.starts_at,
+          event_ends_at: event.ends_at,
           event_location: event.location,
+          event_is_today: isEventToday(event),
           buyer_name: t.buyer_name,
           buyer_email: t.buyer_email,
           qr_code: t.qr_code,

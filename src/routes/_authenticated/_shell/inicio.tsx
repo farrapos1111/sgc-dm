@@ -44,6 +44,10 @@ import {
   formatDateTimeBR,
   parseDateOnly,
 } from "@/lib/format";
+import { datePartsInAppTz } from "@/lib/timezone";
+import { MONTH_LONG } from "@/lib/dues-rules";
+import { STATUS_LABELS } from "@/lib/investigation-labels";
+import { Badge } from "@/components/ui/badge";
 
 /** Idade que o membro completa no aniversário do ano corrente. */
 function turningAgeThisYear(
@@ -55,13 +59,14 @@ function turningAgeThisYear(
   return year - bd.getFullYear();
 }
 
-/** Distância no mês: próximos primeiro (hoje → fim); já passados no fim. */
+/**
+ * Ordem: hoje → resto do mês (crescente);
+ * depois os já passados, do mais recente ao mais antigo.
+ */
 function birthdayProximityKey(birthDay: number, todayDay: number): number {
-  return birthDay >= todayDay ? birthDay - todayDay : 100 + birthDay;
+  if (birthDay >= todayDay) return birthDay - todayDay;
+  return 100 + (todayDay - birthDay);
 }
-import { MONTH_LONG } from "@/lib/dues-rules";
-import { STATUS_LABELS } from "@/lib/investigation-labels";
-import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/_shell/inicio")({
   head: () => ({
@@ -152,9 +157,10 @@ function InicioContent({ active }: { active: Membership }) {
     .filter((e) => new Date(e.starts_at) >= now)
     .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at))[0];
 
-  const birthdayMonth = now.getMonth();
-  const birthdayYear = now.getFullYear();
-  const todayDay = now.getDate();
+  const nowParts = datePartsInAppTz();
+  const birthdayMonth = nowParts.month - 1; // 0–11, igual a Date#getMonth
+  const birthdayYear = nowParts.year;
+  const todayDay = nowParts.day;
   const birthdays = members
     .filter(
       (m) =>
@@ -164,10 +170,13 @@ function InicioContent({ active }: { active: Membership }) {
     .sort((a, b) => {
       const dayA = parseDateOnly(a.birth_date)?.getDate() ?? 0;
       const dayB = parseDateOnly(b.birth_date)?.getDate() ?? 0;
-      return (
+      const byProx =
         birthdayProximityKey(dayA, todayDay) -
-        birthdayProximityKey(dayB, todayDay)
-      );
+        birthdayProximityKey(dayB, todayDay);
+      if (byProx !== 0) return byProx;
+      return a.full_name.localeCompare(b.full_name, "pt-BR", {
+        sensitivity: "base",
+      });
     });
 
   const hasAnyData = members.length > 0 || events.length > 0;

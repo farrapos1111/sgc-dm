@@ -3,6 +3,7 @@ import {
   formatTimeInAppTz,
   APP_TIMEZONE,
 } from "@/lib/timezone";
+import { stripMandatoryDateMentions } from "@/lib/calendar-mandatory-mentions";
 
 export type ChaveItem = {
   title: string;
@@ -95,7 +96,7 @@ export function chaveValues(
 
   return {
     titulo: item.title,
-    descricao: (item.description ?? "").trim(),
+    descricao: stripMandatoryDateMentions(item.description ?? ""),
     data: dateBR(start),
     dia_semana: DIAS[weekdayIndexInAppTz(start)] ?? "",
     dia: String(parts.day),
