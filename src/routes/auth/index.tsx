@@ -117,7 +117,7 @@ function AuthPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
-                E-mail ou ID DeMolay
+                E-mail ou ID da Organização
               </label>
               <input
                 type="text"
@@ -163,8 +163,8 @@ function AuthPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-2.5 rounded-lg font-semibold text-white transition-opacity disabled:opacity-60"
-              style={{ backgroundColor: "#9E1B32" }}
+              className="w-full cursor-pointer py-2.5 rounded-lg font-semibold text-white transition-opacity disabled:opacity-60"
+              style={{ backgroundColor: "#072D5A" }}
             >
               {submitting ? "Entrando..." : "Entrar"}
             </button>
