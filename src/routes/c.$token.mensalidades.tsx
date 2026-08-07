@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 export const Route = createFileRoute("/c/$token/mensalidades")({
   ssr: false,
   head: () => ({
-    meta: [{ title: "Mensalidades — SG-CDM" }],
+    meta: [{ title: "Mensalidades — Templo Virtual" }],
   }),
   component: LobbyMensalidadesPage,
 });

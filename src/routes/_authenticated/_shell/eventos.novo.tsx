@@ -16,7 +16,7 @@ import {
 import { ArrowLeft, Check } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/eventos/novo")({
-  head: () => ({ meta: [{ title: "Novo evento — SG-CDM" }] }),
+  head: () => ({ meta: [{ title: "Novo evento — Templo Virtual" }] }),
   component: NovoEvento,
 });
 

@@ -41,7 +41,7 @@ export const Route = createFileRoute(
 )({
   head: () => ({
     meta: [
-      { title: "Atrasados — SG-CDM" },
+      { title: "Atrasados — Templo Virtual" },
       {
         name: "description",
         content:

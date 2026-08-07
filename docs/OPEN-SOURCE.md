@@ -1,12 +1,12 @@
-# SG-CDM — Projeto aberto e guia de contribuição
+# Templo Virtual — Projeto aberto e guia de contribuição
 
-Este documento é para quem quer **contribuir com o código** do SG-CDM. Para entender a arquitetura em profundidade, veja [TECNICO.md](./TECNICO.md); para entender o produto, veja o [Guia do Usuário](./GUIA-DO-USUARIO.md). No app, este guia também está em `/documentacao/open-source`.
+Este documento é para quem quer **contribuir com o código** do Templo Virtual. Para entender a arquitetura em profundidade, veja [TECNICO.md](./TECNICO.md); para entender o produto, veja o [Guia do Usuário](./GUIA-DO-USUARIO.md). No app, este guia também está em `/documentacao/open-source`.
 
 ---
 
 ## Sobre o projeto
 
-O **SG-CDM (Sistema Gerenciador de Capítulos DeMolay)** é um sistema de gestão para capítulos da Ordem DeMolay: membros, atas, presenças, tesouraria, calendário e comissões, com controle de acesso por cargo e acompanhamento regional/estadual.
+O **Templo Virtual** é o hub de gerenciamento das ordens paramaçônicas: membros, atas, presenças, tesouraria, calendário e comissões, com controle de acesso por cargo e acompanhamento regional/estadual. O repositório permanece `sgc-dm` (nome histórico: SG-CDM).
 
 **Por que abrir o código:**
 
@@ -272,7 +272,7 @@ O projeto lida com dados pessoais de menores de idade. Leve a sério.
 
 ## Código de conduta
 
-O SG-CDM atende uma organização juvenil, e o padrão de convivência acompanha isso:
+O Templo Virtual atende uma organização juvenil, e o padrão de convivência acompanha isso:
 
 - **Respeito, sempre.** Critique a ideia, o código, a decisão — nunca a pessoa.
 - **Zero tolerância a assédio**, de qualquer forma, em qualquer espaço do projeto.

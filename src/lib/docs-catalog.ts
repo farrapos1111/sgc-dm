@@ -30,7 +30,7 @@ export const DOCS_CATEGORIES: DocsCategory[] = [
       "Stack, arquitetura, modelo de dados, permissões, variáveis de ambiente, build e deploy.",
     icon: Code2,
     content: tecnicoMd,
-    title: "Documentação técnica — SG-CDM",
+    title: "Documentação técnica — Templo Virtual",
   },
   {
     slug: "guia",
@@ -39,10 +39,10 @@ export const DOCS_CATEGORIES: DocsCategory[] = [
     shortLabel: "Guia",
     audience: "Membros do capítulo",
     description:
-      "O que o sistema faz, tela por tela, em linguagem simples — ideal para apresentar o SG-CDM.",
+      "O que o sistema faz, tela por tela, em linguagem simples — ideal para apresentar o Templo Virtual.",
     icon: BookOpen,
     content: guiaMd,
-    title: "Guia do Usuário — SG-CDM",
+    title: "Guia do Usuário — Templo Virtual",
   },
   {
     slug: "open-source",
@@ -54,7 +54,7 @@ export const DOCS_CATEGORIES: DocsCategory[] = [
       "Setup local, tutorial passo a passo de fork e pull request, padrões de código e segurança.",
     icon: HeartHandshake,
     content: openSourceMd,
-    title: "Projeto aberto e contribuição — SG-CDM",
+    title: "Projeto aberto e contribuição — Templo Virtual",
   },
 ];
 

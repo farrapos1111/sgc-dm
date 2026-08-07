@@ -94,7 +94,7 @@ import {
 } from "@/lib/ticket-pass";
 
 export const Route = createFileRoute("/_authenticated/_shell/eventos/$id")({
-  head: () => ({ meta: [{ title: "Evento — SG-CDM" }] }),
+  head: () => ({ meta: [{ title: "Evento — Templo Virtual" }] }),
   component: EventoDetalhe,
 });
 

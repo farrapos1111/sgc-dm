@@ -68,7 +68,7 @@ export const Route = createFileRoute(
 )({
   head: () => ({
     meta: [
-      { title: "Sindicâncias — SG-CDM" },
+      { title: "Sindicâncias — Templo Virtual" },
       {
         name: "description",
         content: "Agenda e acompanhamento das sindicâncias do capítulo.",

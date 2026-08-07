@@ -45,7 +45,7 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/perfil")({
-  head: () => ({ meta: [{ title: "Perfil DeMolay — SG-CDM" }] }),
+  head: () => ({ meta: [{ title: "Perfil DeMolay — Templo Virtual" }] }),
   component: PerfilPage,
 });
 

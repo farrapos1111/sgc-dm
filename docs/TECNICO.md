@@ -1,4 +1,4 @@
-# Documentação técnica — SG-CDM
+# Documentação técnica — Templo Virtual
 
 Documento para quem vai desenvolver, revisar ou operar o sistema. Para a visão de produto, veja o [Guia do Usuário](./GUIA-DO-USUARIO.md); para contribuir, veja [OPEN-SOURCE.md](./OPEN-SOURCE.md).
 
@@ -6,7 +6,7 @@ Documento para quem vai desenvolver, revisar ou operar o sistema. Para a visão 
 
 ## 1. Visão geral
 
-O SG-CDM é uma aplicação full-stack **TanStack Start** (React + SSR) com **Supabase** (Postgres, Auth, Storage) como backend. Não existe servidor de API separado: a camada de servidor são *server functions* do TanStack Start, e a autorização real mora em políticas RLS no Postgres.
+O **Templo Virtual** (hub de gerenciamento das ordens paramaçônicas; repositório histórico `sgc-dm` / SG-CDM) é uma aplicação full-stack **TanStack Start** (React + SSR) com **Supabase** (Postgres, Auth, Storage) como backend. Não existe servidor de API separado: a camada de servidor são *server functions* do TanStack Start, e a autorização real mora em políticas RLS no Postgres.
 
 A aplicação é **multi-inquilino por capítulo**: quase toda tabela carrega `chapter_id`, e a associação usuário↔capítulo↔cargo vive em `chapter_members`. Acima disso há um escopo **regional/estadual** para lideranças (`org_leaderships`) — acompanhamento em leitura, com escrita de instituições/regiões/lideranças para o **GME** do estado. **MCR** e **OE** gerenciam instituições e membros da própria região e o calendário unificado; nomeação ritualística única por região via `transfer_region_office`. Cadastro de **estados** fica fora do produto (SQL/painel Supabase).
 

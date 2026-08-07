@@ -43,7 +43,7 @@ export const Route = createFileRoute(
 )({
   component: ManageLeaderships,
   head: () => ({
-    meta: [{ title: "Lideranças — SG-CDM" }],
+    meta: [{ title: "Lideranças — Templo Virtual" }],
   }),
 });
 

@@ -79,16 +79,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SG-CDM — Sistema Gerenciador de Capítulos DeMolay" },
-      { name: "description", content: "Gestão de capítulos DeMolay: multi-capítulo, papéis e controle de acesso." },
-      { property: "og:title", content: "SG-CDM — Sistema Gerenciador de Capítulos DeMolay" },
-      { property: "og:description", content: "Gestão de capítulos DeMolay: multi-capítulo, papéis e controle de acesso." },
+      { title: "Templo Virtual — Hub de gerenciamento das ordens paramaçônicas" },
+      {
+        name: "description",
+        content:
+          "Templo Virtual é o hub de gerenciamento das ordens paramaçônicas: membros, atas, tesouraria, calendário e comissões — com multi-instituição, papéis e controle de acesso.",
+      },
+      {
+        property: "og:title",
+        content: "Templo Virtual — Hub de gerenciamento das ordens paramaçônicas",
+      },
+      {
+        property: "og:description",
+        content:
+          "Templo Virtual é o hub de gerenciamento das ordens paramaçônicas: membros, atas, tesouraria, calendário e comissões — com multi-instituição, papéis e controle de acesso.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

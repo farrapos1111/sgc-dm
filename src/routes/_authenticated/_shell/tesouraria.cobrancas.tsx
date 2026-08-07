@@ -61,7 +61,7 @@ export const Route = createFileRoute(
 )({
   head: () => ({
     meta: [
-      { title: "Cobranças — SG-CDM" },
+      { title: "Cobranças — Templo Virtual" },
       {
         name: "description",
         content: "Cobranças avulsas atribuídas a membros do capítulo.",

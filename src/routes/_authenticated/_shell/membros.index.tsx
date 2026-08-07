@@ -20,7 +20,7 @@ import { can } from "@/lib/permissions";
 import { countPendingMemberRequests } from "@/lib/member-change-requests.functions";
 
 export const Route = createFileRoute("/_authenticated/_shell/membros/")({
-  head: () => ({ meta: [{ title: "Membros — SG-CDM" }] }),
+  head: () => ({ meta: [{ title: "Membros — Templo Virtual" }] }),
   component: MembrosList,
 });
 

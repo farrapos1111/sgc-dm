@@ -20,7 +20,8 @@ export const Route = createFileRoute("/auth/")({
       { title: "Entrar — Templo Virtual" },
       {
         name: "description",
-        content: "Acesso ao Sistema Gerenciador de Organizações Paramaçônicas.",
+        content:
+          "Acesso ao Templo Virtual — hub de gerenciamento das ordens paramaçônicas.",
       },
     ],
   }),
@@ -102,7 +103,7 @@ function AuthPage() {
           </div>
           <h1 className="text-2xl font-bold text-foreground">Templo Virtual</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Sistema Gerenciador de Organizações Paramaçônicas
+            Hub de gerenciamento das ordens paramaçônicas
           </p>
         </div>
 

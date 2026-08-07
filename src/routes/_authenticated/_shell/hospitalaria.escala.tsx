@@ -19,7 +19,7 @@ import { createDuty, deleteDuty, listDuties } from "@/lib/hospitality.functions"
 export const Route = createFileRoute("/_authenticated/_shell/hospitalaria/escala")({
   head: () => ({
     meta: [
-      { title: "Escala de Serviço — SG-CDM" },
+      { title: "Escala de Serviço — Templo Virtual" },
       { name: "description", content: "Escala de serviço da hospitalaria do capítulo." },
     ],
   }),

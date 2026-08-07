@@ -42,7 +42,7 @@ export const Route = createFileRoute("/atualizar-cadastro")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Atualização cadastral — SG-CDM" },
+      { title: "Atualização cadastral — Templo Virtual" },
       {
         name: "description",
         content: "Atualize telefone, e-mail, endereço e dados dos responsáveis com seu ID DeMolay.",

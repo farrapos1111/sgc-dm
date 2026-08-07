@@ -39,7 +39,7 @@ export const Route = createFileRoute("/fluxo-caixa/$token")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Fluxo de Caixa — SG-CDM" },
+      { title: "Fluxo de Caixa — Templo Virtual" },
       {
         name: "description",
         content: "Visualização pública do fluxo de caixa do capítulo.",

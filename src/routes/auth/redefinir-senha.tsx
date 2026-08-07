@@ -14,7 +14,7 @@ import {
 export const Route = createFileRoute("/auth/redefinir-senha")({
   ssr: false,
   head: () => ({
-    meta: [{ title: "Redefinir senha — SG-CDM" }],
+    meta: [{ title: "Redefinir senha — Templo Virtual" }],
   }),
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();

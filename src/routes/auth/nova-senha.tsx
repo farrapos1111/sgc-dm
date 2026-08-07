@@ -10,7 +10,7 @@ import { clearMustChangePassword } from "@/lib/accounts.functions";
 export const Route = createFileRoute("/auth/nova-senha")({
   ssr: false,
   head: () => ({
-    meta: [{ title: "Nova senha — SG-CDM" }],
+    meta: [{ title: "Nova senha — Templo Virtual" }],
   }),
   component: NovaSenhaPage,
 });

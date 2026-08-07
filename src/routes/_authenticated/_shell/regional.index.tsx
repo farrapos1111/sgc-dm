@@ -13,12 +13,12 @@ export const Route = createFileRoute("/_authenticated/_shell/regional/")({
   component: RegionalPanorama,
   head: () => ({
     meta: [
-      { title: "Panorama regional | SG-CDM" },
+      { title: "Panorama regional | Templo Virtual" },
       {
         name: "description",
         content: "Panorama das instituições da região ou do estado: membros ativos e próximas atividades.",
       },
-      { property: "og:title", content: "Panorama regional | SG-CDM" },
+      { property: "og:title", content: "Panorama regional | Templo Virtual" },
       {
         property: "og:description",
         content: "Acompanhe as instituições do seu escopo em um só lugar.",

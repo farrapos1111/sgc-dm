@@ -5,7 +5,7 @@
 
 ## Contexto
 
-Hoje o SG-CDM modela um único tipo de instituição: o **capítulo DeMolay** (`chapters` → `members` → `chapter_members`). Na Ordem, a mesma pessoa pode pertencer a corpos distintos ao longo da vida. A meta futura é um **login único** com até **uma afiliação de cada tipo**.
+Hoje o Templo Virtual modela um único tipo de instituição: o **capítulo DeMolay** (`chapters` → `members` → `chapter_members`). Na Ordem, a mesma pessoa pode pertencer a corpos distintos ao longo da vida. A meta futura é um **login único** com até **uma afiliação de cada tipo**.
 
 ## Corpos previstos
 

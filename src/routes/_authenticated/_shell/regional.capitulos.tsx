@@ -34,12 +34,12 @@ export const Route = createFileRoute("/_authenticated/_shell/regional/capitulos"
   component: ManageChapters,
   head: () => ({
     meta: [
-      { title: "Gestão de instituições | SG-CDM" },
+      { title: "Gestão de instituições | Templo Virtual" },
       {
         name: "description",
         content: "Cadastro e edição das instituições do estado: nome, número, cidade e região.",
       },
-      { property: "og:title", content: "Gestão de instituições | SG-CDM" },
+      { property: "og:title", content: "Gestão de instituições | Templo Virtual" },
       {
         property: "og:description",
         content: "Grande Mestre Estadual gerencia instituições e suas regiões.",

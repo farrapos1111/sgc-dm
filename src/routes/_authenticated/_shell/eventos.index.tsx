@@ -12,7 +12,7 @@ import { Calendar, PlusCircle } from "lucide-react";
 import { formatBRL, formatDateTimeBR } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/_shell/eventos/")({
-  head: () => ({ meta: [{ title: "Eventos — SG-CDM" }] }),
+  head: () => ({ meta: [{ title: "Eventos — Templo Virtual" }] }),
   component: EventosList,
 });
 

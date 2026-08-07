@@ -86,7 +86,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 export const Route = createFileRoute("/_authenticated/_shell/calendario")({
   head: () => ({
     meta: [
-      { title: "Calendário — SG-CDM" },
+      { title: "Calendário — Templo Virtual" },
       {
         name: "description",
         content:
@@ -300,7 +300,7 @@ function CalendarioPage() {
               size="sm"
               className="h-9"
               onClick={() =>
-                downloadIcs(filtered, `calendario-sgcdm`, "SG-CDM · Calendário")
+                downloadIcs(filtered, `calendario-sgcdm`, "Templo Virtual · Calendário")
               }
               title="Baixar .ics para Google Agenda, Apple, Outlook ou Teams"
             >

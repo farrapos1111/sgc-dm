@@ -27,7 +27,7 @@ export const Route = createFileRoute("/mensalidades/$token")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Mensalidades — SG-CDM" },
+      { title: "Mensalidades — Templo Virtual" },
       {
         name: "description",
         content: "Visualização pública do calendário de mensalidades.",

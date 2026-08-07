@@ -48,7 +48,7 @@ import {
 export const Route = createFileRoute("/c/$token/eu")({
   ssr: false,
   head: () => ({
-    meta: [{ title: "Área do membro — SG-CDM" }],
+    meta: [{ title: "Área do membro — Templo Virtual" }],
   }),
   component: LobbyMemberPortalPage,
 });

@@ -5,7 +5,7 @@ import { requestPasswordReset } from "@/lib/accounts.functions";
 export const Route = createFileRoute("/auth/recuperar-senha")({
   ssr: false,
   head: () => ({
-    meta: [{ title: "Recuperar senha — SG-CDM" }],
+    meta: [{ title: "Recuperar senha — Templo Virtual" }],
   }),
   component: RecuperarSenhaPage,
 });

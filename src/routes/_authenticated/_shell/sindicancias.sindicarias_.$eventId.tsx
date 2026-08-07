@@ -26,7 +26,7 @@ export const Route = createFileRoute(
   },
   head: ({ params }) => ({
     meta: [
-      { title: `Sindicância — SG-CDM` },
+      { title: `Sindicância — Templo Virtual` },
       {
         name: "description",
         content: `Ata / roteiro da sindicância ${params.eventId}`,

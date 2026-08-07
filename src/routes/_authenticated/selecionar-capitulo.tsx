@@ -12,7 +12,7 @@ import { listMyChapterAccessLabels } from "@/lib/members.functions";
 export const Route = createFileRoute("/_authenticated/selecionar-capitulo")({
   head: () => ({
     meta: [
-      { title: "Selecionar instituição — SG-CDM" },
+      { title: "Selecionar capítulo — Templo Virtual" },
       {
         name: "description",
         content: "Escolha a instituição com a qual deseja trabalhar.",

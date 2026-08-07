@@ -28,7 +28,7 @@ import {
 import { ArrowLeft, Check, Plus, Send, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/membros/$id_/editar")({
-  head: () => ({ meta: [{ title: "Editar membro — SG-CDM" }] }),
+  head: () => ({ meta: [{ title: "Editar membro — Templo Virtual" }] }),
   remountDeps: ({ params }) => params.id,
   component: EditarMembro,
 });

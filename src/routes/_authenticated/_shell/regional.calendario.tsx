@@ -69,7 +69,7 @@ export const Route = createFileRoute(
   component: RegionalCalendar,
   head: () => ({
     meta: [
-      { title: "Calendário unificado | SG-CDM" },
+      { title: "Calendário unificado | Templo Virtual" },
       {
         name: "description",
         content:
@@ -238,7 +238,7 @@ function CalendarContent() {
                 downloadIcs(
                   filtered,
                   `calendario-regional`,
-                  `SG-CDM · ${scope.label}`,
+                  `Templo Virtual · ${scope.label}`,
                 )
               }
             >

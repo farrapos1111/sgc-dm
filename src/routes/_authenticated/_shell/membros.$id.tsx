@@ -87,7 +87,7 @@ import { MemberProficiencyCardPanel } from "@/components/proficiency/MemberProfi
 import { MemberAccountPanel } from "@/components/members/MemberAccountPanel";
 
 export const Route = createFileRoute("/_authenticated/_shell/membros/$id")({
-  head: () => ({ meta: [{ title: "Perfil do membro — SG-CDM" }] }),
+  head: () => ({ meta: [{ title: "Perfil do membro — Templo Virtual" }] }),
   component: MembroPerfil,
 });
 

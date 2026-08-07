@@ -46,7 +46,7 @@ import { PositionHistoryCollapsible } from "@/components/members/PositionHistory
 import { ArrowLeft, ArrowRight, Check, Plus, Trash2, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/membros/novo")({
-  head: () => ({ meta: [{ title: "Novo membro — SG-CDM" }] }),
+  head: () => ({ meta: [{ title: "Novo membro — Templo Virtual" }] }),
   component: NovoMembro,
 });
 

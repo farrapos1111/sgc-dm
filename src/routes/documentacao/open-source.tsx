@@ -8,7 +8,7 @@ const category = getDocsCategory("open-source");
 export const Route = createFileRoute("/documentacao/open-source")({
   head: () => ({
     meta: [
-      { title: `${category.label} — SG-CDM` },
+      { title: `${category.label} — Templo Virtual` },
       { name: "description", content: category.description },
     ],
   }),

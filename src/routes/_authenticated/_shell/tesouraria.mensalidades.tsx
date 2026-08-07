@@ -99,7 +99,7 @@ export const Route = createFileRoute(
 )({
   head: () => ({
     meta: [
-      { title: "Mensalidades — SG-CDM" },
+      { title: "Mensalidades — Templo Virtual" },
       {
         name: "description",
         content: "Calendário anual de mensalidades dos Demolays Ativos.",

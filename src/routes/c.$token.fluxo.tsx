@@ -5,7 +5,7 @@ import { PublicCashFlowView } from "./fluxo-caixa.$token";
 export const Route = createFileRoute("/c/$token/fluxo")({
   ssr: false,
   head: () => ({
-    meta: [{ title: "Fluxo de caixa — SG-CDM" }],
+    meta: [{ title: "Fluxo de caixa — Templo Virtual" }],
   }),
   component: LobbyFluxoPage,
 });

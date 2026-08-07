@@ -8,7 +8,7 @@ const category = getDocsCategory("guia");
 export const Route = createFileRoute("/documentacao/guia")({
   head: () => ({
     meta: [
-      { title: `${category.label} — SG-CDM` },
+      { title: `${category.label} — Templo Virtual` },
       { name: "description", content: category.description },
     ],
   }),

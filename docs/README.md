@@ -1,6 +1,8 @@
-# Documentação — SG-CDM
+# Documentação — Templo Virtual
 
-**SG-CDM (Sistema Gerenciador de Capítulos DeMolay)** é uma aplicação web em português para a gestão de capítulos DeMolay: membros, atas, presenças, tesouraria, calendário e comissões, com controle de acesso por cargo e uma camada de acompanhamento regional/estadual.
+**Templo Virtual** é o hub de gerenciamento das ordens paramaçônicas: uma aplicação web em português para membros, atas, presenças, tesouraria, calendário e comissões, com controle de acesso por cargo e uma camada de acompanhamento regional/estadual.
+
+> Nome anterior: **SG-CDM** (Sistema Gerenciador de Capítulos DeMolay).
 
 ## Os três documentos
 

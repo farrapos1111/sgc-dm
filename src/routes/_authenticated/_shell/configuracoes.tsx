@@ -263,12 +263,12 @@ function AppearanceCard() {
 export const Route = createFileRoute("/_authenticated/_shell/configuracoes")({
   head: () => ({
     meta: [
-      { title: "Configurações do capítulo — SG-CDM" },
+      { title: "Configurações do capítulo — Templo Virtual" },
       {
         name: "description",
         content: "Defina a logo do capítulo usada nos documentos e no cabeçalho do sistema.",
       },
-      { property: "og:title", content: "Configurações do capítulo — SG-CDM" },
+      { property: "og:title", content: "Configurações do capítulo — Templo Virtual" },
       {
         property: "og:description",
         content: "Logo do capítulo, identidade visual e dados da sede.",

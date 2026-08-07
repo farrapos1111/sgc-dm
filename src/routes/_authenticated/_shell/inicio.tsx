@@ -66,7 +66,7 @@ import { Badge } from "@/components/ui/badge";
 export const Route = createFileRoute("/_authenticated/_shell/inicio")({
   head: () => ({
     meta: [
-      { title: "Início — SG-CDM" },
+      { title: "Início — Templo Virtual" },
       { name: "description", content: "Dashboard do capítulo ativo." },
     ],
   }),

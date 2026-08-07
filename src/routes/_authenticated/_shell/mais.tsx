@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/_shell/mais")({
   head: () => ({
     meta: [
-      { title: "Mais — SG-CDM" },
+      { title: "Mais — Templo Virtual" },
       { name: "description", content: "Menu completo, opções e sessão." },
     ],
   }),

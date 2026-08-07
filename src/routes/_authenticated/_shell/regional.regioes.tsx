@@ -23,12 +23,12 @@ export const Route = createFileRoute("/_authenticated/_shell/regional/regioes")(
   component: ManageRegions,
   head: () => ({
     meta: [
-      { title: "Gestão de regiões | SG-CDM" },
+      { title: "Gestão de regiões | Templo Virtual" },
       {
         name: "description",
         content: "Criação e edição das regiões do estado e das instituições vinculadas a cada uma.",
       },
-      { property: "og:title", content: "Gestão de regiões | SG-CDM" },
+      { property: "og:title", content: "Gestão de regiões | Templo Virtual" },
       {
         property: "og:description",
         content: "Organize as regiões do estado e acompanhe suas instituições.",

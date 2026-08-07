@@ -39,7 +39,7 @@ import {
 export const Route = createFileRoute("/_authenticated/_shell/presencas")({
   head: () => ({
     meta: [
-      { title: "Presenças e frequência — SG-CDM" },
+      { title: "Presenças e frequência — Templo Virtual" },
       {
         name: "description",
         content:

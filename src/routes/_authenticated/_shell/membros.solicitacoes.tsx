@@ -20,7 +20,7 @@ import { formatChapterIdentity } from "@/lib/chapter-label";
 import { can } from "@/lib/permissions";
 
 export const Route = createFileRoute("/_authenticated/_shell/membros/solicitacoes")({
-  head: () => ({ meta: [{ title: "Solicitações — SG-CDM" }] }),
+  head: () => ({ meta: [{ title: "Solicitações — Templo Virtual" }] }),
   component: SolicitacoesPage,
 });
 

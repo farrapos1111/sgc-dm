@@ -19,7 +19,7 @@ import { createMenu, deleteMenu, listMenus } from "@/lib/hospitality.functions";
 export const Route = createFileRoute("/_authenticated/_shell/hospitalaria/cardapios")({
   head: () => ({
     meta: [
-      { title: "Cardápios — SG-CDM" },
+      { title: "Cardápios — Templo Virtual" },
       { name: "description", content: "Cardápios da hospitalaria do capítulo." },
     ],
   }),

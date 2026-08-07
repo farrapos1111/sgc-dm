@@ -47,7 +47,7 @@ import { useEventCheckinRealtime } from "@/hooks/useEventCheckinRealtime";
 export const Route = createFileRoute("/_authenticated/_shell/eventos/checkins")({
   head: () => ({
     meta: [
-      { title: "Check-ins — SG-CDM" },
+      { title: "Check-ins — Templo Virtual" },
       {
         name: "description",
         content:

@@ -241,7 +241,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     (activeScope?.primaryColor || active?.chapter.primary_color) || "#9E1B32";
   const chapterName = activeScope
     ? activeScope.label
-    : (active?.chapter.name ?? "SG-CDM");
+    : (active?.chapter.name ?? "Templo Virtual");
   const chapterNum = activeScope ? "" : (active?.chapter.number ?? "");
   const logoUrl = useChapterLogo(
     activeScope ? activeScope.logoUrl : active?.chapter.logo_url,

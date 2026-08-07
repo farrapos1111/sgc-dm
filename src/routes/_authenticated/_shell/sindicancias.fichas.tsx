@@ -79,7 +79,7 @@ export { STATUS_LABELS } from "@/lib/investigation-labels";
 export const Route = createFileRoute("/_authenticated/_shell/sindicancias/fichas")({
   head: () => ({
     meta: [
-      { title: "Fichas de Sindicância — SG-CDM" },
+      { title: "Fichas de Sindicância — Templo Virtual" },
       { name: "description", content: "Fichas de candidatos em sindicância." },
     ],
   }),

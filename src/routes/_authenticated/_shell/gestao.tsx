@@ -67,7 +67,7 @@ import { Pencil, Plus, Search, Trash2, UserPlus, Users, X } from "lucide-react";
 export const Route = createFileRoute("/_authenticated/_shell/gestao")({
   head: () => ({
     meta: [
-      { title: "Gestão de cargos e comissões — SG-CDM" },
+      { title: "Gestão de cargos e comissões — Templo Virtual" },
       {
         name: "description",
         content: "Quadro de cargos do capítulo e comissões por vigência.",

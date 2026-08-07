@@ -6,6 +6,6 @@ export const Route = createFileRoute("/_authenticated/_shell/regional/estados")(
   },
   component: () => null,
   head: () => ({
-    meta: [{ title: "Estados — SG-CDM" }],
+    meta: [{ title: "Estados — Templo Virtual" }],
   }),
 });

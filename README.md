@@ -1,6 +1,8 @@
-# SG-CDM — Sistema Gerenciador de Capítulos DeMolay
+# Templo Virtual — Hub de gerenciamento das ordens paramaçônicas
 
-Aplicação web para a gestão de capítulos da Ordem DeMolay: membros, atas, presenças, tesouraria, calendário e comissões — com controle de acesso por cargo e uma camada de acompanhamento regional/estadual.
+Aplicação web para a gestão das ordens paramaçônicas (capítulos DeMolay e demais corpos): membros, atas, presenças, tesouraria, calendário e comissões — com controle de acesso por cargo e uma camada de acompanhamento regional/estadual.
+
+> Nome anterior do projeto: **SG-CDM** (Sistema Gerenciador de Capítulos DeMolay). O repositório permanece `sgc-dm`.
 
 ## O que faz
 

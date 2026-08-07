@@ -1,16 +1,16 @@
-# SG-CDM — Guia do Usuário
+# Templo Virtual — Guia do Usuário
 
-*Sistema Gerenciador de Capítulos DeMolay*
+*Hub de gerenciamento das ordens paramaçônicas*
 
-Este guia é para quem **usa** o sistema — Mestre Conselheiro, Tesoureiro, Escrivão, Consultor, membros do Conselho e das comissões — e para quem vai **apresentar** o SG-CDM a um capítulo. Não é preciso saber nada de tecnologia para ler.
+Este guia é para quem **usa** o sistema — Mestre Conselheiro, Tesoureiro, Escrivão, Consultor, membros do Conselho e das comissões — e para quem vai **apresentar** o Templo Virtual a um capítulo. Não é preciso saber nada de tecnologia para ler.
 
 ---
 
-## O que é o SG-CDM
+## O que é o Templo Virtual
 
 Hoje, a maior parte dos capítulos DeMolay se organiza com o que tem à mão: uma planilha de caixa que só o Tesoureiro sabe abrir, atas em arquivos de texto espalhados, a lista de membros num grupo de WhatsApp, a chamada anotada num caderno. Funciona — até a gestão mudar de mãos. Aí o semestre começa com metade da informação perdida e a outra metade desatualizada.
 
-O SG-CDM reúne tudo isso em um lugar só: **membros, atas, presenças, caixa, mensalidades, calendário e comissões**. Cada pessoa entra com sua conta e vê exatamente o que o cargo dela permite ver — o Tesoureiro mexe no caixa, o Escrivão nas atas, e o histórico do capítulo continua no lugar quando a gestão passa adiante.
+O Templo Virtual reúne tudo isso em um lugar só: **membros, atas, presenças, caixa, mensalidades, calendário e comissões**. Cada pessoa entra com sua conta e vê exatamente o que o cargo dela permite ver — o Tesoureiro mexe no caixa, o Escrivão nas atas, e o histórico do capítulo continua no lugar quando a gestão passa adiante.
 
 O sistema funciona pelo navegador, no computador e no celular. Não é preciso instalar nada.
 

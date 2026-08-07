@@ -37,11 +37,11 @@ function escapeIcs(v: string) {
 }
 
 /** Gera um arquivo .ics compatível com Google Agenda, Apple, Outlook e Teams. */
-export function buildIcs(items: IcsItem[], calendarName = "SG-CDM"): string {
+export function buildIcs(items: IcsItem[], calendarName = "Templo Virtual"): string {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//SG-CDM//Calendario//PT-BR",
+    "PRODID:-//Templo Virtual//Calendario//PT-BR",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${escapeIcs(calendarName)}`,

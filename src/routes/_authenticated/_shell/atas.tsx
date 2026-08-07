@@ -53,13 +53,13 @@ import {
 export const Route = createFileRoute("/_authenticated/_shell/atas")({
   head: () => ({
     meta: [
-      { title: "Atas — SG-CDM" },
+      { title: "Atas — Templo Virtual" },
       {
         name: "description",
         content:
           "Acompanhe atas em andamento, filtre por situação e gerencie os modelos padrão do capítulo.",
       },
-      { property: "og:title", content: "Atas — SG-CDM" },
+      { property: "og:title", content: "Atas — Templo Virtual" },
       {
         property: "og:description",
         content: "Atas em andamento, histórico por situação e modelos editáveis do capítulo.",

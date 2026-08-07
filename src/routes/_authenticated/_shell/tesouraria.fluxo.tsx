@@ -81,9 +81,9 @@ import {
 export const Route = createFileRoute("/_authenticated/_shell/tesouraria/fluxo")({
   head: () => ({
     meta: [
-      { title: "Fluxo de Caixa — SG-CDM" },
+      { title: "Fluxo de Caixa — Templo Virtual" },
       { name: "description", content: "Entradas, saídas, importação e relatórios financeiros do capítulo." },
-      { property: "og:title", content: "Fluxo de Caixa — SG-CDM" },
+      { property: "og:title", content: "Fluxo de Caixa — Templo Virtual" },
       { property: "og:description", content: "Controle financeiro mensal do capítulo DeMolay." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

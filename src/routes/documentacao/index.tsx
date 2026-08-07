@@ -6,11 +6,11 @@ import { ArrowRight } from "lucide-react";
 export const Route = createFileRoute("/documentacao/")({
   head: () => ({
     meta: [
-      { title: "Documentação — SG-CDM" },
+      { title: "Documentação — Templo Virtual" },
       {
         name: "description",
         content:
-          "Documentação do SG-CDM: técnica, guia do usuário e tutorial de contribuição open source.",
+          "Documentação do Templo Virtual: técnica, guia do usuário e tutorial de contribuição open source.",
       },
     ],
   }),
@@ -23,7 +23,7 @@ function DocumentacaoHub() {
       <div className="max-w-4xl">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Documentação</h1>
         <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-          Guias do SG-CDM separados por público: quem desenvolve, quem usa no capítulo e quem quer
+          Guias do Templo Virtual separados por público: quem desenvolve, quem usa no capítulo e quem quer
           contribuir com o código.
         </p>
 

@@ -47,7 +47,7 @@ export const Route = createFileRoute("/_authenticated/_shell/regional/membros")(
   component: RegionalMembers,
   head: () => ({
     meta: [
-      { title: "Membros do escopo | SG-CDM" },
+      { title: "Membros do escopo | Templo Virtual" },
       {
         name: "description",
         content:

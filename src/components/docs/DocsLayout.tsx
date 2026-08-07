@@ -35,14 +35,15 @@ export function DocsLayout({ children, activeSlug = "hub" }: DocsLayoutProps) {
           </Button>
 
           <Link to="/documentacao" className="flex items-center gap-2.5 no-underline">
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold tracking-wider text-white"
-              style={{ backgroundColor: "#9E1B32" }}
-            >
-              SG
-            </div>
+            <img
+              src="/favicon.svg"
+              alt=""
+              className="h-8 w-8"
+              width={32}
+              height={32}
+            />
             <span className="text-sm font-semibold text-foreground">
-              SG-CDM <span className="font-normal text-muted-foreground">Docs</span>
+              Templo Virtual <span className="font-normal text-muted-foreground">Docs</span>
             </span>
           </Link>
 
@@ -65,7 +66,7 @@ export function DocsLayout({ children, activeSlug = "hub" }: DocsLayoutProps) {
         <div className="min-w-0 flex-1">
           <main className="px-4 py-8 sm:px-8 lg:px-10 lg:py-10">{children}</main>
           <footer className="border-t border-border/80 px-4 py-6 text-center text-xs text-muted-foreground sm:px-8">
-            SG-CDM · licença{" "}
+            Templo Virtual · licença{" "}
             <a
               href="https://github.com/farrapos1111/sgc-dm/blob/main/LICENSE"
               className="underline underline-offset-2 hover:text-foreground"

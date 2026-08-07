@@ -22,7 +22,7 @@ import {
 export const Route = createFileRoute("/c/$token/presencas")({
   ssr: false,
   head: () => ({
-    meta: [{ title: "Presenças — SG-CDM" }],
+    meta: [{ title: "Presenças — Templo Virtual" }],
   }),
   component: LobbyPresencasPage,
 });

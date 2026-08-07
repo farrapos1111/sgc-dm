@@ -27,7 +27,7 @@ export const Route = createFileRoute("/ata/$token")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Ata — SG-CDM" },
+      { title: "Ata — Templo Virtual" },
       {
         name: "description",
         content: "Leitura pública da ata da sessão.",
@@ -525,7 +525,7 @@ function PublicAtaPage() {
         </Card>
 
         <p className="pb-6 text-center text-[11px] text-muted-foreground">
-          SG-CDM · visão pública da ata
+          Templo Virtual · visão pública da ata
         </p>
       </main>
     </div>

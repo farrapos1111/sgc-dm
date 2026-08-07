@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * SG-CDM design system.
+ * Templo Virtual design system.
  *
  * Institutional tokens (bg #FAFAF8, fg #1A1A1A, muted #6B6B6B).
  * Primary is per-chapter: --chapter-primary set inline by the shell,

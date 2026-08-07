@@ -19,7 +19,7 @@ export const Route = createFileRoute(
 )({
   component: RegionAppearance,
   head: () => ({
-    meta: [{ title: "Aparência da região — SG-CDM" }],
+    meta: [{ title: "Aparência da região — Templo Virtual" }],
   }),
 });
 

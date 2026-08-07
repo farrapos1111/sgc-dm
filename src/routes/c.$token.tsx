@@ -11,7 +11,7 @@ export const Route = createFileRoute("/c/$token")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Capítulo — SG-CDM" },
+      { title: "Capítulo — Templo Virtual" },
       {
         name: "description",
         content: "Acesso público ao capítulo: mensalidades, fluxo, presenças e área do membro.",

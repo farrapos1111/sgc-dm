@@ -32,7 +32,7 @@ export const Route = createFileRoute("/_authenticated/_shell/ongoing/$id")({
   }),
   head: () => ({
     meta: [
-      { title: "Sessão em andamento — SG-CDM" },
+      { title: "Sessão em andamento — Templo Virtual" },
       {
         name: "description",
         content: "Chamada de presenças e ata da sessão em tempo real.",
