@@ -9,9 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
 import { formatDateBR } from "@/lib/format";
@@ -94,14 +92,17 @@ function Escala() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label className="mb-1.5 block text-sm">Membro *</Label>
-              <Select value={form.member_id} onValueChange={(v) => setForm((f) => ({ ...f, member_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {members.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={form.member_id}
+                onChange={(v) => setForm((f) => ({ ...f, member_id: v }))}
+                placeholder="Selecione"
+                searchPlaceholder="Digite o nome…"
+                emptyText="Nenhum membro encontrado."
+                options={members.map((m) => ({
+                  value: m.id,
+                  label: m.full_name,
+                }))}
+              />
             </div>
             <div>
               <Label className="mb-1.5 block text-sm">Data</Label>

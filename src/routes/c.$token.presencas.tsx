@@ -74,7 +74,7 @@ function LobbyPresencasPage() {
 
   const years = useMemo(() => {
     const list: number[] = [];
-    for (let y = now.getFullYear() + 1; y >= now.getFullYear() - 4; y--) list.push(y);
+    for (let y = now.getFullYear(); y >= now.getFullYear() - 4; y--) list.push(y);
     return list;
   }, []);
 

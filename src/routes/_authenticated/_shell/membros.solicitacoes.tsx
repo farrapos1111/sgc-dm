@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Check, Link2, Pencil, X } from "lucide-react";
 import { formatDateTimeBR } from "@/lib/format";
+import { formatChapterIdentity } from "@/lib/chapter-label";
 import { can } from "@/lib/permissions";
 
 export const Route = createFileRoute("/_authenticated/_shell/membros/solicitacoes")({
@@ -107,7 +108,7 @@ function SolicitacoesPage() {
     id: string;
     created_at: string;
     member?: { id: string; full_name: string; demolay_id?: string | null } | null;
-    requesting_chapter?: { name: string; number: string } | null;
+    requesting_chapter?: { name: string; number: string; city?: string | null } | null;
   }[];
 
   const changes = changeReqs as unknown as {
@@ -120,7 +121,7 @@ function SolicitacoesPage() {
       after: string | null;
     }[];
     member?: { id: string; full_name: string; demolay_id?: string | null } | null;
-    requesting_chapter?: { name: string; number: string } | null;
+    requesting_chapter?: { name: string; number: string; city?: string | null } | null;
   }[];
 
   const empty = affiliations.length === 0 && changes.length === 0;
@@ -164,10 +165,8 @@ function SolicitacoesPage() {
                         ) : null}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {req.requesting_chapter
-                          ? `${req.requesting_chapter.name} Nº ${req.requesting_chapter.number}`
-                          : "Outro capítulo"}{" "}
-                        solicita vincular este membro · {formatDateTimeBR(req.created_at)}
+                        {formatChapterIdentity(req.requesting_chapter)} solicita
+                        vincular este membro · {formatDateTimeBR(req.created_at)}
                       </div>
                     </div>
                     <Badge variant="secondary">Vínculo</Badge>
@@ -233,10 +232,8 @@ function SolicitacoesPage() {
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Solicitado por{" "}
-                        {req.requesting_chapter
-                          ? `${req.requesting_chapter.name} Nº ${req.requesting_chapter.number}`
-                          : "outro capítulo"}{" "}
-                        · {formatDateTimeBR(req.created_at)}
+                        {formatChapterIdentity(req.requesting_chapter)} ·{" "}
+                        {formatDateTimeBR(req.created_at)}
                       </div>
                     </div>
                     <Badge variant="secondary">Dados</Badge>

@@ -1,24 +1,39 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, X } from "lucide-react";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useOrgScope } from "@/context/OrgScopeContext";
 import { ChapterLogoAvatar } from "@/components/ChapterLogoAvatar";
 import { Input } from "@/components/ui/input";
 import { matchesLooseSearch } from "@/lib/utils";
+import { listMyChapterAccessLabels } from "@/lib/members.functions";
 
 export const Route = createFileRoute("/_authenticated/selecionar-capitulo")({
   head: () => ({
     meta: [
-      { title: "Selecionar capítulo — SG-CDM" },
+      { title: "Selecionar instituição — SG-CDM" },
       {
         name: "description",
-        content: "Escolha o capítulo com o qual deseja trabalhar.",
+        content: "Escolha a instituição com a qual deseja trabalhar.",
       },
     ],
   }),
   component: ChapterPicker,
 });
+
+type InstitutionCard = {
+  chapter_id: string;
+  chapter: {
+    id: string;
+    name: string;
+    number: string;
+    city: string | null;
+    primary_color: string;
+    logo_url: string | null;
+  };
+  roleLabel: string;
+};
 
 function ChapterPicker() {
   const { memberships, loading, setActiveChapterId } = useActiveChapter();
@@ -26,18 +41,55 @@ function ChapterPicker() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
 
+  const institutions = useMemo((): InstitutionCard[] => {
+    const byChapter = new Map<string, InstitutionCard>();
+    for (const m of memberships) {
+      const existing = byChapter.get(m.chapter_id);
+      if (!existing) {
+        byChapter.set(m.chapter_id, {
+          chapter_id: m.chapter_id,
+          chapter: m.chapter,
+          roleLabel: m.role.label,
+        });
+        continue;
+      }
+      // Preferir rótulo de role mais específico que "Membro" se houver vários.
+      if (
+        existing.roleLabel.toLowerCase() === "membro" &&
+        m.role.label.toLowerCase() !== "membro"
+      ) {
+        existing.roleLabel = m.role.label;
+      }
+    }
+    return [...byChapter.values()];
+  }, [memberships]);
+
+  const chapterIds = useMemo(
+    () => institutions.map((i) => i.chapter_id),
+    [institutions],
+  );
+
+  const { data: cargoByChapter = {} } = useQuery({
+    queryKey: ["my-chapter-access-labels", chapterIds.join(",")],
+    queryFn: () =>
+      listMyChapterAccessLabels({ data: { chapterIds } }),
+    enabled: chapterIds.length > 0,
+  });
+
   const visible = useMemo(() => {
     const q = search.trim();
     const rows = q
-      ? memberships.filter((m) => {
+      ? institutions.filter((m) => {
           if (matchesLooseSearch(m.chapter.name, q)) return true;
           if (matchesLooseSearch(m.chapter.number, q)) return true;
           if (m.chapter.city && matchesLooseSearch(m.chapter.city, q))
             return true;
-          if (matchesLooseSearch(m.role.label, q)) return true;
+          const cargos = cargoByChapter[m.chapter_id] ?? [];
+          if (cargos.some((c) => matchesLooseSearch(c, q))) return true;
+          if (matchesLooseSearch(m.roleLabel, q)) return true;
           return false;
         })
-      : memberships;
+      : institutions;
 
     return [...rows].sort((a, b) => {
       const byName = a.chapter.name.localeCompare(b.chapter.name, "pt-BR", {
@@ -48,13 +100,15 @@ function ChapterPicker() {
         numeric: true,
       });
     });
-  }, [memberships, search]);
+  }, [institutions, search, cargoByChapter]);
 
   function pick(chapterId: string) {
     setActiveScopeKey(null);
     setActiveChapterId(chapterId);
     navigate({ to: "/inicio" });
   }
+
+  const count = institutions.length;
 
   return (
     <div
@@ -70,25 +124,25 @@ function ChapterPicker() {
             <span className="text-xl font-bold text-white">SG</span>
           </div>
           <h1 className="text-xl font-bold text-foreground">
-            Selecione o capítulo
+            Selecione a instituição
           </h1>
           <p className="mt-1 text-center text-sm text-muted-foreground">
-            Você tem acesso a {memberships.length}{" "}
-            {memberships.length === 1 ? "capítulo" : "capítulos"}. Escolha com
-            qual deseja trabalhar agora.
+            Você está vinculado a {count}{" "}
+            {count === 1 ? "instituição" : "instituições"}. Escolha com qual
+            deseja trabalhar agora.
           </p>
         </div>
 
-        {!loading && memberships.length > 1 && (
+        {!loading && count > 1 && (
           <div className="relative mb-3">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-9 pr-9"
-              placeholder="Buscar por nome, número ou cidade…"
+              placeholder="Buscar por nome, número, cidade ou cargo…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              aria-label="Buscar capítulos"
-              autoFocus={memberships.length > 8}
+              aria-label="Buscar instituições"
+              autoFocus={count > 8}
             />
             {search ? (
               <button
@@ -108,50 +162,55 @@ function ChapterPicker() {
             <p className="text-center text-sm text-muted-foreground">
               Carregando...
             </p>
-          ) : memberships.length === 0 ? (
+          ) : count === 0 ? (
             <p className="text-center text-sm text-muted-foreground">
               Nenhum vínculo ativo.
             </p>
           ) : visible.length === 0 ? (
             <p className="text-center text-sm text-muted-foreground">
-              Nenhum capítulo encontrado com essa busca.
+              Nenhuma instituição encontrada com essa busca.
             </p>
           ) : (
-            visible.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => pick(m.chapter_id)}
-                className="w-full rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition-colors hover:border-muted-foreground/50"
-              >
-                <div className="flex items-center gap-4">
-                  <ChapterLogoAvatar
-                    logoPath={m.chapter.logo_url}
-                    number={m.chapter.number}
-                    color={m.chapter.primary_color}
-                    className="h-12 w-12 rounded-xl text-xs"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-semibold text-foreground">
-                      {m.chapter.name}
-                    </div>
-                    <div className="truncate text-sm text-muted-foreground">
-                      Nº {m.chapter.number}
-                      {m.chapter.city ? ` · ${m.chapter.city}` : ""}
-                    </div>
-                    <div
-                      className="mt-1.5 inline-flex items-center gap-2 rounded-full px-2 py-0.5 text-xs font-medium"
-                      style={{
-                        backgroundColor: `color-mix(in srgb, ${m.chapter.primary_color || "#9E1B32"} 18%, transparent)`,
-                        color: m.chapter.primary_color || "#9E1B32",
-                      }}
-                    >
-                      {m.role.label}
+            visible.map((m) => {
+              const cargos = cargoByChapter[m.chapter_id] ?? [];
+              const badge =
+                cargos.length > 0 ? cargos.join(" · ") : m.roleLabel;
+              return (
+                <button
+                  key={m.chapter_id}
+                  type="button"
+                  onClick={() => pick(m.chapter_id)}
+                  className="w-full rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition-colors hover:border-muted-foreground/50"
+                >
+                  <div className="flex items-center gap-4">
+                    <ChapterLogoAvatar
+                      logoPath={m.chapter.logo_url}
+                      number={m.chapter.number}
+                      color={m.chapter.primary_color}
+                      className="h-12 w-12 rounded-xl text-xs"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-semibold text-foreground">
+                        {m.chapter.name}
+                      </div>
+                      <div className="truncate text-sm text-muted-foreground">
+                        Nº {m.chapter.number}
+                        {m.chapter.city ? ` · ${m.chapter.city}` : ""}
+                      </div>
+                      <div
+                        className="mt-1.5 inline-flex max-w-full items-center gap-2 truncate rounded-full px-2 py-0.5 text-xs font-medium"
+                        style={{
+                          backgroundColor: `color-mix(in srgb, ${m.chapter.primary_color || "#9E1B32"} 18%, transparent)`,
+                          color: m.chapter.primary_color || "#9E1B32",
+                        }}
+                      >
+                        {badge}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </button>
-            ))
+                </button>
+              );
+            })
           )}
         </div>
       </div>

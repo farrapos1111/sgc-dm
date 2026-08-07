@@ -36,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 export const Route = createFileRoute(
   "/_authenticated/_shell/regional/liderancas",
@@ -363,23 +364,19 @@ function LeadershipsContent() {
               </div>
               <div>
                 <Label>Estado</Label>
-                <Select
-                  value={stateDraft.state_id || undefined}
-                  onValueChange={(v) =>
+                <SearchableSelect
+                  value={stateDraft.state_id || ""}
+                  onChange={(v) =>
                     setStateDraft({ ...stateDraft, state_id: v })
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(states ?? []).map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name} ({s.uf})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Selecione"
+                  searchPlaceholder="Buscar estado…"
+                  emptyText="Nenhum estado encontrado."
+                  options={(states ?? []).map((s) => ({
+                    value: s.id,
+                    label: `${s.name} (${s.uf})`,
+                  }))}
+                />
               </div>
             </div>
           )}
@@ -439,24 +436,20 @@ function LeadershipsContent() {
               </div>
               <div>
                 <Label>Região</Label>
-                <Select
-                  value={invite.region_id || undefined}
-                  onValueChange={(v) => {
+                <SearchableSelect
+                  value={invite.region_id || ""}
+                  onChange={(v) => {
                     setLookedUp(null);
                     setInvite({ ...invite, region_id: v });
                   }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(regions ?? []).map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Selecione"
+                  searchPlaceholder="Buscar região…"
+                  emptyText="Nenhuma região encontrada."
+                  options={(regions ?? []).map((r) => ({
+                    value: r.id,
+                    label: r.name,
+                  }))}
+                />
               </div>
               <div>
                 <Label htmlFor="inv-dm">ID DeMolay</Label>

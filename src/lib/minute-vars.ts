@@ -1,9 +1,10 @@
-/** Resolução das variáveis dinâmicas entre colchetes nos modelos de ata. */
+/** Resolução das variáveis dinâmicas entre colchetes nos modelos de ata/ofício. */
 
-import { datePartsInAppTz, formatTimeInAppTz } from "@/lib/timezone";
+import { datePartsInAppTz, formatTimeInAppTz, APP_TIMEZONE } from "@/lib/timezone";
 
 export type MinuteVarContext = {
   chapterName?: string | null;
+  chapterNumber?: string | null;
   chapterCity?: string | null;
   date?: string | null; // ISO
   location?: string | null;
@@ -24,6 +25,16 @@ const MESES = [
   "outubro",
   "novembro",
   "dezembro",
+];
+
+const DIAS_SEMANA = [
+  "domingo",
+  "segunda-feira",
+  "terça-feira",
+  "quarta-feira",
+  "quinta-feira",
+  "sexta-feira",
+  "sábado",
 ];
 
 const UNIDADES = [
@@ -103,48 +114,102 @@ export function anoPorExtenso(ano: number): string {
   return `${prefixo}${conector}${sufixo}`;
 }
 
+/** Normaliza chave de variável (minúsculas, sem acento). */
+export function normalizeVarKey(key: string): string {
+  return key
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function weekdayNameInAppTz(d: Date): string {
+  const wd = new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIMEZONE,
+    weekday: "short",
+  }).format(d);
+  const idx = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(wd);
+  return DIAS_SEMANA[idx >= 0 ? idx : 0] ?? "";
+}
+
 export function buildVarMap(ctx: MinuteVarContext): Record<string, string> {
   const start = ctx.date ? new Date(ctx.date) : new Date();
   const parts = datePartsInAppTz(start);
   const officers = ctx.officers ?? {};
   const capitulo = [
     ctx.chapterName,
+    ctx.chapterNumber ? `Nº ${ctx.chapterNumber}` : null,
     ctx.chapterCity ? `— ${ctx.chapterCity}` : null,
   ]
     .filter(Boolean)
     .join(" ");
+  const dataBr = `${pad2(parts.day)}/${pad2(parts.month)}/${parts.year}`;
+  const mesNome = MESES[parts.month - 1] ?? "";
   const horaInicio = new Date(start.getTime() + 30 * 60 * 1000);
   const horaFim = new Date(start.getTime() + (2 * 60 + 30) * 60 * 1000);
 
-  return {
-    dia: String(parts.day).padStart(2, "0"),
-    mês: MESES[parts.month - 1],
-    mes: MESES[parts.month - 1],
-    "ano por extenso": anoPorExtenso(parts.year),
-    ano: String(parts.year),
-    "nome da loja/capítulo": capitulo || "[nome da loja/capítulo]",
-    local: ctx.location || "[local]",
-    Local: ctx.location || "[Local]",
-    endereco: ctx.address || "[endereco]",
-    endereço: ctx.address || "[endereço]",
-    "endereço completo": ctx.address || ctx.location || "[endereço completo]",
-    Membro_MC: officers.mestre_conselheiro ?? "[Membro_MC]",
-    Membro_1C: officers.primeiro_conselheiro ?? "[Membro_1C]",
-    Membro_2C: officers.segundo_conselheiro ?? "[Membro_2C]",
-    Membro_Escrivao: officers.escrivao ?? "[Membro_Escrivao]",
-    Membro_Tesoureiro: officers.tesoureiro ?? "[Membro_Tesoureiro]",
-    Membro_Presidente: officers.presidente_conselho_consultivo ?? "[Membro_Presidente]",
-    "nome do escrivão": officers.escrivao ?? "[nome do escrivão]",
-    hora_inicio: formatTimeInAppTz(horaInicio),
-    hora_fim: formatTimeInAppTz(horaFim),
-  };
+  const mc = officers.mestre_conselheiro ?? "";
+  const c1 = officers.primeiro_conselheiro ?? "";
+  const c2 = officers.segundo_conselheiro ?? "";
+  const esc = officers.escrivao ?? "";
+  const tes = officers.tesoureiro ?? "";
+  const pcc = officers.presidente_conselho_consultivo ?? "";
+
+  const entries: [string, string][] = [
+    ["dia", pad2(parts.day)],
+    ["mes", mesNome],
+    ["mês", mesNome],
+    ["ano", String(parts.year)],
+    ["ano por extenso", anoPorExtenso(parts.year)],
+    ["data", dataBr],
+    ["dia da semana", weekdayNameInAppTz(start)],
+    ["dia_semana", weekdayNameInAppTz(start)],
+    ["nome da loja/capítulo", capitulo || "[nome da loja/capítulo]"],
+    ["nome da loja/capitulo", capitulo || "[nome da loja/capitulo]"],
+    ["capitulo", capitulo || "[capitulo]"],
+    ["capítulo", capitulo || "[capítulo]"],
+    ["nome do capítulo", capitulo || "[nome do capítulo]"],
+    ["local", ctx.location || "[local]"],
+    ["Local", ctx.location || "[Local]"],
+    ["endereco", ctx.address || "[endereco]"],
+    ["endereço", ctx.address || "[endereço]"],
+    [
+      "endereço completo",
+      ctx.address || ctx.location || "[endereço completo]",
+    ],
+    ["endereco completo", ctx.address || ctx.location || "[endereco completo]"],
+    ["Membro_MC", mc || "[Membro_MC]"],
+    ["membro_mc", mc || "[membro_mc]"],
+    ["Membro_1C", c1 || "[Membro_1C]"],
+    ["Membro_2C", c2 || "[Membro_2C]"],
+    ["Membro_Escrivao", esc || "[Membro_Escrivao]"],
+    ["Membro_Escrivão", esc || "[Membro_Escrivão]"],
+    ["Membro_Tesoureiro", tes || "[Membro_Tesoureiro]"],
+    ["Membro_Presidente", pcc || "[Membro_Presidente]"],
+    ["nome do escrivão", esc || "[nome do escrivão]"],
+    ["nome do escrivao", esc || "[nome do escrivao]"],
+    ["hora_inicio", formatTimeInAppTz(horaInicio)],
+    ["hora_fim", formatTimeInAppTz(horaFim)],
+  ];
+
+  const map: Record<string, string> = {};
+  for (const [k, v] of entries) {
+    map[k] = v;
+    map[normalizeVarKey(k)] = v;
+  }
+  return map;
 }
 
 /** Substitui as variáveis conhecidas; as demais permanecem entre colchetes para preenchimento. */
 export function applyVars(text: string, ctx: MinuteVarContext): string {
   const map = buildVarMap(ctx);
   return text.replace(/\[([^\]\n]+)\]/g, (full, key: string) => {
-    const v = map[key.trim()];
+    const raw = key.trim();
+    const v = map[raw] ?? map[normalizeVarKey(raw)];
     return v ?? full;
   });
 }
@@ -153,7 +218,10 @@ export function applyVars(text: string, ctx: MinuteVarContext): string {
 export const AVAILABLE_VARS = [
   "[dia]",
   "[mês]",
+  "[ano]",
   "[ano por extenso]",
+  "[data]",
+  "[dia da semana]",
   "[nome da loja/capítulo]",
   "[local]",
   "[endereco]",

@@ -1,104 +1,108 @@
-import { useMemo, useState } from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useMemo } from "react";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import {
-  matchesTermSearch,
-  termCode,
-  termKey,
-  termLabel,
-  type Term,
-} from "@/lib/terms";
+import { type Term } from "@/lib/terms";
+
+const SEMESTER_LABELS: Record<1 | 2, string> = {
+  1: "1º semestre",
+  2: "2º semestre",
+};
 
 export function TermSelect({
   value,
   terms,
   onChange,
   className,
-  placeholder = "Selecione a vigência",
+  yearClassName,
+  semesterClassName,
   disabled,
 }: {
   value: Term;
   terms: Term[];
   onChange: (term: Term) => void;
   className?: string;
-  placeholder?: string;
+  yearClassName?: string;
+  semesterClassName?: string;
   disabled?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  const years = useMemo(() => {
+    const set = new Set(terms.map((t) => t.year));
+    if (!set.has(value.year)) set.add(value.year);
+    return [...set].sort((a, b) => b - a);
+  }, [terms, value.year]);
 
-  const filtered = useMemo(
-    () => terms.filter((t) => matchesTermSearch(t, query)),
-    [terms, query],
-  );
+  const semesters = useMemo(() => {
+    const set = new Set(
+      terms.filter((t) => t.year === value.year).map((t) => t.semester),
+    );
+    if (set.size === 0) {
+      set.add(1);
+      set.add(2);
+    } else if (!set.has(value.semester)) {
+      set.add(value.semester);
+    }
+    return ([...set] as (1 | 2)[]).sort((a, b) => a - b);
+  }, [terms, value.year, value.semester]);
 
-  const selectedLabel = termLabel(value.year, value.semester);
+  function setYear(year: number) {
+    const available = terms.filter((t) => t.year === year);
+    const keep = available.find((t) => t.semester === value.semester);
+    onChange(keep ?? available[0] ?? { year, semester: value.semester });
+  }
+
+  function setSemester(semester: 1 | 2) {
+    const match = terms.find(
+      (t) => t.year === value.year && t.semester === semester,
+    );
+    onChange(match ?? { year: value.year, semester });
+  }
 
   return (
-    <Popover
-      modal
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) setQuery("");
-      }}
-    >
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          className={cn("w-full justify-between font-normal", className)}
+    <div className={cn("flex min-w-0 items-center gap-2", className)}>
+      <Select
+        value={String(value.year)}
+        onValueChange={(v) => setYear(Number(v))}
+        disabled={disabled}
+      >
+        <SelectTrigger
+          className={cn("h-9 w-[5.5rem] shrink-0", yearClassName)}
+          aria-label="Ano"
         >
-          <span className="truncate">{selectedLabel || placeholder}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput
-            placeholder="Buscar: 2022/01…"
-            value={query}
-            onValueChange={setQuery}
-          />
-          <CommandList>
-            <CommandEmpty>Nenhuma vigência encontrada.</CommandEmpty>
-            <CommandGroup>
-              {filtered.map((t) => {
-                const key = termKey(t);
-                const selected = value.year === t.year && value.semester === t.semester;
-                return (
-                  <CommandItem
-                    key={key}
-                    value={key}
-                    onSelect={() => {
-                      onChange(t);
-                      setOpen(false);
-                      setQuery("");
-                    }}
-                  >
-                    <Check className={cn("mr-2 h-4 w-4", selected ? "opacity-100" : "opacity-0")} />
-                    <span className="flex-1 truncate">{termLabel(t.year, t.semester)}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">{termCode(t.year, t.semester)}</span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+          <SelectValue placeholder="Ano" />
+        </SelectTrigger>
+        <SelectContent>
+          {years.map((y) => (
+            <SelectItem key={y} value={String(y)}>
+              {y}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={String(value.semester)}
+        onValueChange={(v) => setSemester(Number(v) as 1 | 2)}
+        disabled={disabled}
+      >
+        <SelectTrigger
+          className={cn("h-9 min-w-[8.5rem] flex-1", semesterClassName)}
+          aria-label="Semestre"
+        >
+          <SelectValue placeholder="Semestre" />
+        </SelectTrigger>
+        <SelectContent>
+          {semesters.map((s) => (
+            <SelectItem key={s} value={String(s)}>
+              {SEMESTER_LABELS[s]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

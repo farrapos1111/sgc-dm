@@ -4,11 +4,14 @@ import {
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
-import { ArrowLeftRight, ChevronDown, LogOut } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useActiveChapter } from "@/context/ActiveChapterContext";
+import {
+  clearChapterSessionStorage,
+  useActiveChapter,
+} from "@/context/ActiveChapterContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import {
@@ -48,6 +51,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     setActiveChapterId,
     canSwitchRoleView,
     cycleRoleView,
+    canSwitchChapter,
+    cycleChapter,
   } = useActiveChapter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isNavigating = useRouterState({
@@ -133,6 +138,41 @@ export function AppShell({ children }: { children: ReactNode }) {
     const label = cycleRoleView();
     toast.message(`Visão: ${label}`);
   }
+
+  function handleCycleChapter(direction: "prev" | "next") {
+    setActiveScopeKey(null);
+    const name = cycleChapter(direction);
+    if (name) toast.message(`Capítulo: ${name}`);
+    navigate({ to: "/inicio" });
+  }
+
+  const chapterSwitchControls =
+    canSwitchChapter && !activeScope ? (
+      <div className="flex shrink-0 items-center gap-0.5">
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8"
+          onClick={() => handleCycleChapter("prev")}
+          aria-label="Capítulo anterior"
+          title="Capítulo anterior"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8"
+          onClick={() => handleCycleChapter("next")}
+          aria-label="Próximo capítulo"
+          title="Próximo capítulo"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    ) : null;
 
   const roleSwitchButton =
     canSwitchRoleView && !activeScope ? (
@@ -225,7 +265,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   async function handleSignOut() {
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem("sgcdm.activeChapterId");
+      clearChapterSessionStorage();
       window.localStorage.removeItem("sgcdm.roleView");
       window.localStorage.removeItem("sgcdm.activeOrgScope");
     }
@@ -268,7 +308,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             primary={primary}
             className="h-10 w-10 rounded-[10px] text-sm"
           />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-semibold">{chapterName}</div>
             {chapterNum ? (
               <div className="text-xs text-muted-foreground">
@@ -282,6 +322,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               )
             )}
           </div>
+          {chapterSwitchControls}
         </div>
 
         {scopeSwitcher && (
@@ -363,6 +404,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             )}
           </div>
+          {chapterSwitchControls}
           {roleSwitchButton}
           <ThemeToggle className="shrink-0" />
         </header>

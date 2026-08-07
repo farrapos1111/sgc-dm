@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -578,18 +579,17 @@ function RegionalActivityDialog({
       <div className="max-h-[70vh] space-y-3 overflow-y-auto">
         <div>
           <Label>Instituição</Label>
-          <Select value={chapterId} onValueChange={setChapterId}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {chapters.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name} Nº {c.number}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={chapterId}
+            onChange={setChapterId}
+            placeholder="Selecione"
+            searchPlaceholder="Buscar instituição…"
+            emptyText="Nenhuma instituição encontrada."
+            options={chapters.map((c) => ({
+              value: c.id,
+              label: `${c.name} Nº ${c.number}`,
+            }))}
+          />
         </div>
         <div>
           <Label>Título</Label>

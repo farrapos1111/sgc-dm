@@ -123,7 +123,7 @@ export function PublicMensalidadesView({
     const founded = chapter?.founded_at;
     const start = founded ? Number(founded.slice(0, 4)) : now.getFullYear() - 2;
     const years: number[] = [];
-    for (let y = now.getFullYear() + 1; y >= start; y--) years.push(y);
+    for (let y = now.getFullYear(); y >= start; y--) years.push(y);
     return years;
   }, [chapter?.founded_at]);
 

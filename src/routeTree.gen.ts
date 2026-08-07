@@ -52,11 +52,15 @@ import { Route as AuthenticatedShellMembrosIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedShellMembrosIdRouteImport } from './routes/_authenticated/_shell/membros.$id'
 import { Route as AuthenticatedShellMembrosNovoRouteImport } from './routes/_authenticated/_shell/membros.novo'
 import { Route as AuthenticatedShellMembrosSolicitacoesRouteImport } from './routes/_authenticated/_shell/membros.solicitacoes'
+import { Route as AuthenticatedShellOficiosIndexRouteImport } from './routes/_authenticated/_shell/oficios.index'
+import { Route as AuthenticatedShellOficiosIdRouteImport } from './routes/_authenticated/_shell/oficios.$id'
+import { Route as AuthenticatedShellOficiosNovoRouteImport } from './routes/_authenticated/_shell/oficios.novo'
 import { Route as AuthenticatedShellOngoingIdRouteImport } from './routes/_authenticated/_shell/ongoing.$id'
 import { Route as AuthenticatedShellRegionalIndexRouteImport } from './routes/_authenticated/_shell/regional.index'
 import { Route as AuthenticatedShellRegionalAparenciaRouteImport } from './routes/_authenticated/_shell/regional.aparencia'
 import { Route as AuthenticatedShellRegionalCalendarioRouteImport } from './routes/_authenticated/_shell/regional.calendario'
 import { Route as AuthenticatedShellRegionalCapitulosRouteImport } from './routes/_authenticated/_shell/regional.capitulos'
+import { Route as AuthenticatedShellRegionalDatasObrigatoriasRouteImport } from './routes/_authenticated/_shell/regional.datas-obrigatorias'
 import { Route as AuthenticatedShellRegionalEstadosRouteImport } from './routes/_authenticated/_shell/regional.estados'
 import { Route as AuthenticatedShellRegionalLiderancasRouteImport } from './routes/_authenticated/_shell/regional.liderancas'
 import { Route as AuthenticatedShellRegionalMembrosRouteImport } from './routes/_authenticated/_shell/regional.membros'
@@ -303,6 +307,24 @@ const AuthenticatedShellMembrosSolicitacoesRoute =
     path: '/membros/solicitacoes',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
+const AuthenticatedShellOficiosIndexRoute =
+  AuthenticatedShellOficiosIndexRouteImport.update({
+    id: '/oficios/',
+    path: '/oficios/',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellOficiosIdRoute =
+  AuthenticatedShellOficiosIdRouteImport.update({
+    id: '/oficios/$id',
+    path: '/oficios/$id',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellOficiosNovoRoute =
+  AuthenticatedShellOficiosNovoRouteImport.update({
+    id: '/oficios/novo',
+    path: '/oficios/novo',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
 const AuthenticatedShellOngoingIdRoute =
   AuthenticatedShellOngoingIdRouteImport.update({
     id: '/ongoing/$id',
@@ -331,6 +353,12 @@ const AuthenticatedShellRegionalCapitulosRoute =
   AuthenticatedShellRegionalCapitulosRouteImport.update({
     id: '/regional/capitulos',
     path: '/regional/capitulos',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellRegionalDatasObrigatoriasRoute =
+  AuthenticatedShellRegionalDatasObrigatoriasRouteImport.update({
+    id: '/regional/datas-obrigatorias',
+    path: '/regional/datas-obrigatorias',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
 const AuthenticatedShellRegionalEstadosRoute =
@@ -458,10 +486,13 @@ export interface FileRoutesByFullPath {
   '/membros/$id': typeof AuthenticatedShellMembrosIdRoute
   '/membros/novo': typeof AuthenticatedShellMembrosNovoRoute
   '/membros/solicitacoes': typeof AuthenticatedShellMembrosSolicitacoesRoute
+  '/oficios/$id': typeof AuthenticatedShellOficiosIdRoute
+  '/oficios/novo': typeof AuthenticatedShellOficiosNovoRoute
   '/ongoing/$id': typeof AuthenticatedShellOngoingIdRoute
   '/regional/aparencia': typeof AuthenticatedShellRegionalAparenciaRoute
   '/regional/calendario': typeof AuthenticatedShellRegionalCalendarioRoute
   '/regional/capitulos': typeof AuthenticatedShellRegionalCapitulosRoute
+  '/regional/datas-obrigatorias': typeof AuthenticatedShellRegionalDatasObrigatoriasRoute
   '/regional/estados': typeof AuthenticatedShellRegionalEstadosRoute
   '/regional/liderancas': typeof AuthenticatedShellRegionalLiderancasRoute
   '/regional/membros': typeof AuthenticatedShellRegionalMembrosRoute
@@ -476,6 +507,7 @@ export interface FileRoutesByFullPath {
   '/tesouraria/mensalidades': typeof AuthenticatedShellTesourariaMensalidadesRoute
   '/eventos/': typeof AuthenticatedShellEventosIndexRoute
   '/membros/': typeof AuthenticatedShellMembrosIndexRoute
+  '/oficios/': typeof AuthenticatedShellOficiosIndexRoute
   '/regional/': typeof AuthenticatedShellRegionalIndexRoute
   '/membros/$id/editar': typeof AuthenticatedShellMembrosIdEditarRoute
   '/sindicancias/sindicarias/$eventId': typeof AuthenticatedShellSindicanciasSindicariasEventIdRoute
@@ -518,10 +550,13 @@ export interface FileRoutesByTo {
   '/membros/$id': typeof AuthenticatedShellMembrosIdRoute
   '/membros/novo': typeof AuthenticatedShellMembrosNovoRoute
   '/membros/solicitacoes': typeof AuthenticatedShellMembrosSolicitacoesRoute
+  '/oficios/$id': typeof AuthenticatedShellOficiosIdRoute
+  '/oficios/novo': typeof AuthenticatedShellOficiosNovoRoute
   '/ongoing/$id': typeof AuthenticatedShellOngoingIdRoute
   '/regional/aparencia': typeof AuthenticatedShellRegionalAparenciaRoute
   '/regional/calendario': typeof AuthenticatedShellRegionalCalendarioRoute
   '/regional/capitulos': typeof AuthenticatedShellRegionalCapitulosRoute
+  '/regional/datas-obrigatorias': typeof AuthenticatedShellRegionalDatasObrigatoriasRoute
   '/regional/estados': typeof AuthenticatedShellRegionalEstadosRoute
   '/regional/liderancas': typeof AuthenticatedShellRegionalLiderancasRoute
   '/regional/membros': typeof AuthenticatedShellRegionalMembrosRoute
@@ -536,6 +571,7 @@ export interface FileRoutesByTo {
   '/tesouraria/mensalidades': typeof AuthenticatedShellTesourariaMensalidadesRoute
   '/eventos': typeof AuthenticatedShellEventosIndexRoute
   '/membros': typeof AuthenticatedShellMembrosIndexRoute
+  '/oficios': typeof AuthenticatedShellOficiosIndexRoute
   '/regional': typeof AuthenticatedShellRegionalIndexRoute
   '/membros/$id/editar': typeof AuthenticatedShellMembrosIdEditarRoute
   '/sindicancias/sindicarias/$eventId': typeof AuthenticatedShellSindicanciasSindicariasEventIdRoute
@@ -583,10 +619,13 @@ export interface FileRoutesById {
   '/_authenticated/_shell/membros/$id': typeof AuthenticatedShellMembrosIdRoute
   '/_authenticated/_shell/membros/novo': typeof AuthenticatedShellMembrosNovoRoute
   '/_authenticated/_shell/membros/solicitacoes': typeof AuthenticatedShellMembrosSolicitacoesRoute
+  '/_authenticated/_shell/oficios/$id': typeof AuthenticatedShellOficiosIdRoute
+  '/_authenticated/_shell/oficios/novo': typeof AuthenticatedShellOficiosNovoRoute
   '/_authenticated/_shell/ongoing/$id': typeof AuthenticatedShellOngoingIdRoute
   '/_authenticated/_shell/regional/aparencia': typeof AuthenticatedShellRegionalAparenciaRoute
   '/_authenticated/_shell/regional/calendario': typeof AuthenticatedShellRegionalCalendarioRoute
   '/_authenticated/_shell/regional/capitulos': typeof AuthenticatedShellRegionalCapitulosRoute
+  '/_authenticated/_shell/regional/datas-obrigatorias': typeof AuthenticatedShellRegionalDatasObrigatoriasRoute
   '/_authenticated/_shell/regional/estados': typeof AuthenticatedShellRegionalEstadosRoute
   '/_authenticated/_shell/regional/liderancas': typeof AuthenticatedShellRegionalLiderancasRoute
   '/_authenticated/_shell/regional/membros': typeof AuthenticatedShellRegionalMembrosRoute
@@ -601,6 +640,7 @@ export interface FileRoutesById {
   '/_authenticated/_shell/tesouraria/mensalidades': typeof AuthenticatedShellTesourariaMensalidadesRoute
   '/_authenticated/_shell/eventos/': typeof AuthenticatedShellEventosIndexRoute
   '/_authenticated/_shell/membros/': typeof AuthenticatedShellMembrosIndexRoute
+  '/_authenticated/_shell/oficios/': typeof AuthenticatedShellOficiosIndexRoute
   '/_authenticated/_shell/regional/': typeof AuthenticatedShellRegionalIndexRoute
   '/_authenticated/_shell/membros/$id_/editar': typeof AuthenticatedShellMembrosIdEditarRoute
   '/_authenticated/_shell/sindicancias/sindicarias_/$eventId': typeof AuthenticatedShellSindicanciasSindicariasEventIdRoute
@@ -647,10 +687,13 @@ export interface FileRouteTypes {
     | '/membros/$id'
     | '/membros/novo'
     | '/membros/solicitacoes'
+    | '/oficios/$id'
+    | '/oficios/novo'
     | '/ongoing/$id'
     | '/regional/aparencia'
     | '/regional/calendario'
     | '/regional/capitulos'
+    | '/regional/datas-obrigatorias'
     | '/regional/estados'
     | '/regional/liderancas'
     | '/regional/membros'
@@ -665,6 +708,7 @@ export interface FileRouteTypes {
     | '/tesouraria/mensalidades'
     | '/eventos/'
     | '/membros/'
+    | '/oficios/'
     | '/regional/'
     | '/membros/$id/editar'
     | '/sindicancias/sindicarias/$eventId'
@@ -707,10 +751,13 @@ export interface FileRouteTypes {
     | '/membros/$id'
     | '/membros/novo'
     | '/membros/solicitacoes'
+    | '/oficios/$id'
+    | '/oficios/novo'
     | '/ongoing/$id'
     | '/regional/aparencia'
     | '/regional/calendario'
     | '/regional/capitulos'
+    | '/regional/datas-obrigatorias'
     | '/regional/estados'
     | '/regional/liderancas'
     | '/regional/membros'
@@ -725,6 +772,7 @@ export interface FileRouteTypes {
     | '/tesouraria/mensalidades'
     | '/eventos'
     | '/membros'
+    | '/oficios'
     | '/regional'
     | '/membros/$id/editar'
     | '/sindicancias/sindicarias/$eventId'
@@ -771,10 +819,13 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/membros/$id'
     | '/_authenticated/_shell/membros/novo'
     | '/_authenticated/_shell/membros/solicitacoes'
+    | '/_authenticated/_shell/oficios/$id'
+    | '/_authenticated/_shell/oficios/novo'
     | '/_authenticated/_shell/ongoing/$id'
     | '/_authenticated/_shell/regional/aparencia'
     | '/_authenticated/_shell/regional/calendario'
     | '/_authenticated/_shell/regional/capitulos'
+    | '/_authenticated/_shell/regional/datas-obrigatorias'
     | '/_authenticated/_shell/regional/estados'
     | '/_authenticated/_shell/regional/liderancas'
     | '/_authenticated/_shell/regional/membros'
@@ -789,6 +840,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/tesouraria/mensalidades'
     | '/_authenticated/_shell/eventos/'
     | '/_authenticated/_shell/membros/'
+    | '/_authenticated/_shell/oficios/'
     | '/_authenticated/_shell/regional/'
     | '/_authenticated/_shell/membros/$id_/editar'
     | '/_authenticated/_shell/sindicancias/sindicarias_/$eventId'
@@ -1112,6 +1164,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellMembrosSolicitacoesRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
+    '/_authenticated/_shell/oficios/': {
+      id: '/_authenticated/_shell/oficios/'
+      path: '/oficios'
+      fullPath: '/oficios/'
+      preLoaderRoute: typeof AuthenticatedShellOficiosIndexRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/oficios/$id': {
+      id: '/_authenticated/_shell/oficios/$id'
+      path: '/oficios/$id'
+      fullPath: '/oficios/$id'
+      preLoaderRoute: typeof AuthenticatedShellOficiosIdRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/oficios/novo': {
+      id: '/_authenticated/_shell/oficios/novo'
+      path: '/oficios/novo'
+      fullPath: '/oficios/novo'
+      preLoaderRoute: typeof AuthenticatedShellOficiosNovoRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
     '/_authenticated/_shell/ongoing/$id': {
       id: '/_authenticated/_shell/ongoing/$id'
       path: '/ongoing/$id'
@@ -1145,6 +1218,13 @@ declare module '@tanstack/react-router' {
       path: '/regional/capitulos'
       fullPath: '/regional/capitulos'
       preLoaderRoute: typeof AuthenticatedShellRegionalCapitulosRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/regional/datas-obrigatorias': {
+      id: '/_authenticated/_shell/regional/datas-obrigatorias'
+      path: '/regional/datas-obrigatorias'
+      fullPath: '/regional/datas-obrigatorias'
+      preLoaderRoute: typeof AuthenticatedShellRegionalDatasObrigatoriasRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
     '/_authenticated/_shell/regional/estados': {
@@ -1266,10 +1346,13 @@ interface AuthenticatedShellRouteRouteChildren {
   AuthenticatedShellMembrosIdRoute: typeof AuthenticatedShellMembrosIdRoute
   AuthenticatedShellMembrosNovoRoute: typeof AuthenticatedShellMembrosNovoRoute
   AuthenticatedShellMembrosSolicitacoesRoute: typeof AuthenticatedShellMembrosSolicitacoesRoute
+  AuthenticatedShellOficiosIdRoute: typeof AuthenticatedShellOficiosIdRoute
+  AuthenticatedShellOficiosNovoRoute: typeof AuthenticatedShellOficiosNovoRoute
   AuthenticatedShellOngoingIdRoute: typeof AuthenticatedShellOngoingIdRoute
   AuthenticatedShellRegionalAparenciaRoute: typeof AuthenticatedShellRegionalAparenciaRoute
   AuthenticatedShellRegionalCalendarioRoute: typeof AuthenticatedShellRegionalCalendarioRoute
   AuthenticatedShellRegionalCapitulosRoute: typeof AuthenticatedShellRegionalCapitulosRoute
+  AuthenticatedShellRegionalDatasObrigatoriasRoute: typeof AuthenticatedShellRegionalDatasObrigatoriasRoute
   AuthenticatedShellRegionalEstadosRoute: typeof AuthenticatedShellRegionalEstadosRoute
   AuthenticatedShellRegionalLiderancasRoute: typeof AuthenticatedShellRegionalLiderancasRoute
   AuthenticatedShellRegionalMembrosRoute: typeof AuthenticatedShellRegionalMembrosRoute
@@ -1284,6 +1367,7 @@ interface AuthenticatedShellRouteRouteChildren {
   AuthenticatedShellTesourariaMensalidadesRoute: typeof AuthenticatedShellTesourariaMensalidadesRoute
   AuthenticatedShellEventosIndexRoute: typeof AuthenticatedShellEventosIndexRoute
   AuthenticatedShellMembrosIndexRoute: typeof AuthenticatedShellMembrosIndexRoute
+  AuthenticatedShellOficiosIndexRoute: typeof AuthenticatedShellOficiosIndexRoute
   AuthenticatedShellRegionalIndexRoute: typeof AuthenticatedShellRegionalIndexRoute
   AuthenticatedShellMembrosIdEditarRoute: typeof AuthenticatedShellMembrosIdEditarRoute
   AuthenticatedShellSindicanciasSindicariasEventIdRoute: typeof AuthenticatedShellSindicanciasSindicariasEventIdRoute
@@ -1312,6 +1396,8 @@ const AuthenticatedShellRouteRouteChildren: AuthenticatedShellRouteRouteChildren
     AuthenticatedShellMembrosNovoRoute: AuthenticatedShellMembrosNovoRoute,
     AuthenticatedShellMembrosSolicitacoesRoute:
       AuthenticatedShellMembrosSolicitacoesRoute,
+    AuthenticatedShellOficiosIdRoute: AuthenticatedShellOficiosIdRoute,
+    AuthenticatedShellOficiosNovoRoute: AuthenticatedShellOficiosNovoRoute,
     AuthenticatedShellOngoingIdRoute: AuthenticatedShellOngoingIdRoute,
     AuthenticatedShellRegionalAparenciaRoute:
       AuthenticatedShellRegionalAparenciaRoute,
@@ -1319,6 +1405,8 @@ const AuthenticatedShellRouteRouteChildren: AuthenticatedShellRouteRouteChildren
       AuthenticatedShellRegionalCalendarioRoute,
     AuthenticatedShellRegionalCapitulosRoute:
       AuthenticatedShellRegionalCapitulosRoute,
+    AuthenticatedShellRegionalDatasObrigatoriasRoute:
+      AuthenticatedShellRegionalDatasObrigatoriasRoute,
     AuthenticatedShellRegionalEstadosRoute:
       AuthenticatedShellRegionalEstadosRoute,
     AuthenticatedShellRegionalLiderancasRoute:
@@ -1345,6 +1433,7 @@ const AuthenticatedShellRouteRouteChildren: AuthenticatedShellRouteRouteChildren
       AuthenticatedShellTesourariaMensalidadesRoute,
     AuthenticatedShellEventosIndexRoute: AuthenticatedShellEventosIndexRoute,
     AuthenticatedShellMembrosIndexRoute: AuthenticatedShellMembrosIndexRoute,
+    AuthenticatedShellOficiosIndexRoute: AuthenticatedShellOficiosIndexRoute,
     AuthenticatedShellRegionalIndexRoute: AuthenticatedShellRegionalIndexRoute,
     AuthenticatedShellMembrosIdEditarRoute:
       AuthenticatedShellMembrosIdEditarRoute,

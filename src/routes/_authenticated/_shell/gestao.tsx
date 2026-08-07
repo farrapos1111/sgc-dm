@@ -200,7 +200,8 @@ function GestaoContent({ active }: { active: Membership }) {
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
   const delCom = useMutation({
-    mutationFn: (id: string) => removeCommissionMember({ data: { id } }),
+    mutationFn: (id: string) =>
+      removeCommissionMember({ data: { id, chapterId } }),
     onSuccess: () => {
       toast.success("Participação removida");
       invalidateMembers();
@@ -345,7 +346,7 @@ function GestaoContent({ active }: { active: Membership }) {
         subtitle="Cargos e comissões conforme o perfil dos membros, por vigência."
         actions={
           <TermSelect
-            className="w-[240px]"
+            className="w-auto"
             value={term}
             terms={terms}
             onChange={setTerm}

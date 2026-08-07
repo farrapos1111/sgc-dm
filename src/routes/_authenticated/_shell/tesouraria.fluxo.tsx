@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { can } from "@/lib/permissions";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { todayYmd } from "@/lib/timezone";
@@ -1184,17 +1185,19 @@ function FluxoCaixa() {
             {scope === "eventos" && (
               <div className="sm:col-span-2">
                 <Label className="mb-1.5 block text-sm">Evento *</Label>
-                <Select
+                <SearchableSelect
                   value={form.eventId}
-                  onValueChange={(v) => setForm((f) => ({ ...f, eventId: v, subcategoryId: "" }))}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione o evento" /></SelectTrigger>
-                  <SelectContent>
-                    {eventsWithItems.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(v) =>
+                    setForm((f) => ({ ...f, eventId: v, subcategoryId: "" }))
+                  }
+                  placeholder="Selecione o evento"
+                  searchPlaceholder="Buscar evento…"
+                  emptyText="Nenhum evento encontrado."
+                  options={eventsWithItems.map((e) => ({
+                    value: e.id,
+                    label: e.title,
+                  }))}
+                />
                 {eventsWithItems.length === 0 && (
                   <p className="mt-1 text-xs text-muted-foreground">
                     Nenhum evento ativo. Crie um evento em Eventos e cadastre
@@ -1248,14 +1251,17 @@ function FluxoCaixa() {
               <>
                 <div className="sm:col-span-2">
                   <Label className="mb-1.5 block text-sm">Membro *</Label>
-                  <Select value={duesMemberId} onValueChange={setDuesMemberId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione o membro" /></SelectTrigger>
-                    <SelectContent>
-                      {activeMembers.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={duesMemberId}
+                    onChange={setDuesMemberId}
+                    placeholder="Selecione o membro"
+                    searchPlaceholder="Digite o nome…"
+                    emptyText="Nenhum membro encontrado."
+                    options={activeMembers.map((m) => ({
+                      value: m.id,
+                      label: m.full_name,
+                    }))}
+                  />
                 </div>
                 <div className="sm:col-span-2">
                   <Label className="mb-1.5 block text-sm">Competências *</Label>
@@ -1263,7 +1269,7 @@ function FluxoCaixa() {
                     <Select value={String(duesYear)} onValueChange={(v) => setDuesYear(Number(v))}>
                       <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {[year - 1, year, year + 1].map((y) => (
+                        {[year - 1, year].map((y) => (
                           <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                         ))}
                       </SelectContent>

@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import {
   Dialog,
   DialogContent,
@@ -514,9 +515,9 @@ function SindicariasPage() {
           <div className="space-y-3">
             <div>
               <Label className="mb-1.5 block text-sm">Ficha (opcional)</Label>
-              <Select
+              <SearchableSelect
                 value={form.file_id || "none"}
-                onValueChange={(v) => {
+                onChange={(v) => {
                   if (v === "none") {
                     setForm((f) => ({ ...f, file_id: "" }));
                     return;
@@ -531,19 +532,17 @@ function SindicariasPage() {
                       : f.title,
                   }));
                 }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sem ficha" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sem ficha</SelectItem>
-                  {files.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>
-                      {f.candidate_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Sem ficha"
+                searchPlaceholder="Buscar ficha…"
+                emptyText="Nenhuma ficha encontrada."
+                options={[
+                  { value: "none", label: "Sem ficha" },
+                  ...files.map((f) => ({
+                    value: f.id,
+                    label: f.candidate_name,
+                  })),
+                ]}
+              />
             </div>
             <div>
               <Label className="mb-1.5 block text-sm">Nome do indicado *</Label>

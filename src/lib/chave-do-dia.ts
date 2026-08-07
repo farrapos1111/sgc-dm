@@ -73,7 +73,7 @@ export const CHAVE_VARIABLES: { key: string; label: string }[] = [
   { key: "dia_semana", label: "Dia da semana" },
   { key: "dia", label: "Dia" },
   { key: "mes", label: "Mês por extenso" },
-  { key: "ano", label: "Ano" },
+  { key: "ano", label: "Ano (AAAA)" },
   { key: "local", label: "Local" },
   { key: "endereco", label: "Endereço" },
   { key: "local_completo", label: "Local + endereço" },

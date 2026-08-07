@@ -2,7 +2,10 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { BookOpen, Building2, LogOut, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useActiveChapter } from "@/context/ActiveChapterContext";
+import {
+  clearChapterSessionStorage,
+  useActiveChapter,
+} from "@/context/ActiveChapterContext";
 import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
 import { isChapterDuesEnabled } from "@/lib/dues-rules";
@@ -102,7 +105,7 @@ function MaisPage() {
 
   async function signOut() {
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem("sgcdm.activeChapterId");
+      clearChapterSessionStorage();
       window.localStorage.removeItem("sgcdm.roleView");
       window.localStorage.removeItem("sgcdm.activeOrgScope");
     }
@@ -169,7 +172,7 @@ function MaisPage() {
                   className="border-white/40 bg-transparent text-white hover:bg-white/15 hover:text-white"
                   onClick={() => navigate({ to: "/selecionar-capitulo" })}
                 >
-                  <Repeat className="mr-2 h-4 w-4" /> Trocar de capítulo
+                  <Repeat className="mr-2 h-4 w-4" /> Trocar de instituição
                 </Button>
               )}
               {scopes.map((s) => (

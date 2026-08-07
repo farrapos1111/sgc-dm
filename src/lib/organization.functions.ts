@@ -290,12 +290,29 @@ export const assignPosition = createServerFn({ method: "POST" })
 
 export const removePosition = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
+  .inputValidator((raw) =>
+    z
+      .object({ id: z.string().uuid(), chapterId: z.string().uuid() })
+      .parse(raw),
+  )
   .handler(async ({ data, context }) => {
+    const { data: row, error: loadErr } = await context.supabase
+      .from("member_positions")
+      .select("id, chapter_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (loadErr) throw new Error(loadErr.message);
+    if (!row) throw new Error("Cargo não encontrado");
+    if (row.chapter_id !== data.chapterId) {
+      throw new Error(
+        "Só o capítulo que registrou o cargo pode removê-lo",
+      );
+    }
     const { error } = await context.supabase
       .from("member_positions")
       .delete()
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .eq("chapter_id", data.chapterId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -358,12 +375,29 @@ export const assignCommissionMember = createServerFn({ method: "POST" })
 
 export const removeCommissionMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
+  .inputValidator((raw) =>
+    z
+      .object({ id: z.string().uuid(), chapterId: z.string().uuid() })
+      .parse(raw),
+  )
   .handler(async ({ data, context }) => {
+    const { data: row, error: loadErr } = await context.supabase
+      .from("commission_members")
+      .select("id, chapter_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (loadErr) throw new Error(loadErr.message);
+    if (!row) throw new Error("Vínculo de comissão não encontrado");
+    if (row.chapter_id !== data.chapterId) {
+      throw new Error(
+        "Só o capítulo que registrou a comissão pode removê-la",
+      );
+    }
     const { error } = await context.supabase
       .from("commission_members")
       .delete()
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .eq("chapter_id", data.chapterId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

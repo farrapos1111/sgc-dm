@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -390,18 +391,17 @@ function MembersContent() {
           <div className="space-y-3">
             <div>
               <Label>Instituição</Label>
-              <Select value={newChapterId} onValueChange={setNewChapterId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {chapterList.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name} Nº {c.number}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={newChapterId}
+                onChange={setNewChapterId}
+                placeholder="Selecione"
+                searchPlaceholder="Buscar instituição…"
+                emptyText="Nenhuma instituição encontrada."
+                options={chapterList.map((c) => ({
+                  value: c.id,
+                  label: `${c.name} Nº ${c.number}`,
+                }))}
+              />
             </div>
             <div>
               <Label htmlFor="nm-name">Nome completo</Label>
