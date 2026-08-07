@@ -56,7 +56,7 @@ import {
   Sparkles,
   Loader2,
 } from "lucide-react";
-import { listMandatoryDatesForChapterMonth } from "@/lib/org-mandatory-dates.functions";
+import { listMandatoryDatesForChapter } from "@/lib/org-mandatory-dates.functions";
 import { composeEventDescription } from "@/lib/ai.functions";
 import { formatDateTimeBR } from "@/lib/format";
 import {
@@ -210,25 +210,12 @@ function CalendarioPage() {
 
   const mandatoryChapterId =
     chapterFilter !== "all" ? chapterFilter : (active?.chapter_id ?? null);
-  const mandatoryRef =
-    view === "mes" ? cursor : new Date();
-  const mandatoryYear = mandatoryRef.getFullYear();
-  const mandatoryMonth = mandatoryRef.getMonth() + 1;
 
   const { data: mandatoryDates = [] } = useQuery({
-    queryKey: [
-      "mandatory-dates-month",
-      mandatoryChapterId,
-      mandatoryYear,
-      mandatoryMonth,
-    ],
+    queryKey: ["mandatory-dates-chapter", mandatoryChapterId],
     queryFn: () =>
-      listMandatoryDatesForChapterMonth({
-        data: {
-          chapterId: mandatoryChapterId!,
-          year: mandatoryYear,
-          month: mandatoryMonth,
-        },
+      listMandatoryDatesForChapter({
+        data: { chapterId: mandatoryChapterId! },
       }),
     enabled: Boolean(mandatoryChapterId),
   });
@@ -556,9 +543,7 @@ function MandatoryDatesBanner({
           style={{ color: "var(--chapter-primary)" }}
         />
         <div className="min-w-0">
-          <div className="font-medium">
-            Este mês possui datas obrigatórias:
-          </div>
+          <div className="font-medium">Datas obrigatórias:</div>
           <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
             {items.map((it) => (
               <li key={it.id}>

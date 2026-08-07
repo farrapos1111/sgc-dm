@@ -3478,6 +3478,7 @@ export type Database = {
         | "sessao_ritualistica"
         | "evento"
         | "filantropia"
+        | "hospitalaria"
         | "entretenimento"
         | "sessao_administrativa"
         | "sindicancia"
@@ -3637,6 +3638,7 @@ export const Constants = {
         "sessao_ritualistica",
         "evento",
         "filantropia",
+        "hospitalaria",
         "entretenimento",
         "sessao_administrativa",
         "sindicancia",

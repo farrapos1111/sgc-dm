@@ -95,12 +95,13 @@ function AuthPage() {
     >
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-6">
-          <div
-            className="w-20 h-20 rounded-3xl flex items-center justify-center mb-4"
-            style={{ backgroundColor: "#9E1B32" }}
-          >
-            <span className="text-white font-bold text-2xl tracking-wider">TV</span>
-          </div>
+          <img
+            src="/logos/templo-virtual.svg"
+            alt="Templo Virtual"
+            className="mb-4 h-20 w-20"
+            width={80}
+            height={80}
+          />
           <h1 className="text-2xl font-bold text-foreground">Templo Virtual</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Hub de gerenciamento das ordens paramaçônicas

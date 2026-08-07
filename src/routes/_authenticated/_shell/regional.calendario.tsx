@@ -533,7 +533,7 @@ function RegionalActivityDialog({
 }) {
   const [chapterId, setChapterId] = useState(defaultChapterId);
   const [title, setTitle] = useState("");
-  const [eventType, setEventType] = useState<CalendarType>("sessao_ordinaria");
+  const [eventType, setEventType] = useState<CalendarType>("sessao_ritualistica");
   const [startLocal, setStartLocal] = useState(() => {
     if (defaultDate) return `${defaultDate}T19:00`;
     return toAppTzDateTimeLocal(new Date().toISOString()).slice(0, 11) + "19:00";

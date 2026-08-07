@@ -322,35 +322,64 @@ export const listMandatoryDatesForChapterMonth = createServerFn({
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { data: chapter, error: chErr } = await context.supabase
-      .from("chapters")
-      .select("id, region_id, state_id")
-      .eq("id", data.chapterId)
-      .maybeSingle();
-    if (chErr) throw new Error(chErr.message);
-    if (!chapter) throw new Error("Capítulo não encontrado");
-
-    const filters: string[] = [];
-    if (chapter.region_id) {
-      filters.push(`and(scope.eq.region,region_id.eq.${chapter.region_id})`);
-    }
-    if (chapter.state_id) {
-      filters.push(`and(scope.eq.state,state_id.eq.${chapter.state_id})`);
-    }
-    if (filters.length === 0) return [];
-
-    const { data: rows, error } = await context.supabase
-      .from("org_mandatory_dates" as never)
-      .select(SELECT_COLS)
-      .or(filters.join(","));
-    if (error) throw new Error(error.message);
-
-    return ((rows ?? []) as OrgMandatoryDate[])
-      .filter((r) =>
-        mandatoryDateAppliesToMonth(r, data.year, data.month),
-      )
+    const rows = await loadMandatoryDatesForChapter(
+      context.supabase,
+      data.chapterId,
+    );
+    return rows
+      .filter((r) => mandatoryDateAppliesToMonth(r, data.year, data.month))
       .map((r) => ({
         ...r,
         prazo_label: formatPrazoLabel(r),
       }));
   });
+
+/** Todas as datas obrigatórias do capítulo (região/estado), sem filtrar por mês. */
+export const listMandatoryDatesForChapter = createServerFn({
+  method: "POST",
+})
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z.object({ chapterId: z.string().uuid() }).parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const rows = await loadMandatoryDatesForChapter(
+      context.supabase,
+      data.chapterId,
+    );
+    return rows.map((r) => ({
+      ...r,
+      prazo_label: formatPrazoLabel(r),
+    }));
+  });
+
+async function loadMandatoryDatesForChapter(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  chapterId: string,
+): Promise<OrgMandatoryDate[]> {
+  const { data: chapter, error: chErr } = await supabase
+    .from("chapters")
+    .select("id, region_id, state_id")
+    .eq("id", chapterId)
+    .maybeSingle();
+  if (chErr) throw new Error(chErr.message);
+  if (!chapter) throw new Error("Capítulo não encontrado");
+
+  const filters: string[] = [];
+  if (chapter.region_id) {
+    filters.push(`and(scope.eq.region,region_id.eq.${chapter.region_id})`);
+  }
+  if (chapter.state_id) {
+    filters.push(`and(scope.eq.state,state_id.eq.${chapter.state_id})`);
+  }
+  if (filters.length === 0) return [];
+
+  const { data: rows, error } = await supabase
+    .from("org_mandatory_dates" as never)
+    .select(SELECT_COLS)
+    .or(filters.join(","));
+  if (error) throw new Error(error.message);
+
+  return (rows ?? []) as OrgMandatoryDate[];
+}

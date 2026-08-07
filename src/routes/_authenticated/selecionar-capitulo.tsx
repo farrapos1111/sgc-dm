@@ -117,12 +117,13 @@ function ChapterPicker() {
     >
       <div className="w-full max-w-lg">
         <div className="mb-6 flex flex-col items-center">
-          <div
-            className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl"
-            style={{ backgroundColor: "#9E1B32" }}
-          >
-            <span className="text-xl font-bold text-white">SG</span>
-          </div>
+          <img
+            src="/logos/templo-virtual.svg"
+            alt="Templo Virtual"
+            className="mb-4 h-16 w-16"
+            width={64}
+            height={64}
+          />
           <h1 className="text-xl font-bold text-foreground">
             Selecione a instituição
           </h1>

@@ -3,6 +3,7 @@ export type CalendarType =
   | "sessao_administrativa"
   | "evento"
   | "filantropia"
+  | "hospitalaria"
   | "entretenimento"
   | "sindicancia";
 
@@ -22,6 +23,7 @@ export const TYPE_META: Record<
   },
   evento: { label: "Evento", color: "#9E1B32", bg: "#FCE7EC" },
   filantropia: { label: "Filantropia", color: "#047857", bg: "#D1FAE5" },
+  hospitalaria: { label: "Hospitalaria", color: "#BE185D", bg: "#FCE7F3" },
   entretenimento: { label: "Entretenimento", color: "#B45309", bg: "#FEF3C7" },
   sindicancia: { label: "Sindicância", color: "#6D28D9", bg: "#EDE9FE" },
 };
@@ -37,6 +39,7 @@ export const SESSION_TYPES: CalendarType[] = [
 /** Tipos sem registro de ata de sessão. */
 export const NO_MINUTES_TYPES: CalendarType[] = [
   "filantropia",
+  "hospitalaria",
   "entretenimento",
   "sindicancia",
 ];
@@ -48,7 +51,7 @@ export function isSessionType(t: string): boolean {
   return SESSION_TYPES.includes(t as CalendarType);
 }
 
-/** Filantropia, entretenimento e sindicância não têm ata de sessão. */
+/** Filantropia, hospitalaria, entretenimento e sindicância não têm ata de sessão. */
 export function supportsMinutes(t: string): boolean {
   return !NO_MINUTES_TYPES.includes(t as CalendarType);
 }

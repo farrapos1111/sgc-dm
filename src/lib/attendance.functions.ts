@@ -177,7 +177,9 @@ export const saveMinutes = createServerFn({ method: "POST" })
     if (evErr) throw new Error(evErr.message);
     if (!event) throw new Error("Evento não encontrado");
     if (!supportsMinutes(event.event_type)) {
-      throw new Error("Filantropia e entretenimento não possuem registro de ata.");
+      throw new Error(
+        "Filantropia, hospitalaria e entretenimento não possuem registro de ata.",
+      );
     }
 
     const { data: existing, error: exErr } = await context.supabase

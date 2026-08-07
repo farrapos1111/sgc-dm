@@ -215,12 +215,13 @@ function AtualizarCadastroPage() {
     >
       <div className="mx-auto w-full max-w-2xl space-y-5">
         <div className="flex flex-col items-center text-center">
-          <div
-            className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl"
-            style={{ backgroundColor: "#9E1B32" }}
-          >
-            <span className="text-xl font-bold tracking-wider text-white">SG</span>
-          </div>
+          <img
+            src="/logos/templo-virtual.svg"
+            alt="Templo Virtual"
+            className="mb-4 h-16 w-16"
+            width={64}
+            height={64}
+          />
           <h1 className="text-2xl font-bold text-foreground">Atualização cadastral</h1>
           <p className="mt-1 max-w-md text-sm text-muted-foreground">
             Informe seu ID DeMolay para revisar seus dados e atualizar contato, endereço e

@@ -7,6 +7,7 @@ const eventTypeEnum = z.enum([
   "sessao_administrativa",
   "evento",
   "filantropia",
+  "hospitalaria",
   "entretenimento",
   "sindicancia",
 ]);

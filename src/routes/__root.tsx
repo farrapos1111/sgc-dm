@@ -95,10 +95,38 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Templo Virtual é o hub de gerenciamento das ordens paramaçônicas: membros, atas, tesouraria, calendário e comissões — com multi-instituição, papéis e controle de acesso.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: "/og-image.jpg" },
+      { property: "og:image:type", content: "image/jpeg" },
+      { property: "og:image:width", content: "1024" },
+      { property: "og:image:height", content: "538" },
+      {
+        property: "og:image:alt",
+        content: "Templo Virtual — Hub de gerenciamento das ordens paramaçônicas",
+      },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "/og-image.jpg" },
+      {
+        name: "twitter:image:alt",
+        content: "Templo Virtual — Hub de gerenciamento das ordens paramaçônicas",
+      },
     ],
+
     links: [
       { rel: "stylesheet", href: appCss },
+      // Light chrome → black glyph; dark chrome → white glyph
+      {
+        rel: "icon",
+        href: "/favicon-black.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        rel: "icon",
+        href: "/favicon-white.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
+      // Fallback when the browser ignores media on <link rel="icon">
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },

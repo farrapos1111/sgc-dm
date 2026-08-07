@@ -36,7 +36,7 @@ export function DocsLayout({ children, activeSlug = "hub" }: DocsLayoutProps) {
 
           <Link to="/documentacao" className="flex items-center gap-2.5 no-underline">
             <img
-              src="/favicon.svg"
+              src="/logos/templo-virtual.svg"
               alt=""
               className="h-8 w-8"
               width={32}
