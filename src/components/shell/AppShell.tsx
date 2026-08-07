@@ -4,7 +4,7 @@ import {
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
-import { ArrowLeftRight, ChevronDown, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+import { ArrowLeftRight, LogOut } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,13 +21,7 @@ import {
   type NavGroup,
 } from "@/lib/nav";
 import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { formatClockInAppTz } from "@/lib/timezone";
@@ -52,7 +46,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     canSwitchRoleView,
     cycleRoleView,
     canSwitchChapter,
-    cycleChapter,
+    distinctChapters,
+    activeChapterId,
   } = useActiveChapter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isNavigating = useRouterState({
@@ -139,39 +134,36 @@ export function AppShell({ children }: { children: ReactNode }) {
     toast.message(`Visão: ${label}`);
   }
 
-  function handleCycleChapter(direction: "prev" | "next") {
+  function handlePickChapter(chapterId: string) {
+    if (!chapterId || chapterId === activeChapterId) return;
     setActiveScopeKey(null);
-    const name = cycleChapter(direction);
-    if (name) toast.message(`Capítulo: ${name}`);
+    setActiveChapterId(chapterId);
+    const name =
+      distinctChapters.find((c) => c.id === chapterId)?.name ?? "Capítulo";
+    toast.message(`Capítulo: ${name}`);
     navigate({ to: "/inicio" });
   }
 
-  const chapterSwitchControls =
+  const chapterSelectOptions = useMemo(
+    () =>
+      distinctChapters.map((c) => ({
+        value: c.id,
+        label: `${c.name} · Nº ${c.number}`,
+      })),
+    [distinctChapters],
+  );
+
+  const chapterSwitcher =
     canSwitchChapter && !activeScope ? (
-      <div className="flex shrink-0 items-center gap-0.5">
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8"
-          onClick={() => handleCycleChapter("prev")}
-          aria-label="Capítulo anterior"
-          title="Capítulo anterior"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8"
-          onClick={() => handleCycleChapter("next")}
-          aria-label="Próximo capítulo"
-          title="Próximo capítulo"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
+      <SearchableSelect
+        value={activeChapterId ?? ""}
+        options={chapterSelectOptions}
+        onChange={handlePickChapter}
+        placeholder="Selecionar capítulo…"
+        searchPlaceholder="Buscar capítulo…"
+        emptyText="Nenhum capítulo encontrado."
+        className="h-9 w-full text-xs"
+      />
     ) : null;
 
   const roleSwitchButton =
@@ -189,32 +181,34 @@ export function AppShell({ children }: { children: ReactNode }) {
       </Button>
     ) : null;
 
+  const scopeSwitcherOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [];
+    if (chapterOptionLabel) {
+      opts.push({ value: "chapter", label: chapterOptionLabel });
+    }
+    for (const s of scopes) {
+      opts.push({
+        value: s.key,
+        label: `${ORG_ROLE_LABELS[s.orgRole]} · ${s.label}`,
+      });
+    }
+    return opts;
+  }, [chapterOptionLabel, scopes]);
+
   const scopeSwitcher =
     scopes.length > 0 ? (
-      <Select
+      <SearchableSelect
         value={
           activeScope?.key ??
           (chapterOptionLabel ? "chapter" : (scopes[0]?.key ?? ""))
         }
-        onValueChange={handleScopeChange}
-      >
-        <SelectTrigger
-          className="h-9 w-full text-xs"
-          aria-label="Alternar entre capítulo e visão regional"
-        >
-          <SelectValue placeholder="Selecionar visão" />
-        </SelectTrigger>
-        <SelectContent>
-          {chapterOptionLabel && (
-            <SelectItem value="chapter">{chapterOptionLabel}</SelectItem>
-          )}
-          {scopes.map((s) => (
-            <SelectItem key={s.key} value={s.key}>
-              {ORG_ROLE_LABELS[s.orgRole]} · {s.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        options={scopeSwitcherOptions}
+        onChange={handleScopeChange}
+        placeholder="Selecionar visão…"
+        searchPlaceholder="Buscar visão…"
+        emptyText="Nenhuma visão encontrada."
+        className="h-9 w-full text-xs"
+      />
     ) : null;
 
   const [pendingTo, setPendingTo] = useState<string | null>(null);
@@ -322,8 +316,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               )
             )}
           </div>
-          {chapterSwitchControls}
         </div>
+
+        {chapterSwitcher && (
+          <div className="border-b border-border px-3 py-2">
+            {chapterSwitcher}
+          </div>
+        )}
 
         {scopeSwitcher && (
           <div className="border-b border-border px-3 py-3">
@@ -404,10 +403,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             )}
           </div>
-          {chapterSwitchControls}
           {roleSwitchButton}
           <ThemeToggle className="shrink-0" />
         </header>
+
+        {chapterSwitcher && (
+          <div className="border-b border-border bg-card px-4 py-2 lg:hidden">
+            {chapterSwitcher}
+          </div>
+        )}
 
         {scopeSwitcher && (
           <div className="border-b border-border bg-card px-4 py-2 lg:hidden">

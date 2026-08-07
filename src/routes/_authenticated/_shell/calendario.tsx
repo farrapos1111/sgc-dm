@@ -19,9 +19,8 @@ import { listLodges } from "@/lib/chapter.functions";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -56,7 +55,12 @@ import {
   Sparkles,
   Loader2,
 } from "lucide-react";
-import { listMandatoryDatesForChapter } from "@/lib/org-mandatory-dates.functions";
+import {
+  listMandatoryDatesForChapter,
+  mandatoryDateAppliesToMonth,
+} from "@/lib/org-mandatory-dates.functions";
+import { mandatoryOptionsForMonth } from "@/lib/calendar-mandatory-mentions";
+import { CalendarDescriptionField } from "@/components/calendar/CalendarDescriptionField";
 import { composeEventDescription } from "@/lib/ai.functions";
 import { formatDateTimeBR } from "@/lib/format";
 import {
@@ -65,6 +69,7 @@ import {
   APP_TIMEZONE,
   fromAppTzDateTimeLocal,
   toAppTzDateTimeLocal,
+  datePartsInAppTz,
 } from "@/lib/timezone";
 import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from "@/lib/ics";
 import { resolveCalendarChaveText } from "@/lib/resolve-calendar-chave";
@@ -219,6 +224,14 @@ function CalendarioPage() {
       }),
     enabled: Boolean(mandatoryChapterId),
   });
+
+  const monthMandatoryDates = useMemo(() => {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth() + 1; // 1–12
+    return mandatoryDates.filter((d) =>
+      mandatoryDateAppliesToMonth(d, year, month),
+    );
+  }, [mandatoryDates, cursor]);
 
   const filtered = useMemo(() => {
     return items.filter((it) => {
@@ -385,7 +398,7 @@ function CalendarioPage() {
           cursor={cursor}
           setCursor={setCursor}
           items={filtered}
-          mandatoryDates={mandatoryDates}
+          mandatoryDates={monthMandatoryDates}
           onDayClick={(key) => {
             const hasItems = filtered.some((it) => occursOnDay(it, key));
             if (canCreate && !hasItems) {
@@ -397,15 +410,13 @@ function CalendarioPage() {
           }}
         />
       ) : (
-        <div className="space-y-3">
-          <MandatoryDatesBanner items={mandatoryDates} />
-          <AgendaView
-            items={filtered}
-            onSelect={setDetail}
-            chapterNameMap={chapterNameMap}
-            showChapter={memberships.length > 1}
-          />
-        </div>
+        <AgendaView
+          items={filtered}
+          mandatoryDates={mandatoryDates}
+          onSelect={setDetail}
+          chapterNameMap={chapterNameMap}
+          showChapter={memberships.length > 1}
+        />
       )}
 
       {/* Day list dialog (month view) */}
@@ -524,15 +535,19 @@ function CalendarioPage() {
 
 function MandatoryDatesBanner({
   items,
+  monthLabel,
 }: {
   items: { id: string; title: string; prazo_label: string }[];
+  /** Ex.: "maio de 2026" — deixa claro o período do aviso na agenda. */
+  monthLabel?: string;
 }) {
   if (items.length === 0) return null;
   return (
     <div
       className="rounded-[10px] border px-3 py-2.5 text-sm"
       style={{
-        borderColor: "color-mix(in srgb, var(--chapter-primary) 35%, var(--border))",
+        borderColor:
+          "color-mix(in srgb, var(--chapter-primary) 35%, var(--border))",
         backgroundColor:
           "color-mix(in srgb, var(--chapter-primary) 8%, transparent)",
       }}
@@ -543,7 +558,10 @@ function MandatoryDatesBanner({
           style={{ color: "var(--chapter-primary)" }}
         />
         <div className="min-w-0">
-          <div className="font-medium">Datas obrigatórias:</div>
+          <div className="font-medium capitalize">
+            Datas obrigatórias
+            {monthLabel ? ` · ${monthLabel}` : ""}:
+          </div>
           <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
             {items.map((it) => (
               <li key={it.id}>
@@ -716,30 +734,76 @@ function MonthView({
 
 function AgendaView({
   items,
+  mandatoryDates,
   onSelect,
   chapterNameMap,
   showChapter,
 }: {
   items: CalendarItem[];
+  mandatoryDates: {
+    id: string;
+    title: string;
+    prazo_label: string;
+    prazo_kind: string;
+    due_date?: string | null;
+    due_year?: number | null;
+    due_month?: number | null;
+    due_day?: number | null;
+    start_month?: number | null;
+    start_day?: number | null;
+  }[];
   onSelect: (it: CalendarItem) => void;
   chapterNameMap: Map<string, string>;
   showChapter: boolean;
 }) {
-  const now = new Date();
-  const todayKey = toLocalDateKey(now.toISOString());
+  const todayKey = todayYmd();
   const upcoming = items
     .filter((i) => itemDayKeys(i).some((k) => k >= todayKey))
     .sort((a, b) => a.start_at.localeCompare(b.start_at));
 
   if (upcoming.length === 0) {
+    // Sem eventos: ainda mostra avisos dos meses restantes do ano civil, se houver.
+    const parts = datePartsInAppTz();
+    const remainingMonths: number[] = [];
+    for (let m = parts.month; m <= 12; m++) remainingMonths.push(m);
+    const blocks = remainingMonths
+      .map((month) => ({
+        month,
+        year: parts.year,
+        items: mandatoryDates.filter((d) =>
+          mandatoryDateAppliesToMonth(d, parts.year, month),
+        ),
+      }))
+      .filter((b) => b.items.length > 0);
+
+    if (blocks.length === 0) {
+      return (
+        <Card className="rounded-[12px] p-10 text-center">
+          <CalendarDays className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+          <div className="text-sm font-medium">Nada agendado por aqui.</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            Os próximos itens do calendário aparecerão nesta lista.
+          </div>
+        </Card>
+      );
+    }
+
     return (
-      <Card className="rounded-[12px] p-10 text-center">
-        <CalendarDays className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-        <div className="text-sm font-medium">Nada agendado por aqui.</div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          Os próximos itens do calendário aparecerão nesta lista.
-        </div>
-      </Card>
+      <div className="space-y-4">
+        {blocks.map((b) => (
+          <MandatoryDatesBanner
+            key={`${b.year}-${b.month}`}
+            items={b.items}
+            monthLabel={new Date(b.year, b.month - 1, 1).toLocaleDateString(
+              "pt-BR",
+              { month: "long", year: "numeric" },
+            )}
+          />
+        ))}
+        <Card className="rounded-[12px] p-6 text-center text-xs text-muted-foreground">
+          Nenhum evento agendado nos próximos dias.
+        </Card>
+      </div>
     );
   }
 
@@ -753,19 +817,84 @@ function AgendaView({
     }
   }
 
+  const dayEntries = Array.from(groups.entries()).sort((a, b) =>
+    a[0].localeCompare(b[0]),
+  );
+
+  /** Meses YYYY-MM de afterPrev (exclusive) até next (inclusive). */
+  function monthsFromTo(
+    afterPrev: string | null,
+    nextYm: string,
+  ): string[] {
+    const out: string[] = [];
+    let y: number;
+    let m: number;
+    if (afterPrev) {
+      y = Number(afterPrev.slice(0, 4));
+      m = Number(afterPrev.slice(5, 7)) + 1;
+      if (m > 12) {
+        m = 1;
+        y += 1;
+      }
+    } else {
+      y = Number(nextYm.slice(0, 4));
+      m = Number(nextYm.slice(5, 7));
+      return [`${y}-${String(m).padStart(2, "0")}`];
+    }
+    const endY = Number(nextYm.slice(0, 4));
+    const endM = Number(nextYm.slice(5, 7));
+    while (y < endY || (y === endY && m <= endM)) {
+      out.push(`${y}-${String(m).padStart(2, "0")}`);
+      m += 1;
+      if (m > 12) {
+        m = 1;
+        y += 1;
+      }
+      if (out.length > 24) break;
+    }
+    return out;
+  }
+
+  let lastMonthKey: string | null = null;
+
   return (
     <div className="space-y-4">
-      {Array.from(groups.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([key, list]) => {
-          const date = new Date(key + "T00:00:00");
-          const label = date.toLocaleDateString("pt-BR", {
-            weekday: "long",
-            day: "2-digit",
-            month: "long",
-          });
-          return (
-            <div key={key}>
+      {dayEntries.map(([key, list]) => {
+        const date = new Date(key + "T00:00:00");
+        const label = date.toLocaleDateString("pt-BR", {
+          weekday: "long",
+          day: "2-digit",
+          month: "long",
+        });
+        const monthKey = key.slice(0, 7); // YYYY-MM
+        const monthsToAnnounce =
+          monthKey !== lastMonthKey
+            ? monthsFromTo(lastMonthKey, monthKey)
+            : [];
+        lastMonthKey = monthKey;
+
+        return (
+          <div key={key} className="space-y-3">
+            {monthsToAnnounce.map((ym) => {
+              const y = Number(ym.slice(0, 4));
+              const m = Number(ym.slice(5, 7));
+              const monthMandatory = mandatoryDates.filter((d) =>
+                mandatoryDateAppliesToMonth(d, y, m),
+              );
+              if (monthMandatory.length === 0) return null;
+              const ml = new Date(y, m - 1, 1).toLocaleDateString("pt-BR", {
+                month: "long",
+                year: "numeric",
+              });
+              return (
+                <MandatoryDatesBanner
+                  key={ym}
+                  items={monthMandatory}
+                  monthLabel={ml}
+                />
+              );
+            })}
+            <div>
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {label}
               </div>
@@ -788,8 +917,9 @@ function AgendaView({
                 </ul>
               </Card>
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -952,7 +1082,12 @@ function DetailContent({
         {item.description && (
           <div>
             <div className="text-xs text-muted-foreground">Descrição</div>
-            <div className="whitespace-pre-wrap">{item.description}</div>
+            <div className="whitespace-pre-wrap">
+              {item.description.replace(
+                /@data_obrigatoria\[[^|\]]*\|([^\]]*)\]/gi,
+                "📌 $1",
+              )}
+            </div>
           </div>
         )}
         <div className="flex flex-wrap gap-2 pt-1">
@@ -1133,6 +1268,25 @@ function CreateDialog({
     queryFn: () => listLodges({ data: { chapterId } }) as Promise<any[]>,
     enabled: Boolean(chapterId) && usesLodge,
   });
+
+  const mandatoryDatesQ = useQuery({
+    queryKey: ["mandatory-dates-chapter", chapterId],
+    queryFn: () =>
+      listMandatoryDatesForChapter({ data: { chapterId } }),
+    enabled: Boolean(chapterId),
+  });
+
+  const mandatoryMentionOptions = useMemo(() => {
+    if (!startAt) return [];
+    const d = fromAppTzDateTimeLocal(startAt);
+    if (Number.isNaN(d.getTime())) return [];
+    const parts = datePartsInAppTz(d);
+    return mandatoryOptionsForMonth(
+      mandatoryDatesQ.data ?? [],
+      parts.year,
+      parts.month,
+    );
+  }, [startAt, mandatoryDatesQ.data]);
 
   function pickLodge(id: string) {
     if (id === "none") {
@@ -1455,14 +1609,18 @@ function CreateDialog({
             ? "Complementar com IA"
             : "Gerar com IA"}
       </Button>
-      <Textarea
+      <CalendarDescriptionField
         value={description}
-        onChange={(e) => setDescription(e.target.value)}
+        onChange={setDescription}
+        options={mandatoryMentionOptions}
         rows={5}
+        placeholder="Descrição da atividade. Digite @data_obrigatoria para vincular um prazo…"
       />
       <p className="text-[11px] text-muted-foreground">
-        Com texto escrito, a IA complementa mantendo o seu conteúdo; vazio, ela
-        gera a partir do título e dos dados da atividade.
+        Use <span className="font-mono">@data_obrigatoria</span> para marcar a
+        data obrigatória do mês/período. Essa marcação não entra na chave do
+        dia. Com texto escrito, a IA complementa mantendo o seu conteúdo;
+        vazio, ela gera a partir do título e dos dados da atividade.
       </p>
     </div>
   );

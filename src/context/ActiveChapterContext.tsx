@@ -54,7 +54,9 @@ type ActiveChapterContextValue = {
   realRoleName: string | null;
   /** Há múltiplos papéis distintos no capítulo ativo — pode alternar visão. */
   canSwitchRoleView: boolean;
-  /** Há 2+ instituições distintas — pode ciclar capítulo. */
+  /** Capítulos distintos com vínculo ativo (para seletor). */
+  distinctChapters: { id: string; name: string; number: string }[];
+  /** Há 2+ instituições distintas — pode trocar de capítulo. */
   canSwitchChapter: boolean;
   setActiveChapterId: (id: string | null) => void;
   cycleRoleView: () => string;
@@ -332,6 +334,7 @@ export function ActiveChapterProvider({
       profileFullName,
       realRoleName,
       canSwitchRoleView,
+      distinctChapters,
       canSwitchChapter,
       setActiveChapterId,
       cycleRoleView,
@@ -346,6 +349,7 @@ export function ActiveChapterProvider({
       profileFullName,
       realRoleName,
       canSwitchRoleView,
+      distinctChapters,
       canSwitchChapter,
       setActiveChapterId,
       cycleRoleView,
