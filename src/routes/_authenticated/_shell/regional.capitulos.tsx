@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 export const Route = createFileRoute("/_authenticated/_shell/regional/capitulos")({
   component: ManageChapters,
@@ -335,24 +336,25 @@ function ChaptersContent() {
               {canManageOrg && !regionScopeId ? (
                 <div>
                   <Label>Região</Label>
-                  <Select
+                  <SearchableSelect
                     value={draft.region_id ?? "none"}
-                    onValueChange={(v) =>
-                      setDraft({ ...draft, region_id: v === "none" ? null : v })
+                    onChange={(v) =>
+                      setDraft({
+                        ...draft,
+                        region_id: v === "none" ? null : v,
+                      })
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sem região</SelectItem>
-                      {(regions ?? []).map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Selecione"
+                    searchPlaceholder="Buscar região…"
+                    emptyText="Nenhuma região encontrada."
+                    options={[
+                      { value: "none", label: "Sem região" },
+                      ...(regions ?? []).map((r) => ({
+                        value: r.id,
+                        label: r.name,
+                      })),
+                    ]}
+                  />
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">

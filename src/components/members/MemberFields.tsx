@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { digitsOnly, is21OrOlder, isUnder21, maskCpfInput, maskPhoneInput } from "@/lib/format";
 import { createCepLookupSeq, lookupCep, maskCepInput } from "@/lib/cep";
 import { todayYmd } from "@/lib/timezone";
@@ -304,24 +305,24 @@ export function MemberDataFields({
       </div>
 
       <Field label="Capítulo de Iniciação">
-        <Select
-          value={value.initiation_chapter_id || undefined}
+        <SearchableSelect
+          value={value.initiation_chapter_id || ""}
           disabled={readOnlyMaster || chapters.length === 0}
-          onValueChange={(v) => onChange({ initiation_chapter_id: v })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione o capítulo" />
-          </SelectTrigger>
-          <SelectContent>
-            {chapters.map((ch) => (
-              <SelectItem key={ch.id} value={ch.id}>
-                {ch.name}
-                {ch.number ? ` Nº ${ch.number}` : ""}
-                {ch.city ? ` — ${ch.city}` : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onChange={(v) => onChange({ initiation_chapter_id: v })}
+          placeholder="Selecione o capítulo"
+          searchPlaceholder="Buscar capítulo…"
+          emptyText="Nenhum capítulo encontrado."
+          options={chapters.map((ch) => ({
+            value: ch.id,
+            label: [
+              ch.name,
+              ch.number ? `Nº ${ch.number}` : null,
+              ch.city || null,
+            ]
+              .filter(Boolean)
+              .join(" — "),
+          }))}
+        />
       </Field>
       {(value.status === "irregular" ||
         (initialStatus === "irregular" && value.status === "regular")) && (

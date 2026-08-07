@@ -34,6 +34,8 @@ export type NavPath =
   | "/perfil"
   | "/membros"
   | "/atas"
+  | "/oficios"
+  | "/oficios/novo"
   | "/presencas"
   | "/tesouraria/fluxo"
   | "/tesouraria/mensalidades"
@@ -57,7 +59,8 @@ export type NavPath =
   | "/regional/capitulos"
   | "/regional/regioes"
   | "/regional/liderancas"
-  | "/regional/aparencia";
+  | "/regional/aparencia"
+  | "/regional/datas-obrigatorias";
 
 export type NavItem = {
   to: NavPath;
@@ -88,6 +91,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/membros", label: "Membros", icon: Users },
       { to: "/atas", label: "Atas", icon: FileText },
+      { to: "/oficios", label: "Ofícios", icon: FileText },
       { to: "/presencas", label: "Presenças", icon: ClipboardList },
     ],
   },
@@ -167,6 +171,11 @@ export const ORG_NAV_GROUPS: NavGroup[] = [
       { to: "/regional/regioes", label: "Regiões", icon: Map },
       { to: "/regional/liderancas", label: "Lideranças", icon: Users },
       { to: "/regional/aparencia", label: "Aparência", icon: Palette },
+      {
+        to: "/regional/datas-obrigatorias",
+        label: "Datas obrigatórias",
+        icon: AlertTriangle,
+      },
     ],
   },
 ];
@@ -190,6 +199,7 @@ export function visibleOrgGroups(opts: {
         if (i.to === "/regional/capitulos") return canManageChapters;
         if (i.to === "/regional/liderancas") return canManageLeaderships;
         if (i.to === "/regional/aparencia") return canManageChapters;
+        if (i.to === "/regional/datas-obrigatorias") return canManageChapters;
         return true;
       }),
     };

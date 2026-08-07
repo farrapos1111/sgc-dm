@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertTriangle,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -54,6 +56,7 @@ import {
   Sparkles,
   Loader2,
 } from "lucide-react";
+import { listMandatoryDatesForChapterMonth } from "@/lib/org-mandatory-dates.functions";
 import { composeEventDescription } from "@/lib/ai.functions";
 import { formatDateTimeBR } from "@/lib/format";
 import {
@@ -205,6 +208,31 @@ function CalendarioPage() {
 
   const canCreate = active ? ADMIN_ROLES.has(active.role.name) : false;
 
+  const mandatoryChapterId =
+    chapterFilter !== "all" ? chapterFilter : (active?.chapter_id ?? null);
+  const mandatoryRef =
+    view === "mes" ? cursor : new Date();
+  const mandatoryYear = mandatoryRef.getFullYear();
+  const mandatoryMonth = mandatoryRef.getMonth() + 1;
+
+  const { data: mandatoryDates = [] } = useQuery({
+    queryKey: [
+      "mandatory-dates-month",
+      mandatoryChapterId,
+      mandatoryYear,
+      mandatoryMonth,
+    ],
+    queryFn: () =>
+      listMandatoryDatesForChapterMonth({
+        data: {
+          chapterId: mandatoryChapterId!,
+          year: mandatoryYear,
+          month: mandatoryMonth,
+        },
+      }),
+    enabled: Boolean(mandatoryChapterId),
+  });
+
   const filtered = useMemo(() => {
     return items.filter((it) => {
       if (!typeFilters.has(it.event_type)) return false;
@@ -346,19 +374,21 @@ function CalendarioPage() {
         })}
         {memberships.length > 1 && (
           <div className="w-full sm:ml-auto sm:w-auto">
-            <Select value={chapterFilter} onValueChange={setChapterFilter}>
-              <SelectTrigger className="h-9 w-full text-xs sm:w-[220px]">
-                <SelectValue placeholder="Capítulo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os capítulos</SelectItem>
-                {memberships.map((m) => (
-                  <SelectItem key={m.chapter_id} value={m.chapter_id}>
-                    {m.chapter.name} · Nº {m.chapter.number}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={chapterFilter}
+              onChange={setChapterFilter}
+              placeholder="Capítulo"
+              searchPlaceholder="Buscar capítulo…"
+              emptyText="Nenhum capítulo encontrado."
+              className="h-9 text-xs sm:w-[220px]"
+              options={[
+                { value: "all", label: "Todos os capítulos" },
+                ...memberships.map((m) => ({
+                  value: m.chapter_id,
+                  label: `${m.chapter.name} · Nº ${m.chapter.number}`,
+                })),
+              ]}
+            />
           </div>
         )}
       </div>
@@ -368,6 +398,7 @@ function CalendarioPage() {
           cursor={cursor}
           setCursor={setCursor}
           items={filtered}
+          mandatoryDates={mandatoryDates}
           onDayClick={(key) => {
             const hasItems = filtered.some((it) => occursOnDay(it, key));
             if (canCreate && !hasItems) {
@@ -379,12 +410,15 @@ function CalendarioPage() {
           }}
         />
       ) : (
-        <AgendaView
-          items={filtered}
-          onSelect={setDetail}
-          chapterNameMap={chapterNameMap}
-          showChapter={memberships.length > 1}
-        />
+        <div className="space-y-3">
+          <MandatoryDatesBanner items={mandatoryDates} />
+          <AgendaView
+            items={filtered}
+            onSelect={setDetail}
+            chapterNameMap={chapterNameMap}
+            showChapter={memberships.length > 1}
+          />
+        </div>
       )}
 
       {/* Day list dialog (month view) */}
@@ -501,15 +535,54 @@ function CalendarioPage() {
   );
 }
 
+function MandatoryDatesBanner({
+  items,
+}: {
+  items: { id: string; title: string; prazo_label: string }[];
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div
+      className="rounded-[10px] border px-3 py-2.5 text-sm"
+      style={{
+        borderColor: "color-mix(in srgb, var(--chapter-primary) 35%, var(--border))",
+        backgroundColor:
+          "color-mix(in srgb, var(--chapter-primary) 8%, transparent)",
+      }}
+    >
+      <div className="flex items-start gap-2">
+        <AlertTriangle
+          className="mt-0.5 h-4 w-4 shrink-0"
+          style={{ color: "var(--chapter-primary)" }}
+        />
+        <div className="min-w-0">
+          <div className="font-medium">
+            Este mês possui datas obrigatórias:
+          </div>
+          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+            {items.map((it) => (
+              <li key={it.id}>
+                • {it.title} - {it.prazo_label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MonthView({
   cursor,
   setCursor,
   items,
+  mandatoryDates,
   onDayClick,
 }: {
   cursor: Date;
   setCursor: (d: Date) => void;
   items: CalendarItem[];
+  mandatoryDates: { id: string; title: string; prazo_label: string }[];
   onDayClick: (key: string) => void;
 }) {
   const year = cursor.getFullYear();
@@ -570,6 +643,11 @@ function MonthView({
           </Button>
         </div>
       </div>
+      {mandatoryDates.length > 0 ? (
+        <div className="mb-3">
+          <MandatoryDatesBanner items={mandatoryDates} />
+        </div>
+      ) : null}
       <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground">
         {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
           <div key={d} className="py-1">
@@ -1319,26 +1397,25 @@ function CreateDialog({
       {usesLodge && (
         <div>
           <Label className="mb-1 block text-xs">Loja patrocinadora</Label>
-          <Select value={lodgeId || "none"} onValueChange={pickLodge}>
-            <SelectTrigger className="h-11">
-              <SelectValue
-                placeholder={
-                  (lodges.data ?? []).length
-                    ? "Selecione a loja…"
-                    : "Nenhuma loja cadastrada"
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Sem loja vinculada</SelectItem>
-              {(lodges.data ?? []).map((l) => (
-                <SelectItem key={l.id} value={l.id}>
-                  {l.name}
-                  {l.is_primary ? " · principal" : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={lodgeId || "none"}
+            onChange={pickLodge}
+            placeholder={
+              (lodges.data ?? []).length
+                ? "Selecione a loja…"
+                : "Nenhuma loja cadastrada"
+            }
+            searchPlaceholder="Buscar loja…"
+            emptyText="Nenhuma loja encontrada."
+            className="h-11"
+            options={[
+              { value: "none", label: "Sem loja vinculada" },
+              ...(lodges.data ?? []).map((l) => ({
+                value: l.id,
+                label: l.is_primary ? `${l.name} · principal` : l.name,
+              })),
+            ]}
+          />
           <p className="mt-1 text-[11px] text-muted-foreground">
             Local e endereço são preenchidos automaticamente e podem ser
             editados.

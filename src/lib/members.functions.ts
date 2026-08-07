@@ -623,3 +623,75 @@ export const getMyCurrentPositions = createServerFn({ method: "POST" })
     }
     return out;
   });
+
+/** Cargos ritualísticos do termo vigente por capítulo (para o seletor de instituições). */
+export const listMyChapterAccessLabels = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        chapterIds: z.array(z.string().uuid()).max(50),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const chapterIds = [...new Set(data.chapterIds)];
+    if (chapterIds.length === 0) return {} as Record<string, string[]>;
+
+    const { currentTerm } = await import("@/lib/terms");
+    const term = currentTerm();
+    const email = (context.claims as { email?: string } | null)?.email ?? null;
+
+    const { data: byUser } = await context.supabase
+      .from("members")
+      .select("id")
+      .eq("user_id", context.userId)
+      .limit(10);
+
+    let memberIds = (byUser ?? []).map((m) => m.id as string);
+
+    if (memberIds.length === 0) {
+      const { data: profile } = await context.supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", context.userId)
+        .maybeSingle();
+      const filters: string[] = [];
+      if (email) filters.push(`email.eq.${email}`);
+      if (profile?.full_name) filters.push(`full_name.eq.${profile.full_name}`);
+      if (filters.length > 0) {
+        const { data: byIdentity } = await context.supabase
+          .from("members")
+          .select("id")
+          .or(filters.join(","));
+        memberIds = (byIdentity ?? []).map((m) => m.id as string);
+      }
+    }
+
+    const result: Record<string, string[]> = {};
+    for (const id of chapterIds) result[id] = [];
+    if (memberIds.length === 0) return result;
+
+    const { data: rows, error } = await context.supabase
+      .from("member_positions")
+      .select("chapter_id, position:positions(label)")
+      .in("chapter_id", chapterIds)
+      .in("member_id", memberIds)
+      .eq("term_year", term.year)
+      .eq("term_semester", term.semester);
+    if (error) throw new Error(error.message);
+
+    for (const r of rows ?? []) {
+      const chapterId = r.chapter_id as string;
+      const p = r.position as
+        | { label?: string }
+        | { label?: string }[]
+        | null;
+      const pos = Array.isArray(p) ? p[0] : p;
+      const label = pos?.label?.trim();
+      if (!label) continue;
+      const list = result[chapterId] ?? (result[chapterId] = []);
+      if (!list.includes(label)) list.push(label);
+    }
+    return result;
+  });

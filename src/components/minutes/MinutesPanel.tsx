@@ -376,13 +376,18 @@ export function MinutesPanel({
     setTemplateId(id);
     const tpl = ((templates.data ?? []) as any[]).find((t) => t.id === id);
     if (!tpl) return;
+    if (!ctx.data) {
+      toast.message("Carregando dados do capítulo… tente de novo em instantes.");
+      return;
+    }
     const filled = applyVars(tpl.body, {
-      chapterName: ctx.data?.chapter?.name,
-      chapterCity: ctx.data?.chapter?.city,
+      chapterName: ctx.data.chapter?.name,
+      chapterNumber: ctx.data.chapter?.number,
+      chapterCity: ctx.data.chapter?.city,
       date: item.start_at,
       location: item.location,
       address: item.address,
-      officers: ctx.data?.officers,
+      officers: ctx.data.officers,
     });
     setAta(filled);
   }

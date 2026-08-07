@@ -54,13 +54,26 @@ type ActiveChapterContextValue = {
   realRoleName: string | null;
   /** Há múltiplos papéis distintos no capítulo ativo — pode alternar visão. */
   canSwitchRoleView: boolean;
+  /** Há 2+ instituições distintas — pode ciclar capítulo. */
+  canSwitchChapter: boolean;
   setActiveChapterId: (id: string | null) => void;
   cycleRoleView: () => string;
+  /** Cicla instituição ativa; retorna o nome do capítulo escolhido. */
+  cycleChapter: (direction: "prev" | "next") => string;
   refetch: () => void;
 };
 
-const STORAGE_KEY = "sgcdm.activeChapterId";
+/** Legado — não usar. Capítulos multi-filiados não persistem entre logins. */
+const LEGACY_STORAGE_KEY = "sgcdm.activeChapterId";
+/** Escolha só na aba/sessão atual; limpa no logout. */
+const SESSION_KEY = "sgcdm.sessionChapterId";
 const ROLE_VIEW_KEY = "sgcdm.roleView";
+
+export function clearChapterSessionStorage() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(SESSION_KEY);
+  window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+}
 
 const ActiveChapterContext = createContext<ActiveChapterContextValue | null>(
   null,
@@ -71,6 +84,13 @@ function readStoredRoleView(): RoleName | null {
   const raw = window.localStorage.getItem(ROLE_VIEW_KEY);
   if (!raw) return null;
   return (ROLE_VIEW_ORDER as string[]).includes(raw) ? (raw as RoleName) : null;
+}
+
+function readSessionChapterId(): string | null {
+  if (typeof window === "undefined") return null;
+  // Remove persistência antiga entre logins.
+  window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+  return window.sessionStorage.getItem(SESSION_KEY);
 }
 
 function roleViewsForChapter(
@@ -130,10 +150,7 @@ export function ActiveChapterProvider({
   const profileFullName = profile?.full_name ?? null;
 
   const [activeChapterId, setActiveChapterIdState] = useState<string | null>(
-    () => {
-      if (typeof window === "undefined") return null;
-      return window.localStorage.getItem(STORAGE_KEY);
-    },
+    () => readSessionChapterId(),
   );
 
   const [roleView, setRoleViewState] = useState<RoleName | null>(() =>
@@ -147,13 +164,14 @@ export function ActiveChapterProvider({
     else window.localStorage.removeItem(ROLE_VIEW_KEY);
   }, []);
 
-  // Persistente entre dispositivos: sincroniza capítulo ativo no perfil
+  // Sessão atual apenas — multi-filiado escolhe de novo a cada login.
   const setActiveChapterId = useCallback(
     (id: string | null) => {
       setActiveChapterIdState(id);
       if (typeof window !== "undefined") {
-        if (id) window.localStorage.setItem(STORAGE_KEY, id);
-        else window.localStorage.removeItem(STORAGE_KEY);
+        window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+        if (id) window.sessionStorage.setItem(SESSION_KEY, id);
+        else window.sessionStorage.removeItem(SESSION_KEY);
       }
       if (userId) {
         supabase
@@ -168,27 +186,19 @@ export function ActiveChapterProvider({
     [userId],
   );
 
-  // Inicializa do perfil quando não há localStorage
-  useEffect(() => {
-    if (activeChapterId) return;
-    const fromProfile = profile?.active_chapter_id;
-    if (fromProfile && memberships.some((m) => m.chapter_id === fromProfile)) {
-      setActiveChapterId(fromProfile);
-    }
-  }, [profile, activeChapterId, memberships, setActiveChapterId]);
-
-  // Auto-seleciona ou valida o capítulo ativo
+  // Auto-seleciona (1 capítulo) ou valida o capítulo ativo (2+).
+  // Multi-filiado: NÃO restaura do perfil — exige escolha se a sessão não tiver.
   useEffect(() => {
     if (isLoading) return;
     if (memberships.length === 0) {
-      setActiveChapterId(null);
+      if (activeChapterId) setActiveChapterId(null);
       return;
     }
     const distinctChapterIds = [
       ...new Set(memberships.map((m) => m.chapter_id)),
     ];
     if (distinctChapterIds.length === 1) {
-      const only = distinctChapterIds[0];
+      const only = distinctChapterIds[0]!;
       if (activeChapterId !== only) {
         setActiveChapterId(only);
       }
@@ -272,6 +282,47 @@ export function ActiveChapterProvider({
     return ROLE_LABELS[next] ?? next;
   }, [chapterRoleViews, effectiveRoleView, realRoleName, setRoleView]);
 
+  const distinctChapters = useMemo(() => {
+    const byId = new Map<
+      string,
+      { id: string; name: string; number: string }
+    >();
+    for (const m of memberships) {
+      if (!byId.has(m.chapter_id)) {
+        byId.set(m.chapter_id, {
+          id: m.chapter_id,
+          name: m.chapter.name,
+          number: m.chapter.number,
+        });
+      }
+    }
+    return [...byId.values()].sort((a, b) => {
+      const byName = a.name.localeCompare(b.name, "pt-BR", {
+        sensitivity: "base",
+      });
+      if (byName !== 0) return byName;
+      return a.number.localeCompare(b.number, "pt-BR", { numeric: true });
+    });
+  }, [memberships]);
+
+  const canSwitchChapter = distinctChapters.length > 1;
+
+  const cycleChapter = useCallback(
+    (direction: "prev" | "next") => {
+      if (distinctChapters.length === 0) return "";
+      const idx = distinctChapters.findIndex((c) => c.id === activeChapterId);
+      const from = idx >= 0 ? idx : 0;
+      const delta = direction === "next" ? 1 : -1;
+      const next =
+        distinctChapters[
+          (from + delta + distinctChapters.length) % distinctChapters.length
+        ]!;
+      setActiveChapterId(next.id);
+      return next.name;
+    },
+    [distinctChapters, activeChapterId, setActiveChapterId],
+  );
+
   const value = useMemo<ActiveChapterContextValue>(
     () => ({
       memberships,
@@ -281,8 +332,10 @@ export function ActiveChapterProvider({
       profileFullName,
       realRoleName,
       canSwitchRoleView,
+      canSwitchChapter,
       setActiveChapterId,
       cycleRoleView,
+      cycleChapter,
       refetch,
     }),
     [
@@ -293,8 +346,10 @@ export function ActiveChapterProvider({
       profileFullName,
       realRoleName,
       canSwitchRoleView,
+      canSwitchChapter,
       setActiveChapterId,
       cycleRoleView,
+      cycleChapter,
       refetch,
     ],
   );

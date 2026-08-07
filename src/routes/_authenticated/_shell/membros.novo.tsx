@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { createMember, lookupMemberByDemolayId, listChaptersForSelect } from "@/lib/members.functions";
 import { createMemberAffiliationRequest } from "@/lib/member-change-requests.functions";
+import { formatChapterIdentity } from "@/lib/chapter-label";
 import { normalizeDemolayId } from "@/lib/member-identity";
 import {
   listCatalog,
@@ -375,8 +376,9 @@ function NovoMembro() {
     },
     onSuccess: async (res) => {
       if (res.kind === "affiliation_request") {
+        const dest = formatChapterIdentity(active?.chapter);
         toast.success(
-          "Solicitação de vínculo enviada ao capítulo originário. Aguarde a aprovação.",
+          `Solicitação de vínculo a ${dest} enviada ao capítulo originário. Aguarde a aprovação.`,
         );
       } else {
         toast.success("Membro cadastrado");
@@ -453,11 +455,15 @@ function NovoMembro() {
             {(positionHistory.length > 0 || linkedMemberId) && (
               <div className="space-y-2">
                 {linkedMemberId && (
-                  <p className="text-xs text-muted-foreground">
-                    Cadastro global encontrado — ao concluir, uma notificação será enviada ao
-                    capítulo originário solicitando o vínculo. Altere o ID DeMolay para
-                    desfazer.
-                  </p>
+                  <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                    Cadastro global encontrado — ao concluir, será solicitada a
+                    dupla filiação neste capítulo:{" "}
+                    <span className="font-medium text-foreground">
+                      {formatChapterIdentity(active?.chapter)}
+                    </span>
+                    . O capítulo originário precisa aprovar. Altere o ID DeMolay
+                    para desfazer.
+                  </div>
                 )}
                 <PositionHistoryCollapsible items={positionHistory} />
               </div>

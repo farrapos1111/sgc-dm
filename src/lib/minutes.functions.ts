@@ -204,7 +204,15 @@ export const getMinuteContext = createServerFn({ method: "POST" })
       if (!code || !name) continue;
       officers[code] = officers[code] ? `${officers[code]}, ${name}` : name;
     }
-    return { chapter: chapter.data, officers };
+    return {
+      chapter: chapter.data as {
+        id: string;
+        name: string;
+        number: string;
+        city: string | null;
+      },
+      officers,
+    };
   });
 
 /** Ata + assinaturas. */

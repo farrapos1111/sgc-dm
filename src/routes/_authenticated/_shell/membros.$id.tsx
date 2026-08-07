@@ -9,7 +9,7 @@ import {
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { getMember, revealMemberPii } from "@/lib/members.functions";
-import { belongsToChapter, isSameChapter } from "@/lib/member-identity";
+import { isSameChapter } from "@/lib/member-identity";
 import {
   getMemberOrgHistory,
   listCatalog,
@@ -252,7 +252,8 @@ function MembroPerfil() {
       toast.error(e instanceof Error ? e.message : "Não foi possível designar"),
   });
   const delPos = useMutation({
-    mutationFn: (rowId: string) => removePosition({ data: { id: rowId } }),
+    mutationFn: (rowId: string) =>
+      removePosition({ data: { id: rowId, chapterId } }),
     onSuccess: () => {
       toast.success("Perfil atualizado: cargo removido");
       refreshOrg();
@@ -286,7 +287,7 @@ function MembroPerfil() {
   });
   const delCom = useMutation({
     mutationFn: (rowId: string) =>
-      removeCommissionMember({ data: { id: rowId } }),
+      removeCommissionMember({ data: { id: rowId, chapterId } }),
     onSuccess: () => {
       toast.success("Perfil atualizado: participação removida");
       refreshOrg();
@@ -655,14 +656,20 @@ function MembroPerfil() {
             <>
               <div className="mb-4">
                 <PositionHistoryCollapsible
-                  title="Histórico de cargos (todos os capítulos)"
+                  title="Histórico de cargos em outros capítulos"
                   items={(orgData.positions as {
+                    chapter_id?: string;
                     term_year: number;
                     term_semester: number;
                     position?: { label?: string } | null;
                     chapter?: { name?: string; number?: string } | null;
                   }[])
-                    .filter((p) => p.chapter?.name)
+                    .filter(
+                      (p) =>
+                        p.chapter_id &&
+                        p.chapter_id !== chapterId &&
+                        p.chapter?.name,
+                    )
                     .map((p) => ({
                       label: p.position?.label ?? "Cargo",
                       term_year: p.term_year,
@@ -678,7 +685,7 @@ function MembroPerfil() {
                     Cargos do capítulo e conselho
                   </h3>
                   {orgData.positions.filter((p) =>
-                    belongsToChapter(p as { chapter_id?: string }, chapterId),
+                    isSameChapter(p as { chapter_id?: string }, chapterId),
                   ).length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       Nenhum cargo registrado neste capítulo.
@@ -687,7 +694,7 @@ function MembroPerfil() {
                     <ul className="divide-y divide-border text-sm">
                       {orgData.positions
                         .filter((p) =>
-                          belongsToChapter(p as { chapter_id?: string }, chapterId),
+                          isSameChapter(p as { chapter_id?: string }, chapterId),
                         )
                         .map((p) => (
                         <li
@@ -701,11 +708,7 @@ function MembroPerfil() {
                               — {termLabel(p.term_year, p.term_semester)}
                             </span>
                           </span>
-                          {canEditOrg &&
-                            isSameChapter(
-                              p as { chapter_id?: string },
-                              chapterId,
-                            ) && (
+                          {canEditOrg && (
                             <Button
                               size="icon"
                               variant="ghost"
@@ -762,13 +765,19 @@ function MembroPerfil() {
                       />
                     )}
                   </div>
-                  {orgData.commissions.length === 0 ? (
+                  {orgData.commissions.filter((c) =>
+                    isSameChapter(c as { chapter_id?: string }, chapterId),
+                  ).length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      Nenhuma participação registrada.
+                      Nenhuma participação registrada neste capítulo.
                     </p>
                   ) : (
                     <ul className="divide-y divide-border text-sm">
-                      {orgData.commissions.map((c) => (
+                      {orgData.commissions
+                        .filter((c) =>
+                          isSameChapter(c as { chapter_id?: string }, chapterId),
+                        )
+                        .map((c) => (
                         <li
                           key={c.id}
                           className="flex items-center justify-between gap-2 py-2"
@@ -781,11 +790,7 @@ function MembroPerfil() {
                           </span>
                           <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
                             {termLabel(c.term_year, c.term_semester)}
-                            {canEditOrg &&
-                              isSameChapter(
-                                c as { chapter_id?: string },
-                                chapterId,
-                              ) && (
+                            {canEditOrg && (
                               <Button
                                 size="icon"
                                 variant="ghost"

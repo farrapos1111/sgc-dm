@@ -86,19 +86,20 @@ export function chapterFoundedAt(
 }
 
 /**
- * Lista vigências do semestre de fundação até o próximo ano civil.
+ * Lista vigências do semestre de fundação até o ano civil vigente.
  * Sem data de fundação, usa fallbackSpan anos atrás (padrão: 4).
  * Ordenadas do mais recente ao mais antigo.
+ * Não inclui anos futuros enquanto não estiverem vigentes (`futureYears` default 0).
  */
 export function termOptions(opts?: {
   foundedAt?: string | null;
-  /** Anos no futuro além do atual (default 1). */
+  /** Anos no futuro além do atual (default 0 — só até o ano vigente). */
   futureYears?: number;
   /** Anos no passado se não houver fundação (default 4). */
   fallbackSpan?: number;
 }): Term[] {
   const current = currentTerm();
-  const futureYears = opts?.futureYears ?? 1;
+  const futureYears = opts?.futureYears ?? 0;
   const end: Term = { year: current.year + futureYears, semester: 2 };
 
   const fromFounded = opts?.foundedAt ? termFromDate(opts.foundedAt) : null;

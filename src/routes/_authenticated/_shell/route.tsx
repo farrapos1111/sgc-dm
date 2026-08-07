@@ -40,10 +40,11 @@ function ShellLayout() {
     if (loading) return;
     if (activeScope) return;
     if (memberships.length === 0) return;
-    if (!activeChapterId && memberships.length > 1) {
+    const distinctChapters = new Set(memberships.map((m) => m.chapter_id));
+    if (!activeChapterId && distinctChapters.size > 1) {
       navigate({ to: "/selecionar-capitulo" });
     }
-  }, [loading, memberships.length, activeChapterId, activeScope, navigate]);
+  }, [loading, memberships, activeChapterId, activeScope, navigate]);
 
   if (loading || orgLoading) {
     return (

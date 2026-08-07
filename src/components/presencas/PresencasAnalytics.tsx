@@ -1000,8 +1000,8 @@ export function PresencasOverviewTab({
             <SelectValue placeholder="Semestre" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="1">{termLabel(year, 1)}</SelectItem>
-            <SelectItem value="2">{termLabel(year, 2)}</SelectItem>
+            <SelectItem value="1">1º semestre</SelectItem>
+            <SelectItem value="2">2º semestre</SelectItem>
           </SelectContent>
         </Select>
       </div>

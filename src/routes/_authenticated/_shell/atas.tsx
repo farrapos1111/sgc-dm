@@ -3,7 +3,6 @@ import {
   useSuspenseQuery,
   useMutation,
   useQuery,
-  useQueryClient,
   queryOptions,
 } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -14,8 +13,6 @@ import { EmptyState } from "@/components/EmptyState";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -24,16 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import {
   Dialog,
   DialogContent,
@@ -54,10 +42,13 @@ import {
   SIGNER_ROLES,
 } from "@/lib/minutes.functions";
 import { MINUTE_KIND_LABELS } from "@/lib/minute-kinds";
-import { AVAILABLE_VARS } from "@/lib/minute-vars";
 import { can } from "@/lib/permissions";
 import { formatDateTimeBR } from "@/lib/format";
-import { FileText, Plus, Trash2, Download } from "lucide-react";
+import { FileText, Plus, Download } from "lucide-react";
+import {
+  DocumentTemplatesPanel,
+  type DocTemplate,
+} from "@/components/documents/DocumentTemplatesPanel";
 
 export const Route = createFileRoute("/_authenticated/_shell/atas")({
   head: () => ({
@@ -238,18 +229,17 @@ function CreateMinuteDialog({
             Não há sessões abertas sem ata nos últimos 60 dias (nem nos próximos 7).
           </p>
         ) : (
-          <Select value={selectedId} onValueChange={setSelectedId}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selecionar sessão…" />
-            </SelectTrigger>
-            <SelectContent>
-              {rows.map((ev) => (
-                <SelectItem key={ev.id} value={ev.id}>
-                  {ev.title} · {formatDateTimeBR(ev.start_at)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={selectedId}
+            onChange={setSelectedId}
+            placeholder="Selecionar sessão…"
+            searchPlaceholder="Buscar sessão…"
+            emptyText="Nenhuma sessão encontrada."
+            options={rows.map((ev) => ({
+              value: ev.id,
+              label: `${ev.title} · ${formatDateTimeBR(ev.start_at)}`,
+            }))}
+          />
         )}
 
         <DialogFooter>
@@ -413,155 +403,24 @@ function AtasPage() {
         </TabsContent>
 
         <TabsContent value="modelos">
-          <Card className="mb-4 rounded-[12px] p-4 text-xs text-muted-foreground">
-            Variáveis reconhecidas: {AVAILABLE_VARS.join(" · ")}. Ao inserir um modelo na ata da
-            sessão, elas são preenchidas automaticamente com os dados do capítulo e dos oficiais da
-            vigência atual. Variáveis não reconhecidas permanecem entre colchetes para preenchimento
-            manual.
-          </Card>
-          {allowed && <NewTemplate chapterId={chapterId} />}
-          <div className="space-y-4">
-            {(templates as any[]).map((t) => (
-              <TemplateCard key={t.id} template={t} chapterId={chapterId} editable={allowed} />
-            ))}
-          </div>
+          <DocumentTemplatesPanel
+            chapterId={chapterId}
+            templates={(templates as DocTemplate[]) ?? []}
+            editable={allowed}
+            queryKey={["minute-templates", chapterId]}
+            kind="ata"
+            createTemplate={async ({ chapterId: cid, name, body }) =>
+              createTemplate({ data: { chapterId: cid, name, body } })
+            }
+            saveTemplate={async ({ id, name, body }) =>
+              saveTemplate({ data: { id, name, body } })
+            }
+            deleteTemplate={async ({ id }) =>
+              deleteTemplate({ data: { id } })
+            }
+          />
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-function NewTemplate({ chapterId }: { chapterId: string }) {
-  const qc = useQueryClient();
-  const [name, setName] = useState("");
-
-  const create = useMutation({
-    mutationFn: () => createTemplate({ data: { chapterId, name: name.trim(), body: "" } }),
-    onSuccess: () => {
-      toast.success("Modelo criado");
-      setName("");
-      qc.invalidateQueries({ queryKey: ["minute-templates", chapterId] });
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao criar modelo"),
-  });
-
-  return (
-    <Card className="mb-4 flex flex-wrap items-center gap-2 rounded-[12px] p-4">
-      <Input
-        value={name}
-        placeholder="Nome do novo modelo padrão"
-        onChange={(e) => setName(e.target.value)}
-        className="h-10 max-w-sm text-sm"
-      />
-      <Button
-        style={{ backgroundColor: "var(--chapter-primary)" }}
-        disabled={!name.trim() || create.isPending}
-        onClick={() => create.mutate()}
-      >
-        <Plus className="mr-2 h-4 w-4" />
-        {create.isPending ? "Criando…" : "Incluir modelo"}
-      </Button>
-    </Card>
-  );
-}
-
-function TemplateCard({
-  template,
-  chapterId,
-  editable,
-}: {
-  template: any;
-  chapterId: string;
-  editable: boolean;
-}) {
-  const qc = useQueryClient();
-  const [name, setName] = useState(template.name);
-  const [body, setBody] = useState(template.body);
-  const [confirm, setConfirm] = useState(false);
-
-  useEffect(() => {
-    setName(template.name);
-    setBody(template.body);
-  }, [template.name, template.body]);
-
-  const save = useMutation({
-    mutationFn: () => saveTemplate({ data: { id: template.id, name, body } }),
-    onSuccess: () => {
-      toast.success("Modelo salvo");
-      qc.invalidateQueries({ queryKey: ["minute-templates", chapterId] });
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar modelo"),
-  });
-
-  const remove = useMutation({
-    mutationFn: () => deleteTemplate({ data: { id: template.id } }),
-    onSuccess: () => {
-      toast.success("Modelo excluído");
-      qc.invalidateQueries({ queryKey: ["minute-templates", chapterId] });
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao excluir modelo"),
-  });
-
-  const dirty = name !== template.name || body !== template.body;
-
-  return (
-    <Card className="rounded-[12px] p-5">
-      <div className="mb-3 flex items-center gap-2">
-        <FileText className="h-4 w-4 text-muted-foreground" />
-        <Input
-          value={name}
-          disabled={!editable}
-          onChange={(e) => setName(e.target.value)}
-          className="h-9 max-w-sm text-sm font-medium"
-        />
-        {editable && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-auto h-10 w-10 text-muted-foreground"
-            aria-label="Excluir modelo"
-            onClick={() => setConfirm(true)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-      <Textarea
-        value={body}
-        rows={10}
-        readOnly={!editable}
-        onChange={(e) => setBody(e.target.value)}
-        className="text-sm leading-relaxed"
-      />
-      <div className="mt-3 flex items-center justify-end gap-3">
-        <span className="mr-auto text-xs text-muted-foreground">
-          Atualizado em {formatDateTimeBR(template.updated_at)}
-        </span>
-        {editable && (
-          <Button
-            style={{ backgroundColor: "var(--chapter-primary)" }}
-            disabled={!dirty || save.isPending}
-            onClick={() => save.mutate()}
-          >
-            {save.isPending ? "Salvando…" : "Salvar alterações"}
-          </Button>
-        )}
-      </div>
-
-      <AlertDialog open={confirm} onOpenChange={setConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir modelo “{template.name}”?</AlertDialogTitle>
-            <AlertDialogDescription>
-              O modelo será removido do capítulo. As atas já redigidas não são afetadas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => remove.mutate()}>Excluir</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Card>
   );
 }

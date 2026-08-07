@@ -176,7 +176,7 @@ export const listPendingChangeRequests = createServerFn({ method: "POST" })
       .select(
         `id, member_id, requesting_chapter_id, origin_chapter_id, status, changes, created_at,
          member:members(id, full_name, demolay_id),
-         requesting_chapter:chapters!member_change_requests_requesting_chapter_id_fkey(id, name, number)`,
+         requesting_chapter:chapters!member_change_requests_requesting_chapter_id_fkey(id, name, number, city)`,
       )
       .eq("origin_chapter_id" as never, data.originChapterId)
       .eq("status" as never, "pending")
@@ -427,7 +427,7 @@ export const listPendingAffiliationRequests = createServerFn({ method: "POST" })
       .select(
         `id, member_id, requesting_chapter_id, origin_chapter_id, status, created_at,
          member:members(id, full_name, demolay_id),
-         requesting_chapter:chapters!member_affiliation_requests_requesting_chapter_id_fkey(id, name, number)`,
+         requesting_chapter:chapters!member_affiliation_requests_requesting_chapter_id_fkey(id, name, number, city)`,
       )
       .eq("origin_chapter_id" as never, data.originChapterId)
       .eq("status" as never, "pending")
