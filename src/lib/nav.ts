@@ -27,7 +27,13 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import type { ComponentType } from "react";
-import { can, canAccess, type AccessContext, type Permission } from "@/lib/permissions";
+import {
+  can,
+  canAccess,
+  canBrowseAllScreens,
+  type AccessContext,
+  type Permission,
+} from "@/lib/permissions";
 
 export type NavPath =
   | "/inicio"
@@ -257,15 +263,19 @@ export function visibleGroups(
   // Temporário: menus da Comissão de Hospitalaria ocultos.
   const HIDDEN_NAV_GROUP_IDS = new Set(["hospitalaria"]);
 
+  const browseAll = accessCtx ? canBrowseAllScreens(accessCtx) : false;
+
   return NAV_GROUPS.filter((g) => {
     if (HIDDEN_NAV_GROUP_IDS.has(g.id)) return false;
     if (g.permission) {
       const ok = accessCtx
-        ? canAccess(accessCtx, g.permission)
+        ? canAccess(accessCtx, g.permission) || browseAll
         : can(roleName, g.permission);
       if (!ok) return false;
     }
-    if (g.commission && !canViewCommission(g.commission)) return false;
+    if (g.commission && !canViewCommission(g.commission) && !browseAll) {
+      return false;
+    }
     return true;
   });
 }

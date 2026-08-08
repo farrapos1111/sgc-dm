@@ -36,7 +36,7 @@ import { listMembers } from "@/lib/members.functions";
 import { membersListKey } from "@/lib/query-keys";
 import { listOngoingItems } from "@/lib/attendance.functions";
 import { getDashboardFinance } from "@/lib/finance.functions";
-import { canManageAttendanceAccess } from "@/lib/permissions";
+import { canViewAttendanceAccess } from "@/lib/permissions";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
 import {
@@ -105,7 +105,7 @@ function InicioContent({ active }: { active: Membership }) {
   const { data: events } = useSuspenseQuery(eventsQO(chapterId));
   const { data: members } = useSuspenseQuery(membersQO(chapterId));
 
-  const canAttendance = canManageAttendanceAccess(ctx);
+  const canAttendance = canViewAttendanceAccess(ctx);
   const { data: ongoing } = useQuery({
     queryKey: ["ongoing-items", chapterId],
     queryFn: () => listOngoingItems({ data: { chapterId } }),

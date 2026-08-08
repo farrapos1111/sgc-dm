@@ -20,7 +20,7 @@ import {
   CALENDAR_TYPES,
   type CalendarType,
 } from "@/lib/calendar-types";
-import { canManageAttendanceAccess } from "@/lib/permissions";
+import { canViewAttendanceAccess } from "@/lib/permissions";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatDateTimeBR, meetsVoteCadastro } from "@/lib/format";
 import {
@@ -359,7 +359,7 @@ function PresencasPage() {
   const { year, typeFilter, mandFilter, dateSort, tab, freq, semester } =
     filters;
 
-  const allowed = canManageAttendanceAccess(ctx);
+  const allowed = canViewAttendanceAccess(ctx);
 
   const availableYears = useMemo(() => {
     const founded = chapterFoundedAt(active?.chapter);
@@ -416,7 +416,7 @@ function PresencasPage() {
   if (!allowed) {
     return (
       <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
-        Módulo disponível apenas para administradores e Escrivão.
+        Módulo disponível para administração, Escrivão e Conselheiros (1º/2º).
       </Card>
     );
   }

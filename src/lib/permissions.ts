@@ -142,6 +142,10 @@ export function canAction(
 
   if (action === "comissao.view" || action === "comissao.vote") {
     if (!commissionCode) return false;
+    // 1º/2º Conselheiro (e demais com visualizar_total): veem todos os setores
+    if (action === "comissao.view" && canAccess(ctx, "visualizar_total")) {
+      return true;
+    }
     if (action === "comissao.view" && canAccess(ctx, "comissoes") && commissionCode === "sindicancias") {
       // Escrivão: acesso total à comissão de sindicâncias
       if (canAccess(ctx, "secretaria") && ctx.roleName === "escrivao") return true;
@@ -192,6 +196,16 @@ export function canManageAttendanceAccess(ctx: AccessContext): boolean {
   return (
     canAccess(ctx, "secretaria") || canAccess(ctx, "conselho") || canAccess(ctx, "admin")
   );
+}
+
+/** Leitura de presenças/chamada: gestores + quem tem visualização ampla (1º/2º Conselheiro). */
+export function canViewAttendanceAccess(ctx: AccessContext): boolean {
+  return canManageAttendanceAccess(ctx) || canAccess(ctx, "visualizar_total");
+}
+
+/** Navegação completa em modo leitura (Secretaria, Tesouraria, Comissões…). */
+export function canBrowseAllScreens(ctx: AccessContext): boolean {
+  return canAccess(ctx, "visualizar_total");
 }
 
 /** Escrivão, PCC (Presidente do Conselho) e MC gerenciam senhas dos tipos de ata. */

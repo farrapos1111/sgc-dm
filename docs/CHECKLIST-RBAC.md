@@ -8,7 +8,7 @@ Pré-requisito: migrations `20260809120000_global_members_rbac.sql` e `202608151
 | Mestre Conselheiro | Role ou cargo `mestre_conselheiro` no semestre | Acesso total no capítulo |
 | Escrivão | Role ou cargo `escrivao` | CRUD completo de Secretaria (nav + telas) + Com. Sindicâncias |
 | Tesoureiro | Role ou cargo `tesoureiro` | CRUD completo de Tesouraria (nav + telas; Pix/mensalidade padrão) + Com. Eventos (tickets/comandas/checkout) |
-| 1º Conselheiro | Cargo ritualístico no semestre | Visualização ampla; sem edição admin; sem menus Secretaria/Tesouraria |
+| 1º Conselheiro | Cargo ritualístico no semestre | Visualização de **todas** as telas (Secretaria, Tesouraria, Comissões…); sem CRUD/edição |
 | 2º Conselheiro | Idem | Idem |
 | PCC / Consultor | Role `presidente_conselho`/`consultor` ou cargos consultivos | Acesso total no capítulo |
 | Pres. de comissão | `commission_members.role = presidente` | Edição só na comissão designada |

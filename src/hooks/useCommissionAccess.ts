@@ -86,6 +86,7 @@ export function useCommissionAccess(): CommissionAccess {
   const canView = useCallback(
     (code: string) =>
       isAdmin ||
+      canAccess(ctx, "visualizar_total") ||
       canAction(ctx, "comissao.view", code) ||
       commissions.some((c) => c.code === code) ||
       (code === "sindicancias" && voteAccess),

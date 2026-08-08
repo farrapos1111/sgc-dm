@@ -21,7 +21,10 @@ import {
   supportsMinutes,
   type CalendarType,
 } from "@/lib/calendar-types";
-import { canManageAttendanceAccess } from "@/lib/permissions";
+import {
+  canManageAttendanceAccess,
+  canViewAttendanceAccess,
+} from "@/lib/permissions";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatDateTimeBR } from "@/lib/format";
 import { useOngoingRealtime } from "@/hooks/useOngoingRealtime";
@@ -89,7 +92,8 @@ function OngoingPage() {
     navigate({ to });
   }
 
-  const allowed = canManageAttendanceAccess(ctx);
+  const canView = canViewAttendanceAccess(ctx);
+  const canManage = canManageAttendanceAccess(ctx);
   const item = data.item as {
     chapter_id: string;
     title: string;
@@ -103,7 +107,7 @@ function OngoingPage() {
   const { live } = useOngoingRealtime({
     calendarEventId: id,
     chapterId: item.chapter_id,
-    enabled: allowed && hasAttendance,
+    enabled: canView && hasAttendance,
   });
 
   type OngoingRecord = {
@@ -216,6 +220,7 @@ function OngoingPage() {
   }
 
   function toggleMark(memberId: string, status: "presente" | "ausente") {
+    if (!canManage) return;
     const current = recordMap.get(memberId)?.status;
     mark.mutate({
       memberId,
@@ -223,10 +228,10 @@ function OngoingPage() {
     });
   }
 
-  if (!allowed) {
+  if (!canView) {
     return (
       <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
-        Você não tem permissão para conduzir a chamada desta sessão.
+        Você não tem permissão para ver a chamada desta sessão.
       </Card>
     );
   }
@@ -361,6 +366,8 @@ function OngoingPage() {
                       </span>
                       <div className="flex shrink-0 gap-1.5">
                         <button
+                          type="button"
+                          disabled={!canManage}
                           aria-label={
                             rec?.status === "presente"
                               ? "Desmarcar presente"
@@ -368,7 +375,7 @@ function OngoingPage() {
                           }
                           aria-pressed={rec?.status === "presente"}
                           onClick={() => toggleMark(m.id, "presente")}
-                          className="grid h-11 w-11 place-items-center rounded-[8px] border transition-all duration-200 hover:-translate-y-0.5 hover:border-[#047857] hover:bg-[#ECFDF5] hover:text-[#047857] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#047857]/40 active:translate-y-0 active:scale-95"
+                          className="grid h-11 w-11 place-items-center rounded-[8px] border transition-all duration-200 hover:-translate-y-0.5 hover:border-[#047857] hover:bg-[#ECFDF5] hover:text-[#047857] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#047857]/40 active:translate-y-0 active:scale-95 disabled:pointer-events-none disabled:opacity-60"
                           style={
                             rec?.status === "presente"
                               ? {
@@ -392,6 +399,8 @@ function OngoingPage() {
                           />
                         </button>
                         <button
+                          type="button"
+                          disabled={!canManage}
                           aria-label={
                             rec?.status === "ausente"
                               ? "Desmarcar ausente"
@@ -399,7 +408,7 @@ function OngoingPage() {
                           }
                           aria-pressed={rec?.status === "ausente"}
                           onClick={() => toggleMark(m.id, "ausente")}
-                          className="grid h-11 w-11 place-items-center rounded-[8px] border transition-all duration-200 hover:-translate-y-0.5 hover:border-[#B91C1C] hover:bg-[#FEF2F2] hover:text-[#B91C1C] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/40 active:translate-y-0 active:scale-95"
+                          className="grid h-11 w-11 place-items-center rounded-[8px] border transition-all duration-200 hover:-translate-y-0.5 hover:border-[#B91C1C] hover:bg-[#FEF2F2] hover:text-[#B91C1C] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/40 active:translate-y-0 active:scale-95 disabled:pointer-events-none disabled:opacity-60"
                           style={
                             rec?.status === "ausente"
                               ? {
@@ -429,13 +438,16 @@ function OngoingPage() {
                         className="mt-2 h-9 animate-fade-in text-xs"
                         placeholder="Justificativa (opcional)"
                         defaultValue={rec.justification ?? ""}
-                        onBlur={(e) =>
+                        readOnly={!canManage}
+                        disabled={!canManage}
+                        onBlur={(e) => {
+                          if (!canManage) return;
                           mark.mutate({
                             memberId: m.id,
                             status: "ausente",
                             justification: e.target.value.trim() || null,
-                          })
-                        }
+                          });
+                        }}
                       />
                     )}
                   </li>

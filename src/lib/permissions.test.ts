@@ -45,11 +45,29 @@ assert.ok(canAction(ctx("tesoureiro"), "comissao.view", "eventos"));
 assert.ok(canAction(ctx("tesoureiro"), "eventos.checkout"));
 assert.ok(!canAccess(ctx("tesoureiro"), "secretaria"));
 
-// 1º e 2º Conselheiros: visualizar total (só cargo)
+// 1º e 2º Conselheiros: visualizar total (só cargo) — leitura ampla, sem escrita
 assert.ok(canAccess(ctx("membro", ["primeiro_conselheiro"]), "visualizar_total"));
 assert.ok(canAccess(ctx("membro", ["segundo_conselheiro"]), "visualizar_total"));
 assert.ok(!canAccess(ctx("membro", ["primeiro_conselheiro"]), "admin"));
 assert.ok(!canAccess(ctx("membro", ["primeiro_conselheiro"]), "secretaria"));
+assert.ok(!canAccess(ctx("membro", ["primeiro_conselheiro"]), "tesouraria"));
+assert.ok(
+  canAction(ctx("membro", ["primeiro_conselheiro"]), "comissao.view", "eventos"),
+);
+assert.ok(
+  canAction(
+    ctx("membro", ["segundo_conselheiro"]),
+    "comissao.view",
+    "sindicancias",
+  ),
+);
+assert.ok(
+  !canAction(
+    ctx("membro", ["primeiro_conselheiro"]),
+    "comissao.edit",
+    "eventos",
+  ),
+);
 
 // PCC / Consultor: acesso total
 assert.ok(canAccess(ctx("presidente_conselho"), "admin"));
