@@ -4,7 +4,11 @@ import {
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
+<<<<<<< Updated upstream
 import { ArrowLeftRight, ChevronDown, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+=======
+import { ArrowLeftRight, ChevronDown, LogOut } from "lucide-react";
+>>>>>>> Stashed changes
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";

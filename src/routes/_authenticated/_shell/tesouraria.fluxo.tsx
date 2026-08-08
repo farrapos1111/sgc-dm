@@ -47,7 +47,7 @@ import {
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { todayYmd } from "@/lib/timezone";
 import { chapterFoundedAt } from "@/lib/terms";
@@ -120,6 +120,7 @@ const emptyForm = (): EntryForm => ({
 
 function FluxoCaixa() {
   const { active } = useActiveChapter();
+  const { can } = useChapterAccess();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
   const now = new Date();
@@ -143,7 +144,7 @@ function FluxoCaixa() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const writable = can(active?.role.name, "tesouraria");
+  const writable = can("tesouraria");
 
   const [form, setForm] = useState<EntryForm>(emptyForm());
   const [entryOpen, setEntryOpen] = useState(false);

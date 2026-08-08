@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import * as XLSX from "xlsx";
 import { loadLogoDataUrl } from "@/lib/chapter-logo";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import {
@@ -323,4 +324,50 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
   doc.save(
     `relatorio-evento-${fileSafe(input.eventName) || "evento"}.pdf`,
   );
+}
+
+export type EventTicketExportRow = {
+  buyer_name: string;
+  seller_name: string | null;
+  ticket_type_name: string;
+  price_paid: number;
+  status?: string | null;
+  sold_at?: string | null;
+};
+
+/** Planilha de ingressos: Comprador, Vendedor, Tipo, Valor. */
+export function exportEventTicketsXlsx(
+  rows: EventTicketExportRow[],
+  fileName: string,
+  options?: { eventName?: string },
+) {
+  const active = rows.filter((r) => r.status !== "cancelado");
+  const sheetRows = active.map((r) => ({
+    "Nome Comprador": r.buyer_name || "—",
+    "Nome Vendedor": r.seller_name?.trim() || "—",
+    "Tipo de Ingresso": r.ticket_type_name || "Avulso",
+    Valor: Number(r.price_paid) || 0,
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(sheetRows, {
+    header: [
+      "Nome Comprador",
+      "Nome Vendedor",
+      "Tipo de Ingresso",
+      "Valor",
+    ],
+  });
+  ws["!cols"] = [
+    { wch: 32 },
+    { wch: 28 },
+    { wch: 24 },
+    { wch: 12 },
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Ingressos");
+  const safe =
+    fileName ||
+    `ingressos-${fileSafe(options?.eventName || "evento") || "evento"}.xlsx`;
+  XLSX.writeFile(wb, safe.endsWith(".xlsx") ? safe : `${safe}.xlsx`);
 }

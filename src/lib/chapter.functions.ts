@@ -159,10 +159,10 @@ export const updateChapterPixKey = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { data: allowed, error: roleErr } = await context.supabase.rpc(
-      "has_any_role",
+      "has_permission",
       {
         _chapter_id: data.chapter_id,
-        _role_names: ["admin_total", "mestre_conselheiro", "tesoureiro"],
+        _perm: "tesouraria",
       },
     );
     if (roleErr) throw new Error(roleErr.message);
@@ -234,15 +234,10 @@ export const updateMinutePasswords = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { data: allowed, error: roleErr } = await context.supabase.rpc(
-      "has_any_role",
+      "has_permission",
       {
         _chapter_id: data.chapter_id,
-        _role_names: [
-          "escrivao",
-          "presidente_conselho",
-          "mestre_conselheiro",
-          "admin_total",
-        ],
+        _perm: "secretaria",
       },
     );
     if (roleErr) throw new Error(roleErr.message);

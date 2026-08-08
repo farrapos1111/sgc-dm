@@ -88,6 +88,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: "secretaria",
     label: "Secretaria",
     icon: FileText,
+    permission: "secretaria",
     items: [
       { to: "/membros", label: "Membros", icon: Users },
       { to: "/atas", label: "Atas", icon: FileText },
@@ -99,6 +100,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: "tesouraria",
     label: "Tesouraria",
     icon: Wallet,
+    permission: "tesouraria",
     items: [
       { to: "/tesouraria/fluxo", label: "Fluxo de Caixa", icon: Wallet },
       { to: "/tesouraria/mensalidades", label: "Mensalidades", icon: Receipt },

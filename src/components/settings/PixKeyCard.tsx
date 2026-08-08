@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { updateChapterPixKey } from "@/lib/chapter.functions";
 import { LOGO_BUCKET, useChapterLogo } from "@/lib/chapter-logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,8 +17,8 @@ const MAX_QR_BYTES = 2 * 1024 * 1024;
 /** Chave Pix + imagem QR do capítulo (settings), usadas no checkout de comanda. */
 export function PixKeyCard() {
   const { active, refetch } = useActiveChapter();
-  const allowed =
-    can(active?.role.name, "admin") || can(active?.role.name, "tesouraria");
+  const { can } = useChapterAccess();
+  const allowed = can("admin") || can("tesouraria");
   const settings = (
     active?.chapter as { settings?: Record<string, unknown> } | undefined
   )?.settings;

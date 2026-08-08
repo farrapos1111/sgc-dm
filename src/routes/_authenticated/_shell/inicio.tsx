@@ -36,7 +36,8 @@ import { listMembers } from "@/lib/members.functions";
 import { membersListKey } from "@/lib/query-keys";
 import { listOngoingItems } from "@/lib/attendance.functions";
 import { getDashboardFinance } from "@/lib/finance.functions";
-import { can, canManageAttendance } from "@/lib/permissions";
+import { canManageAttendanceAccess } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
 import {
   formatBRL,
@@ -97,13 +98,14 @@ function Inicio() {
 
 function InicioContent({ active }: { active: Membership }) {
   const { profileFullName } = useActiveChapter();
+  const { can, ctx } = useChapterAccess();
   const chapterId = active.chapter_id;
-  const canFinance = can(active.role.name, "tesouraria");
+  const canFinance = can("tesouraria");
 
   const { data: events } = useSuspenseQuery(eventsQO(chapterId));
   const { data: members } = useSuspenseQuery(membersQO(chapterId));
 
-  const canAttendance = canManageAttendance(active.role.name);
+  const canAttendance = canManageAttendanceAccess(ctx);
   const { data: ongoing } = useQuery({
     queryKey: ["ongoing-items", chapterId],
     queryFn: () => listOngoingItems({ data: { chapterId } }),

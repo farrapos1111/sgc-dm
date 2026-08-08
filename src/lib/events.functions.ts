@@ -147,7 +147,10 @@ export const getEvent = createServerFn({ method: "POST" })
       ),
     ];
     const sellerNameById = new Map<string, string>();
-    const chargePaidById = new Map<string, boolean>();
+    const chargeById = new Map<
+      string,
+      { status: string; amount: number; amount_paid: number; remaining: number }
+    >();
     const chargeIds = [
       ...new Set(
         ticketRows
@@ -156,7 +159,7 @@ export const getEvent = createServerFn({ method: "POST" })
       ),
     ];
 
-    const [sellersRes, chargesRes] = await Promise.all([
+    const [sellersRes, chargesRes, itemsRes] = await Promise.all([
       sellerIds.length > 0
         ? context.supabase
             .from("members")
@@ -169,38 +172,125 @@ export const getEvent = createServerFn({ method: "POST" })
       chargeIds.length > 0
         ? context.supabase
             .from("member_charges")
-            .select("id, status")
+            .select("id, status, amount")
             .in("id", chargeIds)
         : Promise.resolve({
-            data: [] as Array<{ id: string; status: string }>,
+            data: [] as Array<{
+              id: string;
+              status: string;
+              amount: number | string;
+            }>,
             error: null,
           }),
+      context.supabase
+        .from("event_ticket_items")
+        .select("ticket_id, cash_entry_id")
+        .eq("event_id", data.id),
     ]);
     if (sellersRes.error) throw new Error(sellersRes.error.message);
     if (chargesRes.error) throw new Error(chargesRes.error.message);
+    if (itemsRes.error) throw new Error(itemsRes.error.message);
     for (const s of sellersRes.data ?? []) {
       sellerNameById.set(s.id, s.full_name);
     }
+
+    const paysByCharge = new Map<string, number>();
+    if (chargeIds.length > 0) {
+      const { data: pays, error: payErr } = await context.supabase
+        .from("member_charge_payments" as never)
+        .select("charge_id, amount")
+        .in("charge_id", chargeIds);
+      if (payErr) throw new Error(payErr.message);
+      for (const p of (pays as Array<{
+        charge_id: string;
+        amount: number | string;
+      }> | null) ?? []) {
+        paysByCharge.set(
+          p.charge_id,
+          (paysByCharge.get(p.charge_id) ?? 0) + Number(p.amount),
+        );
+      }
+    }
+
     for (const c of chargesRes.data ?? []) {
-      chargePaidById.set(c.id, c.status === "pago");
+      const totalDue = Number(c.amount) || 0;
+      let amountPaid = paysByCharge.get(c.id) ?? 0;
+      if (amountPaid === 0 && c.status === "pago" && totalDue > 0) {
+        amountPaid = totalDue;
+      }
+      amountPaid = Math.min(amountPaid, totalDue);
+      chargeById.set(c.id, {
+        status: c.status,
+        amount: totalDue,
+        amount_paid: amountPaid,
+        remaining: Math.max(0, totalDue - amountPaid),
+      });
+    }
+
+    const itemsByTicket = new Map<
+      string,
+      { total: number; paid: number }
+    >();
+    for (const row of itemsRes.data ?? []) {
+      const cur = itemsByTicket.get(row.ticket_id) ?? { total: 0, paid: 0 };
+      cur.total += 1;
+      if (row.cash_entry_id) cur.paid += 1;
+      itemsByTicket.set(row.ticket_id, cur);
     }
 
     const checkedInTicketIds = new Set(
       (checkins.data ?? []).map((c) => c.ticket_id),
     );
 
+    function settlementOf(t: (typeof ticketRows)[number]): "open" | "partial" | "paid" {
+      const charge = t.seller_charge_id
+        ? chargeById.get(t.seller_charge_id)
+        : undefined;
+      const price = Number(t.price_paid ?? 0);
+      const ticketRemaining = charge
+        ? charge.remaining
+        : price > 0
+          ? price
+          : 0;
+      const ticketPaidAmount = charge
+        ? charge.amount_paid
+        : 0;
+      const items = itemsByTicket.get(t.id) ?? { total: 0, paid: 0 };
+      const unpaidItems = items.total - items.paid;
+      const ticketSettled = ticketRemaining <= 0;
+      const itemsSettled = unpaidItems <= 0;
+
+      if (ticketSettled && itemsSettled) return "paid";
+
+      const hasProgress =
+        ticketPaidAmount > 0 ||
+        items.paid > 0 ||
+        (ticketSettled && items.total > 0 && unpaidItems > 0) ||
+        (!ticketSettled && items.paid > 0);
+
+      if (hasProgress) return "partial";
+      return "open";
+    }
+
     return {
       event: eventRes.data,
       ticketTypes: types.data ?? [],
-      tickets: ticketRows.map((t) => ({
-        ...t,
-        seller_name: t.seller_member_id
-          ? (sellerNameById.get(t.seller_member_id) ?? null)
-          : null,
-        seller_charge_paid: t.seller_charge_id
-          ? (chargePaidById.get(t.seller_charge_id) ?? false)
-          : false,
-        checked_in: checkedInTicketIds.has(t.id),
+      tickets: ticketRows.map((t) => {
+        const charge = t.seller_charge_id
+          ? chargeById.get(t.seller_charge_id)
+          : undefined;
+        const settlement = settlementOf(t);
+        return {
+          ...t,
+          seller_name: t.seller_member_id
+            ? (sellerNameById.get(t.seller_member_id) ?? null)
+            : null,
+          seller_charge_paid: charge
+            ? charge.remaining <= 0 || charge.status === "pago"
+            : Number(t.price_paid ?? 0) <= 0,
+          settlement,
+          checked_in: checkedInTicketIds.has(t.id),
+        };
       })),
       tables,
       seats: seats.data ?? [],

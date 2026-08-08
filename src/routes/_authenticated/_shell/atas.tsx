@@ -42,7 +42,7 @@ import {
   SIGNER_ROLES,
 } from "@/lib/minutes.functions";
 import { MINUTE_KIND_LABELS } from "@/lib/minute-kinds";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatDateTimeBR } from "@/lib/format";
 import { FileText, Plus, Download } from "lucide-react";
 import {
@@ -268,10 +268,11 @@ function CreateMinuteDialog({
 
 function AtasPage() {
   const { active } = useActiveChapter();
+  const { can } = useChapterAccess();
   const chapterId = active?.chapter_id ?? "";
   const { data: templates } = useSuspenseQuery(templatesQO(chapterId));
   const { data: minutes } = useSuspenseQuery(minutesQO(chapterId));
-  const allowed = can(active?.role.name, "secretaria") || can(active?.role.name, "admin");
+  const allowed = can("secretaria") || can("admin");
 
   const [status, setStatus] = useState<string>("all");
   const [createOpen, setCreateOpen] = useState(false);

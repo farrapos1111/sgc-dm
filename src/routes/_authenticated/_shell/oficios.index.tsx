@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   useSuspenseQuery,
   useMutation,
@@ -37,7 +37,7 @@ import {
   termFromOficioIssuedAt,
   type OficioRow,
 } from "@/lib/oficios.functions";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatDateTimeBR } from "@/lib/format";
 import { matchesLooseSearch } from "@/lib/utils";
 import {
@@ -116,11 +116,11 @@ function ExportPdfButton({ oficio, size }: { oficio: OficioRow; size?: "sm" }) {
 
 function OficiosPage() {
   const { active } = useActiveChapter();
+  const { can } = useChapterAccess();
   const chapterId = active?.chapter_id ?? "";
   const { data: templates } = useSuspenseQuery(templatesQO(chapterId));
   const { data: oficios } = useSuspenseQuery(oficiosQO(chapterId));
-  const allowed =
-    can(active?.role.name, "secretaria") || can(active?.role.name, "admin");
+  const allowed = can("secretaria") || can("admin");
 
   return (
     <div>

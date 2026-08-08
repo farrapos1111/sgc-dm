@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useChapterLogo, LOGO_BUCKET } from "@/lib/chapter-logo";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { listLodges, saveLodge, deleteLodge, updateChapterProfile, updateChapterAccentColor } from "@/lib/chapter.functions";
 import { saveDefaultDuesAmount, saveChapterDuesEnabled } from "@/lib/finance.functions";
 import {
@@ -85,7 +85,8 @@ function applyAccentPreview(hex: string) {
 
 function AccentColorSection() {
   const { active, refetch } = useActiveChapter();
-  const isAdmin = can(active?.role.name, "admin");
+  const { can } = useChapterAccess();
+  const isAdmin = can("admin");
   const saved = active?.chapter.primary_color || DEFAULT_ACCENT;
   const [color, setColor] = useState(saved);
   const [text, setText] = useState(saved);
@@ -282,13 +283,11 @@ const MAX_BYTES = 2 * 1024 * 1024;
 
 function ConfiguracoesPage() {
   const { active, refetch } = useActiveChapter();
+  const { can } = useChapterAccess();
   const chapterId = active?.chapter_id ?? "";
   const logoPath = (active?.chapter as any)?.logo_url as string | null | undefined;
   const logoUrl = useChapterLogo(logoPath);
-  const allowed =
-    can(active?.role.name, "admin") ||
-    can(active?.role.name, "secretaria") ||
-    can(active?.role.name, "conselho");
+  const allowed = can("admin") || can("secretaria") || can("conselho");
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -451,9 +450,9 @@ function ConfiguracoesPage() {
 
 function DefaultDuesCard() {
   const { active, refetch } = useActiveChapter();
+  const { can } = useChapterAccess();
   const qc = useQueryClient();
-  const allowed =
-    can(active?.role.name, "tesouraria") || can(active?.role.name, "admin");
+  const allowed = can("tesouraria") || can("admin");
   const chapterSettings = active?.chapter as
     | { settings?: Record<string, unknown> }
     | undefined;
@@ -578,9 +577,9 @@ function DefaultDuesCard() {
 
 function PublicLobbyLinkCard() {
   const { active } = useActiveChapter();
+  const { can } = useChapterAccess();
   const chapterId = active?.chapter_id;
-  const allowed =
-    can(active?.role.name, "tesouraria") || can(active?.role.name, "admin");
+  const allowed = can("tesouraria") || can("admin");
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<"revoke" | "regenerate" | null>(
@@ -795,7 +794,8 @@ function PublicLobbyLinkCard() {
 
 function ChapterProfileCard() {
   const { active, refetch } = useActiveChapter();
-  const isAdmin = can(active?.role.name, "admin");
+  const { can } = useChapterAccess();
+  const isAdmin = can("admin");
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
   const [city, setCity] = useState("");
@@ -890,8 +890,9 @@ function ChapterProfileCard() {
 
 function LodgesCard() {
   const { active } = useActiveChapter();
+  const { can } = useChapterAccess();
   const chapterId = active?.chapter_id ?? "";
-  const isAdmin = can(active?.role.name, "admin");
+  const isAdmin = can("admin");
   const qc = useQueryClient();
 
   const [name, setName] = useState("");

@@ -1066,6 +1066,11 @@ export const getComandaCheckout = createServerFn({ method: "POST" })
 
     const ticketAmount = Number(ticket.price_paid ?? 0);
     const comandaTotal = lines.reduce((s, l) => s + Number(l.amount), 0);
+    const unpaidComandaTotal = lines
+      .filter((l) => !l.paid)
+      .reduce((s, l) => s + Number(l.amount), 0);
+    // Saldo a pagar no recibo: ingresso em aberto + itens ainda não baixados.
+    const ticketDue = charge ? charge.remaining : ticketAmount;
 
     return {
       event: {
@@ -1101,11 +1106,10 @@ export const getComandaCheckout = createServerFn({ method: "POST" })
         : null,
       lines,
       ticketAmount,
+      ticketDue,
       comandaTotal,
-      unpaidComandaTotal: lines
-        .filter((l) => !l.paid)
-        .reduce((s, l) => s + Number(l.amount), 0),
-      grandTotal: ticketAmount + comandaTotal,
+      unpaidComandaTotal,
+      grandTotal: ticketDue + unpaidComandaTotal,
     };
   });
 

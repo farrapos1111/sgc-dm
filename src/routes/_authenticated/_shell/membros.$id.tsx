@@ -29,7 +29,7 @@ import { TermSelect } from "@/components/TermSelect";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { getMemberAttendance } from "@/lib/attendance.functions";
 import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { getMemberFinance } from "@/lib/finance.functions";
 import {
   MONTH_SHORT,
@@ -114,6 +114,7 @@ function MembroPerfil() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("dados");
   const { active } = useActiveChapter();
+  const { can, positions } = useChapterAccess();
   const { data } = useSuspenseQuery(memberQO(id));
   const {
     member,
@@ -213,11 +214,13 @@ function MembroPerfil() {
   // --- Edição de cargos e comissões no perfil ---
   const qc = useQueryClient();
   const roleName = active?.role.name;
-  const canEditOrg = can(roleName, "conselho") || can(roleName, "secretaria");
-  const isAdminView = canEditOrg || can(roleName, "admin");
+  const canEditOrg = can("conselho") || can("secretaria");
+  const isAdminView = canEditOrg || can("admin");
   const canManageProficiencyCard =
-    roleName === "mestre_conselheiro" || roleName === "admin_total";
-  const canManageAccount = can(roleName, "admin") && isOriginChapter;
+    roleName === "mestre_conselheiro" ||
+    roleName === "admin_total" ||
+    positions.includes("mestre_conselheiro");
+  const canManageAccount = can("admin") && isOriginChapter;
   const foundedAt = chapterFoundedAt(active?.chapter);
   const [term, setTerm] = useState(currentTerm());
 

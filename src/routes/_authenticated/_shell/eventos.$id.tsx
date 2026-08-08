@@ -364,6 +364,8 @@ function EventoDetalhe() {
               (active?.chapter as { logo_url?: string | null } | undefined)
                 ?.logo_url ?? null
             }
+            tickets={data.tickets}
+            ticketTypes={data.ticketTypes}
           />
         </TabsContent>
 
@@ -566,7 +568,11 @@ function TicketsList({
       const statusParts = [
         t.status,
         t.checked_in ? "checkin presente" : "sem checkin",
-        t.seller_charge_paid ? "paga pago" : "em aberto pendente",
+        t.settlement === "paid"
+          ? "paga pago quitado"
+          : t.settlement === "partial"
+            ? "parcial parcialmente pago"
+            : "em aberto pendente",
       ];
       const haystack = [
         t.buyer_name,
@@ -671,22 +677,23 @@ function TicketsList({
             <li
               key={t.id}
               className={
-                t.seller_charge_paid
-                  ? "flex items-center justify-between gap-3 bg-emerald-500/10 p-4"
-                  : "flex items-center justify-between gap-3 p-4"
+                t.settlement === "paid"
+                  ? "flex flex-col gap-2 bg-emerald-500/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                  : t.settlement === "partial"
+                    ? "flex flex-col gap-2 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                    : "flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
               }
             >
-              <div className="min-w-0">
-                <div className="truncate font-medium">
+              <div className="min-w-0 flex-1">
+                <div className="break-words font-medium leading-snug">
                   {t.buyer_name}
-                  {t.seller_name ? (
-                    <span className="font-normal text-muted-foreground">
-                      {" "}
-                      · {t.seller_name}
-                    </span>
-                  ) : null}
                 </div>
-                <div className="truncate text-xs text-muted-foreground">
+                {t.seller_name ? (
+                  <div className="break-words text-xs text-muted-foreground">
+                    Vend. {t.seller_name}
+                  </div>
+                ) : null}
+                <div className="mt-0.5 break-words text-xs text-muted-foreground">
                   {canManageTickets && t.status !== "cancelado" ? (
                     <Select
                       value={t.ticket_type_id ?? "__avulso__"}
@@ -745,12 +752,28 @@ function TicketsList({
                 </div>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
-                {t.seller_charge_paid ? (
+                {t.settlement === "paid" ? (
                   <Badge className="border-transparent bg-emerald-500/20 text-emerald-800 capitalize dark:text-emerald-300">
+                    <span
+                      className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400"
+                      aria-hidden
+                    />
                     Paga
+                  </Badge>
+                ) : t.settlement === "partial" ? (
+                  <Badge className="border-transparent bg-amber-500/20 text-amber-900 capitalize dark:text-amber-200">
+                    <span
+                      className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-600 dark:bg-amber-400"
+                      aria-hidden
+                    />
+                    Parcialmente pago
                   </Badge>
                 ) : (
                   <Badge variant="secondary" className="capitalize">
+                    <span
+                      className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/70"
+                      aria-hidden
+                    />
                     {t.status}
                   </Badge>
                 )}
@@ -760,7 +783,7 @@ function TicketsList({
                     ticketId={t.id}
                     buyerName={t.buyer_name}
                     primary={primary}
-                    paid={t.seller_charge_paid}
+                    paid={t.settlement === "paid"}
                   />
                 )}
                 {canEditComanda &&
@@ -947,7 +970,7 @@ function TicketTypesCard({
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">{t.name}</div>
+                  <div className="break-words text-sm font-medium leading-snug">{t.name}</div>
                   <div className="text-xs text-muted-foreground">
                     {formatBRL(Number(t.price))} · {sold}
                     {t.quantity_total > 0

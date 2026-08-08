@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PlusCircle, Search, Users, X, Inbox } from "lucide-react";
 import { formatDateBR, statusLabel, kindLabel, grauOf, isAptoGrauDemolay, ageFrom } from "@/lib/format";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { countPendingMemberRequests } from "@/lib/member-change-requests.functions";
 
 export const Route = createFileRoute("/_authenticated/_shell/membros/")({
@@ -89,6 +89,7 @@ const membersQO = (chapterId: string, search: string, status: StatusFilter, kind
 
 function MembrosList() {
   const { active } = useActiveChapter();
+  const { can } = useChapterAccess();
   if (!active) return null;
 
   const chapterId = active.chapter_id;
@@ -151,9 +152,7 @@ function MembrosList() {
   }, [filters.filtro, members, memberIdsWithCargo]);
 
   const isAdmin =
-    can(active.role.name, "secretaria") ||
-    can(active.role.name, "conselho") ||
-    can(active.role.name, "admin");
+    can("secretaria") || can("conselho") || can("admin");
 
   const { data: pendingReq } = useQuery({
     queryKey: ["member-change-requests-count", chapterId],
@@ -292,11 +291,11 @@ function MembrosList() {
             const showGrauTag = kind !== "senior" && kind !== "macom";
             return (
               <Link key={m.id} to="/membros/$id" params={{ id: m.id }} className="h-full">
-                <Card className="flex h-full items-start justify-between gap-3 rounded-[12px] p-4 transition-colors hover:bg-muted/40">
+                <Card className="flex h-full flex-col items-stretch gap-2 rounded-[12px] p-4 transition-colors hover:bg-muted/40 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                   <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="truncate font-medium">{m.full_name}</div>
-                    <div className="truncate text-xs text-muted-foreground">{m.email || "—"}</div>
-                    <div className="truncate text-xs text-muted-foreground">
+                    <div className="break-words font-medium leading-snug">{m.full_name}</div>
+                    <div className="break-all text-xs text-muted-foreground">{m.email || "—"}</div>
+                    <div className="text-xs text-muted-foreground">
                       {(() => {
                         const nasc = formatDateBR(m.birth_date);
                         const age = ageFrom(m.birth_date);
@@ -307,7 +306,7 @@ function MembrosList() {
                       })()}
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0 sm:justify-end">
                     {isAdmin && isAptoGrauDemolay(m) && (
                       <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 dark:bg-amber-500/20 dark:text-amber-200 dark:hover:bg-amber-500/20">
                         Apto a G∴D∴

@@ -73,7 +73,7 @@ export function TicketPass({
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
               Participante
             </div>
-            <div className="truncate text-base font-semibold">{pass.buyerName}</div>
+            <div className="break-words text-base font-semibold leading-snug">{pass.buyerName}</div>
             <div className="mt-1 text-xs text-muted-foreground">
               {pass.ticketTypeName}
               {pass.pricePaid > 0 ? ` · ${formatBRL(pass.pricePaid)}` : ""}

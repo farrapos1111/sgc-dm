@@ -1,19 +1,19 @@
 # Checklist manual — RBAC por papel (capítulo ativo)
 
-Pré-requisito: migration `20260809120000_global_members_rbac.sql` aplicada; usuário com `chapter_members` ativo (role base `membro` basta quando o cargo ritualístico concede poder).
+Pré-requisito: migrations `20260809120000_global_members_rbac.sql` e `20260815120000_dues_amount_has_permission.sql` aplicadas; usuário com `chapter_members` ativo (role base `membro` basta quando o cargo ritualístico concede poder). Gates de UI usam `useChapterAccess` (role **+** cargo do termo).
 
 | Papel | Como preparar | Esperado |
 | --- | --- | --- |
 | Admin (`admin_total`) | SQL / convite manual — **não** aparece em selects de role | Acesso total; Configurações e provisionamento de conta |
 | Mestre Conselheiro | Role ou cargo `mestre_conselheiro` no semestre | Acesso total no capítulo |
-| Escrivão | Role ou cargo `escrivao` | Secretaria + Com. Sindicâncias |
-| Tesoureiro | Role ou cargo `tesoureiro` | Tesouraria + Com. Eventos (tickets/comandas/checkout) |
-| 1º Conselheiro | Cargo ritualístico no semestre | Visualização ampla; sem edição admin |
+| Escrivão | Role ou cargo `escrivao` | CRUD completo de Secretaria (nav + telas) + Com. Sindicâncias |
+| Tesoureiro | Role ou cargo `tesoureiro` | CRUD completo de Tesouraria (nav + telas; Pix/mensalidade padrão) + Com. Eventos (tickets/comandas/checkout) |
+| 1º Conselheiro | Cargo ritualístico no semestre | Visualização ampla; sem edição admin; sem menus Secretaria/Tesouraria |
 | 2º Conselheiro | Idem | Idem |
 | PCC / Consultor | Role `presidente_conselho`/`consultor` ou cargos consultivos | Acesso total no capítulo |
 | Pres. de comissão | `commission_members.role = presidente` | Edição só na comissão designada |
 | Membro/vice/auxiliar Eventos | Papel na comissão eventos | View + voto; tickets, comandas, checkout, orçamento |
-| Membro comum | Role `membro` sem cargos especiais | Presenças, Fluxo, Mensalidades, Calendário, Gestão (view), Perfil |
+| Membro comum | Role `membro` sem cargos especiais | Calendário, Gestão (view), Perfil; sem menus Secretaria/Tesouraria |
 
 ## Escopo de capítulo
 

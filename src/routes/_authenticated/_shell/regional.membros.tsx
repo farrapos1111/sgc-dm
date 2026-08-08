@@ -324,7 +324,7 @@ function MembersContent() {
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="truncate text-sm font-medium">
+                    <span className="break-words text-sm font-medium leading-snug">
                       {m.full_name}
                     </span>
                     {(

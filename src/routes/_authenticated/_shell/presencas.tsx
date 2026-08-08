@@ -20,7 +20,8 @@ import {
   CALENDAR_TYPES,
   type CalendarType,
 } from "@/lib/calendar-types";
-import { canManageAttendance } from "@/lib/permissions";
+import { canManageAttendanceAccess } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatDateTimeBR, meetsVoteCadastro } from "@/lib/format";
 import {
   memberEligibleForAttendance,
@@ -337,6 +338,7 @@ function PresencasFrequencyTab({
 
 function PresencasPage() {
   const { active } = useActiveChapter();
+  const { ctx } = useChapterAccess();
   const chapterId = active?.chapter_id ?? "";
   const { data } = useSuspenseQuery(overviewQO(chapterId));
   const now = new Date();
@@ -357,7 +359,7 @@ function PresencasPage() {
   const { year, typeFilter, mandFilter, dateSort, tab, freq, semester } =
     filters;
 
-  const allowed = canManageAttendance(active?.role.name);
+  const allowed = canManageAttendanceAccess(ctx);
 
   const availableYears = useMemo(() => {
     const founded = chapterFoundedAt(active?.chapter);

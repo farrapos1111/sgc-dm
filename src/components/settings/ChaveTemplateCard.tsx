@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { updateChaveTemplate } from "@/lib/chapter.functions";
 import {
   CHAVE_VARIABLES,
@@ -19,7 +19,8 @@ import { KeyRound, RotateCcw, Save } from "lucide-react";
 /** Editor do modelo padrão da "chave do dia", com variáveis dinâmicas. */
 export function ChaveTemplateCard() {
   const { active, refetch } = useActiveChapter();
-  const isAdmin = can(active?.role.name, "admin") || can(active?.role.name, "secretaria");
+  const { can } = useChapterAccess();
+  const isAdmin = can("admin") || can("secretaria");
   const saved =
     ((active?.chapter as any)?.settings?.chave_template as string | undefined) ??
     DEFAULT_CHAVE_TEMPLATE;

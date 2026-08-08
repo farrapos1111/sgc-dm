@@ -63,7 +63,7 @@ function EventosList() {
                 <Card className="rounded-[12px] p-5 transition-colors hover:bg-muted/30">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate font-semibold">{e.name}</div>
+                      <div className="break-words font-semibold leading-snug">{e.name}</div>
                       <div className="text-xs text-muted-foreground">{formatDateTimeBR(e.starts_at)}</div>
                     </div>
                     <Badge variant="secondary" className="capitalize shrink-0">

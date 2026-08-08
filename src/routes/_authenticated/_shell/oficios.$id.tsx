@@ -10,13 +10,12 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { OficioViewPanel } from "@/components/oficios/OficioEditor";
-import { useActiveChapter } from "@/context/ActiveChapterContext";
 import {
   deleteOficio,
   formatOficioNumber,
   getOficio,
 } from "@/lib/oficios.functions";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { ArrowLeft, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/oficios/$id")({
@@ -35,12 +34,11 @@ const oficioQO = (id: string) =>
 function OficioDetailPage() {
   const { id } = Route.useParams();
   const { data: oficio } = useSuspenseQuery(oficioQO(id));
-  const { active } = useActiveChapter();
+  const { can } = useChapterAccess();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
-  const allowed =
-    can(active?.role.name, "secretaria") || can(active?.role.name, "admin");
+  const allowed = can("secretaria") || can("admin");
 
   const remove = useMutation({
     mutationFn: () => deleteOficio({ data: { id: oficio.id } }),

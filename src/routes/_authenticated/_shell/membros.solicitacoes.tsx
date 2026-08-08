@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Check, Link2, Pencil, X } from "lucide-react";
 import { formatDateTimeBR } from "@/lib/format";
 import { formatChapterIdentity } from "@/lib/chapter-label";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 
 export const Route = createFileRoute("/_authenticated/_shell/membros/solicitacoes")({
   head: () => ({ meta: [{ title: "Solicitações — Templo Virtual" }] }),
@@ -26,12 +26,11 @@ export const Route = createFileRoute("/_authenticated/_shell/membros/solicitacoe
 
 function SolicitacoesPage() {
   const { active } = useActiveChapter();
+  const { can } = useChapterAccess();
   const qc = useQueryClient();
   const chapterId = active?.chapter_id;
 
-  const canReview = active
-    ? can(active.role.name, "secretaria") || can(active.role.name, "admin")
-    : false;
+  const canReview = active ? can("secretaria") || can("admin") : false;
 
   const { data: changeReqs = [], isPending: loadingChanges } = useQuery({
     queryKey: ["member-change-requests", chapterId],

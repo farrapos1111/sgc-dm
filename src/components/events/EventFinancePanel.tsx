@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import {
   ChevronDown,
   ChevronRight,
+  FileSpreadsheet,
   FileText,
   Pencil,
   Plus,
@@ -33,7 +34,10 @@ import {
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { formatBRL } from "@/lib/format";
 import { todayYmd } from "@/lib/timezone";
-import { exportEventFinancePdf } from "@/lib/event-finance-export";
+import {
+  exportEventFinancePdf,
+  exportEventTicketsXlsx,
+} from "@/lib/event-finance-export";
 import {
   addEventBudgetExpense,
   deleteEventFinanceCategory,
@@ -69,6 +73,8 @@ export function EventFinancePanel({
   chapterName,
   chapterCity,
   logoPath,
+  tickets = [],
+  ticketTypes = [],
 }: {
   eventId: string;
   chapterId: string;
@@ -79,6 +85,15 @@ export function EventFinancePanel({
   chapterName?: string;
   chapterCity?: string | null;
   logoPath?: string | null;
+  tickets?: Array<{
+    buyer_name: string;
+    seller_name?: string | null;
+    ticket_type_id: string | null;
+    price_paid: number | string;
+    status: string;
+    sold_at?: string | null;
+  }>;
+  ticketTypes?: Array<{ id: string; name: string }>;
 }) {
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
@@ -110,6 +125,36 @@ export function EventFinancePanel({
   const [budgetDate, setBudgetDate] = useState(eventDay);
 
   const [exporting, setExporting] = useState(false);
+  const [exportingTickets, setExportingTickets] = useState(false);
+
+  const typeNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of ticketTypes) map.set(t.id, t.name);
+    return map;
+  }, [ticketTypes]);
+
+  const ticketExportRows = useMemo(() => {
+    return tickets
+      .filter((t) => t.status !== "cancelado")
+      .filter((t) => {
+        if (!from && !until) return true;
+        const day = t.sold_at ? t.sold_at.slice(0, 10) : "";
+        if (!day) return !from && !until;
+        if (from && day < from) return false;
+        if (until && day > until) return false;
+        return true;
+      })
+      .map((t) => ({
+        buyer_name: t.buyer_name,
+        seller_name: t.seller_name ?? null,
+        ticket_type_name: t.ticket_type_id
+          ? (typeNameById.get(t.ticket_type_id) ?? "Tipo removido")
+          : "Avulso",
+        price_paid: Number(t.price_paid) || 0,
+        status: t.status,
+        sold_at: t.sold_at ?? null,
+      }));
+  }, [tickets, typeNameById, from, until]);
   const financeQ = useQuery({
     queryKey: ["event-finance", eventId],
     queryFn: () => listEventFinance({ data: { eventId } }),
@@ -399,6 +444,37 @@ export function EventFinancePanel({
             >
               <FileText className="mr-1 h-4 w-4" />{" "}
               {exporting ? "Gerando…" : "PDF"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={exportingTickets || ticketExportRows.length === 0}
+              onClick={() => {
+                setExportingTickets(true);
+                try {
+                  const slug = eventName
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .replace(/[^a-zA-Z0-9]+/g, "-")
+                    .replace(/^-|-$/g, "")
+                    .toLowerCase();
+                  exportEventTicketsXlsx(
+                    ticketExportRows,
+                    `ingressos-${slug || "evento"}.xlsx`,
+                    { eventName },
+                  );
+                  toast.success("Excel de ingressos gerado");
+                } catch (e) {
+                  toast.error(
+                    e instanceof Error ? e.message : "Erro ao gerar Excel",
+                  );
+                } finally {
+                  setExportingTickets(false);
+                }
+              }}
+            >
+              <FileSpreadsheet className="mr-1 h-4 w-4" />{" "}
+              {exportingTickets ? "Gerando…" : "Excel"}
             </Button>
           </div>
         </div>

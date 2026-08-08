@@ -39,7 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { parseChargeAmount } from "@/lib/charge-amount";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { todayYmd } from "@/lib/timezone";
@@ -111,9 +111,10 @@ function chargeBucket(c: ChargeRow): ListFilter | "isento" {
 
 function Cobrancas() {
   const { active } = useActiveChapter();
+  const { can } = useChapterAccess();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
-  const writable = can(active?.role.name, "tesouraria");
+  const writable = can("tesouraria");
   const [statusFilter, setStatusFilter] = useState<ListFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("name_asc");
   const [search, setSearch] = useState("");

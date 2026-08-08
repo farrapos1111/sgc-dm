@@ -66,7 +66,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { chapterFoundedAt } from "@/lib/terms";
 import { formatBRL, kindLabel, statusLabel } from "@/lib/format";
 import { todayYmd } from "@/lib/timezone";
@@ -371,6 +371,7 @@ const StatusCell = memo(function StatusCell({
 
 function Mensalidades() {
   const { active, refetch } = useActiveChapter();
+  const { can } = useChapterAccess();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
   const now = new Date();
@@ -393,7 +394,7 @@ function Mensalidades() {
   const [skipCashEntry, setSkipCashEntry] = useState(false);
   const [includeOpen, setIncludeOpen] = useState(false);
   const [includeSearch, setIncludeSearch] = useState("");
-  const writable = can(active?.role.name, "tesouraria");
+  const writable = can("tesouraria");
   const ensuredYears = useRef(new Set<number>());
   const skipCashRef = useRef(skipCashEntry);
   skipCashRef.current = skipCashEntry;

@@ -21,7 +21,8 @@ import {
   supportsMinutes,
   type CalendarType,
 } from "@/lib/calendar-types";
-import { canManageAttendance } from "@/lib/permissions";
+import { canManageAttendanceAccess } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatDateTimeBR } from "@/lib/format";
 import { useOngoingRealtime } from "@/hooks/useOngoingRealtime";
 import { ArrowLeft, Check, Radio, Search, X } from "lucide-react";
@@ -52,6 +53,7 @@ function OngoingPage() {
   const { id } = Route.useParams();
   const { tab: searchTab } = Route.useSearch();
   const { active } = useActiveChapter();
+  const { ctx } = useChapterAccess();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data } = useSuspenseQuery(ongoingQO(id));
@@ -87,7 +89,7 @@ function OngoingPage() {
     navigate({ to });
   }
 
-  const allowed = canManageAttendance(active?.role.name);
+  const allowed = canManageAttendanceAccess(ctx);
   const item = data.item as {
     chapter_id: string;
     title: string;

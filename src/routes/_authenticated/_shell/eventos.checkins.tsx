@@ -370,35 +370,37 @@ function Checkins() {
                 key={row.id}
                 className="px-3 py-2.5 sm:grid sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_7rem_auto] sm:items-center sm:gap-3 sm:px-4 sm:py-3"
               >
-                {/* Mobile: uma linha densa */}
-                <div className="flex items-start justify-between gap-2 sm:hidden">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium leading-tight">
+                {/* Mobile: nome completo + meta; ações abaixo */}
+                <div className="flex flex-col gap-2 sm:hidden">
+                  <div className="min-w-0">
+                    <div className="break-words text-sm font-medium leading-snug">
                       {row.buyer_name}
                     </div>
-                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                    <div className="mt-0.5 break-words text-xs text-muted-foreground">
                       {row.ticket_type_name}
                       {" · "}
                       {row.event_name}
                     </div>
-                    <div className="truncate text-[11px] text-muted-foreground">
+                    <div className="break-words text-[11px] text-muted-foreground">
                       {formatDateTimeBR(row.event_starts_at)}
                       {row.seller_name ? ` · ${row.seller_name}` : ""}
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1.5">
-                    <div className="text-sm font-semibold tabular-nums">
-                      {formatBRL(row.price_paid)}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-semibold tabular-nums">
+                        {formatBRL(row.price_paid)}
+                      </div>
+                      {row.already_checked_in ? (
+                        <Badge variant="secondary" className="text-[10px]">
+                          Presente
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px]">
+                          Em aberto
+                        </Badge>
+                      )}
                     </div>
-                    {row.already_checked_in ? (
-                      <Badge variant="secondary" className="text-[10px]">
-                        Presente
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px]">
-                        Em aberto
-                      </Badge>
-                    )}
                     <Button
                       size="sm"
                       className="h-8 px-2.5"
@@ -418,14 +420,14 @@ function Checkins() {
 
                 {/* Desktop: grid */}
                 <div className="hidden min-w-0 sm:block">
-                  <div className="truncate text-sm font-medium">{row.buyer_name}</div>
+                  <div className="break-words text-sm font-medium">{row.buyer_name}</div>
                   <div className="truncate text-xs text-muted-foreground">
                     {row.ticket_type_name}
                     {row.seller_name ? ` · Vend. ${row.seller_name}` : ""}
                   </div>
                 </div>
                 <div className="hidden min-w-0 sm:block">
-                  <div className="truncate text-sm">{row.event_name}</div>
+                  <div className="break-words text-sm">{row.event_name}</div>
                   <div className="truncate text-xs text-muted-foreground">
                     {formatDateTimeBR(row.event_starts_at)}
                   </div>

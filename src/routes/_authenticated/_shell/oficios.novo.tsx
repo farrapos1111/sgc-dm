@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { OficioDraftPanel } from "@/components/oficios/OficioEditor";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/oficios/novo")({
@@ -16,10 +16,10 @@ export const Route = createFileRoute("/_authenticated/_shell/oficios/novo")({
 
 function NovoOficioPage() {
   const { active } = useActiveChapter();
+  const { can } = useChapterAccess();
   const navigate = useNavigate();
   const chapterId = active?.chapter_id ?? "";
-  const allowed =
-    can(active?.role.name, "secretaria") || can(active?.role.name, "admin");
+  const allowed = can("secretaria") || can("admin");
 
   if (!allowed) {
     return (

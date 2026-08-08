@@ -60,7 +60,7 @@ import { membersListKey } from "@/lib/query-keys";
 import { currentTerm, termOptions, chapterFoundedAt } from "@/lib/terms";
 import { TermSelect } from "@/components/TermSelect";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { can } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { is21OrOlder } from "@/lib/format";
 import { Pencil, Plus, Search, Trash2, UserPlus, Users, X } from "lucide-react";
 
@@ -119,6 +119,7 @@ function GestaoPage() {
 
 function GestaoContent({ active }: { active: Membership }) {
   const qc = useQueryClient();
+  const { can } = useChapterAccess();
   const [term, setTerm] = useState(currentTerm());
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("default");
@@ -126,8 +127,8 @@ function GestaoContent({ active }: { active: Membership }) {
   const chapterId = active.chapter_id;
   const foundedAt = chapterFoundedAt(active.chapter);
   const terms = useMemo(() => termOptions({ foundedAt }), [foundedAt]);
-  const canEdit = can(active.role.name, "secretaria");
-  const canEditCommissions = can(active.role.name, "comissoes");
+  const canEdit = can("secretaria");
+  const canEditCommissions = can("comissoes");
 
   const { data: catalog } = useSuspenseQuery(catalogQO(chapterId));
   const { data: members } = useSuspenseQuery(

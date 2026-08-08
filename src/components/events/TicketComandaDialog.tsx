@@ -78,11 +78,14 @@ function ComandaReceiptBody({
   showPix: boolean;
 }) {
   // Cortesia (R$ 0) conta como quitada; com valor, exige status pago ou saldo 0.
-  const ticketDue = data.charge?.amount ?? data.ticketAmount;
+  const ticketFace = data.charge?.amount ?? data.ticketAmount;
+  const ticketDue = data.ticketDue ?? ticketFace;
   const ticketPaid =
     ticketDue <= 0 ||
     (data.charge != null &&
       (data.charge.status === "pago" || data.charge.remaining <= 0));
+  const unpaidComanda = data.unpaidComandaTotal ?? data.comandaTotal;
+  const settledComanda = Math.max(0, data.comandaTotal - unpaidComanda);
   return (
     <div className="space-y-4">
       <div className="rounded-md border border-dashed border-border bg-muted/30 p-4 font-mono text-sm">
@@ -135,8 +138,14 @@ function ComandaReceiptBody({
         <div className="my-3 border-t border-border border-dashed" />
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>Consumo (comanda)</span>
-          <span>{formatBRL(data.comandaTotal)}</span>
+          <span>{formatBRL(unpaidComanda)}</span>
         </div>
+        {settledComanda > 0 ? (
+          <div className="mt-0.5 flex justify-between text-xs text-muted-foreground">
+            <span>Já liquidado</span>
+            <span>{formatBRL(settledComanda)}</span>
+          </div>
+        ) : null}
         <div className="mt-1 flex justify-between font-sans text-base font-semibold">
           <span>Total</span>
           <span>{formatBRL(data.grandTotal)}</span>

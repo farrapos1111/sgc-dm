@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
-import { canManageMinutePasswords } from "@/lib/permissions";
+import { canManageMinutePasswordsAccess } from "@/lib/permissions";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { updateMinutePasswords } from "@/lib/chapter.functions";
 import {
   MINUTE_KINDS,
@@ -19,7 +20,8 @@ import {
 /** Senhas do link público da ata, por tipo — só Escrivão, PCC e MC. */
 export function MinutePasswordsCard() {
   const { active, refetch } = useActiveChapter();
-  const allowed = canManageMinutePasswords(active?.role.name);
+  const { ctx } = useChapterAccess();
+  const allowed = canManageMinutePasswordsAccess(ctx);
   const saved = parseMinutePasswords(
     (active?.chapter as { settings?: Record<string, unknown> } | undefined)
       ?.settings,
