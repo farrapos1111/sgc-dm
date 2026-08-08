@@ -291,7 +291,7 @@ export const getEvent = createServerFn({ method: "POST" })
           settlement,
           checked_in: checkedInTicketIds.has(t.id),
         };
-      })),
+      }),
       tables,
       seats: seats.data ?? [],
       checkins: checkins.data ?? [],
