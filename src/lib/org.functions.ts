@@ -999,7 +999,7 @@ export const lookupRegionMemberByDemolay = createServerFn({ method: "POST" })
     const { data: rows, error } = await context.supabase
       .from("members")
       .select(
-        "id, full_name, demolay_id, user_id, chapter_id, status, chapters!inner(id, name, number, region_id)",
+        "id, full_name, demolay_id, user_id, chapter_id, status, chapters!members_chapter_id_fkey!inner(id, name, number, region_id)",
       )
       .eq("chapters.region_id", data.regionId);
     if (error) throw new Error(error.message);

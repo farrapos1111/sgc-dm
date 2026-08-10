@@ -36,7 +36,7 @@ async function findMissingOfficeSignatures(
 
   const { data: members, error: memErr } = await supabase
     .from("members")
-    .select("id, chapter_id, chapter:chapters(id, name)")
+    .select("id, chapter_id, chapter:chapters!members_chapter_id_fkey(id, name)")
     .eq("user_id", userId);
   if (memErr) throw new Error(memErr.message);
   if (!members?.length) return [];
