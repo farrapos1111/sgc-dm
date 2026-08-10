@@ -4,8 +4,8 @@ import {
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
-import { ArrowLeftRight, ChevronDown, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowLeftRight, ChevronDown, LogOut } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -21,18 +21,18 @@ import {
   type NavGroup,
 } from "@/lib/nav";
 import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { formatClockInAppTz } from "@/lib/timezone";
 import { useChapterLogo } from "@/lib/chapter-logo";
-import { isChapterDuesEnabled } from "@/lib/dues-rules";
+import {
+  applyChapterThemeVars,
+  applyPlatformDefaultThemeVars,
+  resolveChapterTheme,
+} from "@/lib/chapter-theme";
+import { isChapterDuesEnabled, isDuesOnlyNavPath } from "@/lib/dues-rules";
+import { compareOrgNumbers } from "@/lib/org-types";
 import { cn } from "@/lib/utils";
 
 /** Rotas mais pesadas — prefetch ao passar o mouse/foco. */
@@ -51,15 +51,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     setActiveChapterId,
     canSwitchRoleView,
     cycleRoleView,
-    canSwitchChapter,
-    cycleChapter,
   } = useActiveChapter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isNavigating = useRouterState({
     select: (s) => s.status === "pending" || s.isLoading === true,
   });
   const { canView } = useCommissionAccess();
-  const { ctx: accessCtx, positionLabels } = useChapterAccess();
+  const { ctx: accessCtx, positionLabels, canScreen, isAdminTotal } =
+    useChapterAccess();
   const navigate = useNavigate();
   const {
     scopes,
@@ -79,13 +78,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           canManageChapters,
           canManageLeaderships,
         })
-      : visibleGroups(active?.role.name ?? null, canView, accessCtx);
+      : visibleGroups(active?.role.name ?? null, canView, accessCtx, {
+          canScreen,
+          isAdminTotal,
+        });
     if (activeScope || duesEnabled) return raw;
     return raw.map((g) => ({
       ...g,
-      items: (g.items ?? []).filter(
-        (i) => i.to !== "/tesouraria/mensalidades",
-      ),
+      items: (g.items ?? []).filter((i) => !isDuesOnlyNavPath(i.to)),
     }));
   }, [
     activeScope,
@@ -95,6 +95,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     active?.role.name,
     canView,
     accessCtx,
+    canScreen,
+    isAdminTotal,
     duesEnabled,
   ]);
   const tabs = useMemo(
@@ -102,77 +104,71 @@ export function AppShell({ children }: { children: ReactNode }) {
     [activeScope],
   );
 
-  const chapterOptionLabel = (() => {
-    if (active) return `Capítulo · ${active.chapter.name}`;
-    if (memberships.length === 1)
-      return `Capítulo · ${memberships[0].chapter.name}`;
-    if (memberships.length > 1) return "Visão do capítulo";
-    return null;
-  })();
-
-  function enterChapterView() {
-    setActiveScopeKey(null);
-    if (memberships.length === 0) return;
-    if (!active) {
-      if (memberships.length === 1) {
-        setActiveChapterId(memberships[0].chapter_id);
-        navigate({ to: "/inicio" });
-        return;
-      }
-      navigate({ to: "/selecionar-capitulo" });
-      return;
-    }
-    navigate({ to: "/inicio" });
+  function handleCycleRoleView() {
+    const label = cycleRoleView();
+    toast.message(`Visão: ${label}`);
   }
 
-  function handleScopeChange(value: string) {
-    if (value === "chapter") {
-      enterChapterView();
+  const chapterSelectOptions = useMemo(() => {
+    const byId = new Map<
+      string,
+      { value: string; label: string; number: string; name: string }
+    >();
+    for (const m of memberships) {
+      if (byId.has(m.chapter_id)) continue;
+      const number = m.chapter.number ?? "";
+      const name = m.chapter.name;
+      byId.set(m.chapter_id, {
+        value: m.chapter_id,
+        name,
+        number,
+        label: `Capítulo · ${name}`,
+      });
+    }
+    return [...byId.values()].sort((a, b) =>
+      compareOrgNumbers(a.number, b.number),
+    );
+  }, [memberships]);
+
+  const viewSelectOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = chapterSelectOptions.map(
+      (ch) => ({
+        value: `chapter:${ch.value}`,
+        label: ch.label,
+      }),
+    );
+    for (const s of scopes) {
+      opts.push({
+        value: s.key,
+        label: `${ORG_ROLE_LABELS[s.orgRole]} · ${s.label}`,
+      });
+    }
+    return opts;
+  }, [chapterSelectOptions, scopes]);
+
+  function handleViewChange(value: string) {
+    if (value.startsWith("chapter:")) {
+      const chapterId = value.slice("chapter:".length);
+      setActiveScopeKey(null);
+      if (chapterId && chapterId !== active?.chapter_id) {
+        setActiveChapterId(chapterId);
+        const opt = chapterSelectOptions.find((o) => o.value === chapterId);
+        toast.message(`Capítulo: ${opt?.name ?? "selecionado"}`);
+      }
+      navigate({ to: "/inicio" });
       return;
     }
     setActiveScopeKey(value);
     navigate({ to: "/regional" });
   }
 
-  function handleCycleRoleView() {
-    const label = cycleRoleView();
-    toast.message(`Visão: ${label}`);
-  }
-
-  function handleCycleChapter(direction: "prev" | "next") {
-    setActiveScopeKey(null);
-    const name = cycleChapter(direction);
-    if (name) toast.message(`Capítulo: ${name}`);
-    navigate({ to: "/inicio" });
-  }
-
-  const chapterSwitchControls =
-    canSwitchChapter && !activeScope ? (
-      <div className="flex shrink-0 items-center gap-0.5">
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8"
-          onClick={() => handleCycleChapter("prev")}
-          aria-label="Capítulo anterior"
-          title="Capítulo anterior"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8"
-          onClick={() => handleCycleChapter("next")}
-          aria-label="Próximo capítulo"
-          title="Próximo capítulo"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-    ) : null;
+  const viewSelectValue = activeScope?.key
+    ? activeScope.key
+    : active?.chapter_id
+      ? `chapter:${active.chapter_id}`
+      : memberships[0]
+        ? `chapter:${memberships[0].chapter_id}`
+        : (scopes[0]?.key ?? "");
 
   const roleSwitchButton =
     canSwitchRoleView && !activeScope ? (
@@ -190,35 +186,22 @@ export function AppShell({ children }: { children: ReactNode }) {
     ) : null;
 
   const scopeSwitcher =
-    scopes.length > 0 ? (
-      <Select
-        value={
-          activeScope?.key ??
-          (chapterOptionLabel ? "chapter" : (scopes[0]?.key ?? ""))
-        }
-        onValueChange={handleScopeChange}
-      >
-        <SelectTrigger
-          className="h-9 w-full text-xs"
-          aria-label="Alternar entre capítulo e visão regional"
-        >
-          <SelectValue placeholder="Selecionar visão" />
-        </SelectTrigger>
-        <SelectContent>
-          {chapterOptionLabel && (
-            <SelectItem value="chapter">{chapterOptionLabel}</SelectItem>
-          )}
-          {scopes.map((s) => (
-            <SelectItem key={s.key} value={s.key}>
-              {ORG_ROLE_LABELS[s.orgRole]} · {s.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    viewSelectOptions.length > 1 || scopes.length > 0 ? (
+      <SearchableSelect
+        value={viewSelectValue}
+        options={viewSelectOptions}
+        onChange={handleViewChange}
+        placeholder="Selecionar visão"
+        searchPlaceholder="Buscar capítulo ou visão…"
+        emptyText="Nenhum resultado."
+        className="h-9 w-full text-xs"
+      />
     ) : null;
 
   const [pendingTo, setPendingTo] = useState<string | null>(null);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
 
   useEffect(() => {
     setPendingTo(null);
@@ -227,18 +210,37 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isActive = (to: string) =>
     pathname === to || pathname.startsWith(to + "/");
 
-  // Mantém aberto só o submenu da rota atual (accordion)
+  // Só sincroniza o accordion com a rota — não fecha submenu ao re-renderizar o menu
   useEffect(() => {
-    const activeGroup = groups.find((g) =>
+    const activeGroup = groupsRef.current.find((g) =>
       (g.items ?? []).some(
         (i) => pathname === i.to || pathname.startsWith(i.to + "/"),
       ),
     );
     setOpenGroupId(activeGroup?.id ?? null);
-  }, [pathname, groups]);
+  }, [pathname]);
 
   const primary =
     (activeScope?.primaryColor || active?.chapter.primary_color) || "#9E1B32";
+  const chapterTheme = resolveChapterTheme(
+    activeScope ? null : (active?.chapter.settings as Record<string, unknown> | null),
+    primary,
+  );
+
+  useEffect(() => {
+    applyChapterThemeVars(document.documentElement, chapterTheme);
+    return () => {
+      applyPlatformDefaultThemeVars(document.documentElement);
+    };
+  }, [
+    chapterTheme.background,
+    chapterTheme.accent,
+    chapterTheme.accentDark,
+    chapterTheme.highlight,
+    chapterTheme.font,
+    chapterTheme.sidebar,
+  ]);
+
   const chapterName = activeScope
     ? activeScope.label
     : (active?.chapter.name ?? "Templo Virtual");
@@ -266,7 +268,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   async function handleSignOut() {
     if (typeof window !== "undefined") {
       clearChapterSessionStorage();
-      window.localStorage.removeItem("sgcdm.roleView");
       window.localStorage.removeItem("sgcdm.activeOrgScope");
     }
     await supabase.auth.signOut();
@@ -293,14 +294,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div
-      className="min-h-screen bg-background text-foreground"
-      style={
-        { ["--chapter-primary" as string]: primary } as React.CSSProperties
-      }
-    >
+    <div className="min-h-screen bg-background text-foreground">
       {/* Sidebar (desktop) */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-card lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
         <div className="flex items-center gap-3 border-b border-border px-5 py-5">
           <ChapterMark
             logoUrl={logoUrl}
@@ -322,7 +318,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               )
             )}
           </div>
-          {chapterSwitchControls}
         </div>
 
         {scopeSwitcher && (
@@ -389,7 +384,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Main */}
       <div className="flex min-h-screen flex-col lg:pl-64">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-card/95 px-4 py-3 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-sidebar-border bg-sidebar/95 px-4 py-3 text-sidebar-foreground backdrop-blur lg:hidden">
           <ChapterMark
             logoUrl={logoUrl}
             number={chapterNum}
@@ -404,13 +399,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             )}
           </div>
-          {chapterSwitchControls}
           {roleSwitchButton}
           <ThemeToggle className="shrink-0" />
         </header>
 
         {scopeSwitcher && (
-          <div className="border-b border-border bg-card px-4 py-2 lg:hidden">
+          <div className="border-b border-sidebar-border bg-sidebar px-4 py-2 text-sidebar-foreground lg:hidden">
             {scopeSwitcher}
           </div>
         )}
@@ -442,7 +436,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {/* Bottom tabs (mobile) */}
         <nav
-          className="fixed inset-x-0 bottom-0 z-30 grid border-t border-border bg-card lg:hidden"
+          className="fixed inset-x-0 bottom-0 z-30 grid border-t border-sidebar-border bg-sidebar text-sidebar-foreground lg:hidden"
           style={{
             paddingBottom: "env(safe-area-inset-bottom)",
             gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`,

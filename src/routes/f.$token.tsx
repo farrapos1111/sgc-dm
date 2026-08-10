@@ -28,6 +28,11 @@ import {
 } from "@/lib/investigations.functions";
 import { fileToBase64 } from "@/lib/file-to-base64";
 import type { IdDocKind } from "@/lib/member-documents";
+import {
+  applyChapterThemeVars,
+  applyPlatformDefaultThemeVars,
+  resolveChapterTheme,
+} from "@/lib/chapter-theme";
 
 const LGPD_CONSENT_VERSION = "v1-2026-07";
 
@@ -119,13 +124,14 @@ function PublicInvestigationSignup() {
   });
 
   const accent = chapter?.primary_color || "#9E1B32";
+  const theme = resolveChapterTheme(null, accent);
 
   useEffect(() => {
-    document.documentElement.style.setProperty("--chapter-primary", accent);
+    applyChapterThemeVars(document.documentElement, theme);
     return () => {
-      document.documentElement.style.removeProperty("--chapter-primary");
+      applyPlatformDefaultThemeVars(document.documentElement);
     };
-  }, [accent]);
+  }, [theme.accent, theme.background, theme.accentDark, theme.highlight, theme.font, theme.sidebar]);
 
   const sponsorSearch = (form.sponsor_text || "").trim();
   const { data: members = [] } = useQuery({

@@ -120,7 +120,7 @@ const emptyForm = (): EntryForm => ({
 
 function FluxoCaixa() {
   const { active } = useActiveChapter();
-  const { can } = useChapterAccess();
+  const { can, canScreen } = useChapterAccess();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
   const now = new Date();
@@ -144,7 +144,8 @@ function FluxoCaixa() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const writable = can("tesouraria");
+  const writable =
+    canScreen("caixa", "edit") || can("tesouraria");
 
   const [form, setForm] = useState<EntryForm>(emptyForm());
   const [entryOpen, setEntryOpen] = useState(false);

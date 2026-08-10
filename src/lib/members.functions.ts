@@ -134,13 +134,21 @@ export const listChaptersForSelect = createServerFn({ method: "POST" })
       // Fallback: capítulos legíveis via RLS
       const { data: rows, error: e2 } = await context.supabase
         .from("chapters")
-        .select("id, name, number, city")
+        .select("id, name, number, city, org_type")
         .eq("active", true)
-        .order("name");
+        .order("number", { ascending: true });
       if (e2) throw new Error(e2.message);
       return rows ?? [];
     }
-    return (data as { id: string; name: string; number: string; city: string | null }[]) ?? [];
+    return (
+      (data as {
+        id: string;
+        name: string;
+        number: string;
+        city: string | null;
+        org_type: string;
+      }[]) ?? []
+    );
   });
 
 export const lookupMemberByDemolayId = createServerFn({ method: "POST" })
@@ -572,32 +580,14 @@ export const getMyCurrentPositions = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<MyCurrentPosition[]> => {
     const email = (context.claims as { email?: string } | null)?.email ?? null;
-
-    const { data: byUser } = await context.supabase
-      .from("members")
-      .select("id")
-      .eq("user_id", context.userId)
-      .limit(5);
-
-    let memberIds = (byUser ?? []).map((m) => m.id as string);
-
-    if (memberIds.length === 0) {
-      const { data: profile } = await context.supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", context.userId)
-        .maybeSingle();
-      const filters: string[] = [];
-      if (email) filters.push(`email.eq.${email}`);
-      if (profile?.full_name) filters.push(`full_name.eq.${profile.full_name}`);
-      if (filters.length === 0) return [];
-      const { data: byIdentity } = await context.supabase
-        .from("members")
-        .select("id")
-        .or(filters.join(","));
-      memberIds = (byIdentity ?? []).map((m) => m.id as string);
-    }
-
+    const { resolveLinkedMemberIdsForChapter } = await import(
+      "@/lib/resolve-linked-members"
+    );
+    const memberIds = await resolveLinkedMemberIdsForChapter(context.supabase, {
+      userId: context.userId,
+      chapterId: data.chapterId,
+      email,
+    });
     if (memberIds.length === 0) return [];
 
     const { data: rows, error } = await context.supabase
@@ -641,32 +631,14 @@ export const listMyChapterAccessLabels = createServerFn({ method: "POST" })
     const { currentTerm } = await import("@/lib/terms");
     const term = currentTerm();
     const email = (context.claims as { email?: string } | null)?.email ?? null;
+    const { resolveLinkedMemberIdsGlobal } = await import(
+      "@/lib/resolve-linked-members"
+    );
 
-    const { data: byUser } = await context.supabase
-      .from("members")
-      .select("id")
-      .eq("user_id", context.userId)
-      .limit(10);
-
-    let memberIds = (byUser ?? []).map((m) => m.id as string);
-
-    if (memberIds.length === 0) {
-      const { data: profile } = await context.supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", context.userId)
-        .maybeSingle();
-      const filters: string[] = [];
-      if (email) filters.push(`email.eq.${email}`);
-      if (profile?.full_name) filters.push(`full_name.eq.${profile.full_name}`);
-      if (filters.length > 0) {
-        const { data: byIdentity } = await context.supabase
-          .from("members")
-          .select("id")
-          .or(filters.join(","));
-        memberIds = (byIdentity ?? []).map((m) => m.id as string);
-      }
-    }
+    const memberIds = await resolveLinkedMemberIdsGlobal(context.supabase, {
+      userId: context.userId,
+      email,
+    });
 
     const result: Record<string, string[]> = {};
     for (const id of chapterIds) result[id] = [];

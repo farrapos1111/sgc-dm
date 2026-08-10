@@ -100,6 +100,49 @@ export function formatPrazoLabel(row: {
   return month ? `Até ${name}` : "Até um mês";
 }
 
+/** Chave de ordenação cronológica no ciclo anual (mês*100+dia; ranges usam início). */
+export function mandatoryDateSortKey(row: {
+  prazo_kind: PrazoKind;
+  due_date?: string | null;
+  due_month?: number | null;
+  due_day?: number | null;
+  start_month?: number | null;
+  start_day?: number | null;
+}): number {
+  if (row.prazo_kind === "date_range") {
+    const m = row.start_month ?? row.due_month ?? 12;
+    const d = row.start_day ?? row.due_day ?? 31;
+    return m * 100 + d;
+  }
+  if (row.due_date) {
+    const m = Number(row.due_date.slice(5, 7));
+    const d = Number(row.due_date.slice(8, 10));
+    if (m >= 1 && d >= 1) return m * 100 + d;
+  }
+  const m = row.due_month ?? 12;
+  const d = row.due_day ?? 31;
+  return m * 100 + d;
+}
+
+export function sortMandatoryDatesChronological<
+  T extends {
+    prazo_kind: PrazoKind;
+    due_date?: string | null;
+    due_month?: number | null;
+    due_day?: number | null;
+    start_month?: number | null;
+    start_day?: number | null;
+    title?: string;
+  },
+>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const ka = mandatoryDateSortKey(a);
+    const kb = mandatoryDateSortKey(b);
+    if (ka !== kb) return ka - kb;
+    return (a.title ?? "").localeCompare(b.title ?? "", "pt-BR");
+  });
+}
+
 export function mandatoryDateAppliesToMonth(
   row: {
     prazo_kind: PrazoKind;
@@ -247,7 +290,9 @@ export const listOrgMandatoryDates = createServerFn({ method: "POST" })
 
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return (rows ?? []) as OrgMandatoryDate[];
+    return sortMandatoryDatesChronological(
+      (rows ?? []) as OrgMandatoryDate[],
+    );
   });
 
 export const upsertOrgMandatoryDate = createServerFn({ method: "POST" })
@@ -326,12 +371,14 @@ export const listMandatoryDatesForChapterMonth = createServerFn({
       context.supabase,
       data.chapterId,
     );
-    return rows
-      .filter((r) => mandatoryDateAppliesToMonth(r, data.year, data.month))
-      .map((r) => ({
-        ...r,
-        prazo_label: formatPrazoLabel(r),
-      }));
+    return sortMandatoryDatesChronological(
+      rows
+        .filter((r) => mandatoryDateAppliesToMonth(r, data.year, data.month))
+        .map((r) => ({
+          ...r,
+          prazo_label: formatPrazoLabel(r),
+        })),
+    );
   });
 
 /** Todas as datas obrigatórias do capítulo (região/estado), sem filtrar por mês. */
@@ -347,10 +394,12 @@ export const listMandatoryDatesForChapter = createServerFn({
       context.supabase,
       data.chapterId,
     );
-    return rows.map((r) => ({
-      ...r,
-      prazo_label: formatPrazoLabel(r),
-    }));
+    return sortMandatoryDatesChronological(
+      rows.map((r) => ({
+        ...r,
+        prazo_label: formatPrazoLabel(r),
+      })),
+    );
   });
 
 async function loadMandatoryDatesForChapter(

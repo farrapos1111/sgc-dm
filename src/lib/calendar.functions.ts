@@ -7,10 +7,58 @@ const eventTypeEnum = z.enum([
   "sessao_administrativa",
   "evento",
   "filantropia",
-  "hospitalaria",
   "entretenimento",
   "sindicancia",
 ]);
+
+const CALENDAR_SELECT =
+  "id, chapter_id, title, event_type, mandatory, public_open, start_at, end_at, location, address, lodge_id, dress_code, description, related_event_id, custom_category_id, org_mandatory_date_id, created_by, created_at";
+
+/** Garante que a data obrigatória existe e se aplica ao capítulo (região/estado). */
+async function assertMandatoryDateForChapter(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  chapterId: string,
+  mandatoryDateId: string | null | undefined,
+) {
+  if (!mandatoryDateId) return;
+  const { data: chapter, error: chErr } = await supabase
+    .from("chapters")
+    .select("region_id, state_id")
+    .eq("id", chapterId)
+    .maybeSingle();
+  if (chErr) throw new Error(chErr.message);
+  if (!chapter) throw new Error("Capítulo não encontrado");
+
+  const { data: md, error: mdErr } = await supabase
+    .from("org_mandatory_dates")
+    .select("id, scope, region_id, state_id")
+    .eq("id", mandatoryDateId)
+    .maybeSingle();
+  if (mdErr) throw new Error(mdErr.message);
+  if (!md) throw new Error("Data obrigatória não encontrada");
+
+  const ok =
+    (md.scope === "region" &&
+      chapter.region_id &&
+      md.region_id === chapter.region_id) ||
+    (md.scope === "state" &&
+      chapter.state_id &&
+      md.state_id === chapter.state_id);
+  if (!ok) {
+    throw new Error("Data obrigatória não se aplica a este capítulo");
+  }
+}
+
+export type ChapterCalendarCategory = {
+  id: string;
+  chapter_id: string;
+  name: string;
+  color: string;
+  icon: string | null;
+  active: boolean;
+  created_at: string;
+};
 
 export const listCalendarItems = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -24,9 +72,7 @@ export const listCalendarItems = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     let q = context.supabase
       .from("calendar_events")
-      .select(
-        "id, chapter_id, title, event_type, mandatory, public_open, start_at, end_at, location, address, lodge_id, dress_code, description, related_event_id, created_by, created_at",
-      )
+      .select(CALENDAR_SELECT)
 
       .in("chapter_id", data.chapterIds)
       .order("start_at", { ascending: true });
@@ -55,6 +101,8 @@ export const createCalendarItem = createServerFn({ method: "POST" })
       dress_code: z.string().nullable().optional(),
       description: z.string().nullable().optional(),
       related_event_id: z.string().uuid().nullable().optional(),
+      custom_category_id: z.string().uuid().nullable().optional(),
+      org_mandatory_date_id: z.string().uuid().nullable().optional(),
     }).parse(raw),
   )
   .handler(async ({ data, context }) => {
@@ -74,6 +122,12 @@ export const createCalendarItem = createServerFn({ method: "POST" })
       chapterId = profile.active_chapter_id;
     }
 
+    await assertMandatoryDateForChapter(
+      context.supabase,
+      chapterId,
+      data.org_mandatory_date_id,
+    );
+
     const { data: row, error } = await context.supabase
       .from("calendar_events")
       .insert({
@@ -90,9 +144,11 @@ export const createCalendarItem = createServerFn({ method: "POST" })
         dress_code: data.dress_code ?? null,
         description: data.description ?? null,
         related_event_id: data.related_event_id ?? null,
+        custom_category_id: data.custom_category_id ?? null,
+        org_mandatory_date_id: data.org_mandatory_date_id ?? null,
         created_by: context.userId,
       })
-      .select()
+      .select(CALENDAR_SELECT)
       .single();
     if (error) throw new Error(error.message);
     return row;
@@ -115,10 +171,27 @@ export const updateCalendarItem = createServerFn({ method: "POST" })
       lodge_id: z.string().uuid().nullable().optional(),
       dress_code: z.string().nullable().optional(),
       description: z.string().nullable().optional(),
+      custom_category_id: z.string().uuid().nullable().optional(),
+      org_mandatory_date_id: z.string().uuid().nullable().optional(),
     }).parse(raw),
   )
   .handler(async ({ data, context }) => {
     const { id, ...rest } = data;
+
+    const { data: existing, error: existErr } = await context.supabase
+      .from("calendar_events")
+      .select("chapter_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (existErr) throw new Error(existErr.message);
+    if (!existing) throw new Error("Evento não encontrado");
+
+    await assertMandatoryDateForChapter(
+      context.supabase,
+      existing.chapter_id,
+      rest.org_mandatory_date_id,
+    );
+
     const { data: row, error } = await context.supabase
       .from("calendar_events")
       .update({
@@ -133,9 +206,11 @@ export const updateCalendarItem = createServerFn({ method: "POST" })
         lodge_id: rest.lodge_id ?? null,
         dress_code: rest.dress_code ?? null,
         description: rest.description ?? null,
+        custom_category_id: rest.custom_category_id ?? null,
+        org_mandatory_date_id: rest.org_mandatory_date_id ?? null,
       })
       .eq("id", id)
-      .select()
+      .select(CALENDAR_SELECT)
       .single();
     if (error) throw new Error(error.message);
     return row;
@@ -149,4 +224,136 @@ export const deleteCalendarItem = createServerFn({ method: "POST" })
     const { error } = await context.supabase.from("calendar_events").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const listChapterCalendarCategories = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        chapterId: z.string().uuid(),
+        includeInactive: z.boolean().optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }): Promise<ChapterCalendarCategory[]> => {
+    let q = context.supabase
+      .from("chapter_calendar_categories")
+      .select("id, chapter_id, name, color, icon, active, created_at")
+      .eq("chapter_id", data.chapterId)
+      .order("name");
+    if (!data.includeInactive) q = q.eq("active", true);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as ChapterCalendarCategory[];
+  });
+
+export const upsertChapterCalendarCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        chapterId: z.string().uuid(),
+        id: z.string().uuid().optional(),
+        name: z.string().trim().min(1, "Informe o nome").max(60),
+        color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida"),
+        icon: z.string().trim().max(40).nullable().optional(),
+        active: z.boolean().optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const payload = {
+      chapter_id: data.chapterId,
+      name: data.name.trim(),
+      color: data.color.toUpperCase(),
+      icon: data.icon?.trim() || null,
+      active: data.active ?? true,
+    };
+
+    if (data.id) {
+      const { data: row, error } = await context.supabase
+        .from("chapter_calendar_categories")
+        .update({
+          name: payload.name,
+          color: payload.color,
+          icon: payload.icon,
+          active: payload.active,
+        })
+        .eq("id", data.id)
+        .eq("chapter_id", data.chapterId)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return row as ChapterCalendarCategory;
+    }
+
+    const { data: row, error } = await context.supabase
+      .from("chapter_calendar_categories")
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row as ChapterCalendarCategory;
+  });
+
+export const deleteChapterCalendarCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        chapterId: z.string().uuid(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("chapter_calendar_categories")
+      .delete()
+      .eq("id", data.id)
+      .eq("chapter_id", data.chapterId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+const calendarTypeEnum = z.enum([
+  "sessao_ritualistica",
+  "sessao_administrativa",
+  "evento",
+  "filantropia",
+  "entretenimento",
+  "sindicancia",
+]);
+
+/** Renomeia rótulos das categorias padrão do calendário (por capítulo). */
+export const updateCalendarTypeLabels = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        chapterId: z.string().uuid(),
+        labels: z.record(calendarTypeEnum, z.string().trim().max(60)),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const cleaned: Record<string, string> = {};
+    for (const [key, value] of Object.entries(data.labels)) {
+      const name = value.trim();
+      if (name) cleaned[key] = name;
+    }
+
+    const { data: settings, error } = await context.supabase.rpc(
+      "patch_chapter_settings",
+      {
+        _chapter_id: data.chapterId,
+        _patch: {
+          calendar_type_labels:
+            Object.keys(cleaned).length > 0 ? cleaned : null,
+        },
+      },
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true, settings };
   });

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Search, X } from "lucide-react";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
@@ -8,6 +8,7 @@ import { ChapterLogoAvatar } from "@/components/ChapterLogoAvatar";
 import { Input } from "@/components/ui/input";
 import { matchesLooseSearch } from "@/lib/utils";
 import { listMyChapterAccessLabels } from "@/lib/members.functions";
+import { applyPlatformDefaultThemeVars } from "@/lib/chapter-theme";
 
 export const Route = createFileRoute("/_authenticated/selecionar-capitulo")({
   head: () => ({
@@ -40,6 +41,10 @@ function ChapterPicker() {
   const { setActiveScopeKey } = useOrgScope();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    applyPlatformDefaultThemeVars();
+  }, []);
 
   const institutions = useMemo((): InstitutionCard[] => {
     const byChapter = new Map<string, InstitutionCard>();
@@ -92,12 +97,15 @@ function ChapterPicker() {
       : institutions;
 
     return [...rows].sort((a, b) => {
-      const byName = a.chapter.name.localeCompare(b.chapter.name, "pt-BR", {
-        sensitivity: "base",
-      });
-      if (byName !== 0) return byName;
-      return a.chapter.number.localeCompare(b.chapter.number, "pt-BR", {
+      const an = Number(String(a.chapter.number).replace(/\D/g, ""));
+      const bn = Number(String(b.chapter.number).replace(/\D/g, ""));
+      if (!Number.isNaN(an) && !Number.isNaN(bn) && an !== bn) return an - bn;
+      const byNumber = a.chapter.number.localeCompare(b.chapter.number, "pt-BR", {
         numeric: true,
+      });
+      if (byNumber !== 0) return byNumber;
+      return a.chapter.name.localeCompare(b.chapter.name, "pt-BR", {
+        sensitivity: "base",
       });
     });
   }, [institutions, search, cargoByChapter]);

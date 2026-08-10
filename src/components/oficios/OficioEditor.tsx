@@ -369,6 +369,24 @@ export function OficioViewPanel({ oficio }: ViewProps) {
           onClick={async () => {
             setExporting(true);
             try {
+              const { listChapterOfficeSignatures } = await import(
+                "@/lib/office-signatures.functions"
+              );
+              const slots = active?.chapter_id
+                ? await listChapterOfficeSignatures({
+                    data: {
+                      chapterId: active.chapter_id,
+                      positionCodes: [
+                        "presidente_conselho_consultivo",
+                        "mestre_conselheiro",
+                        "escrivao",
+                      ],
+                    },
+                  })
+                : [];
+              const byCode = Object.fromEntries(
+                slots.map((s) => [s.positionCode, s]),
+              );
               const { exportOficioPdf } = await import("@/lib/oficio-pdf");
               await exportOficioPdf({
                 chapterName,
@@ -383,6 +401,10 @@ export function OficioViewPanel({ oficio }: ViewProps) {
                 mcName: oficio.mc_name,
                 pccName: oficio.pcc_name,
                 escrivaoName: oficio.escrivao_name,
+                pccSignatureDataUrl:
+                  byCode.presidente_conselho_consultivo?.signatureDataUrl,
+                mcSignatureDataUrl: byCode.mestre_conselheiro?.signatureDataUrl,
+                escrivaoSignatureDataUrl: byCode.escrivao?.signatureDataUrl,
               });
             } catch (e: any) {
               toast.error(e?.message ?? "Erro ao gerar o PDF");

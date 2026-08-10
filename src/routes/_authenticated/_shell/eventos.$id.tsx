@@ -555,13 +555,42 @@ function TicketsList({
     [types],
   );
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "presente" | "ausente" | "pago" | "parcial" | "aberto"
+  >("all");
   const [preview, setPreview] = useState<{
     pass: TicketPassData;
     qrDataUrl: string;
   } | null>(null);
 
+  const statusCounts = useMemo(() => {
+    let presente = 0;
+    let ausente = 0;
+    let pago = 0;
+    let parcial = 0;
+    let aberto = 0;
+    for (const t of tickets) {
+      if (t.status === "cancelado") continue;
+      if (t.checked_in) presente += 1;
+      else ausente += 1;
+      if (t.settlement === "paid") pago += 1;
+      else if (t.settlement === "partial") parcial += 1;
+      else aberto += 1;
+    }
+    return { presente, ausente, pago, parcial, aberto };
+  }, [tickets]);
+
   const filteredTickets = useMemo(() => {
     return tickets.filter((t) => {
+      if (statusFilter === "presente" && !t.checked_in) return false;
+      if (statusFilter === "ausente" && t.checked_in) return false;
+      if (statusFilter === "pago" && t.settlement !== "paid") return false;
+      if (statusFilter === "parcial" && t.settlement !== "partial") return false;
+      if (
+        statusFilter === "aberto" &&
+        (t.settlement === "paid" || t.settlement === "partial")
+      )
+        return false;
       const typeName =
         (t.ticket_type_id ? typeMap.get(t.ticket_type_id) : undefined) ??
         "Avulso";
@@ -582,7 +611,7 @@ function TicketsList({
       ].join(" ");
       return matchesLooseSearch(haystack, search);
     });
-  }, [tickets, search, typeMap]);
+  }, [tickets, search, typeMap, statusFilter]);
 
   const removeTicket = useMutation({
     mutationFn: (ticketId: string) =>
@@ -651,7 +680,7 @@ function TicketsList({
   return (
     <>
     <Card className="rounded-[12px] p-0">
-      <div className="border-b border-border p-3">
+      <div className="border-b border-border p-3 space-y-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -662,6 +691,41 @@ function TicketsList({
             aria-label="Buscar ingressos"
           />
         </div>
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              ["all", "Todos"],
+              ["presente", `Presentes (${statusCounts.presente})`],
+              ["ausente", `Ausentes (${statusCounts.ausente})`],
+              ["pago", `Pagos (${statusCounts.pago})`],
+              ["parcial", `Parciais (${statusCounts.parcial})`],
+              ["aberto", `Em aberto (${statusCounts.aberto})`],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setStatusFilter(key)}
+              className="cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors"
+              style={
+                statusFilter === key
+                  ? {
+                      backgroundColor: primary || "var(--chapter-primary)",
+                      borderColor: primary || "var(--chapter-primary)",
+                      color: "#fff",
+                    }
+                  : undefined
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          {statusCounts.presente} presentes · {statusCounts.ausente} ausentes ·{" "}
+          {statusCounts.pago} pagos · {statusCounts.parcial} parciais ·{" "}
+          {statusCounts.aberto} em aberto
+        </p>
       </div>
       {tickets.length === 0 ? (
         <div className="p-6 text-sm text-muted-foreground">

@@ -26,11 +26,13 @@ export const Route = createFileRoute("/_authenticated/_shell/membros/solicitacoe
 
 function SolicitacoesPage() {
   const { active } = useActiveChapter();
-  const { can } = useChapterAccess();
+  const { can, canScreen } = useChapterAccess();
   const qc = useQueryClient();
   const chapterId = active?.chapter_id;
 
-  const canReview = active ? can("secretaria") || can("admin") : false;
+  const canReview = active
+    ? canScreen("membros", "edit") || can("secretaria") || can("admin")
+    : false;
 
   const { data: changeReqs = [], isPending: loadingChanges } = useQuery({
     queryKey: ["member-change-requests", chapterId],

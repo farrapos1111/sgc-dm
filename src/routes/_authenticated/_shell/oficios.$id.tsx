@@ -34,11 +34,12 @@ const oficioQO = (id: string) =>
 function OficioDetailPage() {
   const { id } = Route.useParams();
   const { data: oficio } = useSuspenseQuery(oficioQO(id));
-  const { can } = useChapterAccess();
+  const { can, canScreen } = useChapterAccess();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
-  const allowed = can("secretaria") || can("admin");
+  const allowed =
+    canScreen("oficios", "edit") || can("secretaria") || can("admin");
 
   const remove = useMutation({
     mutationFn: () => deleteOficio({ data: { id: oficio.id } }),

@@ -293,6 +293,16 @@ export function isChapterDuesEnabled(
   return true;
 }
 
+/** Rotas de tesouraria que só existem com mensalidade ligada. */
+export const DUES_ONLY_NAV_PATHS = [
+  "/tesouraria/mensalidades",
+  "/tesouraria/atrasados",
+] as const;
+
+export function isDuesOnlyNavPath(to: string): boolean {
+  return (DUES_ONLY_NAV_PATHS as readonly string[]).includes(to);
+}
+
 export const MONTH_SHORT = [
   "Jan",
   "Fev",

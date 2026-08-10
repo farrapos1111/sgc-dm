@@ -6,6 +6,11 @@ import { getPublicLobby } from "@/lib/lobby-share.functions";
 import { PublicLobbyContext } from "@/context/PublicLobbyContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card } from "@/components/ui/card";
+import {
+  applyChapterThemeVars,
+  applyPlatformDefaultThemeVars,
+  resolveChapterTheme,
+} from "@/lib/chapter-theme";
 
 export const Route = createFileRoute("/c/$token")({
   ssr: false,
@@ -32,13 +37,14 @@ function PublicLobbyLayout() {
 
   const chapter = data?.chapter;
   const accent = chapter?.primary_color || "#9E1B32";
+  const theme = resolveChapterTheme(null, accent);
 
   useEffect(() => {
-    document.documentElement.style.setProperty("--chapter-primary", accent);
+    applyChapterThemeVars(document.documentElement, theme);
     return () => {
-      document.documentElement.style.removeProperty("--chapter-primary");
+      applyPlatformDefaultThemeVars(document.documentElement);
     };
-  }, [accent]);
+  }, [theme.accent, theme.background, theme.accentDark, theme.highlight, theme.font, theme.sidebar]);
 
   if (error) {
     return (

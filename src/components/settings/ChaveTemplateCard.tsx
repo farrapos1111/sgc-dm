@@ -3,7 +3,6 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { updateChaveTemplate } from "@/lib/chapter.functions";
@@ -14,7 +13,10 @@ import {
   chaveValues,
   renderChaveTemplate,
 } from "@/lib/chave-do-dia";
+import { MinuteBodyEditor } from "@/components/minutes/MinuteBodyEditor";
 import { KeyRound, RotateCcw, Save } from "lucide-react";
+
+const CHAVE_VAR_TOKENS = CHAVE_VARIABLES.map((v) => `[${v.key}]`);
 
 /** Editor do modelo padrão da "chave do dia", com variáveis dinâmicas. */
 export function ChaveTemplateCard() {
@@ -79,7 +81,8 @@ export function ChaveTemplateCard() {
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
         Modelo usado ao copiar a chave do dia no calendário e na tela inicial. Use as variáveis
-        entre colchetes — elas são substituídas pelos dados do compromisso.
+        entre colchetes — digite <span className="font-mono">[</span> para sugestões — elas
+        são substituídas pelos dados do compromisso.
       </p>
 
       <div className="mb-3 flex flex-wrap gap-2">
@@ -97,13 +100,20 @@ export function ChaveTemplateCard() {
         ))}
       </div>
 
-      <Textarea
-        ref={areaRef}
+      <MinuteBodyEditor
+        chapterId={active?.chapter_id ?? ""}
         value={template}
-        onChange={(e) => setTemplate(e.target.value)}
+        onChange={setTemplate}
+        editable={isAdmin}
         rows={16}
-        disabled={!isAdmin}
         className="font-mono text-xs"
+        enableMentions={false}
+        enableVars
+        showAutocompleteToggle={false}
+        autocompleteOn
+        varTokens={CHAVE_VAR_TOKENS}
+        textareaRef={areaRef}
+        placeholder="Digite [ para variáveis dinâmicas…"
       />
 
       <div className="mt-3">

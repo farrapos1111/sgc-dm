@@ -16,10 +16,14 @@ export const Route = createFileRoute("/_authenticated/_shell/oficios/novo")({
 
 function NovoOficioPage() {
   const { active } = useActiveChapter();
-  const { can } = useChapterAccess();
+  const { can, canScreen } = useChapterAccess();
   const navigate = useNavigate();
   const chapterId = active?.chapter_id ?? "";
-  const allowed = can("secretaria") || can("admin");
+  const allowed =
+    canScreen("oficios", "create") ||
+    canScreen("oficios", "edit") ||
+    can("secretaria") ||
+    can("admin");
 
   if (!allowed) {
     return (

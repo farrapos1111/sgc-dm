@@ -12,8 +12,10 @@ export type CommissionAccess = {
   commissions: MyCommission[];
   /** Vê o setor da comissão na sidebar. */
   canView: (code: string) => boolean;
-  /** Pode criar/editar/excluir dentro do setor da comissão. */
+  /** Pode criar/editar dentro do setor (presidente e vice). */
   canManage: (code: string) => boolean;
+  /** Pode excluir no setor (só presidente). */
+  canDelete: (code: string) => boolean;
   /** Templates de sindicância: presidente/vice da comissão, MC ou admin. */
   canEditSindicanciasTemplates: () => boolean;
 };
@@ -88,13 +90,20 @@ export function useCommissionAccess(): CommissionAccess {
       isAdmin ||
       canAccess(ctx, "visualizar_total") ||
       canAction(ctx, "comissao.view", code) ||
+      // Qualquer papel na comissão (membro / auxiliar sênior / vice / presidente)
       commissions.some((c) => c.code === code) ||
       (code === "sindicancias" && voteAccess),
     [commissions, isAdmin, voteAccess, ctx],
   );
 
   const canManage = useCallback(
+    // Presidente e Vice: CRU; membro/sênior não
     (code: string) => isAdmin || canAction(ctx, "comissao.edit", code),
+    [isAdmin, ctx],
+  );
+
+  const canDelete = useCallback(
+    (code: string) => isAdmin || canAction(ctx, "comissao.delete", code),
     [isAdmin, ctx],
   );
 
@@ -104,7 +113,13 @@ export function useCommissionAccess(): CommissionAccess {
   );
 
   return useMemo(
-    () => ({ commissions, canView, canManage, canEditSindicanciasTemplates }),
-    [commissions, canView, canManage, canEditSindicanciasTemplates],
+    () => ({
+      commissions,
+      canView,
+      canManage,
+      canDelete,
+      canEditSindicanciasTemplates,
+    }),
+    [commissions, canView, canManage, canDelete, canEditSindicanciasTemplates],
   );
 }

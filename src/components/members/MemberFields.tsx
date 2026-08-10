@@ -8,6 +8,7 @@ import { createCepLookupSeq, lookupCep, maskCepInput } from "@/lib/cep";
 import { todayYmd } from "@/lib/timezone";
 import { useIsomorphicLayoutEffect } from "@/lib/use-isomorphic-layout-effect";
 import { Loader2 } from "lucide-react";
+import { ORG_TYPE_LABELS, normalizeOrgType } from "@/lib/org-types";
 
 export type MemberStatus = "regular" | "irregular";
 export type MemberKind = "demolay_ativo" | "senior" | "macom";
@@ -81,6 +82,7 @@ export type ChapterOption = {
   name: string;
   number: string;
   city?: string | null;
+  org_type?: string | null;
 };
 
 export const emptyGuardian: GuardianFormData = {
@@ -315,6 +317,9 @@ export function MemberDataFields({
           options={chapters.map((ch) => ({
             value: ch.id,
             label: [
+              ch.org_type
+                ? ORG_TYPE_LABELS[normalizeOrgType(ch.org_type)]
+                : null,
               ch.name,
               ch.number ? `Nº ${ch.number}` : null,
               ch.city || null,

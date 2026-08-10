@@ -6,6 +6,7 @@ import {
   getMemberLoginGate,
   getMustChangePassword,
 } from "@/lib/accounts.functions";
+import { needsSignatureForOffices } from "@/lib/office-signatures.functions";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -30,6 +31,15 @@ export const Route = createFileRoute("/_authenticated")({
       const { mustChangePassword } = await getMustChangePassword();
       if (mustChangePassword) {
         throw redirect({ to: "/auth/redefinir-senha" });
+      }
+    } catch (e) {
+      if (isRedirect(e)) throw e;
+    }
+
+    try {
+      const { needsSignature } = await needsSignatureForOffices();
+      if (needsSignature) {
+        throw redirect({ to: "/auth/assinatura" });
       }
     } catch (e) {
       if (isRedirect(e)) throw e;

@@ -89,7 +89,7 @@ const membersQO = (chapterId: string, search: string, status: StatusFilter, kind
 
 function MembrosList() {
   const { active } = useActiveChapter();
-  const { can } = useChapterAccess();
+  const { can, canScreen } = useChapterAccess();
   if (!active) return null;
 
   const chapterId = active.chapter_id;
@@ -152,7 +152,10 @@ function MembrosList() {
   }, [filters.filtro, members, memberIdsWithCargo]);
 
   const isAdmin =
-    can("secretaria") || can("conselho") || can("admin");
+    canScreen("membros", "edit") ||
+    can("secretaria") ||
+    can("conselho") ||
+    can("admin");
 
   const { data: pendingReq } = useQuery({
     queryKey: ["member-change-requests-count", chapterId],

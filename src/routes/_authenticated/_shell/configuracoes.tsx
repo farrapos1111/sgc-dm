@@ -18,6 +18,13 @@ import {
   getChapterDefaultDuesAmount,
   isChapterDuesEnabled,
 } from "@/lib/dues-rules";
+import {
+  applyChapterThemeVars,
+  deriveThemeFromPrimary,
+  isThemeHex,
+  resolveChapterTheme,
+  type ChapterTheme,
+} from "@/lib/chapter-theme";
 import { ImagePlus, Loader2, Trash2, Building2, Landmark, PlusCircle, Save, Sun, Moon, MonitorSmartphone, Palette, RotateCcw, Check, Receipt, Link2, Copy } from "lucide-react";
 import { useTheme, type ThemeMode } from "@/context/ThemeContext";
 import { ChaveTemplateCard } from "@/components/settings/ChaveTemplateCard";
@@ -65,80 +72,132 @@ const ACCENT_PRESETS: { value: string; label: string }[] = [
   { value: "#374151", label: "Grafite" },
 ];
 
-function isValidHex(v: string) {
-  return /^#[0-9a-fA-F]{6}$/.test(v);
-}
+const THEME_FIELDS: {
+  key: keyof ChapterTheme;
+  label: string;
+}[] = [
+  { key: "background", label: "Fundo" },
+  { key: "sidebar", label: "Sidebar" },
+  { key: "accent", label: "Destaque" },
+  { key: "accentDark", label: "Destaque escuro" },
+  { key: "highlight", label: "Realce" },
+  { key: "font", label: "Texto" },
+];
 
 /** Texto legível sobre a cor escolhida (luminância relativa). */
 function readableOn(hex: string) {
-  if (!isValidHex(hex)) return "#FFFFFF";
+  if (!isThemeHex(hex)) return "#FFFFFF";
   const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
   const lin = c.map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
   const L = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
   return L > 0.55 ? "#1A1A1A" : "#FFFFFF";
 }
 
-function applyAccentPreview(hex: string) {
-  if (typeof document === "undefined") return;
-  document.documentElement.style.setProperty("--chapter-primary", hex);
+function themesEqual(a: ChapterTheme, b: ChapterTheme) {
+  return THEME_FIELDS.every(
+    (f) => a[f.key].toUpperCase() === b[f.key].toUpperCase(),
+  );
 }
 
 function AccentColorSection() {
   const { active, refetch } = useActiveChapter();
   const { can } = useChapterAccess();
-  const isAdmin = can("admin");
-  const saved = active?.chapter.primary_color || DEFAULT_ACCENT;
-  const [color, setColor] = useState(saved);
-  const [text, setText] = useState(saved);
+  const isAdmin = can("admin") || can("secretaria"); // buckets derivados da matriz
+  const saved = resolveChapterTheme(
+    active?.chapter.settings as Record<string, unknown> | null,
+    active?.chapter.primary_color || DEFAULT_ACCENT,
+  );
+  const [theme, setTheme] = useState<ChapterTheme>(saved);
 
   useEffect(() => {
-    setColor(saved);
-    setText(saved);
-  }, [saved]);
+    setTheme(saved);
+  }, [
+    saved.accent,
+    saved.background,
+    saved.accentDark,
+    saved.highlight,
+    saved.font,
+    saved.sidebar,
+  ]);
 
-  // Limpa a pré-visualização ao sair da tela.
+  // Pré-visualização ao vivo (mesmo alvo do AppShell) + restaura o tema salvo ao sair
   useEffect(() => {
+    applyChapterThemeVars(document.documentElement, theme);
     return () => {
-      if (typeof document !== "undefined") {
-        document.documentElement.style.removeProperty("--chapter-primary");
-      }
+      applyChapterThemeVars(document.documentElement, saved);
     };
-  }, []);
+  }, [
+    theme.background,
+    theme.accent,
+    theme.accentDark,
+    theme.highlight,
+    theme.font,
+    theme.sidebar,
+    saved.background,
+    saved.accent,
+    saved.accentDark,
+    saved.highlight,
+    saved.font,
+    saved.sidebar,
+  ]);
 
-  function pick(hex: string) {
+  function pickPreset(hex: string) {
     if (!isAdmin) return;
-    setColor(hex);
-    setText(hex.toUpperCase());
-    applyAccentPreview(hex);
+    setTheme(deriveThemeFromPrimary(hex));
+  }
+
+  function setField(key: keyof ChapterTheme, hex: string) {
+    if (!isAdmin) return;
+    const next = hex.toUpperCase();
+    if (!isThemeHex(next)) return;
+    setTheme((prev) => {
+      if (key === "accent") {
+        // Ao mudar o destaque, rederiva escuro/realce mantendo fundo e texto
+        const derived = deriveThemeFromPrimary(next);
+        return {
+          ...prev,
+          accent: next,
+          accentDark: derived.accentDark,
+          highlight: derived.highlight,
+        };
+      }
+      return { ...prev, [key]: next };
+    });
   }
 
   const save = useMutation({
     mutationFn: () =>
       updateChapterAccentColor({
-        data: { chapter_id: active!.chapter_id, primary_color: color },
+        data: {
+          chapter_id: active!.chapter_id,
+          primary_color: theme.accent,
+          theme,
+        },
       }),
     onSuccess: () => {
-      toast.success("Cor de destaque atualizada");
+      toast.success("Tema do capítulo atualizado");
       refetch();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar a cor"),
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar o tema"),
   });
 
-  const dirty = color.toUpperCase() !== saved.toUpperCase();
+  const dirty = !themesEqual(theme, saved);
+  const valid = THEME_FIELDS.every((f) => isThemeHex(theme[f.key]));
 
   return (
     <div className="mt-6 border-t border-border pt-5">
       <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        <Palette className="h-5 w-5" /> Cor de destaque
+        <Palette className="h-5 w-5" /> Tema do capítulo
       </div>
       <p className="mb-3 text-sm text-muted-foreground">
-        Define a cor usada em botões, destaques e etiquetas do capítulo. Vale para todos os membros
-        deste capítulo.
+        Define fundo, sidebar, texto, destaques e realces do capítulo. No modo
+        escuro, fundo/sidebar/texto da interface permanecem escuros; as cores de
+        destaque continuam valendo.
       </p>
 
       <div className="flex flex-wrap gap-2">
         {ACCENT_PRESETS.map((p) => {
-          const selected = color.toUpperCase() === p.value.toUpperCase();
+          const selected = theme.accent.toUpperCase() === p.value.toUpperCase();
           return (
             <button
               key={p.value}
@@ -147,7 +206,7 @@ function AccentColorSection() {
               aria-label={p.label}
               aria-pressed={selected}
               disabled={!isAdmin}
-              onClick={() => pick(p.value)}
+              onClick={() => pickPreset(p.value)}
               className="grid h-11 w-11 place-items-center rounded-full border-2 transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
                 backgroundColor: p.value,
@@ -160,59 +219,115 @@ function AccentColorSection() {
         })}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-end gap-3">
-        <div>
-          <Label className="mb-1 block text-xs">Cor personalizada</Label>
-          <input
-            type="color"
-            value={isValidHex(color) ? color : DEFAULT_ACCENT}
-            disabled={!isAdmin}
-            onChange={(e) => pick(e.target.value.toUpperCase())}
-            className="h-11 w-16 cursor-pointer rounded-[8px] border border-border bg-transparent p-1 disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Escolher cor personalizada"
-          />
-        </div>
-        <div className="w-36">
-          <Label className="mb-1 block text-xs">Hex</Label>
-          <Input
-            value={text}
-            disabled={!isAdmin}
-            placeholder="#9E1B32"
-            onChange={(e) => {
-              const v = e.target.value.toUpperCase();
-              setText(v);
-              if (isValidHex(v)) {
-                setColor(v);
-                applyAccentPreview(v);
-              }
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {THEME_FIELDS.map((f) => (
+          <div key={f.key}>
+            <Label className="mb-1 block text-xs">{f.label}</Label>
+            <input
+              type="color"
+              value={isThemeHex(theme[f.key]) ? theme[f.key] : DEFAULT_ACCENT}
+              disabled={!isAdmin}
+              onChange={(e) => setField(f.key, e.target.value)}
+              className="h-11 w-full cursor-pointer rounded-[8px] border border-border bg-transparent p-1 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={f.label}
+            />
+            <Input
+              className="mt-1.5 h-9 font-mono text-xs uppercase"
+              value={theme[f.key]}
+              disabled={!isAdmin}
+              onChange={(e) => {
+                const v = e.target.value.toUpperCase();
+                if (isThemeHex(v)) setField(f.key, v);
+                else setTheme((prev) => ({ ...prev, [f.key]: v }));
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div
+        className="mt-4 overflow-hidden rounded-[12px] border border-border"
+        style={{ backgroundColor: theme.background, color: theme.font }}
+      >
+        <div className="flex min-h-[140px]">
+          <div
+            className="flex w-[38%] flex-col gap-2 border-r p-3"
+            style={{
+              backgroundColor: theme.sidebar,
+              borderColor: "color-mix(in srgb, currentColor 12%, transparent)",
             }}
-          />
-        </div>
-        <div className="flex-1" />
-        <div
-          className="grid h-11 min-w-[7rem] place-items-center rounded-[8px] px-4 text-sm font-medium"
-          style={{ backgroundColor: color, color: readableOn(color) }}
-        >
-          Pré-visualização
+          >
+            <div className="text-[10px] font-medium uppercase tracking-wide opacity-70">
+              Sidebar
+            </div>
+            <div
+              className="rounded-[6px] px-2 py-1.5 text-xs font-medium"
+              style={{
+                backgroundColor: `${theme.accent}22`,
+                color: theme.accent,
+              }}
+            >
+              Item ativo
+            </div>
+            <div className="px-2 py-1.5 text-xs opacity-60">Item</div>
+          </div>
+          <div className="flex-1 p-4">
+            <div className="text-xs font-medium uppercase tracking-wide opacity-70">
+              Pré-visualização
+            </div>
+            <div className="mt-2 text-sm font-semibold">Título do capítulo</div>
+            <p className="mt-1 text-sm opacity-80">
+              Texto de apoio com a cor tipográfica do tema.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span
+                className="inline-flex h-9 items-center rounded-[8px] px-3 text-sm font-medium"
+                style={{
+                  backgroundColor: theme.accent,
+                  color: readableOn(theme.accent),
+                }}
+              >
+                Botão principal
+              </span>
+              <span
+                className="inline-flex h-9 items-center rounded-[8px] px-3 text-sm font-medium"
+                style={{
+                  backgroundColor: theme.accentDark,
+                  color: readableOn(theme.accentDark),
+                }}
+              >
+                Destaque escuro
+              </span>
+              <span
+                className="inline-flex h-9 items-center rounded-[8px] px-3 text-sm font-medium"
+                style={{ backgroundColor: theme.highlight, color: theme.font }}
+              >
+                Realce
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
       {isAdmin ? (
         <div className="mt-4 flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={() => pick(DEFAULT_ACCENT)}>
+          <Button variant="outline" onClick={() => pickPreset(DEFAULT_ACCENT)}>
             <RotateCcw className="mr-2 h-4 w-4" /> Restaurar padrão
           </Button>
           <Button
-            style={{ backgroundColor: color, color: readableOn(color) }}
-            disabled={save.isPending || !isValidHex(color) || !dirty}
+            style={{
+              backgroundColor: theme.accent,
+              color: readableOn(theme.accent),
+            }}
+            disabled={save.isPending || !valid || !dirty}
             onClick={() => save.mutate()}
           >
-            <Save className="mr-2 h-4 w-4" /> {save.isPending ? "Salvando…" : "Salvar cor"}
+            <Save className="mr-2 h-4 w-4" /> {save.isPending ? "Salvando…" : "Salvar tema"}
           </Button>
         </div>
       ) : (
         <p className="mt-4 text-xs text-muted-foreground">
-          Somente administradores podem alterar a cor do capítulo.
+          Somente administradores podem alterar o tema do capítulo.
         </p>
       )}
     </div>
@@ -795,7 +910,7 @@ function PublicLobbyLinkCard() {
 function ChapterProfileCard() {
   const { active, refetch } = useActiveChapter();
   const { can } = useChapterAccess();
-  const isAdmin = can("admin");
+  const isAdmin = can("admin") || can("secretaria"); // buckets derivados da matriz
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
   const [city, setCity] = useState("");

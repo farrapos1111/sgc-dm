@@ -28,12 +28,12 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import {
-  can,
   canAccess,
   canBrowseAllScreens,
   type AccessContext,
   type Permission,
 } from "@/lib/permissions";
+import { PATH_TO_SCREEN, type ScreenAction } from "@/lib/screen-access";
 
 export type NavPath =
   | "/inicio"
@@ -50,6 +50,7 @@ export type NavPath =
   | "/calendario"
   | "/gestao"
   | "/configuracoes"
+  | "/configuracoes-globais/cargos"
   | "/eventos"
   | "/eventos/checkins"
   | "/sindicancias/fichas"
@@ -122,6 +123,18 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: "/calendario", label: "Calendário", icon: CalendarDays },
       { to: "/gestao", label: "Cargos e Comissões", icon: Briefcase },
       { to: "/configuracoes", label: "Configurações", icon: Settings },
+    ],
+  },
+  {
+    id: "config-global",
+    label: "Configurações Globais",
+    icon: Globe2,
+    items: [
+      {
+        to: "/configuracoes-globais/cargos",
+        label: "Cargos",
+        icon: Briefcase,
+      },
     ],
   },
   {
@@ -256,26 +269,72 @@ export function mobileOverflowGroups(groups: NavGroup[], tabs: NavItem[]): NavGr
 }
 
 export function visibleGroups(
-  roleName: string | null,
+  _roleName: string | null,
   canViewCommission: (code: string) => boolean,
   accessCtx?: AccessContext,
+  opts?: {
+    canScreen?: (screenId: string, action: ScreenAction) => boolean;
+    isAdminTotal?: boolean;
+  },
 ): NavGroup[] {
-  // Temporário: menus da Comissão de Hospitalaria ocultos.
   const HIDDEN_NAV_GROUP_IDS = new Set(["hospitalaria"]);
-
   const browseAll = accessCtx ? canBrowseAllScreens(accessCtx) : false;
+  const ctx: AccessContext = accessCtx ?? {
+    roleName: null,
+    currentPositions: [],
+  };
+  const canScreen = opts?.canScreen;
+  const isAdminTotal = opts?.isAdminTotal === true;
 
-  return NAV_GROUPS.filter((g) => {
-    if (HIDDEN_NAV_GROUP_IDS.has(g.id)) return false;
+  function pathVisible(to: string): boolean {
+    if (to === "/configuracoes-globais/cargos") {
+      return isAdminTotal;
+    }
+    if (canScreen) {
+      const screenId = PATH_TO_SCREEN[to];
+      if (screenId) return canScreen(screenId, "view");
+    }
+    return true;
+  }
+
+  // Grupo só para Administrador Total (itens filtrados por pathVisible).
+  function groupVisible(g: NavGroup): boolean {
+    if (g.id === "config-global") return isAdminTotal;
+    return true;
+  }
+
+  function groupAllowedByLegacy(g: NavGroup): boolean {
     if (g.permission) {
-      const ok = accessCtx
-        ? canAccess(accessCtx, g.permission) || browseAll
-        : can(roleName, g.permission);
-      if (!ok) return false;
+      if (!(canAccess(ctx, g.permission) || browseAll)) return false;
     }
     if (g.commission && !canViewCommission(g.commission) && !browseAll) {
       return false;
     }
     return true;
-  });
+  }
+
+  return NAV_GROUPS.filter((g) => !HIDDEN_NAV_GROUP_IDS.has(g.id))
+    .filter(groupVisible)
+    .map((g) => {
+      if (g.to) {
+        if (canScreen) {
+          return pathVisible(g.to) ? g : null;
+        }
+        return groupAllowedByLegacy(g) ? g : null;
+      }
+
+      let items = [...(g.items ?? [])];
+      if (canScreen) {
+        items = items.filter((i) => pathVisible(i.to));
+        if (g.commission && !canViewCommission(g.commission) && !browseAll && !isAdminTotal) {
+          return null;
+        }
+      } else if (!groupAllowedByLegacy(g)) {
+        return null;
+      }
+
+      if (items.length === 0) return null;
+      return { ...g, items };
+    })
+    .filter((g): g is NavGroup => g !== null);
 }

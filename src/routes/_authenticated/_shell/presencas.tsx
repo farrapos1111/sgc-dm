@@ -539,6 +539,7 @@ function PresencasPage() {
                       <Link
                         to="/ongoing/$id"
                         params={{ id: it.id }}
+                        search={{ tab: "chamada" }}
                         className="block p-4 hover:bg-muted"
                       >
                         <div className="flex items-start justify-between gap-3">

@@ -119,7 +119,7 @@ function GestaoPage() {
 
 function GestaoContent({ active }: { active: Membership }) {
   const qc = useQueryClient();
-  const { can } = useChapterAccess();
+  const { can, canScreen } = useChapterAccess();
   const [term, setTerm] = useState(currentTerm());
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("default");
@@ -127,7 +127,7 @@ function GestaoContent({ active }: { active: Membership }) {
   const chapterId = active.chapter_id;
   const foundedAt = chapterFoundedAt(active.chapter);
   const terms = useMemo(() => termOptions({ foundedAt }), [foundedAt]);
-  const canEdit = can("secretaria");
+  const canEdit = canScreen("gestao", "edit") || can("secretaria");
   const canEditCommissions = can("comissoes");
 
   const { data: catalog } = useSuspenseQuery(catalogQO(chapterId));
@@ -395,86 +395,121 @@ function GestaoContent({ active }: { active: Membership }) {
         </TabsList>
 
         <TabsContent value="cargos">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {(["capitulo", "consultivo"] as const).map((scope) => {
-              const scopePositions = filteredPositions.filter(
-                (p) => p.scope === scope,
-              );
-              return (
-                <Card key={scope} className="rounded-[12px] p-5">
-                  <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                    {scope === "capitulo"
-                      ? "Cargos do Capítulo"
-                      : "Conselho Consultivo"}
-                  </h3>
-                  {scopePositions.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Nenhum cargo correspondente à busca.
-                    </p>
-                  ) : (
-                    <ul className="divide-y divide-border text-sm">
-                      {scopePositions.map((p) => {
-                        const assigned = positionAssignees(p.id);
-                        const allAssigned = byPosition.get(p.id) ?? [];
-                        const occupied = allAssigned.length > 0;
-                        return (
-                          <li
-                            key={p.id}
-                            className="flex items-start justify-between gap-2 py-2.5"
-                          >
-                            <div className="min-w-0">
-                              <div className="font-medium">{p.label}</div>
-                              {assigned.length > 0 ? (
-                                <ul className="mt-0.5 space-y-0.5">
-                                  {assigned.map((a) => (
-                                    <li
-                                      key={a.id}
-                                      className="truncate text-xs text-muted-foreground"
-                                    >
-                                      {a.member?.full_name}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : occupied && q ? (
-                                <div className="text-xs text-muted-foreground">
-                                  Ocupado (sem membro na busca)
-                                </div>
-                              ) : (
-                                <div className="text-xs text-muted-foreground">
-                                  Vago
-                                </div>
-                              )}
-                            </div>
-                            {canEdit && !occupied && (
-                              <AssignDialog
-                                title={`Designar ${p.label}`}
-                                members={
-                                  scope === "consultivo"
-                                    ? eligibleForConselho
-                                    : members
-                                }
-                                emptyHint={
-                                  scope === "consultivo"
-                                    ? "Nenhum membro com 21 anos ou mais."
-                                    : "Nenhum membro cadastrado."
-                                }
-                                onConfirm={(memberId) =>
-                                  assignPos.mutate({
-                                    memberId,
-                                    positionId: p.id,
-                                  })
-                                }
-                              />
-                            )}
-                          </li>
+          {(() => {
+            const hasGrouped = filteredPositions.some(
+              (p) => p.role_group != null,
+            );
+            const sections = hasGrouped
+              ? ([
+                  {
+                    id: "ritualisticos",
+                    label: "Ritualísticos",
+                    conselho: false,
+                  },
+                  { id: "conselho", label: "Conselho", conselho: true },
+                  {
+                    id: "comissoes",
+                    label: "Funções de comissão",
+                    conselho: false,
+                  },
+                ] as const)
+              : ([{ id: "all", label: "Cargos", conselho: false }] as const);
+
+            return (
+              <div
+                className={
+                  hasGrouped
+                    ? "grid grid-cols-1 gap-4 xl:grid-cols-3"
+                    : "grid grid-cols-1 gap-4"
+                }
+              >
+                {sections.map((section) => {
+                  const scopePositions =
+                    section.id === "all"
+                      ? filteredPositions
+                      : filteredPositions.filter(
+                          (p) => p.role_group === section.id,
                         );
-                      })}
-                    </ul>
-                  )}
-                </Card>
-              );
-            })}
-          </div>
+                  if (hasGrouped && scopePositions.length === 0 && q) {
+                    return null;
+                  }
+                  return (
+                    <Card key={section.id} className="rounded-[12px] p-5">
+                      <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                        {section.label}
+                      </h3>
+                      {scopePositions.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          Nenhum cargo correspondente à busca.
+                        </p>
+                      ) : (
+                        <ul className="divide-y divide-border text-sm">
+                          {scopePositions.map((p) => {
+                            const assigned = positionAssignees(p.id);
+                            const allAssigned = byPosition.get(p.id) ?? [];
+                            const occupied = allAssigned.length > 0;
+                            const needsConselho =
+                              section.conselho || p.scope === "consultivo";
+                            return (
+                              <li
+                                key={p.id}
+                                className="flex items-start justify-between gap-2 py-2.5"
+                              >
+                                <div className="min-w-0">
+                                  <div className="font-medium">{p.label}</div>
+                                  {assigned.length > 0 ? (
+                                    <ul className="mt-0.5 space-y-0.5">
+                                      {assigned.map((a) => (
+                                        <li
+                                          key={a.id}
+                                          className="truncate text-xs text-muted-foreground"
+                                        >
+                                          {a.member?.full_name}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : occupied && q ? (
+                                    <div className="text-xs text-muted-foreground">
+                                      Ocupado (sem membro na busca)
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs text-muted-foreground">
+                                      Vago
+                                    </div>
+                                  )}
+                                </div>
+                                {canEdit && !occupied && (
+                                  <AssignDialog
+                                    title={`Designar ${p.label}`}
+                                    members={
+                                      needsConselho
+                                        ? eligibleForConselho
+                                        : members
+                                    }
+                                    emptyHint={
+                                      needsConselho
+                                        ? "Nenhum membro com 21 anos ou mais."
+                                        : "Nenhum membro cadastrado."
+                                    }
+                                    onConfirm={(memberId) =>
+                                      assignPos.mutate({
+                                        memberId,
+                                        positionId: p.id,
+                                      })
+                                    }
+                                  />
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="comissoes">

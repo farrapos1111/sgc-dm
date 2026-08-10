@@ -163,6 +163,34 @@ export function SindicanciaAtaForm({
     setHydrated(true);
   }, [minute, row, hydrated, isRoteiro]);
 
+  // Pré-preenche assinatura oficial do Escrivão do capítulo (cargo do sistema).
+  useEffect(() => {
+    if (!hydrated || isRoteiro || !answersWritable) return;
+    if (signatures.escrivao?.startsWith("data:")) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { listChapterOfficeSignatures } = await import(
+          "@/lib/office-signatures.functions"
+        );
+        const slots = await listChapterOfficeSignatures({
+          data: { chapterId, positionCodes: ["escrivao"] },
+        });
+        const ink = slots[0]?.signatureDataUrl;
+        if (!cancelled && ink?.startsWith("data:image/")) {
+          setSignatures((s) =>
+            s.escrivao?.startsWith("data:") ? s : { ...s, escrivao: ink },
+          );
+        }
+      } catch {
+        /* sem tinta oficial — pad livre permanece */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, isRoteiro, answersWritable, chapterId, signatures.escrivao]);
+
   const sindicanteName =
     row.investigator?.full_name || row.investigator_text || "";
   const escrivaoName = row.clerk?.full_name || row.clerk_text || "";
@@ -561,7 +589,11 @@ export function SindicanciaAtaForm({
             {SIGNATURE_ROLES.map((role) => (
               <SignaturePad
                 key={role.id}
-                label={role.label}
+                label={
+                  role.id === "escrivao"
+                    ? `${role.label} (cargo do capítulo, se registrado)`
+                    : role.label
+                }
                 value={
                   signatures[role.id]?.startsWith("data:")
                     ? signatures[role.id]

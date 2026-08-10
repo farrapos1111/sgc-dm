@@ -45,8 +45,12 @@ import {
   formatDateTimeBR,
   parseDateOnly,
 } from "@/lib/format";
+import { datePartsInAppTz } from "@/lib/timezone";
+import { MONTH_LONG, isChapterDuesEnabled } from "@/lib/dues-rules";
+import { STATUS_LABELS } from "@/lib/investigation-labels";
+import { Badge } from "@/components/ui/badge";
 
-/** Idade que o membro completa no aniversário do ano corrente. */
+/** Idade que o membro completa no aniversário deste ano civil. */
 function turningAgeThisYear(
   birthDate: string | null | undefined,
   year: number,
@@ -56,14 +60,22 @@ function turningAgeThisYear(
   return year - bd.getFullYear();
 }
 
-/** Distância no mês: próximos primeiro (hoje → fim); já passados no fim. */
+/**
+ * Ordem do mês: hoje → dias futuros (crescente);
+ * depois os já passados, do mais recente ao mais antigo.
+ */
 function birthdayProximityKey(birthDay: number, todayDay: number): number {
-  return birthDay >= todayDay ? birthDay - todayDay : 100 + birthDay;
+  if (birthDay >= todayDay) return birthDay - todayDay;
+  return 100 + (todayDay - birthDay);
 }
-import { MONTH_LONG } from "@/lib/dues-rules";
-import { STATUS_LABELS } from "@/lib/investigation-labels";
-import { Badge } from "@/components/ui/badge";
 
+function birthdayDayMonthLabel(birthDate: string | null | undefined): string {
+  const bd = parseDateOnly(birthDate);
+  if (!bd) return "—";
+  const dd = String(bd.getDate()).padStart(2, "0");
+  const mm = String(bd.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}`;
+}
 export const Route = createFileRoute("/_authenticated/_shell/inicio")({
   head: () => ({
     meta: [
@@ -101,6 +113,9 @@ function InicioContent({ active }: { active: Membership }) {
   const { can, ctx } = useChapterAccess();
   const chapterId = active.chapter_id;
   const canFinance = can("tesouraria");
+  const duesEnabled = isChapterDuesEnabled(
+    active.chapter as { settings?: Record<string, unknown> } | undefined,
+  );
 
   const { data: events } = useSuspenseQuery(eventsQO(chapterId));
   const { data: members } = useSuspenseQuery(membersQO(chapterId));
@@ -154,22 +169,23 @@ function InicioContent({ active }: { active: Membership }) {
     .filter((e) => new Date(e.starts_at) >= now)
     .sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at))[0];
 
-  const birthdayMonth = now.getMonth();
-  const birthdayYear = now.getFullYear();
-  const todayDay = now.getDate();
+  // Calendário no fuso do app — evita mês/dia errados perto da meia-noite UTC
+  const { year: birthdayYear, month: birthdayMonth1, day: todayDay } =
+    datePartsInAppTz(now);
+  const birthdayMonth = birthdayMonth1 - 1; // 0-based, igual a Date#getMonth()
   const birthdays = members
-    .filter(
-      (m) =>
-        m.birth_date &&
-        parseDateOnly(m.birth_date)?.getMonth() === birthdayMonth,
-    )
+    .filter((m) => {
+      const bd = parseDateOnly(m.birth_date);
+      return bd != null && bd.getMonth() === birthdayMonth;
+    })
     .sort((a, b) => {
       const dayA = parseDateOnly(a.birth_date)?.getDate() ?? 0;
       const dayB = parseDateOnly(b.birth_date)?.getDate() ?? 0;
-      return (
+      const key =
         birthdayProximityKey(dayA, todayDay) -
-        birthdayProximityKey(dayB, todayDay)
-      );
+        birthdayProximityKey(dayB, todayDay);
+      if (key !== 0) return key;
+      return (a.full_name ?? "").localeCompare(b.full_name ?? "", "pt-BR");
     });
 
   const hasAnyData = members.length > 0 || events.length > 0;
@@ -353,22 +369,24 @@ function InicioContent({ active }: { active: Membership }) {
                   fadeKey={showBank ? "bank" : "month"}
                 />
               </Link>
-              <Link to="/tesouraria/mensalidades" className="block">
-                <MetricCard
-                  icon={
-                    showReceivable ? (
-                      <Receipt className="h-5 w-5" />
-                    ) : (
-                      <Users className="h-5 w-5" />
-                    )
-                  }
-                  label={membrosLabel}
-                  value={membrosValue}
-                  hint={membrosHint}
-                  tone={membrosTone}
-                  fadeKey={showReceivable ? "receivable" : "members"}
-                />
-              </Link>
+              {duesEnabled ? (
+                <Link to="/tesouraria/mensalidades" className="block">
+                  <MetricCard
+                    icon={
+                      showReceivable ? (
+                        <Receipt className="h-5 w-5" />
+                      ) : (
+                        <Users className="h-5 w-5" />
+                      )
+                    }
+                    label={membrosLabel}
+                    value={membrosValue}
+                    hint={membrosHint}
+                    tone={membrosTone}
+                    fadeKey={showReceivable ? "receivable" : "members"}
+                  />
+                </Link>
+              ) : null}
             </>
           ) : null}
           <MetricCard
@@ -389,19 +407,25 @@ function InicioContent({ active }: { active: Membership }) {
               <ul className="space-y-1.5">
                 {birthdays.map((m) => {
                   const age = turningAgeThisYear(m.birth_date, birthdayYear);
+                  const day = parseDateOnly(m.birth_date)?.getDate() ?? 0;
+                  const alreadyPassed = day < todayDay;
+                  const when = birthdayDayMonthLabel(m.birth_date);
                   return (
                     <li
                       key={m.id}
-                      className="flex items-baseline justify-between gap-3 text-sm leading-snug"
+                      className={`flex items-baseline justify-between gap-3 text-sm leading-snug ${
+                        alreadyPassed
+                          ? "text-muted-foreground line-through decoration-muted-foreground/70"
+                          : ""
+                      }`}
                     >
                       <span className="min-w-0 truncate font-medium">
                         {m.full_name}
                       </span>
                       <span className="shrink-0 text-right text-xs text-muted-foreground">
                         {age !== null
-                          ? `aniversário de ${age} ${age === 1 ? "ano" : "anos"} `
-                          : null}
-                        {formatDateBR(m.birth_date)}
+                          ? `${alreadyPassed ? "fez" : "faz"} ${age} ${age === 1 ? "ano" : "anos"} em ${when}`
+                          : when}
                       </span>
                     </li>
                   );

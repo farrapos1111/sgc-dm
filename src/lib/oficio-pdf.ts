@@ -16,13 +16,16 @@ export type OficioPdfInput = {
   mcName?: string | null;
   pccName?: string | null;
   escrivaoName?: string | null;
+  mcSignatureDataUrl?: string | null;
+  pccSignatureDataUrl?: string | null;
+  escrivaoSignatureDataUrl?: string | null;
 };
 
 const MARGIN = 18;
 /** Recuo extra da linha divisória em relação às margens do corpo. */
 const RULE_INSET = 4;
 const LOGO_MAX = 26;
-const SIGNATURE_BLOCK_H = 36;
+const SIGNATURE_BLOCK_H = 48;
 const SCD_LABEL = "SUPREMO CONSELHO DEMOLAY BRASIL";
 
 function fileSafe(text: string) {
@@ -91,10 +94,9 @@ function drawSignatures(
   y: number,
   pageW: number,
   contentW: number,
-  signers: { name: string; role: string }[],
+  signers: { name: string; role: string; signatureDataUrl?: string | null }[],
 ) {
   const colW = contentW / 3;
-  const lineY = y + 10;
   doc.setDrawColor(26, 26, 26);
   doc.setTextColor(26, 26, 26);
   doc.setFont("helvetica", "normal");
@@ -102,6 +104,27 @@ function drawSignatures(
   signers.forEach((s, i) => {
     const x = MARGIN + colW * i + colW / 2;
     const lineHalf = Math.min(28, colW / 2 - 4);
+    let lineY = y + 18;
+
+    if (s.signatureDataUrl?.startsWith("data:image/")) {
+      try {
+        const props = doc.getImageProperties(s.signatureDataUrl);
+        const maxW = Math.min(36, colW - 6);
+        const maxH = 14;
+        const ratio = props.width / props.height;
+        let w = maxW;
+        let h = w / ratio;
+        if (h > maxH) {
+          h = maxH;
+          w = h * ratio;
+        }
+        doc.addImage(s.signatureDataUrl, x - w / 2, y, w, h);
+        lineY = y + h + 2;
+      } catch {
+        /* imagem inválida */
+      }
+    }
+
     doc.setLineWidth(0.3);
     doc.line(x - lineHalf, lineY, x + lineHalf, lineY);
     doc.setFontSize(9);
@@ -253,9 +276,18 @@ export async function exportOficioPdf(input: OficioPdfInput) {
     {
       name: input.pccName?.trim() || "—",
       role: "Presidente do Conselho Consultivo",
+      signatureDataUrl: input.pccSignatureDataUrl,
     },
-    { name: input.mcName?.trim() || "—", role: "Mestre Conselheiro" },
-    { name: input.escrivaoName?.trim() || "—", role: "Escrivão" },
+    {
+      name: input.mcName?.trim() || "—",
+      role: "Mestre Conselheiro",
+      signatureDataUrl: input.mcSignatureDataUrl,
+    },
+    {
+      name: input.escrivaoName?.trim() || "—",
+      role: "Escrivão",
+      signatureDataUrl: input.escrivaoSignatureDataUrl,
+    },
   ]);
 
   const pages = doc.getNumberOfPages();

@@ -5,7 +5,15 @@ import { ArrowDownAZ, ArrowUpAZ, Pencil, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useOrgScope } from "@/context/OrgScopeContext";
 import { listRegions, listScopeChapters, saveChapter, setChapterActive } from "@/lib/org.functions";
-import { matchesLooseSearch } from "@/lib/utils";
+import {
+  ORG_TYPES,
+  ORG_TYPE_FILTER_LABELS,
+  ORG_TYPE_LABELS,
+  compareOrgNumbers,
+  normalizeOrgType,
+  type OrgType,
+} from "@/lib/org-types";
+import { matchesLooseSearch, cn } from "@/lib/utils";
 import { ChapterLogoAvatar } from "@/components/ChapterLogoAvatar";
 import { ScopeGuard } from "./regional.index";
 import { PageHeader } from "@/components/PageHeader";
@@ -37,7 +45,8 @@ export const Route = createFileRoute("/_authenticated/_shell/regional/capitulos"
       { title: "Gestão de instituições | Templo Virtual" },
       {
         name: "description",
-        content: "Cadastro e edição das instituições do estado: nome, número, cidade e região.",
+        content:
+          "Cadastro e edição das instituições do estado: tipo, nome, número, cidade e região.",
       },
       { property: "og:title", content: "Gestão de instituições | Templo Virtual" },
       {
@@ -56,11 +65,19 @@ type Draft = {
   number: string;
   city: string;
   region_id: string | null;
+  org_type: OrgType;
 };
 
-type SortKey = "nome" | "numero" | "cidade";
+type SortKey = "nome" | "numero" | "tipo" | "cidade";
+type TypeFilter = "all" | OrgType;
 
-const EMPTY: Draft = { name: "", number: "", city: "", region_id: null };
+const EMPTY: Draft = {
+  name: "",
+  number: "",
+  city: "",
+  region_id: null,
+  org_type: "capitulo",
+};
 
 function ManageChapters() {
   return (
@@ -77,7 +94,8 @@ function ChaptersContent() {
   const qc = useQueryClient();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("nome");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("numero");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const regionScopeId = scope.type === "region" ? scope.id : null;
@@ -104,36 +122,61 @@ function ChaptersContent() {
 
   const resolvedStateId = stateId;
 
+  const typeCounts = useMemo(() => {
+    const counts = Object.fromEntries(ORG_TYPES.map((t) => [t, 0])) as Record<
+      OrgType,
+      number
+    >;
+    for (const c of chapters ?? []) {
+      const t = normalizeOrgType(
+        (c as { org_type?: string | null }).org_type,
+      );
+      counts[t] += 1;
+    }
+    return counts;
+  }, [chapters]);
+
   const visible = useMemo(() => {
     const rows = chapters ?? [];
     const q = search.trim();
-    const filtered = q
-      ? rows.filter((c) => {
-          if (matchesLooseSearch(c.name, q)) return true;
-          if (matchesLooseSearch(c.number, q)) return true;
-          if (c.city && matchesLooseSearch(c.city, q)) return true;
-          if (c.region_name && matchesLooseSearch(c.region_name, q)) return true;
-          return false;
-        })
-      : rows;
+    const filtered = rows.filter((c) => {
+      const orgType = normalizeOrgType(
+        (c as { org_type?: string | null }).org_type,
+      );
+      if (typeFilter !== "all" && orgType !== typeFilter) return false;
+      if (!q) return true;
+      if (matchesLooseSearch(c.name, q)) return true;
+      if (matchesLooseSearch(c.number, q)) return true;
+      if (c.city && matchesLooseSearch(c.city, q)) return true;
+      if (c.region_name && matchesLooseSearch(c.region_name, q)) return true;
+      if (matchesLooseSearch(ORG_TYPE_LABELS[orgType], q)) return true;
+      return false;
+    });
 
     const dir = sortDir === "asc" ? 1 : -1;
     return [...filtered].sort((a, b) => {
       if (sortKey === "numero") {
-        const an = Number(a.number.replace(/\D/g, ""));
-        const bn = Number(b.number.replace(/\D/g, ""));
-        if (!Number.isNaN(an) && !Number.isNaN(bn) && an !== bn) {
-          return (an - bn) * dir;
-        }
-        return a.number.localeCompare(b.number, "pt-BR", { numeric: true }) * dir;
+        return compareOrgNumbers(a.number, b.number) * dir;
+      }
+      if (sortKey === "tipo") {
+        const at = normalizeOrgType(
+          (a as { org_type?: string | null }).org_type,
+        );
+        const bt = normalizeOrgType(
+          (b as { org_type?: string | null }).org_type,
+        );
+        const ai = ORG_TYPES.indexOf(at);
+        const bi = ORG_TYPES.indexOf(bt);
+        if (ai !== bi) return (ai - bi) * dir;
+        return compareOrgNumbers(a.number, b.number) * dir;
       }
       const av = sortKey === "cidade" ? (a.city ?? "") : a.name;
       const bv = sortKey === "cidade" ? (b.city ?? "") : b.name;
       const cmp = av.localeCompare(bv, "pt-BR", { sensitivity: "base" });
       if (cmp !== 0) return cmp * dir;
-      return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }) * dir;
+      return compareOrgNumbers(a.number, b.number) * dir;
     });
-  }, [chapters, search, sortKey, sortDir]);
+  }, [chapters, search, sortKey, sortDir, typeFilter]);
 
   const save = useMutation({
     mutationFn: (d: Draft) =>
@@ -145,6 +188,7 @@ function ChaptersContent() {
           name: d.name,
           number: d.number,
           city: d.city || null,
+          org_type: d.org_type,
         },
       }),
     onSuccess: () => {
@@ -179,6 +223,15 @@ function ChaptersContent() {
     );
   }
 
+  const filterOptions: { value: TypeFilter; label: string; count: number }[] = [
+    { value: "all", label: "Todas", count: (chapters ?? []).length },
+    ...ORG_TYPES.map((t) => ({
+      value: t as TypeFilter,
+      label: ORG_TYPE_FILTER_LABELS[t],
+      count: typeCounts[t],
+    })),
+  ];
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -191,6 +244,8 @@ function ChaptersContent() {
               setDraft({
                 ...EMPTY,
                 region_id: regionScopeId,
+                org_type:
+                  typeFilter !== "all" ? typeFilter : EMPTY.org_type,
               })
             }
           >
@@ -198,6 +253,27 @@ function ChaptersContent() {
           </Button>
         }
       />
+
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {filterOptions.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setTypeFilter(opt.value)}
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              typeFilter === opt.value
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-background text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {opt.label}
+            {opt.count > 0 ? (
+              <span className="ml-1 opacity-80">({opt.count})</span>
+            ) : null}
+          </button>
+        ))}
+      </div>
 
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
         <div className="relative min-w-0">
@@ -228,8 +304,9 @@ function ChaptersContent() {
             <SelectValue placeholder="Ordenar" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="nome">Nome</SelectItem>
             <SelectItem value="numero">Número</SelectItem>
+            <SelectItem value="tipo">Tipo</SelectItem>
+            <SelectItem value="nome">Nome</SelectItem>
             <SelectItem value="cidade">Cidade</SelectItem>
           </SelectContent>
         </Select>
@@ -253,60 +330,92 @@ function ChaptersContent() {
         <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
           {(chapters ?? []).length === 0
             ? "Nenhuma instituição neste escopo."
-            : "Nenhuma instituição encontrada com essa busca."}
+            : typeFilter !== "all"
+              ? `Nenhuma instituição do tipo ${ORG_TYPE_FILTER_LABELS[typeFilter]}.`
+              : "Nenhuma instituição encontrada com essa busca."}
         </Card>
       )}
 
       <div className="space-y-2">
-        {visible.map((c) => (
-          <Card key={c.id} className="flex items-center gap-3 rounded-[12px] p-4">
-            <ChapterLogoAvatar
-              logoPath={c.logo_url}
-              number={c.number}
-              color={c.primary_color}
-              className="h-10 w-10 rounded-[10px]"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold">{c.name}</div>
-              <div className="truncate text-xs text-muted-foreground">
-                Nº {c.number}
-                {c.city ? ` · ${c.city}` : ""}
-                {c.region_name ? ` · ${c.region_name}` : " · sem região"}
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Switch
-                checked={c.active}
-                onCheckedChange={(v) => toggleActive.mutate({ id: c.id, active: v })}
-                aria-label="Instituição ativa"
+        {visible.map((c) => {
+          const orgType = normalizeOrgType(
+            (c as { org_type?: string | null }).org_type,
+          );
+          return (
+            <Card key={c.id} className="flex items-center gap-3 rounded-[12px] p-4">
+              <ChapterLogoAvatar
+                logoPath={c.logo_url}
+                number={c.number}
+                color={c.primary_color}
+                className="h-10 w-10 rounded-[10px]"
               />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setDraft({
-                    id: c.id,
-                    name: c.name,
-                    number: c.number,
-                    city: c.city ?? "",
-                    region_id: c.region_id,
-                  })
-                }
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </div>
-          </Card>
-        ))}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold">{c.name}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {ORG_TYPE_LABELS[orgType]} · Nº {c.number}
+                  {c.city ? ` · ${c.city}` : ""}
+                  {c.region_name ? ` · ${c.region_name}` : " · sem região"}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Switch
+                  checked={c.active}
+                  onCheckedChange={(v) =>
+                    toggleActive.mutate({ id: c.id, active: v })
+                  }
+                  aria-label="Instituição ativa"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setDraft({
+                      id: c.id,
+                      name: c.name,
+                      number: c.number,
+                      city: c.city ?? "",
+                      region_id: c.region_id,
+                      org_type: orgType,
+                    })
+                  }
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{draft?.id ? "Editar instituição" : "Nova instituição"}</DialogTitle>
+            <DialogTitle>
+              {draft?.id ? "Editar instituição" : "Nova instituição"}
+            </DialogTitle>
           </DialogHeader>
           {draft && (
             <div className="space-y-3">
+              <div>
+                <Label>Tipo</Label>
+                <Select
+                  value={draft.org_type}
+                  onValueChange={(v) =>
+                    setDraft({ ...draft, org_type: v as OrgType })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORG_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {ORG_TYPE_LABELS[t]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label htmlFor="ch-name">Nome</Label>
                 <Input
@@ -321,7 +430,9 @@ function ChaptersContent() {
                   <Input
                     id="ch-number"
                     value={draft.number}
-                    onChange={(e) => setDraft({ ...draft, number: e.target.value })}
+                    onChange={(e) =>
+                      setDraft({ ...draft, number: e.target.value })
+                    }
                   />
                 </div>
                 <div>
@@ -329,7 +440,9 @@ function ChaptersContent() {
                   <Input
                     id="ch-city"
                     value={draft.city}
-                    onChange={(e) => setDraft({ ...draft, city: e.target.value })}
+                    onChange={(e) =>
+                      setDraft({ ...draft, city: e.target.value })
+                    }
                   />
                 </div>
               </div>
@@ -384,4 +497,3 @@ function ChaptersContent() {
     </div>
   );
 }
-

@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatDateBR } from "@/lib/format";
 import { fromAppTzDateTimeLocal, toAppTzDateTimeLocal, todayYmd } from "@/lib/timezone";
 import { listMembers } from "@/lib/members.functions";
@@ -89,7 +90,9 @@ export const Route = createFileRoute("/_authenticated/_shell/sindicancias/fichas
 function Fichas() {
   const { active } = useActiveChapter();
   const { canManage } = useCommissionAccess();
-  const writable = canManage("sindicancias");
+  const { canScreen } = useChapterAccess();
+  const writable =
+    canScreen("sindicancias_fichas", "edit") || canManage("sindicancias");
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
   const [open, setOpen] = useState(false);

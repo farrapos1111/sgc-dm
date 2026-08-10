@@ -129,6 +129,7 @@ export type Database = {
           chapter_id: string
           created_at: string
           created_by: string | null
+          custom_category_id: string | null
           description: string | null
           dress_code: string | null
           end_at: string | null
@@ -137,6 +138,7 @@ export type Database = {
           location: string | null
           lodge_id: string | null
           mandatory: boolean
+          org_mandatory_date_id: string | null
           public_open: boolean
           related_event_id: string | null
           start_at: string
@@ -148,6 +150,7 @@ export type Database = {
           chapter_id: string
           created_at?: string
           created_by?: string | null
+          custom_category_id?: string | null
           description?: string | null
           dress_code?: string | null
           end_at?: string | null
@@ -156,6 +159,7 @@ export type Database = {
           location?: string | null
           lodge_id?: string | null
           mandatory?: boolean
+          org_mandatory_date_id?: string | null
           public_open?: boolean
           related_event_id?: string | null
           start_at: string
@@ -167,6 +171,7 @@ export type Database = {
           chapter_id?: string
           created_at?: string
           created_by?: string | null
+          custom_category_id?: string | null
           description?: string | null
           dress_code?: string | null
           end_at?: string | null
@@ -175,6 +180,7 @@ export type Database = {
           location?: string | null
           lodge_id?: string | null
           mandatory?: boolean
+          org_mandatory_date_id?: string | null
           public_open?: boolean
           related_event_id?: string | null
           start_at?: string
@@ -187,6 +193,13 @@ export type Database = {
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_custom_category_id_fkey"
+            columns: ["custom_category_id"]
+            isOneToOne: false
+            referencedRelation: "chapter_calendar_categories"
             referencedColumns: ["id"]
           },
           {
@@ -380,6 +393,44 @@ export type Database = {
           },
         ]
       }
+      chapter_calendar_categories: {
+        Row: {
+          active: boolean
+          chapter_id: string
+          color: string
+          created_at: string
+          icon: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          chapter_id: string
+          color?: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          active?: boolean
+          chapter_id?: string
+          color?: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_calendar_categories_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chapter_lodges: {
         Row: {
           address: string | null
@@ -481,6 +532,7 @@ export type Database = {
           logo_url: string | null
           name: string
           number: string
+          org_type: string
           primary_color: string
           region_id: string | null
           settings: Json
@@ -496,6 +548,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           number: string
+          org_type?: string
           primary_color?: string
           region_id?: string | null
           settings?: Json
@@ -511,6 +564,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           number?: string
+          org_type?: string
           primary_color?: string
           region_id?: string | null
           settings?: Json
@@ -1873,6 +1927,51 @@ export type Database = {
           },
         ]
       }
+      member_office_signatures: {
+        Row: {
+          chapter_id: string
+          created_at: string
+          id: string
+          member_id: string
+          position_code: string
+          signature_data_url: string
+          updated_at: string
+        }
+        Insert: {
+          chapter_id: string
+          created_at?: string
+          id?: string
+          member_id: string
+          position_code: string
+          signature_data_url: string
+          updated_at?: string
+        }
+        Update: {
+          chapter_id?: string
+          created_at?: string
+          id?: string
+          member_id?: string
+          position_code?: string
+          signature_data_url?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_office_signatures_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_office_signatures_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_positions: {
         Row: {
           chapter_id: string
@@ -2574,7 +2673,7 @@ export type Database = {
           {
             foreignKeyName: "session_minutes_calendar_event_id_fkey"
             columns: ["calendar_event_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "calendar_events"
             referencedColumns: ["id"]
           },
@@ -3176,6 +3275,7 @@ export type Database = {
           id: string
           name: string
           number: string
+          org_type: string
         }[]
       }
       list_investigation_signup_members: {
@@ -3478,7 +3578,6 @@ export type Database = {
         | "sessao_ritualistica"
         | "evento"
         | "filantropia"
-        | "hospitalaria"
         | "entretenimento"
         | "sessao_administrativa"
         | "sindicancia"
@@ -3638,7 +3737,6 @@ export const Constants = {
         "sessao_ritualistica",
         "evento",
         "filantropia",
-        "hospitalaria",
         "entretenimento",
         "sessao_administrativa",
         "sindicancia",

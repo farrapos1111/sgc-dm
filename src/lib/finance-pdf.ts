@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import { loadLogoDataUrl } from "@/lib/chapter-logo";
+import { ensurePdfLogoDataUrl, loadLogoDataUrl } from "@/lib/chapter-logo";
 import { formatBRL, formatDateBR } from "@/lib/format";
 
 type Entry = {
@@ -28,7 +28,11 @@ type FinancePdfInput = {
   /** Valor do card de saldo (atual ou final do período). */
   cashBalance?: number | null;
   cashBalanceLabel?: string;
-  signers: Array<{ role: string; name: string }>;
+  signers: Array<{
+    role: string;
+    name: string;
+    signatureDataUrl?: string | null;
+  }>;
 };
 
 const MARGIN = 15;
@@ -86,7 +90,9 @@ export async function exportCashPdf(input: FinancePdfInput) {
   const pageH = doc.internal.pageSize.getHeight();
   const contentW = pageW - MARGIN * 2;
 
-  const logo = input.logoDataUrl ?? (await loadLogoDataUrl(input.logoPath));
+  const logo = await ensurePdfLogoDataUrl(
+    input.logoDataUrl ?? (await loadLogoDataUrl(input.logoPath)),
+  );
   let y = MARGIN;
 
   if (logo) {
@@ -325,6 +331,30 @@ export async function exportCashPdf(input: FinancePdfInput) {
   sy += 22;
 
   for (const signer of input.signers) {
+    if (signer.signatureDataUrl?.startsWith("data:image/")) {
+      try {
+        const props = doc.getImageProperties(signer.signatureDataUrl);
+        const maxW = 55;
+        const maxH = 18;
+        const ratio = props.width / props.height;
+        let w = maxW;
+        let h = w / ratio;
+        if (h > maxH) {
+          h = maxH;
+          w = h * ratio;
+        }
+        doc.addImage(
+          signer.signatureDataUrl,
+          (pageW - w) / 2,
+          sy - h + 2,
+          w,
+          h,
+        );
+        sy += 4;
+      } catch {
+        /* imagem inválida — cai na linha */
+      }
+    }
     doc.setDrawColor(120, 120, 120);
     doc.line(MARGIN + 20, sy, pageW - MARGIN - 20, sy);
     sy += 5;

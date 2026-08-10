@@ -98,6 +98,9 @@ function Checkins() {
   useEventCheckinRealtime({ enabled: !!active?.chapter_id });
 
   const [search, setSearch] = useState("");
+  const [checkinFilter, setCheckinFilter] = useState<
+    "all" | "presente" | "ausente"
+  >("all");
   const [sortKey, setSortKey] = useState<SortKey>("nome");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   // Câmera começa pausada para a lista de ingressos caber na tela no mobile
@@ -127,9 +130,24 @@ function Checkins() {
   const tickets = ticketsQ.data?.tickets ?? [];
   const ticketsTruncated = Boolean(ticketsQ.data?.truncated);
 
+  const checkinCounts = useMemo(() => {
+    let presente = 0;
+    let ausente = 0;
+    for (const t of tickets) {
+      if (t.already_checked_in) presente += 1;
+      else ausente += 1;
+    }
+    return { presente, ausente };
+  }, [tickets]);
+
   const visible = useMemo(() => {
     const q = search.trim();
     let rows = tickets;
+    if (checkinFilter === "presente") {
+      rows = rows.filter((t) => t.already_checked_in);
+    } else if (checkinFilter === "ausente") {
+      rows = rows.filter((t) => !t.already_checked_in);
+    }
     if (q) {
       const qNum = Number(q.replace(",", "."));
       const hasNum = q.replace(",", ".").match(/^\d+(\.\d+)?$/) && !Number.isNaN(qNum);
@@ -161,7 +179,7 @@ function Checkins() {
             : (b.seller_name ?? "");
       return av.localeCompare(bv, "pt-BR", { sensitivity: "base" }) * dir;
     });
-  }, [tickets, search, sortKey, sortDir]);
+  }, [tickets, search, sortKey, sortDir, checkinFilter]);
 
   const lookup = useMutation({
     mutationFn: (qr: string) =>
@@ -336,6 +354,34 @@ function Checkins() {
             <ArrowDownAZ className="h-4 w-4" />
           )}
         </Button>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        {(
+          [
+            ["all", "Todos"],
+            ["presente", `Presentes (${checkinCounts.presente})`],
+            ["ausente", `Ausentes (${checkinCounts.ausente})`],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setCheckinFilter(key)}
+            className="cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-medium"
+            style={
+              checkinFilter === key
+                ? {
+                    backgroundColor: primary || "var(--chapter-primary)",
+                    borderColor: primary || "var(--chapter-primary)",
+                    color: "#fff",
+                  }
+                : undefined
+            }
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {ticketsQ.isLoading ? (
