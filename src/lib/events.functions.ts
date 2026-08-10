@@ -320,6 +320,55 @@ export const updateEventArtwork = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Atualiza dados cadastrais do evento (nome, status, meta, etc.). */
+export const updateEvent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        chapterId: z.string().uuid(),
+        name: z.string().min(2).max(120),
+        description: z.string().max(2000).optional().default(""),
+        location: z.string().max(200).optional().default(""),
+        starts_at: z.string().min(1),
+        ends_at: z.string().nullable().optional(),
+        goal_amount: z.number().min(0).default(0),
+        status: z.enum(["rascunho", "publicado", "encerrado"]),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: existing, error: exErr } = await context.supabase
+      .from("events")
+      .select("id, chapter_id")
+      .eq("id", data.id)
+      .eq("chapter_id", data.chapterId)
+      .maybeSingle();
+    if (exErr) throw new Error(exErr.message);
+    if (!existing) throw new Error("Evento não encontrado");
+
+    const { data: row, error } = await context.supabase
+      .from("events")
+      .update({
+        name: data.name.trim(),
+        description: data.description ?? "",
+        location: data.location ?? "",
+        starts_at: data.starts_at,
+        ends_at: data.ends_at || null,
+        goal_amount: data.goal_amount,
+        status: data.status,
+      })
+      .eq("id", data.id)
+      .eq("chapter_id", data.chapterId)
+      .select(
+        "id, name, description, location, starts_at, ends_at, goal_amount, status",
+      )
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
 export const createTicketType = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>

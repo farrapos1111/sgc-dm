@@ -19,6 +19,7 @@ import {
   createTable,
   deleteTable,
   deleteEvent,
+  updateEvent,
   updateEventArtwork,
   updateSoldTicketType,
 } from "@/lib/events.functions";
@@ -81,6 +82,11 @@ import {
   isEventFinanceOpen,
 } from "@/lib/event-lifecycle";
 import {
+  fromAppTzDateTimeLocal,
+  toAppTzDateTimeLocal,
+} from "@/lib/timezone";
+import { Textarea } from "@/components/ui/textarea";
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -123,7 +129,7 @@ function EventoDetalhe() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { active } = useActiveChapter();
-  const { can: canPerm, canDo } = useChapterAccess();
+  const { can: canPerm, canDo, canScreen } = useChapterAccess();
   const { data } = useSuspenseQuery(eventQO(id));
   const artworkUrl = useEventArtwork(data.event.ticket_artwork_url);
 
@@ -154,6 +160,10 @@ function EventoDetalhe() {
   const [tab, setTab] = useState("resumo");
   const canDelete = canDo("eventos.manage");
   const canManageTickets = canDo("eventos.manage");
+  const canEditEvent =
+    canDo("eventos.manage") ||
+    canPerm("admin") ||
+    canScreen("eventos", "edit");
   const financeWindowOpen = isEventFinanceOpen(
     data.event.starts_at,
     data.event.status,
@@ -302,11 +312,17 @@ function EventoDetalhe() {
                 qc.invalidateQueries({ queryKey: ["event", id] })
               }
             />
-            {data.event.description && (
-              <Card className="rounded-[12px] p-5 md:col-span-2 text-sm text-muted-foreground whitespace-pre-wrap">
-                {data.event.description}
-              </Card>
-            )}
+            <EventDetailsCard
+              event={data.event}
+              canEdit={canEditEvent}
+              primary={active?.chapter.primary_color}
+              displayStatusLabel={statusLabel}
+              onSaved={() => {
+                void qc.invalidateQueries({ queryKey: ["event", id] });
+                void qc.invalidateQueries({ queryKey: ["events"] });
+                void qc.invalidateQueries({ queryKey: ["cash-categories"] });
+              }}
+            />
           </div>
         </TabsContent>
 
@@ -397,6 +413,273 @@ function EventoDetalhe() {
 }
 
 const ARTWORK_MAX_BYTES = 5 * 1024 * 1024;
+
+type EventEditFields = {
+  id: string;
+  chapter_id: string;
+  name: string;
+  description: string | null;
+  location: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  goal_amount: number;
+  status: string;
+};
+
+function EventDetailsCard({
+  event,
+  canEdit,
+  primary,
+  displayStatusLabel,
+  onSaved,
+}: {
+  event: EventEditFields;
+  canEdit: boolean;
+  primary?: string;
+  displayStatusLabel: string;
+  onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    name: event.name,
+    description: event.description ?? "",
+    location: event.location ?? "",
+    starts_at: toAppTzDateTimeLocal(event.starts_at),
+    ends_at: event.ends_at ? toAppTzDateTimeLocal(event.ends_at) : "",
+    goal_amount: Number(event.goal_amount) || 0,
+    status: (["rascunho", "publicado", "encerrado"].includes(event.status)
+      ? event.status
+      : "rascunho") as "rascunho" | "publicado" | "encerrado",
+  });
+
+  useEffect(() => {
+    if (editing) return;
+    setForm({
+      name: event.name,
+      description: event.description ?? "",
+      location: event.location ?? "",
+      starts_at: toAppTzDateTimeLocal(event.starts_at),
+      ends_at: event.ends_at ? toAppTzDateTimeLocal(event.ends_at) : "",
+      goal_amount: Number(event.goal_amount) || 0,
+      status: (["rascunho", "publicado", "encerrado"].includes(event.status)
+        ? event.status
+        : "rascunho") as "rascunho" | "publicado" | "encerrado",
+    });
+  }, [event, editing]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!form.name.trim() || !form.starts_at) {
+        throw new Error("Preencha nome e data de início");
+      }
+      const starts = fromAppTzDateTimeLocal(form.starts_at);
+      if (Number.isNaN(starts.getTime())) {
+        throw new Error("Data de início inválida");
+      }
+      let endsIso: string | null = null;
+      if (form.ends_at) {
+        const ends = fromAppTzDateTimeLocal(form.ends_at);
+        if (Number.isNaN(ends.getTime())) {
+          throw new Error("Data de término inválida");
+        }
+        endsIso = ends.toISOString();
+      }
+      return updateEvent({
+        data: {
+          id: event.id,
+          chapterId: event.chapter_id,
+          name: form.name.trim(),
+          description: form.description,
+          location: form.location,
+          starts_at: starts.toISOString(),
+          ends_at: endsIso,
+          goal_amount: Number(form.goal_amount) || 0,
+          status: form.status,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Evento atualizado");
+      setEditing(false);
+      onSaved();
+    },
+    onError: (e: unknown) =>
+      toast.error(mutationErrorMessage(e, "Erro ao salvar")),
+  });
+
+  const statusDbLabel =
+    event.status === "publicado"
+      ? "Publicado"
+      : event.status === "encerrado"
+        ? "Encerrado"
+        : "Rascunho";
+
+  if (!editing) {
+    return (
+      <Card className="rounded-[12px] p-5 space-y-3 md:col-span-2">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm text-muted-foreground">Informações</div>
+            <div className="mt-1 text-lg font-semibold">{event.name}</div>
+          </div>
+          {canEdit ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setEditing(true)}
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </Button>
+          ) : null}
+        </div>
+        <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+          <div>
+            <span className="text-muted-foreground">Status: </span>
+            {displayStatusLabel}
+            <span className="text-muted-foreground">
+              {" "}
+              (cadastro: {statusDbLabel})
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Meta: </span>
+            {formatBRL(Number(event.goal_amount) || 0)}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Início: </span>
+            {formatDateTimeBR(event.starts_at)}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Término: </span>
+            {event.ends_at ? formatDateTimeBR(event.ends_at) : "—"}
+          </div>
+          <div className="sm:col-span-2">
+            <span className="text-muted-foreground">Local: </span>
+            {event.location?.trim() || "—"}
+          </div>
+        </div>
+        {event.description?.trim() ? (
+          <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+            {event.description}
+          </p>
+        ) : null}
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="rounded-[12px] p-5 space-y-4 md:col-span-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm font-medium">Editar evento</div>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={save.isPending}
+          onClick={() => setEditing(false)}
+        >
+          Cancelar
+        </Button>
+      </div>
+      <div>
+        <Label className="mb-1.5 block text-sm">Nome *</Label>
+        <Input
+          value={form.name}
+          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+        />
+      </div>
+      <div>
+        <Label className="mb-1.5 block text-sm">Descrição</Label>
+        <Textarea
+          value={form.description}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, description: e.target.value }))
+          }
+        />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <Label className="mb-1.5 block text-sm">Local</Label>
+          <Input
+            value={form.location}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, location: e.target.value }))
+            }
+          />
+        </div>
+        <div>
+          <Label className="mb-1.5 block text-sm">Meta (R$)</Label>
+          <Input
+            type="number"
+            min={0}
+            step="0.01"
+            value={form.goal_amount}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                goal_amount: Number(e.target.value),
+              }))
+            }
+          />
+        </div>
+        <div>
+          <Label className="mb-1.5 block text-sm">Início *</Label>
+          <Input
+            type="datetime-local"
+            value={form.starts_at}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, starts_at: e.target.value }))
+            }
+          />
+        </div>
+        <div>
+          <Label className="mb-1.5 block text-sm">Término</Label>
+          <Input
+            type="datetime-local"
+            value={form.ends_at}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, ends_at: e.target.value }))
+            }
+          />
+        </div>
+        <div>
+          <Label className="mb-1.5 block text-sm">Status</Label>
+          <Select
+            value={form.status}
+            onValueChange={(v) =>
+              setForm((f) => ({
+                ...f,
+                status: v as "rascunho" | "publicado" | "encerrado",
+              }))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="rascunho">Rascunho</SelectItem>
+              <SelectItem value="publicado">Publicado</SelectItem>
+              <SelectItem value="encerrado">Encerrado</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            “Fechado” na lista aparece automaticamente 30 dias após o início,
+            mesmo com status Publicado.
+          </p>
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <Button
+          onClick={() => save.mutate()}
+          disabled={save.isPending}
+          style={primary ? { backgroundColor: primary } : undefined}
+        >
+          {save.isPending ? "Salvando…" : "Salvar alterações"}
+        </Button>
+      </div>
+    </Card>
+  );
+}
 
 function TicketArtworkCard({
   eventId,
