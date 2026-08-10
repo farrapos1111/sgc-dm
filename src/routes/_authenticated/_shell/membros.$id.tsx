@@ -137,10 +137,12 @@ function MembroPerfil() {
     originChapter?: { id: string; name: string; number: string } | null;
     initiationChapter?: { id: string; name: string; number: string } | null;
   };
-  const chapterId =
-    (member as { chapter_id?: string }).chapter_id ?? active?.chapter_id ?? "";
+  const originChapterId =
+    (member as { chapter_id?: string }).chapter_id ?? "";
+  /** Capítulo do contexto atual (login) — cargos/comissões editáveis só deste. */
+  const chapterId = active?.chapter_id ?? originChapterId;
   const isOriginChapter = Boolean(
-    active && active.chapter_id === (member as { chapter_id: string }).chapter_id,
+    active && active.chapter_id === originChapterId,
   );
 
   const needsOrg = tab === "cargos";
@@ -659,27 +661,50 @@ function MembroPerfil() {
             <>
               <div className="mb-4">
                 <PositionHistoryCollapsible
-                  title="Histórico de cargos em outros capítulos"
-                  items={(orgData.positions as {
-                    chapter_id?: string;
-                    term_year: number;
-                    term_semester: number;
-                    position?: { label?: string } | null;
-                    chapter?: { name?: string; number?: string } | null;
-                  }[])
-                    .filter(
-                      (p) =>
-                        p.chapter_id &&
-                        p.chapter_id !== chapterId &&
-                        p.chapter?.name,
-                    )
-                    .map((p) => ({
-                      label: p.position?.label ?? "Cargo",
-                      term_year: p.term_year,
-                      term_semester: p.term_semester,
-                      chapter_name: p.chapter?.name ?? "",
-                      chapter_number: p.chapter?.number,
-                    }))}
+                  title="Histórico em outros capítulos"
+                  items={[
+                    ...(orgData.positions as {
+                      chapter_id?: string;
+                      term_year: number;
+                      term_semester: number;
+                      position?: { label?: string } | null;
+                      chapter?: { name?: string; number?: string } | null;
+                    }[])
+                      .filter(
+                        (p) =>
+                          p.chapter_id &&
+                          p.chapter_id !== chapterId &&
+                          p.chapter?.name,
+                      )
+                      .map((p) => ({
+                        label: p.position?.label ?? "Cargo",
+                        term_year: p.term_year,
+                        term_semester: p.term_semester,
+                        chapter_name: p.chapter?.name ?? "",
+                        chapter_number: p.chapter?.number,
+                      })),
+                    ...(orgData.commissions as {
+                      chapter_id?: string;
+                      term_year: number;
+                      term_semester: number;
+                      role?: string;
+                      commission?: { label?: string } | null;
+                      chapter?: { name?: string; number?: string } | null;
+                    }[])
+                      .filter(
+                        (c) =>
+                          c.chapter_id &&
+                          c.chapter_id !== chapterId &&
+                          c.chapter?.name,
+                      )
+                      .map((c) => ({
+                        label: `${c.commission?.label ?? "Comissão"} (${COMMISSION_ROLE_LABELS[c.role ?? ""] ?? c.role ?? "membro"})`,
+                        term_year: c.term_year,
+                        term_semester: c.term_semester,
+                        chapter_name: c.chapter?.name ?? "",
+                        chapter_number: c.chapter?.number,
+                      })),
+                  ]}
                 />
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -741,7 +766,7 @@ function MembroPerfil() {
                 <Card className="rounded-[12px] p-5">
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-muted-foreground">
-                      Histórico em comissões
+                      Comissões deste capítulo
                     </h3>
                     {canEditOrg && (
                       <PickerDialog

@@ -26,6 +26,7 @@ import {
 } from "@/lib/finance.functions";
 import {
   getChapterDefaultDuesAmount,
+  isChapterDuesEnabled,
   type DueMemberLite,
 } from "@/lib/dues-rules";
 import {
@@ -88,6 +89,7 @@ function Atrasados() {
   const [onlyOverdue, setOnlyOverdue] = useState(false);
 
   const chapterId = active?.chapter_id;
+  const duesEnabled = isChapterDuesEnabled(active?.chapter);
   const defaultFromSettings = getChapterDefaultDuesAmount(active?.chapter);
   const pixKey =
     typeof active?.chapter?.settings?.pix_key === "string"
@@ -104,7 +106,7 @@ function Atrasados() {
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: duesYearKey(chapterId ?? "", year),
-    enabled: !!chapterId,
+    enabled: !!chapterId && duesEnabled,
     staleTime: DUES_STALE_MS,
     placeholderData: keepPreviousData,
     queryFn: async () =>
@@ -115,7 +117,7 @@ function Atrasados() {
 
   const { data: signers = [] } = useQuery({
     queryKey: ["finance-signers", chapterId],
-    enabled: !!chapterId,
+    enabled: !!chapterId && duesEnabled,
     staleTime: 5 * 60_000,
     queryFn: () =>
       getFinanceSigners({ data: { chapterId: chapterId! } }),
@@ -209,6 +211,21 @@ function Atrasados() {
         title="Selecione um capítulo"
         description="Escolha um capítulo ativo para ver as mensalidades."
       />
+    );
+  }
+
+  if (!duesEnabled) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Atrasados" />
+        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+          Este capítulo não cobra mensalidade. Ative a opção em{" "}
+          <span className="font-medium text-foreground">
+            Configurações → Tesouraria
+          </span>
+          .
+        </Card>
+      </div>
     );
   }
 

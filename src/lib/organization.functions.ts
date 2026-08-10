@@ -74,10 +74,23 @@ export const listCatalog = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => chapterInput.parse(raw))
   .handler(async ({ data, context }) => {
-    const [pos, com] = await Promise.all([
+    const { data: chapter, error: chErr } = await context.supabase
+      .from("chapters")
+      .select("id, org_type")
+      .eq("id", data.chapterId)
+      .single();
+    if (chErr) throw new Error(chErr.message);
+    const orgType = (chapter?.org_type as string | null) ?? "capitulo";
+
+    const [pos, scopes, com] = await Promise.all([
       context.supabase
         .from("positions")
         .select("id, code, label, scope, sort_order")
+        .order("sort_order"),
+      context.supabase
+        .from("position_org_types")
+        .select("position_id, org_type, role_group, sort_order")
+        .eq("org_type", orgType)
         .order("sort_order"),
       context.supabase
         .from("commissions")
@@ -86,9 +99,54 @@ export const listCatalog = createServerFn({ method: "POST" })
         .order("sort_order"),
     ]);
     if (pos.error) throw new Error(pos.error.message);
+    if (scopes.error) throw new Error(scopes.error.message);
     if (com.error) throw new Error(com.error.message);
+
+    const byId = new Map((pos.data ?? []).map((p) => [p.id, p]));
+    const scoped = (scopes.data ?? [])
+      .map((s) => {
+        const p = byId.get(s.position_id);
+        if (!p || p.scope === "regional") return null;
+        return {
+          id: p.id,
+          code: p.code,
+          label: p.label,
+          scope: p.scope,
+          sort_order: s.sort_order,
+          role_group: s.role_group as
+            | "ritualisticos"
+            | "conselho"
+            | "comissoes"
+            | null,
+        };
+      })
+      .filter(Boolean) as Array<{
+      id: number;
+      code: string;
+      label: string;
+      scope: string;
+      sort_order: number;
+      role_group: "ritualisticos" | "conselho" | "comissoes" | null;
+    }>;
+
+    // Fallback legado: se ainda não houver vínculo para o tipo, mostra catálogo clássico
+    const positions =
+      scoped.length > 0
+        ? scoped
+        : (pos.data ?? [])
+            .filter((p) => p.scope !== "regional")
+            .map((p) => ({
+              ...p,
+              role_group:
+                p.scope === "consultivo"
+                  ? ("conselho" as const)
+                  : p.scope === "comissao"
+                    ? ("comissoes" as const)
+                    : ("ritualisticos" as const),
+            }));
+
     return {
-      positions: (pos.data ?? []).filter((p) => p.scope !== "regional"),
+      positions,
       commissions: (com.data ?? []).map((c) => ({
         id: c.id,
         code: c.code,

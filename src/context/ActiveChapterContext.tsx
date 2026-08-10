@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type RoleName } from "@/lib/permissions";
 
@@ -22,6 +22,7 @@ export type Membership = {
     city: string | null;
     primary_color: string;
     logo_url: string | null;
+    org_type?: string | null;
     settings?: Record<string, any> | null;
   };
   role: {
@@ -67,23 +68,45 @@ type ActiveChapterContextValue = {
 const LEGACY_STORAGE_KEY = "sgcdm.activeChapterId";
 /** Escolha só na aba/sessão atual; limpa no logout. */
 const SESSION_KEY = "sgcdm.sessionChapterId";
-const ROLE_VIEW_KEY = "sgcdm.roleView";
+/** Legado global — migrado para chave por capítulo. */
+const LEGACY_ROLE_VIEW_KEY = "sgcdm.roleView";
+const ROLE_VIEW_PREFIX = "sgcdm.roleView.";
 
 export function clearChapterSessionStorage() {
   if (typeof window === "undefined") return;
   window.sessionStorage.removeItem(SESSION_KEY);
   window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+  window.localStorage.removeItem(LEGACY_ROLE_VIEW_KEY);
+  const toRemove: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const k = window.localStorage.key(i);
+    if (k?.startsWith(ROLE_VIEW_PREFIX)) toRemove.push(k);
+  }
+  for (const k of toRemove) window.localStorage.removeItem(k);
 }
 
 const ActiveChapterContext = createContext<ActiveChapterContextValue | null>(
   null,
 );
 
-function readStoredRoleView(): RoleName | null {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(ROLE_VIEW_KEY);
+function roleViewStorageKey(chapterId: string): string {
+  return `${ROLE_VIEW_PREFIX}${chapterId}`;
+}
+
+function readStoredRoleView(chapterId: string | null): RoleName | null {
+  if (typeof window === "undefined" || !chapterId) return null;
+  window.localStorage.removeItem(LEGACY_ROLE_VIEW_KEY);
+  const raw = window.localStorage.getItem(roleViewStorageKey(chapterId));
   if (!raw) return null;
   return (ROLE_VIEW_ORDER as string[]).includes(raw) ? (raw as RoleName) : null;
+}
+
+function writeStoredRoleView(chapterId: string | null, name: RoleName | null) {
+  if (typeof window === "undefined" || !chapterId) return;
+  window.localStorage.removeItem(LEGACY_ROLE_VIEW_KEY);
+  const key = roleViewStorageKey(chapterId);
+  if (name) window.localStorage.setItem(key, name);
+  else window.localStorage.removeItem(key);
 }
 
 function readSessionChapterId(): string | null {
@@ -109,6 +132,29 @@ function roleViewsForChapter(
   );
 }
 
+/** Preferência estável: membro base primeiro (poder vem dos cargos); senão ROLE_VIEW_ORDER. */
+function pickPreferredMembership(
+  memberships: Membership[],
+  chapterId: string,
+): Membership | null {
+  const inChapter = memberships.filter((m) => m.chapter_id === chapterId);
+  if (inChapter.length === 0) return null;
+  const membro = inChapter.find((m) => m.role.name === "membro");
+  if (membro) return membro;
+  for (const role of ROLE_VIEW_ORDER) {
+    const match = inChapter.find((m) => m.role.name === role);
+    if (match) return match;
+  }
+  return inChapter[0] ?? null;
+}
+
+const RBAC_QUERY_PREFIXES = [
+  "my-positions",
+  "my-commissions",
+  "sindicancia-access",
+  "my-chapter-access-labels",
+] as const;
+
 export function ActiveChapterProvider({
   userId,
   children,
@@ -116,18 +162,49 @@ export function ActiveChapterProvider({
   userId: string;
   children: ReactNode;
 }) {
+  const queryClient = useQueryClient();
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["memberships", userId],
     queryFn: async (): Promise<Membership[]> => {
       const { data, error } = await supabase
         .from("chapter_members")
         .select(
-          "id, chapter_id, role_id, active, chapter:chapters(id, name, number, city, primary_color, logo_url, settings), role:roles(id, name, label)",
+          "id, chapter_id, role_id, active, chapter:chapters(id, name, number, city, primary_color, logo_url, org_type, settings), role:roles(id, name, label)",
         )
         .eq("user_id", userId)
         .eq("active", true);
       if (error) throw error;
-      return (data ?? []) as unknown as Membership[];
+      const rows = (data ?? []) as unknown as Membership[];
+
+      const isAdminTotal = rows.some((m) => m.role?.name === "admin_total");
+      if (isAdminTotal || rows.length === 0) return rows;
+
+      const orgTypes = [
+        ...new Set(
+          rows.map((m) =>
+            (m.chapter?.org_type || "capitulo").toLowerCase(),
+          ),
+        ),
+      ];
+      const allowed = new Set<string>();
+      await Promise.all(
+        orgTypes.map(async (ot) => {
+          const { data: ok, error: rpcErr } = await supabase.rpc(
+            "platform_org_type_has_any_view" as never,
+            { _org_type: ot } as never,
+          );
+          if (rpcErr) {
+            // Se a RPC falhar, não esconder instituições (fail-open).
+            allowed.add(ot);
+            return;
+          }
+          if (ok === true) allowed.add(ot);
+        }),
+      );
+
+      return rows.filter((m) =>
+        allowed.has((m.chapter?.org_type || "capitulo").toLowerCase()),
+      );
     },
   });
 
@@ -154,20 +231,38 @@ export function ActiveChapterProvider({
   );
 
   const [roleView, setRoleViewState] = useState<RoleName | null>(() =>
-    readStoredRoleView(),
+    readStoredRoleView(readSessionChapterId()),
   );
 
-  const setRoleView = useCallback((name: RoleName | null) => {
-    setRoleViewState(name);
-    if (typeof window === "undefined") return;
-    if (name) window.localStorage.setItem(ROLE_VIEW_KEY, name);
-    else window.localStorage.removeItem(ROLE_VIEW_KEY);
-  }, []);
+  const setRoleView = useCallback(
+    (name: RoleName | null, chapterId: string | null = activeChapterId) => {
+      setRoleViewState(name);
+      writeStoredRoleView(chapterId, name);
+    },
+    [activeChapterId],
+  );
+
+  const invalidateRbacQueries = useCallback(() => {
+    for (const prefix of RBAC_QUERY_PREFIXES) {
+      void queryClient.resetQueries({ queryKey: [prefix] });
+    }
+  }, [queryClient]);
 
   // Sessão atual apenas — multi-filiado escolhe de novo a cada login.
   const setActiveChapterId = useCallback(
     (id: string | null) => {
-      setActiveChapterIdState(id);
+      setActiveChapterIdState((prev) => {
+        if (prev !== id) {
+          // Carrega roleView keyed pelo novo capítulo; não apaga o do anterior.
+          const nextView = readStoredRoleView(id);
+          setRoleViewState(nextView);
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem(LEGACY_ROLE_VIEW_KEY);
+          }
+          invalidateRbacQueries();
+        }
+        return id;
+      });
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(LEGACY_STORAGE_KEY);
         if (id) window.sessionStorage.setItem(SESSION_KEY, id);
@@ -183,7 +278,7 @@ export function ActiveChapterProvider({
           });
       }
     },
-    [userId],
+    [userId, invalidateRbacQueries],
   );
 
   // Auto-seleciona (1 capítulo) ou valida o capítulo ativo (2+).
@@ -219,18 +314,19 @@ export function ActiveChapterProvider({
 
   const canSwitchRoleView = chapterRoleViews.length > 1;
 
-  // Ao mudar de capítulo (ou se a visão guardada for inválida), alinha/limpa roleView
+  // Alinha roleView ao capítulo ativo (chave por capítulo).
   useEffect(() => {
     if (!activeChapterId) {
-      if (roleView) setRoleView(null);
+      if (roleView) setRoleView(null, null);
       return;
     }
-    if (chapterRoleViews.length === 0) {
-      if (roleView) setRoleView(null);
+    const stored = readStoredRoleView(activeChapterId);
+    if (stored && chapterRoleViews.includes(stored)) {
+      if (roleView !== stored) setRoleViewState(stored);
       return;
     }
     if (roleView && !chapterRoleViews.includes(roleView)) {
-      setRoleView(null);
+      setRoleView(null, activeChapterId);
     }
   }, [activeChapterId, chapterRoleViews, roleView, setRoleView]);
 
@@ -242,7 +338,7 @@ export function ActiveChapterProvider({
       );
       if (match) return match;
     }
-    return memberships.find((m) => m.chapter_id === activeChapterId) ?? null;
+    return pickPreferredMembership(memberships, activeChapterId);
   }, [memberships, activeChapterId, roleView, chapterRoleViews]);
 
   const realRoleName = realMembership?.role.name ?? null;
@@ -278,9 +374,15 @@ export function ActiveChapterProvider({
     const next =
       chapterRoleViews[(idx + 1) % chapterRoleViews.length] ??
       chapterRoleViews[0];
-    setRoleView(next);
+    setRoleView(next, activeChapterId);
     return ROLE_LABELS[next] ?? next;
-  }, [chapterRoleViews, effectiveRoleView, realRoleName, setRoleView]);
+  }, [
+    chapterRoleViews,
+    effectiveRoleView,
+    realRoleName,
+    setRoleView,
+    activeChapterId,
+  ]);
 
   const distinctChapters = useMemo(() => {
     const byId = new Map<

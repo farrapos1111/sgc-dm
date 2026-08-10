@@ -1,6 +1,7 @@
 /** Resolução das variáveis dinâmicas entre colchetes nos modelos de ata/ofício. */
 
 import { datePartsInAppTz, formatTimeInAppTz, APP_TIMEZONE } from "@/lib/timezone";
+import { matchesLooseSearch, normalizeSearch } from "@/lib/utils";
 
 export type MinuteVarContext = {
   chapterName?: string | null;
@@ -235,3 +236,45 @@ export const AVAILABLE_VARS = [
   "[hora_inicio]",
   "[hora_fim]",
 ];
+
+export type MinuteVarMatch = {
+  /** Índice do `[` aberto. */
+  start: number;
+  /** Texto após `[` até o cursor (sem `]`). */
+  query: string;
+};
+
+/** Detecta variável dinâmica incompleta `[…` imediatamente antes do cursor. */
+export function detectMinuteVar(textBeforeCursor: string): MinuteVarMatch | null {
+  const open = textBeforeCursor.lastIndexOf("[");
+  if (open < 0) return null;
+  const after = textBeforeCursor.slice(open + 1);
+  if (after.includes("]") || after.includes("\n")) return null;
+  return { start: open, query: after };
+}
+
+/** Filtra tokens de variáveis pelo texto digitado após `[`. */
+export function filterMinuteVars(
+  query: string,
+  tokens: readonly string[] = AVAILABLE_VARS,
+): string[] {
+  const q = normalizeSearch(query);
+  if (!q) return [...tokens];
+  return tokens.filter((token) => {
+    const inner = token.slice(1, -1);
+    return (
+      matchesLooseSearch(inner, query) || matchesLooseSearch(token, query)
+    );
+  });
+}
+
+/** Substitui o `[query` aberto pela variável completa (com colchetes). */
+export function applyMinuteVar(
+  text: string,
+  caret: number,
+  match: MinuteVarMatch,
+  token: string,
+): { text: string; caret: number } {
+  const next = text.slice(0, match.start) + token + text.slice(caret);
+  return { text: next, caret: match.start + token.length };
+}

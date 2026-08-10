@@ -35,7 +35,7 @@ export const listOngoingItems = createServerFn({ method: "POST" })
     );
   });
 
-/** Dados completos da tela de Ongoing: item, membros ativos, presenças e ata. */
+/** Dados completos da tela de Ongoing: item, membros ativos, presenças e atas. */
 export const getOngoing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ calendarEventId: z.string().uuid() }).parse(raw))
@@ -63,8 +63,7 @@ export const getOngoing = createServerFn({ method: "POST" })
         .from("session_minutes")
         .select("id, content, opened_at, updated_at, status, title, kind")
         .eq("calendar_event_id", data.calendarEventId)
-        .maybeSingle(),
-
+        .order("opened_at", { ascending: true }),
     ]);
     if (members.error) throw new Error(members.error.message);
     if (records.error) throw new Error(records.error.message);
@@ -78,8 +77,24 @@ export const getOngoing = createServerFn({ method: "POST" })
       item,
       members: eligible,
       records: records.data ?? [],
-      minutes: minutes.data ?? null,
+      minutes: minutes.data ?? [],
     };
+  });
+
+/** Lista todas as atas de um evento, ordenadas por abertura. */
+export const listMinutesForEvent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z.object({ calendarEventId: z.string().uuid() }).parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("session_minutes")
+      .select("id, content, opened_at, updated_at, status, title, kind")
+      .eq("calendar_event_id", data.calendarEventId)
+      .order("opened_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
   });
 
 export const setAttendance = createServerFn({ method: "POST" })
@@ -164,6 +179,9 @@ export const saveMinutes = createServerFn({ method: "POST" })
         calendarEventId: z.string().uuid(),
         content: z.string(),
         kind: z.enum(["publica", "grau_iniciatico", "grau_demolay"]).optional(),
+        /** Se informado, atualiza a ata existente; senão cria uma nova. */
+        id: z.string().uuid().optional(),
+        title: z.string().nullable().optional(),
       })
       .parse(raw),
   )
@@ -178,40 +196,65 @@ export const saveMinutes = createServerFn({ method: "POST" })
     if (!event) throw new Error("Evento não encontrado");
     if (!supportsMinutes(event.event_type)) {
       throw new Error(
-        "Filantropia, hospitalaria e entretenimento não possuem registro de ata.",
+        "Filantropia e entretenimento não possuem registro de ata.",
       );
     }
 
-    const { data: existing, error: exErr } = await context.supabase
-      .from("session_minutes")
-      .select("id, status, kind")
-      .eq("calendar_event_id", data.calendarEventId)
-      .maybeSingle();
-    if (exErr) throw new Error(exErr.message);
-    if (existing && existing.status !== "rascunho") {
-      throw new Error(
-        "Ata bloqueada para edição. Reabra a ata para correção antes de alterar o texto.",
-      );
+    if (data.id) {
+      const { data: existing, error: exErr } = await context.supabase
+        .from("session_minutes")
+        .select("id, status, kind, calendar_event_id, chapter_id")
+        .eq("id", data.id)
+        .maybeSingle();
+      if (exErr) throw new Error(exErr.message);
+      if (!existing) throw new Error("Ata não encontrada");
+      if (
+        existing.calendar_event_id !== data.calendarEventId ||
+        existing.chapter_id !== data.chapterId
+      ) {
+        throw new Error("Ata não pertence a este evento");
+      }
+      if (existing.status !== "rascunho") {
+        throw new Error(
+          "Ata bloqueada para edição. Reabra a ata para correção antes de alterar o texto.",
+        );
+      }
+
+      const kind =
+        data.kind ??
+        (existing.kind as "publica" | "grau_iniciatico" | "grau_demolay" | null) ??
+        "publica";
+
+      const patch: Record<string, unknown> = {
+        content: data.content,
+        kind,
+      };
+      if (data.title !== undefined) patch.title = data.title;
+
+      const { data: saved, error } = await context.supabase
+        .from("session_minutes")
+        .update(patch as never)
+        .eq("id", data.id)
+        .select("id, status, kind, title")
+        .single();
+      if (error) throw new Error(error.message);
+      return { ok: true, minute: saved };
     }
 
-    const kind =
-      data.kind ??
-      (existing?.kind as "publica" | "grau_iniciatico" | "grau_demolay" | null) ??
-      "publica";
+    const kind = data.kind ?? "publica";
+    const insertRow: Record<string, unknown> = {
+      chapter_id: data.chapterId,
+      calendar_event_id: data.calendarEventId,
+      content: data.content,
+      kind,
+      opened_by: context.userId,
+    };
+    if (data.title !== undefined) insertRow.title = data.title;
 
     const { data: saved, error } = await context.supabase
       .from("session_minutes")
-      .upsert(
-        {
-          chapter_id: data.chapterId,
-          calendar_event_id: data.calendarEventId,
-          content: data.content,
-          kind,
-          opened_by: context.userId,
-        } as never,
-        { onConflict: "calendar_event_id" },
-      )
-      .select("id, status, kind")
+      .insert(insertRow as never)
+      .select("id, status, kind, title")
       .single();
     if (error) throw new Error(error.message);
     return { ok: true, minute: saved };

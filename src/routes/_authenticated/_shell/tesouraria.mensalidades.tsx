@@ -371,7 +371,7 @@ const StatusCell = memo(function StatusCell({
 
 function Mensalidades() {
   const { active, refetch } = useActiveChapter();
-  const { can } = useChapterAccess();
+  const { can, canScreen } = useChapterAccess();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
   const now = new Date();
@@ -394,7 +394,8 @@ function Mensalidades() {
   const [skipCashEntry, setSkipCashEntry] = useState(false);
   const [includeOpen, setIncludeOpen] = useState(false);
   const [includeSearch, setIncludeSearch] = useState("");
-  const writable = can("tesouraria");
+  const writable =
+    canScreen("mensalidades", "edit") || can("tesouraria");
   const ensuredYears = useRef(new Set<number>());
   const skipCashRef = useRef(skipCashEntry);
   skipCashRef.current = skipCashEntry;

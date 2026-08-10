@@ -1494,44 +1494,56 @@ export const generateDues = createServerFn({ method: "POST" })
 
 /* --------------------- Assinaturas do relatório (PDF) -------------------- */
 
-/** Nomes de PCC, MC, Tesoureiro e Consultor da Tesouraria para o relatório. */
+/** Nomes + tinta oficial de PCC, MC, Tesoureiro e Conselheiro Consultor. */
 export const getFinanceSigners = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => chapterInput.parse(raw))
   .handler(async ({ data, context }) => {
     const { year, month } = currentYearMonthInAppTz();
-    const semester = month <= 6 ? 1 : 2;
+    const semester = (month <= 6 ? 1 : 2) as 1 | 2;
 
-    const { data: rows, error } = await context.supabase
-      .from("member_positions")
-      .select(
-        "member_id, term_year, term_semester, positions(code, label), members(full_name)",
-      )
-      .eq("chapter_id", data.chapterId)
-      .eq("term_year", year)
-      .eq("term_semester", semester);
-    if (error) throw new Error(error.message);
+    const { getOfficeSignaturesForChapter } = await import(
+      "@/lib/office-signatures.functions"
+    );
+    const slots = await getOfficeSignaturesForChapter(context.supabase, {
+      chapterId: data.chapterId,
+      positionCodes: [
+        "presidente_conselho_consultivo",
+        "mestre_conselheiro",
+        "tesoureiro",
+        "conselheiro_consultor",
+      ],
+      year,
+      semester,
+    });
 
-    type PositionRow = {
-      positions: { code: string } | null;
-      members: { full_name: string | null } | null;
-    };
-
-    const find = (codes: string[]) =>
-      ((rows ?? []) as PositionRow[]).find((r) =>
-        codes.includes(r.positions?.code ?? ""),
-      )?.members?.full_name ?? "";
+    const byCode = Object.fromEntries(slots.map((s) => [s.positionCode, s]));
 
     return [
       {
         role: "Presidente do Conselho Consultivo",
-        name: find(["presidente_conselho", "pcc"]),
+        name: byCode.presidente_conselho_consultivo?.memberName ?? "",
+        signatureDataUrl:
+          byCode.presidente_conselho_consultivo?.signatureDataUrl ?? null,
+        positionCode: "presidente_conselho_consultivo",
       },
-      { role: "Mestre Conselheiro", name: find(["mestre_conselheiro", "mc"]) },
-      { role: "Tesoureiro", name: find(["tesoureiro", "tes"]) },
       {
-        role: "Consultor da Tesouraria",
-        name: find(["consultor_tesouraria", "consultor"]),
+        role: "Mestre Conselheiro",
+        name: byCode.mestre_conselheiro?.memberName ?? "",
+        signatureDataUrl: byCode.mestre_conselheiro?.signatureDataUrl ?? null,
+        positionCode: "mestre_conselheiro",
+      },
+      {
+        role: "Tesoureiro",
+        name: byCode.tesoureiro?.memberName ?? "",
+        signatureDataUrl: byCode.tesoureiro?.signatureDataUrl ?? null,
+        positionCode: "tesoureiro",
+      },
+      {
+        role: "Conselheiro Consultor",
+        name: byCode.conselheiro_consultor?.memberName ?? "",
+        signatureDataUrl: byCode.conselheiro_consultor?.signatureDataUrl ?? null,
+        positionCode: "conselheiro_consultor",
       },
     ];
   });

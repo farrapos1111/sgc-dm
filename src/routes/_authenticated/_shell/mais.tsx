@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { BookOpen, Building2, LogOut, Repeat } from "lucide-react";
+import { BookOpen, Building2, Lightbulb, LogOut, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   clearChapterSessionStorage,
@@ -8,7 +8,8 @@ import {
 } from "@/context/ActiveChapterContext";
 import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
-import { isChapterDuesEnabled } from "@/lib/dues-rules";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
+import { isChapterDuesEnabled, isDuesOnlyNavPath } from "@/lib/dues-rules";
 import {
   mobileOverflowGroups,
   visibleGroups,
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/_authenticated/_shell/mais")({
 function MaisPage() {
   const { active, memberships, setActiveChapterId } = useActiveChapter();
   const { canView } = useCommissionAccess();
+  const { ctx: accessCtx, canScreen, isAdminTotal } = useChapterAccess();
   const {
     scopes,
     activeScope,
@@ -61,15 +63,16 @@ function MaisPage() {
           canManageChapters,
           canManageLeaderships,
         })
-      : visibleGroups(active?.role.name ?? null, canView);
+      : visibleGroups(active?.role.name ?? null, canView, accessCtx, {
+          canScreen,
+          isAdminTotal,
+        });
     const filtered =
       activeScope || duesEnabled
         ? all
         : all.map((g) => ({
             ...g,
-            items: (g.items ?? []).filter(
-              (i) => i.to !== "/tesouraria/mensalidades",
-            ),
+            items: (g.items ?? []).filter((i) => !isDuesOnlyNavPath(i.to)),
           }));
     return mobileOverflowGroups(filtered, tabs);
   }, [
@@ -78,9 +81,12 @@ function MaisPage() {
     canManageChapters,
     canManageLeaderships,
     active?.role.name,
-    active?.chapter,
     canView,
+    accessCtx,
+    canScreen,
+    isAdminTotal,
     tabs,
+    active?.chapter,
   ]);
 
   function enterChapterView() {
@@ -106,7 +112,6 @@ function MaisPage() {
   async function signOut() {
     if (typeof window !== "undefined") {
       clearChapterSessionStorage();
-      window.localStorage.removeItem("sgcdm.roleView");
       window.localStorage.removeItem("sgcdm.activeOrgScope");
     }
     await supabase.auth.signOut();
@@ -193,6 +198,23 @@ function MaisPage() {
         {groups.map((group) => (
           <NavGroupCard key={group.id} group={group} />
         ))}
+
+        <section className="rounded-[12px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
+          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-white/75">
+            <Lightbulb className="h-5 w-5" /> Portal de Sugestões
+          </div>
+          <div className="text-sm text-white/75">
+            Contatos da Comissão de Tecnologia e Desenvolvimento do Templo
+            Virtual.
+          </div>
+          <Button
+            variant="outline"
+            className="mt-4 border-white/40 bg-transparent text-white hover:bg-white/15 hover:text-white"
+            onClick={() => navigate({ to: "/sugestoes" })}
+          >
+            Abrir portal de sugestões
+          </Button>
+        </section>
 
         <section className="rounded-[12px] border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
           <div className="mb-2 flex items-center gap-2 text-sm font-medium text-white/75">

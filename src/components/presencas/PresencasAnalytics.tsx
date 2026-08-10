@@ -1048,6 +1048,7 @@ export function PresencasOverviewTab({
                         <Link
                           to="/ongoing/$id"
                           params={{ id: cell.eventId }}
+                          search={{ tab: "chamada" }}
                           className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-foreground"
                           title={
                             ev
@@ -1121,6 +1122,7 @@ export function PresencasOverviewTab({
                           <Link
                             to="/ongoing/$id"
                             params={{ id: ev.id }}
+                            search={{ tab: "chamada" }}
                             className="inline-flex w-full flex-col items-center gap-0.5 hover:text-foreground"
                           >
                             <span>{shortHeader(ev.start_at)}</span>

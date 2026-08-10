@@ -59,6 +59,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
+import { canonicalOfficeSignatureCode } from "@/lib/office-signatures-shared";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -85,9 +87,10 @@ type Props = {
     status: string;
     updated_at: string;
     kind?: string | null;
+    title?: string | null;
   } | null;
   roleName: string | null | undefined;
-  onChanged: () => void;
+  onChanged: (info?: { minuteId?: string }) => void;
   /** Chamado após exclusão bem-sucedida (ex.: voltar à lista de atas). */
   onDeleted?: () => void;
   /**
@@ -115,8 +118,16 @@ export function MinutesPanel({
 }: Props) {
   const qc = useQueryClient();
   const { active } = useActiveChapter();
+  const { positions } = useChapterAccess();
   const term = currentTerm();
   const { confirm, dialog } = useConfirmDialog();
+
+  function canSignAs(r: SignerRole): boolean {
+    if (roleName === "admin_total") return true;
+    if (roleName === r) return true;
+    const code = canonicalOfficeSignatureCode(r);
+    return positions.includes(code) || positions.includes(r);
+  }
   const [exporting, setExporting] = useState(false);
   const [ata, setAta] = useState(minutes?.content ?? "");
   const [templateId, setTemplateId] = useState<string>("");
@@ -138,7 +149,16 @@ export function MinutesPanel({
       kind !== savedKind ||
       (!minutes && ata.trim().length > 0));
 
-  const draftRef = useRef({
+  const draftRef = useRef<{
+    ata: string;
+    kind: MinuteKind;
+    editable: boolean;
+    dirty: boolean;
+    chapterId: string;
+    calendarEventId: string;
+    hasMinute: boolean;
+    minuteId: string | null;
+  }>({
     ata,
     kind,
     editable,
@@ -146,6 +166,7 @@ export function MinutesPanel({
     chapterId,
     calendarEventId,
     hasMinute: Boolean(minutes),
+    minuteId: minutes?.id ?? null,
   });
   /** Evita segundo save no unmount depois de flush explícito (voltar / trocar aba). */
   const allowUnmountSaveRef = useRef(true);
@@ -159,6 +180,7 @@ export function MinutesPanel({
       chapterId,
       calendarEventId,
       hasMinute: Boolean(minutes),
+      minuteId: minutes?.id ?? null,
     };
   }, [ata, kind, editable, dirty, chapterId, calendarEventId, minutes]);
 
@@ -185,6 +207,7 @@ export function MinutesPanel({
         calendarEventId,
         content,
         kind: nextKind,
+        ...(minutes?.id ? { id: minutes.id } : {}),
       },
     });
   }
@@ -194,6 +217,7 @@ export function MinutesPanel({
     kind: MinuteKind;
     chapterId: string;
     calendarEventId: string;
+    minuteId?: string | null;
   }) {
     return saveMinutes({
       data: {
@@ -201,6 +225,7 @@ export function MinutesPanel({
         calendarEventId: d.calendarEventId,
         content: d.ata,
         kind: d.kind,
+        ...(d.minuteId ? { id: d.minuteId } : {}),
       },
     });
   }
@@ -209,11 +234,11 @@ export function MinutesPanel({
     const d = draftRef.current;
     if (!d.editable || !d.dirty) return;
     if (!d.ata.trim() && !d.hasMinute) return;
-    await persistDraft(d);
+    const saved = await persistDraft(d);
     allowUnmountSaveRef.current = false;
     draftRef.current = { ...draftRef.current, dirty: false };
     toast.success("Rascunho salvo");
-    onChanged();
+    onChanged({ minuteId: (saved as { minute?: { id?: string } })?.minute?.id });
     void qc.invalidateQueries({ queryKey: ["ongoing", calendarEventId] });
     void qc.invalidateQueries({ queryKey: ["chapter-minutes", chapterId] });
   };
@@ -273,8 +298,8 @@ export function MinutesPanel({
     [approvals.data],
   );
 
-  const refresh = () => {
-    onChanged();
+  const refresh = (minuteId?: string) => {
+    onChanged(minuteId ? { minuteId } : undefined);
     qc.invalidateQueries({ queryKey: ["minute-approvals", minutes?.id] });
     qc.invalidateQueries({ queryKey: ["minute-public-votes", minutes?.id] });
     qc.invalidateQueries({ queryKey: ["chapter-minutes", chapterId] });
@@ -282,9 +307,9 @@ export function MinutesPanel({
 
   const save = useMutation({
     mutationFn: (content: string) => persist(content),
-    onSuccess: () => {
+    onSuccess: (r) => {
       toast.success("Ata salva");
-      refresh();
+      refresh((r as { minute?: { id?: string } })?.minute?.id);
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar ata"),
   });
@@ -292,11 +317,13 @@ export function MinutesPanel({
   const conclude = useMutation({
     mutationFn: async () => {
       const saved = await persist(ata);
-      return submitMinute({ data: { minuteId: (saved as any).minute.id } });
+      const minuteId = (saved as { minute: { id: string } }).minute.id;
+      await submitMinute({ data: { minuteId } });
+      return minuteId;
     },
-    onSuccess: () => {
+    onSuccess: (minuteId) => {
       toast.success("Ata concluída — em revisão para aprovação");
-      refresh();
+      refresh(minuteId);
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao concluir ata"),
   });
@@ -324,11 +351,12 @@ export function MinutesPanel({
     mutationFn: async () => {
       if (!ata.trim()) throw new Error("Escreva a ata antes de compartilhar");
       const saved = await persist(ata);
-      const minuteId = (saved as any).minute.id as string;
-      return ensureMinutePublicShare({ data: { minuteId } });
+      const minuteId = (saved as { minute: { id: string } }).minute.id;
+      const share = await ensureMinutePublicShare({ data: { minuteId } });
+      return { share, minuteId };
     },
-    onSuccess: async (share) => {
-      refresh();
+    onSuccess: async ({ share, minuteId }) => {
+      refresh(minuteId);
       const url = `${window.location.origin}/ata/${share.token}`;
       const kindLabel =
         MINUTE_KIND_LABELS[share.kind as MinuteKind] ?? share.kind;
@@ -679,7 +707,7 @@ export function MinutesPanel({
           <ul className="space-y-2">
             {SIGNER_ROLES.map((r) => {
               const signed = signedRoles.has(r);
-              const canSign = roleName === "admin_total" || roleName === r;
+              const canSign = canSignAs(r);
               return (
                 <li
                   key={r}

@@ -7,7 +7,7 @@ export const SIGNER_ROLES = ["presidente_conselho", "mestre_conselheiro", "escri
 export type SignerRole = (typeof SIGNER_ROLES)[number];
 
 export const SIGNER_LABELS: Record<SignerRole, string> = {
-  presidente_conselho: "Presidente do Conselho",
+  presidente_conselho: "Presidente do Conselho Consultivo",
   mestre_conselheiro: "Mestre Conselheiro",
   escrivao: "Escrivão",
 };
@@ -284,17 +284,33 @@ export const signMinute = createServerFn({ method: "POST" })
       throw new Error("Conclua a ata antes de coletar as assinaturas.");
     }
 
-    const { data: membership, error: mErr } = await context.supabase
-      .from("chapter_members")
-      .select("role:roles(name)")
-      .eq("chapter_id", minute.chapter_id)
-      .eq("user_id", context.userId)
-      .eq("active", true)
-      .maybeSingle();
-    if (mErr) throw new Error(mErr.message);
-    const roleName = (membership as any)?.role?.name as string | undefined;
-    if (roleName !== "admin_total" && roleName !== data.signerRole) {
-      throw new Error("Você não ocupa este cargo para assinar a ata.");
+    const {
+      assertCanSignAsOffice,
+      canonicalOfficeSignatureCode,
+      getOfficeSignaturesForChapter,
+      OFFICE_SIGNATURE_LABELS,
+    } = await import("@/lib/office-signatures.functions");
+    const email = (context.claims as { email?: string } | null)?.email ?? null;
+    const positionCode = canonicalOfficeSignatureCode(data.signerRole);
+
+    await assertCanSignAsOffice(context.supabase, {
+      userId: context.userId,
+      chapterId: minute.chapter_id,
+      positionCode,
+      email,
+    });
+
+    const slots = await getOfficeSignaturesForChapter(context.supabase, {
+      chapterId: minute.chapter_id,
+      positionCodes: [positionCode],
+    });
+    const slot = slots[0];
+    if (!slot?.signatureDataUrl?.trim()) {
+      const label =
+        OFFICE_SIGNATURE_LABELS[positionCode] ?? SIGNER_LABELS[data.signerRole];
+      throw new Error(
+        `Registre a assinatura do cargo ${label} neste capítulo em /auth/assinatura antes de assinar a ata.`,
+      );
     }
 
     const ins = await context.supabase.from("minute_approvals").upsert(

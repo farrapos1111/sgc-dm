@@ -111,10 +111,11 @@ function chargeBucket(c: ChargeRow): ListFilter | "isento" {
 
 function Cobrancas() {
   const { active } = useActiveChapter();
-  const { can } = useChapterAccess();
+  const { can, canScreen } = useChapterAccess();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
-  const writable = can("tesouraria");
+  const writable =
+    canScreen("cobrancas", "edit") || can("tesouraria");
   const [statusFilter, setStatusFilter] = useState<ListFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("name_asc");
   const [search, setSearch] = useState("");

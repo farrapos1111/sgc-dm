@@ -124,24 +124,62 @@ export const updateChapterProfile = createServerFn({ method: "POST" })
     return row;
   });
 
+const themeHex = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida");
+
+const chapterThemeSchema = z.object({
+  background: themeHex,
+  accent: themeHex,
+  accentDark: themeHex,
+  highlight: themeHex,
+  font: themeHex,
+  sidebar: themeHex,
+});
+
+/** Atualiza a cor de destaque e, opcionalmente, o tema completo em settings.theme. */
 export const updateChapterAccentColor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
     z
       .object({
         chapter_id: z.string().uuid(),
-        primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida"),
+        primary_color: themeHex.optional(),
+        theme: chapterThemeSchema.optional(),
+      })
+      .refine((v) => v.theme || v.primary_color, {
+        message: "Informe a cor ou o tema",
       })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const accent = (
+      data.theme?.accent ?? data.primary_color!
+    ).toUpperCase();
+
     const { data: row, error } = await context.supabase
       .from("chapters")
-      .update({ primary_color: data.primary_color.toUpperCase() })
+      .update({ primary_color: accent })
       .eq("id", data.chapter_id)
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    if (data.theme) {
+      const theme = {
+        background: data.theme.background.toUpperCase(),
+        accent: data.theme.accent.toUpperCase(),
+        accentDark: data.theme.accentDark.toUpperCase(),
+        highlight: data.theme.highlight.toUpperCase(),
+        font: data.theme.font.toUpperCase(),
+        sidebar: data.theme.sidebar.toUpperCase(),
+      };
+      const { error: patchErr } = await context.supabase.rpc(
+        "patch_chapter_settings",
+        { _chapter_id: data.chapter_id, _patch: { theme } },
+      );
+      if (patchErr) throw new Error(patchErr.message);
+      return { ...row, settings: { ...(row.settings as object), theme } };
+    }
+
     return row;
   });
 

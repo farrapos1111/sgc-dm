@@ -1,13 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Copy, Link2, RefreshCw, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MinuteBodyEditor } from "@/components/minutes/MinuteBodyEditor";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
 import {
@@ -20,6 +20,10 @@ import {
   revokeInvestigationSignupToken,
   updateSindicanciaTemplates,
 } from "@/lib/investigations.functions";
+
+const SINDICANCIA_CHAVE_VAR_TOKENS = SINDICANCIA_TEMPLATE_VARS.map(
+  (v) => `[${v}]`,
+);
 
 export const Route = createFileRoute(
   "/_authenticated/_shell/sindicancias/config",
@@ -59,10 +63,28 @@ function SindicanciaConfigPage() {
 
   const [chave, setChave] = useState<string | null>(null);
   const [parecer, setParecer] = useState<string | null>(null);
+  const chaveAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const chaveValue = chave ?? templates?.chave ?? DEFAULT_SINDICANCIA_CHAVE;
   const parecerValue =
     parecer ?? templates?.parecer ?? DEFAULT_SINDICANCIA_PARECER;
+
+  function insertChaveVar(key: string) {
+    const el = chaveAreaRef.current;
+    const token = `[${key}]`;
+    if (!el) {
+      setChave((chaveValue || "") + token);
+      return;
+    }
+    const start = el.selectionStart ?? chaveValue.length;
+    const end = el.selectionEnd ?? chaveValue.length;
+    const next = chaveValue.slice(0, start) + token + chaveValue.slice(end);
+    setChave(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + token.length, start + token.length);
+    });
+  }
 
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -213,8 +235,8 @@ function SindicanciaConfigPage() {
           <Card className="space-y-3 rounded-[12px] p-5">
             <h3 className="text-sm font-semibold">Chave de Sindicância</h3>
             <p className="text-xs text-muted-foreground">
-              Modelo copiado ao montar a chave. Variáveis:{" "}
-              {SINDICANCIA_TEMPLATE_VARS.map((v) => `[${v}]`).join(", ")}
+              Modelo copiado ao montar a chave. Digite{" "}
+              <span className="font-mono">[</span> para sugestões de variáveis.
             </p>
             <div className="flex flex-wrap gap-1">
               {SINDICANCIA_TEMPLATE_VARS.map((v) => (
@@ -224,18 +246,25 @@ function SindicanciaConfigPage() {
                   size="sm"
                   variant="outline"
                   className="h-7 text-[11px]"
-                  onClick={() =>
-                    setChave((chaveValue || "") + `[${v}]`)
-                  }
+                  onClick={() => insertChaveVar(v)}
                 >
                   [{v}]
                 </Button>
               ))}
             </div>
-            <Textarea
-              rows={10}
+            <MinuteBodyEditor
+              chapterId={active?.chapter_id ?? ""}
               value={chaveValue}
-              onChange={(e) => setChave(e.target.value)}
+              onChange={setChave}
+              editable
+              rows={10}
+              enableMentions={false}
+              enableVars
+              showAutocompleteToggle={false}
+              autocompleteOn
+              varTokens={SINDICANCIA_CHAVE_VAR_TOKENS}
+              textareaRef={chaveAreaRef}
+              placeholder="Digite [ para variáveis dinâmicas…"
             />
           </Card>
 

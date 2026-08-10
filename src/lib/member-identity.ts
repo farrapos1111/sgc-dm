@@ -24,3 +24,8 @@ export function normalizeDemolayId(raw: string): string {
     .replace(/[^A-Za-z0-9]/g, "")
     .toLowerCase();
 }
+
+export {
+  resolveLinkedMemberIdsForChapter,
+  resolveLinkedMemberIdsGlobal,
+} from "@/lib/resolve-linked-members";

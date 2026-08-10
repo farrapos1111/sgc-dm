@@ -28,8 +28,9 @@ export const Route = createFileRoute("/_authenticated/_shell/hospitalaria/escala
 
 function Escala() {
   const { active } = useActiveChapter();
-  const { canManage } = useCommissionAccess();
+  const { canManage, canDelete } = useCommissionAccess();
   const writable = canManage("hospitalaria");
+  const deletable = canDelete("hospitalaria");
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -151,7 +152,7 @@ function Escala() {
                     {d.notes ? ` · ${d.notes}` : ""}
                   </div>
                 </div>
-                {writable && (
+                {deletable && (
                   <Button variant="ghost" size="icon" onClick={() => remove.mutate(d.id)}>
                     <Trash2 className="h-4 w-4 text-muted-foreground" />
                   </Button>

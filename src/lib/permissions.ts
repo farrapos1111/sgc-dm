@@ -27,6 +27,8 @@ export type ActionPermission =
   | "eventos.manage"
   | "comissao.view"
   | "comissao.edit"
+  /** Excluir dentro da comissão (só presidente; vice tem CRU sem delete). */
+  | "comissao.delete"
   | "comissao.vote";
 
 const MATRIX: Record<string, Permission[]> = {
@@ -116,9 +118,21 @@ function commissionEntry(ctx: AccessContext, code: string): CommissionRoleCtx | 
   return (ctx.commissionRoles ?? []).find((c) => c.code === code);
 }
 
+function hasPos(ctx: AccessContext, code: string): boolean {
+  return (ctx.currentPositions ?? []).includes(code);
+}
+
 function isMestreConselheiro(ctx: AccessContext): boolean {
   if (ctx.roleName === "mestre_conselheiro") return true;
-  return (ctx.currentPositions ?? []).includes("mestre_conselheiro");
+  return hasPos(ctx, "mestre_conselheiro");
+}
+
+function isTesoureiro(ctx: AccessContext): boolean {
+  return ctx.roleName === "tesoureiro" || hasPos(ctx, "tesoureiro");
+}
+
+function isEscrivao(ctx: AccessContext): boolean {
+  return ctx.roleName === "escrivao" || hasPos(ctx, "escrivao");
 }
 
 /**
@@ -166,6 +180,34 @@ export function canAction(
   if (action === "comissao.edit") {
     if (!commissionCode) return false;
     if (canAccess(ctx, "admin")) return true;
+    // Cargos com CRU/CRUD na comissão (matriz DeMolay)
+    if (
+      commissionCode === "eventos" &&
+      (isTesoureiro(ctx) || hasPos(ctx, "primeiro_conselheiro"))
+    ) {
+      return true;
+    }
+    if (
+      commissionCode === "sindicancias" &&
+      (isEscrivao(ctx) || hasPos(ctx, "segundo_conselheiro"))
+    ) {
+      return true;
+    }
+    const entry = commissionEntry(ctx, commissionCode);
+    // Presidente e Vice: create/edit (CRU). Delete → comissao.delete.
+    return entry?.role === "presidente" || entry?.role === "vice";
+  }
+
+  if (action === "comissao.delete") {
+    if (!commissionCode) return false;
+    if (canAccess(ctx, "admin")) return true;
+    // CRUD (com delete): Tesoureiro / 1º Conselheiro em Eventos; presidente da comissão
+    if (
+      commissionCode === "eventos" &&
+      (isTesoureiro(ctx) || hasPos(ctx, "primeiro_conselheiro"))
+    ) {
+      return true;
+    }
     const entry = commissionEntry(ctx, commissionCode);
     return entry?.role === "presidente";
   }

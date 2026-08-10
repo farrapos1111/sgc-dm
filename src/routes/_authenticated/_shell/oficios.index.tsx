@@ -86,6 +86,24 @@ function ExportPdfButton({ oficio, size }: { oficio: OficioRow; size?: "sm" }) {
         e.stopPropagation();
         setBusy(true);
         try {
+          const { listChapterOfficeSignatures } = await import(
+            "@/lib/office-signatures.functions"
+          );
+          const slots = active?.chapter_id
+            ? await listChapterOfficeSignatures({
+                data: {
+                  chapterId: active.chapter_id,
+                  positionCodes: [
+                    "presidente_conselho_consultivo",
+                    "mestre_conselheiro",
+                    "escrivao",
+                  ],
+                },
+              })
+            : [];
+          const byCode = Object.fromEntries(
+            slots.map((s) => [s.positionCode, s]),
+          );
           const { exportOficioPdf } = await import("@/lib/oficio-pdf");
           await exportOficioPdf({
             chapterName: active?.chapter.name ?? "",
@@ -100,6 +118,10 @@ function ExportPdfButton({ oficio, size }: { oficio: OficioRow; size?: "sm" }) {
             mcName: oficio.mc_name,
             pccName: oficio.pcc_name,
             escrivaoName: oficio.escrivao_name,
+            pccSignatureDataUrl:
+              byCode.presidente_conselho_consultivo?.signatureDataUrl,
+            mcSignatureDataUrl: byCode.mestre_conselheiro?.signatureDataUrl,
+            escrivaoSignatureDataUrl: byCode.escrivao?.signatureDataUrl,
           });
         } catch (err: any) {
           toast.error(err?.message ?? "Erro ao gerar o PDF");
@@ -116,11 +138,12 @@ function ExportPdfButton({ oficio, size }: { oficio: OficioRow; size?: "sm" }) {
 
 function OficiosPage() {
   const { active } = useActiveChapter();
-  const { can } = useChapterAccess();
+  const { can, canScreen } = useChapterAccess();
   const chapterId = active?.chapter_id ?? "";
   const { data: templates } = useSuspenseQuery(templatesQO(chapterId));
   const { data: oficios } = useSuspenseQuery(oficiosQO(chapterId));
-  const allowed = can("secretaria") || can("admin");
+  const allowed =
+    canScreen("oficios", "edit") || can("secretaria") || can("admin");
 
   return (
     <div>

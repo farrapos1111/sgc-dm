@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type Ref,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +20,13 @@ import {
   type MinuteMentionMatch,
   type MinuteMentionMember,
 } from "@/lib/minute-mentions";
+import {
+  AVAILABLE_VARS,
+  applyMinuteVar,
+  detectMinuteVar,
+  filterMinuteVars,
+  type MinuteVarMatch,
+} from "@/lib/minute-vars";
 import { kindLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -51,13 +59,26 @@ type Props = {
   rows?: number;
   className?: string;
   placeholder?: string;
+  id?: string;
   /** Se false, o switch fica no painel pai. Default true. */
   showAutocompleteToggle?: boolean;
   autocompleteOn?: boolean;
   onAutocompleteOnChange?: (on: boolean) => void;
+  /** Autocomplete de Irmão/Tio. Default true. */
+  enableMentions?: boolean;
+  /** Autocomplete de [variáveis] ao digitar `[`. Default true. */
+  enableVars?: boolean;
+  /** Lista de tokens `[…]` sugeridos (default: AVAILABLE_VARS de atas/ofícios). */
+  varTokens?: readonly string[];
+  /** Ref opcional para o textarea (ex.: inserir variável por clique). */
+  textareaRef?: Ref<HTMLTextAreaElement>;
 };
 
 type BalloonPos = { top: number; left: number };
+
+type ActiveSuggest =
+  | { kind: "mention"; match: MinuteMentionMatch }
+  | { kind: "var"; match: MinuteVarMatch };
 
 /** Espelha estilos do textarea para medir a posição do caret. */
 function getCaretOffsetInTextarea(
@@ -132,7 +153,16 @@ function getCaretOffsetInTextarea(
   return { top, left };
 }
 
-/** Textarea da ata com sugestões após "Irmão …" / "Tio …". */
+function assignRef(
+  ref: Ref<HTMLTextAreaElement> | undefined,
+  el: HTMLTextAreaElement | null,
+) {
+  if (!ref) return;
+  if (typeof ref === "function") ref(el);
+  else (ref as { current: HTMLTextAreaElement | null }).current = el;
+}
+
+/** Textarea da ata com sugestões após "Irmão …" / "Tio …" e `[variáveis]`. */
 export function MinuteBodyEditor({
   chapterId,
   value,
@@ -141,9 +171,14 @@ export function MinuteBodyEditor({
   rows = 18,
   className,
   placeholder,
+  id,
   showAutocompleteToggle = true,
   autocompleteOn: autocompleteOnProp,
   onAutocompleteOnChange,
+  enableMentions = true,
+  enableVars = true,
+  varTokens = AVAILABLE_VARS,
+  textareaRef,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -176,39 +211,76 @@ export function MinuteBodyEditor({
       listMembers({
         data: { chapterId, status: "all", kind: "all", search: "" },
       }),
-    enabled: editable && autocompleteOn && Boolean(chapterId),
+    enabled:
+      editable &&
+      autocompleteOn &&
+      enableMentions &&
+      Boolean(chapterId),
     staleTime: 60_000,
   });
 
   const members = (membersQ.data ?? []) as MinuteMentionMember[];
 
-  const mention = useMemo(() => {
-    if (!editable || !autocompleteOn) return null;
-    return detectMinuteMention(value.slice(0, caret));
-  }, [value, caret, editable, autocompleteOn]);
+  const before = value.slice(0, caret);
 
-  const mentionKey = mention
-    ? `${mention.titleIndex}:${mention.title}:${mention.query}`
+  const active = useMemo((): ActiveSuggest | null => {
+    if (!editable || !autocompleteOn) return null;
+    if (enableVars) {
+      const varMatch = detectMinuteVar(before);
+      if (varMatch) return { kind: "var", match: varMatch };
+    }
+    if (enableMentions) {
+      const mention = detectMinuteMention(before);
+      if (mention) return { kind: "mention", match: mention };
+    }
+    return null;
+  }, [before, editable, autocompleteOn, enableVars, enableMentions]);
+
+  const suggestKey = active
+    ? active.kind === "var"
+      ? `var:${active.match.start}:${active.match.query}`
+      : `mention:${active.match.titleIndex}:${active.match.title}:${active.match.query}`
     : null;
 
-  const suggestions = useMemo(() => {
-    if (!mention || (mentionKey && mentionKey === dismissedKey)) {
+  const mentionSuggestions = useMemo(() => {
+    if (
+      !active ||
+      active.kind !== "mention" ||
+      (suggestKey && suggestKey === dismissedKey)
+    ) {
       return [] as MinuteMentionMember[];
     }
-    return filterMembersForMention(members, mention.title, mention.query);
-  }, [mention, members, mentionKey, dismissedKey]);
+    return filterMembersForMention(
+      members,
+      active.match.title,
+      active.match.query,
+    );
+  }, [active, members, suggestKey, dismissedKey]);
+
+  const varSuggestions = useMemo(() => {
+    if (
+      !active ||
+      active.kind !== "var" ||
+      (suggestKey && suggestKey === dismissedKey)
+    ) {
+      return [] as string[];
+    }
+    return filterMinuteVars(active.match.query, varTokens);
+  }, [active, suggestKey, dismissedKey, varTokens]);
 
   const showPanel =
-    Boolean(mention) &&
-    mentionKey !== dismissedKey &&
-    (suggestions.length > 0 || membersQ.isSuccess);
+    Boolean(active) &&
+    suggestKey !== dismissedKey &&
+    (active?.kind === "var"
+      ? true
+      : mentionSuggestions.length > 0 || membersQ.isSuccess);
 
   useEffect(() => {
     setActiveIdx(0);
-  }, [mentionKey]);
+  }, [suggestKey]);
 
   useLayoutEffect(() => {
-    if (!showPanel || !mention) {
+    if (!showPanel || !active) {
       setBalloon(null);
       return;
     }
@@ -220,7 +292,6 @@ export function MinuteBodyEditor({
     let top = pos.top + lineH + 4;
     let left = Math.max(8, pos.left);
 
-    // Mantém o balão dentro da área do textarea
     const maxW = ta.clientWidth;
     const balloonW = balloonRef.current?.offsetWidth ?? 280;
     if (left + balloonW > maxW - 8) {
@@ -233,13 +304,28 @@ export function MinuteBodyEditor({
     }
 
     setBalloon({ top, left });
-  }, [showPanel, mention, caret, value, suggestions.length]);
+  }, [
+    showPanel,
+    active,
+    caret,
+    value,
+    mentionSuggestions.length,
+    varSuggestions.length,
+  ]);
 
   function updateCaretFromEl(el: HTMLTextAreaElement) {
     setCaret(el.selectionStart ?? el.value.length);
   }
 
-  function accept(member: MinuteMentionMember, match: MinuteMentionMatch) {
+  function setTaRef(el: HTMLTextAreaElement | null) {
+    taRef.current = el;
+    assignRef(textareaRef, el);
+  }
+
+  function acceptMention(
+    member: MinuteMentionMember,
+    match: MinuteMentionMatch,
+  ) {
     const el = taRef.current;
     const at = el?.selectionStart ?? caret;
     const { text, caret: nextCaret } = applyMinuteMention(
@@ -259,28 +345,78 @@ export function MinuteBodyEditor({
     });
   }
 
-  function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (!mention || mentionKey === dismissedKey) return;
-    if (suggestions.length === 0 && e.key !== "Escape") return;
+  function acceptVar(token: string, match: MinuteVarMatch) {
+    const el = taRef.current;
+    const at = el?.selectionStart ?? caret;
+    const { text, caret: nextCaret } = applyMinuteVar(value, at, match, token);
+    onChange(text);
+    setDismissedKey(null);
+    requestAnimationFrame(() => {
+      const ta = taRef.current;
+      if (!ta) return;
+      ta.focus();
+      ta.setSelectionRange(nextCaret, nextCaret);
+      setCaret(nextCaret);
+    });
+  }
 
-    if (e.key === "ArrowDown" && suggestions.length > 0) {
-      e.preventDefault();
-      setActiveIdx((i) => (i + 1) % suggestions.length);
+  function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (!active || suggestKey === dismissedKey) return;
+
+    if (active.kind === "var") {
+      if (varSuggestions.length === 0 && e.key !== "Escape") return;
+      if (e.key === "ArrowDown" && varSuggestions.length > 0) {
+        e.preventDefault();
+        setActiveIdx((i) => (i + 1) % varSuggestions.length);
+        return;
+      }
+      if (e.key === "ArrowUp" && varSuggestions.length > 0) {
+        e.preventDefault();
+        setActiveIdx(
+          (i) => (i - 1 + varSuggestions.length) % varSuggestions.length,
+        );
+        return;
+      }
+      if ((e.key === "Enter" || e.key === "Tab") && varSuggestions.length > 0) {
+        e.preventDefault();
+        acceptVar(varSuggestions[activeIdx] ?? varSuggestions[0], active.match);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (suggestKey) setDismissedKey(suggestKey);
+      }
       return;
     }
-    if (e.key === "ArrowUp" && suggestions.length > 0) {
+
+    if (mentionSuggestions.length === 0 && e.key !== "Escape") return;
+
+    if (e.key === "ArrowDown" && mentionSuggestions.length > 0) {
       e.preventDefault();
-      setActiveIdx((i) => (i - 1 + suggestions.length) % suggestions.length);
+      setActiveIdx((i) => (i + 1) % mentionSuggestions.length);
       return;
     }
-    if ((e.key === "Enter" || e.key === "Tab") && suggestions.length > 0) {
+    if (e.key === "ArrowUp" && mentionSuggestions.length > 0) {
       e.preventDefault();
-      accept(suggestions[activeIdx] ?? suggestions[0], mention);
+      setActiveIdx(
+        (i) => (i - 1 + mentionSuggestions.length) % mentionSuggestions.length,
+      );
+      return;
+    }
+    if (
+      (e.key === "Enter" || e.key === "Tab") &&
+      mentionSuggestions.length > 0
+    ) {
+      e.preventDefault();
+      acceptMention(
+        mentionSuggestions[activeIdx] ?? mentionSuggestions[0],
+        active.match,
+      );
       return;
     }
     if (e.key === "Escape") {
       e.preventDefault();
-      if (mentionKey) setDismissedKey(mentionKey);
+      if (suggestKey) setDismissedKey(suggestKey);
     }
   }
 
@@ -288,18 +424,20 @@ export function MinuteBodyEditor({
     ? { top: balloon.top, left: balloon.left }
     : { top: 12, left: 12, visibility: "hidden" };
 
+  const showMentionToggle = enableMentions && editable && showAutocompleteToggle;
+
   return (
     <div>
-      {editable && showAutocompleteToggle ? (
+      {showMentionToggle ? (
         <div className="mb-2 flex items-center justify-end gap-2">
           <Label
-            htmlFor="minute-autocomplete"
+            htmlFor={id ? `${id}-autocomplete` : "minute-autocomplete"}
             className="cursor-pointer text-xs font-normal text-muted-foreground"
           >
             Autocomplete de nomes
           </Label>
           <Switch
-            id="minute-autocomplete"
+            id={id ? `${id}-autocomplete` : "minute-autocomplete"}
             checked={autocompleteOn}
             onCheckedChange={setAutocomplete}
             aria-label="Autocomplete de nomes na ata"
@@ -309,7 +447,8 @@ export function MinuteBodyEditor({
 
       <div ref={wrapRef} className="relative">
         <Textarea
-          ref={taRef}
+          id={id}
+          ref={setTaRef}
           value={value}
           onChange={(e) => {
             onChange(e.target.value);
@@ -336,11 +475,11 @@ export function MinuteBodyEditor({
           placeholder={placeholder}
         />
 
-        {showPanel && mention ? (
+        {showPanel && active?.kind === "var" ? (
           <div
             ref={balloonRef}
             role="listbox"
-            aria-label={`Sugestões de ${mention.title}`}
+            aria-label="Sugestões de variáveis dinâmicas"
             className={cn(
               "pointer-events-auto absolute z-30 w-[min(18rem,calc(100%-1rem))] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg ring-1 ring-black/5",
               "animate-in fade-in-0 zoom-in-95 duration-150",
@@ -348,12 +487,57 @@ export function MinuteBodyEditor({
             style={balloonStyle}
           >
             <div className="border-b border-border/70 bg-muted/40 px-2.5 py-1.5 text-[11px] text-muted-foreground">
-              {mention.title} · ↑↓ · Enter
+              Variável · ↑↓ · Enter
+            </div>
+            {varSuggestions.length > 0 ? (
+              <ul className="max-h-48 overflow-y-auto p-1">
+                {varSuggestions.map((token, i) => (
+                  <li key={token}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={i === activeIdx}
+                      className={cn(
+                        "flex w-full items-center rounded-lg px-2 py-1.5 text-left font-mono text-sm transition-colors",
+                        i === activeIdx ? "bg-muted" : "hover:bg-muted/60",
+                      )}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        acceptVar(token, active.match);
+                      }}
+                      onMouseEnter={() => setActiveIdx(i)}
+                    >
+                      <span className="truncate">{token}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-2.5 py-2 text-xs text-muted-foreground">
+                Nenhuma variável parecida com “[{active.match.query}…]”.
+              </p>
+            )}
+          </div>
+        ) : null}
+
+        {showPanel && active?.kind === "mention" ? (
+          <div
+            ref={balloonRef}
+            role="listbox"
+            aria-label={`Sugestões de ${active.match.title}`}
+            className={cn(
+              "pointer-events-auto absolute z-30 w-[min(18rem,calc(100%-1rem))] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg ring-1 ring-black/5",
+              "animate-in fade-in-0 zoom-in-95 duration-150",
+            )}
+            style={balloonStyle}
+          >
+            <div className="border-b border-border/70 bg-muted/40 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+              {active.match.title} · ↑↓ · Enter
             </div>
 
-            {suggestions.length > 0 ? (
+            {mentionSuggestions.length > 0 ? (
               <ul className="max-h-48 overflow-y-auto p-1">
-                {suggestions.map((m, i) => (
+                {mentionSuggestions.map((m, i) => (
                   <li key={m.id}>
                     <button
                       type="button"
@@ -365,7 +549,7 @@ export function MinuteBodyEditor({
                       )}
                       onMouseDown={(e) => {
                         e.preventDefault();
-                        accept(m, mention);
+                        acceptMention(m, active.match);
                       }}
                       onMouseEnter={() => setActiveIdx(i)}
                     >
@@ -379,8 +563,9 @@ export function MinuteBodyEditor({
               </ul>
             ) : (
               <p className="px-2.5 py-2 text-xs text-muted-foreground">
-                Nenhum {mention.title === "Tio" ? "maçom" : "DeMolay/sênior"}{" "}
-                parecido com “{mention.query}”.
+                Nenhum{" "}
+                {active.match.title === "Tio" ? "maçom" : "DeMolay/sênior"}{" "}
+                parecido com “{active.match.query}”.
               </p>
             )}
           </div>

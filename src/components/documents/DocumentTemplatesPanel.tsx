@@ -15,7 +15,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AVAILABLE_VARS } from "@/lib/minute-vars";
+import { MinuteBodyEditor } from "@/components/minutes/MinuteBodyEditor";
 import { formatDateTimeBR } from "@/lib/format";
 import { matchesLooseSearch, cn } from "@/lib/utils";
 
@@ -166,9 +166,11 @@ export function DocumentTemplatesPanel({
         {varsOpen ? (
           <div className="border-t border-border px-4 py-3">
             <p className="mb-2 text-xs text-muted-foreground">
-              Clique para copiar. Ao inserir o modelo na {kindNoun}, as variáveis
-              são preenchidas com o capítulo e os oficiais da vigência atual.
-              As não reconhecidas permanecem entre colchetes.
+              Digite <span className="font-mono">[</span> no texto do modelo para
+              autocompletar, ou clique para copiar. Ao inserir o modelo na{" "}
+              {kindNoun}, as variáveis são preenchidas com o capítulo e os
+              oficiais da vigência atual. As não reconhecidas permanecem entre
+              colchetes.
             </p>
             <div className="flex flex-wrap gap-1.5">
               {AVAILABLE_VARS.map((v) => (
@@ -235,6 +237,7 @@ export function DocumentTemplatesPanel({
             <li key={t.id}>
               <TemplateEditorCard
                 template={t}
+                chapterId={chapterId}
                 editable={editable}
                 expanded={expandedId === t.id}
                 onToggle={() =>
@@ -312,6 +315,7 @@ export function DocumentTemplatesPanel({
 
 function TemplateEditorCard({
   template,
+  chapterId,
   editable,
   expanded,
   onToggle,
@@ -320,6 +324,7 @@ function TemplateEditorCard({
   onDelete,
 }: {
   template: DocTemplate;
+  chapterId: string;
   editable: boolean;
   expanded: boolean;
   onToggle: () => void;
@@ -457,20 +462,25 @@ function TemplateEditorCard({
                 </button>
               ))}
               <span className="self-center text-[10px] text-muted-foreground">
-                + mais no painel acima
+                + digite [ no texto
               </span>
             </div>
           ) : null}
           <div className="space-y-1.5">
             <Label htmlFor={`tpl-body-${template.id}`}>Texto do modelo</Label>
-            <Textarea
+            <MinuteBodyEditor
               id={`tpl-body-${template.id}`}
-              ref={bodyRef}
+              chapterId={chapterId}
               value={body}
+              onChange={setBody}
+              editable={editable}
               rows={14}
-              readOnly={!editable}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder={`Escreva o texto-base da ${kindPlural.slice(0, -1)}… Use [variáveis] para campos automáticos.`}
+              enableMentions={false}
+              enableVars
+              showAutocompleteToggle={false}
+              autocompleteOn
+              textareaRef={bodyRef}
+              placeholder={`Escreva o texto-base da ${kindPlural.slice(0, -1)}… Digite [ para variáveis dinâmicas.`}
               className="min-h-[220px] font-mono text-sm leading-relaxed"
             />
           </div>

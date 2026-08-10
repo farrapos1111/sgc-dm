@@ -1378,25 +1378,14 @@ async function resolveLinkedMemberIds(
   chapterId: string,
   email: string | null,
 ): Promise<string[]> {
-  const ids = new Set<string>();
-
-  const { data: byUser } = await supabase
-    .from("members")
-    .select("id")
-    .eq("chapter_id", chapterId)
-    .eq("user_id", userId);
-  for (const m of byUser ?? []) ids.add((m as { id: string }).id);
-
-  if (email) {
-    const { data: byEmail } = await supabase
-      .from("members")
-      .select("id")
-      .eq("chapter_id", chapterId)
-      .eq("email", email);
-    for (const m of byEmail ?? []) ids.add((m as { id: string }).id);
-  }
-
-  return [...ids];
+  const { resolveLinkedMemberIdsForChapter } = await import(
+    "@/lib/resolve-linked-members"
+  );
+  return resolveLinkedMemberIdsForChapter(supabase, {
+    userId,
+    chapterId,
+    email,
+  });
 }
 
 async function userCanVoteSindicancia(

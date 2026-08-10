@@ -11,12 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AtualizarCadastroRouteImport } from './routes/atualizar-cadastro'
+import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as DocumentacaoRouteRouteImport } from './routes/documentacao/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedShellRouteRouteImport } from './routes/_authenticated/_shell/route'
 import { Route as AuthenticatedSelecionarCapituloRouteImport } from './routes/_authenticated/selecionar-capitulo'
 import { Route as AtaTokenRouteImport } from './routes/ata.$token'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
+import { Route as AuthAdicionarOrganizacaoRouteImport } from './routes/auth/adicionar-organizacao'
+import { Route as AuthAssinaturaRouteImport } from './routes/auth/assinatura'
 import { Route as AuthNovaSenhaRouteImport } from './routes/auth/nova-senha'
 import { Route as AuthRecuperarSenhaRouteImport } from './routes/auth/recuperar-senha'
 import { Route as AuthRedefinirSenhaRouteImport } from './routes/auth/redefinir-senha'
@@ -37,11 +40,13 @@ import { Route as AuthenticatedShellInicioRouteImport } from './routes/_authenti
 import { Route as AuthenticatedShellMaisRouteImport } from './routes/_authenticated/_shell/mais'
 import { Route as AuthenticatedShellPerfilRouteImport } from './routes/_authenticated/_shell/perfil'
 import { Route as AuthenticatedShellPresencasRouteImport } from './routes/_authenticated/_shell/presencas'
+import { Route as AuthenticatedShellSugestoesRouteImport } from './routes/_authenticated/_shell/sugestoes'
 import { Route as CTokenIndexRouteImport } from './routes/c.$token.index'
 import { Route as CTokenEuRouteImport } from './routes/c.$token.eu'
 import { Route as CTokenFluxoRouteImport } from './routes/c.$token.fluxo'
 import { Route as CTokenMensalidadesRouteImport } from './routes/c.$token.mensalidades'
 import { Route as CTokenPresencasRouteImport } from './routes/c.$token.presencas'
+import { Route as AuthenticatedShellConfiguracoesGlobaisCargosRouteImport } from './routes/_authenticated/_shell/configuracoes-globais.cargos'
 import { Route as AuthenticatedShellEventosIndexRouteImport } from './routes/_authenticated/_shell/eventos.index'
 import { Route as AuthenticatedShellEventosIdRouteImport } from './routes/_authenticated/_shell/eventos.$id'
 import { Route as AuthenticatedShellEventosCheckinsRouteImport } from './routes/_authenticated/_shell/eventos.checkins'
@@ -85,6 +90,11 @@ const AtualizarCadastroRoute = AtualizarCadastroRouteImport.update({
   path: '/atualizar-cadastro',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRouteRoute = AuthRouteRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocumentacaoRouteRoute = DocumentacaoRouteRouteImport.update({
   id: '/documentacao',
   path: '/documentacao',
@@ -111,24 +121,35 @@ const AtaTokenRoute = AtaTokenRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthIndexRoute = AuthIndexRouteImport.update({
-  id: '/auth/',
-  path: '/auth/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthRouteRoute,
+} as any)
+const AuthAdicionarOrganizacaoRoute =
+  AuthAdicionarOrganizacaoRouteImport.update({
+    id: '/adicionar-organizacao',
+    path: '/adicionar-organizacao',
+    getParentRoute: () => AuthRouteRoute,
+  } as any)
+const AuthAssinaturaRoute = AuthAssinaturaRouteImport.update({
+  id: '/assinatura',
+  path: '/assinatura',
+  getParentRoute: () => AuthRouteRoute,
 } as any)
 const AuthNovaSenhaRoute = AuthNovaSenhaRouteImport.update({
-  id: '/auth/nova-senha',
-  path: '/auth/nova-senha',
-  getParentRoute: () => rootRouteImport,
+  id: '/nova-senha',
+  path: '/nova-senha',
+  getParentRoute: () => AuthRouteRoute,
 } as any)
 const AuthRecuperarSenhaRoute = AuthRecuperarSenhaRouteImport.update({
-  id: '/auth/recuperar-senha',
-  path: '/auth/recuperar-senha',
-  getParentRoute: () => rootRouteImport,
+  id: '/recuperar-senha',
+  path: '/recuperar-senha',
+  getParentRoute: () => AuthRouteRoute,
 } as any)
 const AuthRedefinirSenhaRoute = AuthRedefinirSenhaRouteImport.update({
-  id: '/auth/redefinir-senha',
-  path: '/auth/redefinir-senha',
-  getParentRoute: () => rootRouteImport,
+  id: '/redefinir-senha',
+  path: '/redefinir-senha',
+  getParentRoute: () => AuthRouteRoute,
 } as any)
 const CTokenRoute = CTokenRouteImport.update({
   id: '/c/$token',
@@ -222,6 +243,12 @@ const AuthenticatedShellPresencasRoute =
     path: '/presencas',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
+const AuthenticatedShellSugestoesRoute =
+  AuthenticatedShellSugestoesRouteImport.update({
+    id: '/sugestoes',
+    path: '/sugestoes',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
 const CTokenIndexRoute = CTokenIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -247,6 +274,12 @@ const CTokenPresencasRoute = CTokenPresencasRouteImport.update({
   path: '/presencas',
   getParentRoute: () => CTokenRoute,
 } as any)
+const AuthenticatedShellConfiguracoesGlobaisCargosRoute =
+  AuthenticatedShellConfiguracoesGlobaisCargosRouteImport.update({
+    id: '/configuracoes-globais/cargos',
+    path: '/configuracoes-globais/cargos',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
 const AuthenticatedShellEventosIndexRoute =
   AuthenticatedShellEventosIndexRouteImport.update({
     id: '/eventos/',
@@ -448,10 +481,13 @@ const AuthenticatedShellSindicanciasSindicariasEventIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/auth': typeof AuthRouteRouteWithChildren
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
+  '/auth/adicionar-organizacao': typeof AuthAdicionarOrganizacaoRoute
+  '/auth/assinatura': typeof AuthAssinaturaRoute
   '/auth/nova-senha': typeof AuthNovaSenhaRoute
   '/auth/recuperar-senha': typeof AuthRecuperarSenhaRoute
   '/auth/redefinir-senha': typeof AuthRedefinirSenhaRoute
@@ -473,11 +509,13 @@ export interface FileRoutesByFullPath {
   '/mais': typeof AuthenticatedShellMaisRoute
   '/perfil': typeof AuthenticatedShellPerfilRoute
   '/presencas': typeof AuthenticatedShellPresencasRoute
+  '/sugestoes': typeof AuthenticatedShellSugestoesRoute
   '/c/$token/eu': typeof CTokenEuRoute
   '/c/$token/fluxo': typeof CTokenFluxoRoute
   '/c/$token/mensalidades': typeof CTokenMensalidadesRoute
   '/c/$token/presencas': typeof CTokenPresencasRoute
   '/c/$token/': typeof CTokenIndexRoute
+  '/configuracoes-globais/cargos': typeof AuthenticatedShellConfiguracoesGlobaisCargosRoute
   '/eventos/$id': typeof AuthenticatedShellEventosIdRoute
   '/eventos/checkins': typeof AuthenticatedShellEventosCheckinsRoute
   '/eventos/novo': typeof AuthenticatedShellEventosNovoRoute
@@ -517,6 +555,8 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
+  '/auth/adicionar-organizacao': typeof AuthAdicionarOrganizacaoRoute
+  '/auth/assinatura': typeof AuthAssinaturaRoute
   '/auth/nova-senha': typeof AuthNovaSenhaRoute
   '/auth/recuperar-senha': typeof AuthRecuperarSenhaRoute
   '/auth/redefinir-senha': typeof AuthRedefinirSenhaRoute
@@ -537,11 +577,13 @@ export interface FileRoutesByTo {
   '/mais': typeof AuthenticatedShellMaisRoute
   '/perfil': typeof AuthenticatedShellPerfilRoute
   '/presencas': typeof AuthenticatedShellPresencasRoute
+  '/sugestoes': typeof AuthenticatedShellSugestoesRoute
   '/c/$token/eu': typeof CTokenEuRoute
   '/c/$token/fluxo': typeof CTokenFluxoRoute
   '/c/$token/mensalidades': typeof CTokenMensalidadesRoute
   '/c/$token/presencas': typeof CTokenPresencasRoute
   '/c/$token': typeof CTokenIndexRoute
+  '/configuracoes-globais/cargos': typeof AuthenticatedShellConfiguracoesGlobaisCargosRoute
   '/eventos/$id': typeof AuthenticatedShellEventosIdRoute
   '/eventos/checkins': typeof AuthenticatedShellEventosCheckinsRoute
   '/eventos/novo': typeof AuthenticatedShellEventosNovoRoute
@@ -579,11 +621,14 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRouteRouteWithChildren
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
   '/_authenticated/_shell': typeof AuthenticatedShellRouteRouteWithChildren
   '/_authenticated/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
+  '/auth/adicionar-organizacao': typeof AuthAdicionarOrganizacaoRoute
+  '/auth/assinatura': typeof AuthAssinaturaRoute
   '/auth/nova-senha': typeof AuthNovaSenhaRoute
   '/auth/recuperar-senha': typeof AuthRecuperarSenhaRoute
   '/auth/redefinir-senha': typeof AuthRedefinirSenhaRoute
@@ -606,11 +651,13 @@ export interface FileRoutesById {
   '/_authenticated/_shell/mais': typeof AuthenticatedShellMaisRoute
   '/_authenticated/_shell/perfil': typeof AuthenticatedShellPerfilRoute
   '/_authenticated/_shell/presencas': typeof AuthenticatedShellPresencasRoute
+  '/_authenticated/_shell/sugestoes': typeof AuthenticatedShellSugestoesRoute
   '/c/$token/eu': typeof CTokenEuRoute
   '/c/$token/fluxo': typeof CTokenFluxoRoute
   '/c/$token/mensalidades': typeof CTokenMensalidadesRoute
   '/c/$token/presencas': typeof CTokenPresencasRoute
   '/c/$token/': typeof CTokenIndexRoute
+  '/_authenticated/_shell/configuracoes-globais/cargos': typeof AuthenticatedShellConfiguracoesGlobaisCargosRoute
   '/_authenticated/_shell/eventos/$id': typeof AuthenticatedShellEventosIdRoute
   '/_authenticated/_shell/eventos/checkins': typeof AuthenticatedShellEventosCheckinsRoute
   '/_authenticated/_shell/eventos/novo': typeof AuthenticatedShellEventosNovoRoute
@@ -649,10 +696,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/documentacao'
     | '/atualizar-cadastro'
     | '/selecionar-capitulo'
     | '/ata/$token'
+    | '/auth/adicionar-organizacao'
+    | '/auth/assinatura'
     | '/auth/nova-senha'
     | '/auth/recuperar-senha'
     | '/auth/redefinir-senha'
@@ -674,11 +724,13 @@ export interface FileRouteTypes {
     | '/mais'
     | '/perfil'
     | '/presencas'
+    | '/sugestoes'
     | '/c/$token/eu'
     | '/c/$token/fluxo'
     | '/c/$token/mensalidades'
     | '/c/$token/presencas'
     | '/c/$token/'
+    | '/configuracoes-globais/cargos'
     | '/eventos/$id'
     | '/eventos/checkins'
     | '/eventos/novo'
@@ -718,6 +770,8 @@ export interface FileRouteTypes {
     | '/'
     | '/selecionar-capitulo'
     | '/ata/$token'
+    | '/auth/adicionar-organizacao'
+    | '/auth/assinatura'
     | '/auth/nova-senha'
     | '/auth/recuperar-senha'
     | '/auth/redefinir-senha'
@@ -738,11 +792,13 @@ export interface FileRouteTypes {
     | '/mais'
     | '/perfil'
     | '/presencas'
+    | '/sugestoes'
     | '/c/$token/eu'
     | '/c/$token/fluxo'
     | '/c/$token/mensalidades'
     | '/c/$token/presencas'
     | '/c/$token'
+    | '/configuracoes-globais/cargos'
     | '/eventos/$id'
     | '/eventos/checkins'
     | '/eventos/novo'
@@ -779,11 +835,14 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
+    | '/auth'
     | '/documentacao'
     | '/atualizar-cadastro'
     | '/_authenticated/_shell'
     | '/_authenticated/selecionar-capitulo'
     | '/ata/$token'
+    | '/auth/adicionar-organizacao'
+    | '/auth/assinatura'
     | '/auth/nova-senha'
     | '/auth/recuperar-senha'
     | '/auth/redefinir-senha'
@@ -806,11 +865,13 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/mais'
     | '/_authenticated/_shell/perfil'
     | '/_authenticated/_shell/presencas'
+    | '/_authenticated/_shell/sugestoes'
     | '/c/$token/eu'
     | '/c/$token/fluxo'
     | '/c/$token/mensalidades'
     | '/c/$token/presencas'
     | '/c/$token/'
+    | '/_authenticated/_shell/configuracoes-globais/cargos'
     | '/_authenticated/_shell/eventos/$id'
     | '/_authenticated/_shell/eventos/checkins'
     | '/_authenticated/_shell/eventos/novo'
@@ -848,17 +909,14 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRouteRoute: typeof AuthRouteRouteWithChildren
   DocumentacaoRouteRoute: typeof DocumentacaoRouteRouteWithChildren
   AtualizarCadastroRoute: typeof AtualizarCadastroRoute
   AtaTokenRoute: typeof AtaTokenRoute
-  AuthNovaSenhaRoute: typeof AuthNovaSenhaRoute
-  AuthRecuperarSenhaRoute: typeof AuthRecuperarSenhaRoute
-  AuthRedefinirSenhaRoute: typeof AuthRedefinirSenhaRoute
   CTokenRoute: typeof CTokenRouteWithChildren
   FTokenRoute: typeof FTokenRoute
   FluxoCaixaTokenRoute: typeof FluxoCaixaTokenRoute
   MensalidadesTokenRoute: typeof MensalidadesTokenRoute
-  AuthIndexRoute: typeof AuthIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -875,6 +933,13 @@ declare module '@tanstack/react-router' {
       path: '/atualizar-cadastro'
       fullPath: '/atualizar-cadastro'
       preLoaderRoute: typeof AtualizarCadastroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/documentacao': {
@@ -914,31 +979,45 @@ declare module '@tanstack/react-router' {
     }
     '/auth/': {
       id: '/auth/'
-      path: '/auth'
+      path: '/'
       fullPath: '/auth/'
       preLoaderRoute: typeof AuthIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/auth/adicionar-organizacao': {
+      id: '/auth/adicionar-organizacao'
+      path: '/adicionar-organizacao'
+      fullPath: '/auth/adicionar-organizacao'
+      preLoaderRoute: typeof AuthAdicionarOrganizacaoRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/auth/assinatura': {
+      id: '/auth/assinatura'
+      path: '/assinatura'
+      fullPath: '/auth/assinatura'
+      preLoaderRoute: typeof AuthAssinaturaRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
     '/auth/nova-senha': {
       id: '/auth/nova-senha'
-      path: '/auth/nova-senha'
+      path: '/nova-senha'
       fullPath: '/auth/nova-senha'
       preLoaderRoute: typeof AuthNovaSenhaRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
     '/auth/recuperar-senha': {
       id: '/auth/recuperar-senha'
-      path: '/auth/recuperar-senha'
+      path: '/recuperar-senha'
       fullPath: '/auth/recuperar-senha'
       preLoaderRoute: typeof AuthRecuperarSenhaRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
     '/auth/redefinir-senha': {
       id: '/auth/redefinir-senha'
-      path: '/auth/redefinir-senha'
+      path: '/redefinir-senha'
       fullPath: '/auth/redefinir-senha'
       preLoaderRoute: typeof AuthRedefinirSenhaRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
     '/c/$token': {
       id: '/c/$token'
@@ -1059,6 +1138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellPresencasRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
+    '/_authenticated/_shell/sugestoes': {
+      id: '/_authenticated/_shell/sugestoes'
+      path: '/sugestoes'
+      fullPath: '/sugestoes'
+      preLoaderRoute: typeof AuthenticatedShellSugestoesRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
     '/c/$token/': {
       id: '/c/$token/'
       path: '/'
@@ -1093,6 +1179,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/c/$token/presencas'
       preLoaderRoute: typeof CTokenPresencasRouteImport
       parentRoute: typeof CTokenRoute
+    }
+    '/_authenticated/_shell/configuracoes-globais/cargos': {
+      id: '/_authenticated/_shell/configuracoes-globais/cargos'
+      path: '/configuracoes-globais/cargos'
+      fullPath: '/configuracoes-globais/cargos'
+      preLoaderRoute: typeof AuthenticatedShellConfiguracoesGlobaisCargosRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
     }
     '/_authenticated/_shell/eventos/': {
       id: '/_authenticated/_shell/eventos/'
@@ -1338,6 +1431,8 @@ interface AuthenticatedShellRouteRouteChildren {
   AuthenticatedShellMaisRoute: typeof AuthenticatedShellMaisRoute
   AuthenticatedShellPerfilRoute: typeof AuthenticatedShellPerfilRoute
   AuthenticatedShellPresencasRoute: typeof AuthenticatedShellPresencasRoute
+  AuthenticatedShellSugestoesRoute: typeof AuthenticatedShellSugestoesRoute
+  AuthenticatedShellConfiguracoesGlobaisCargosRoute: typeof AuthenticatedShellConfiguracoesGlobaisCargosRoute
   AuthenticatedShellEventosIdRoute: typeof AuthenticatedShellEventosIdRoute
   AuthenticatedShellEventosCheckinsRoute: typeof AuthenticatedShellEventosCheckinsRoute
   AuthenticatedShellEventosNovoRoute: typeof AuthenticatedShellEventosNovoRoute
@@ -1384,6 +1479,9 @@ const AuthenticatedShellRouteRouteChildren: AuthenticatedShellRouteRouteChildren
     AuthenticatedShellMaisRoute: AuthenticatedShellMaisRoute,
     AuthenticatedShellPerfilRoute: AuthenticatedShellPerfilRoute,
     AuthenticatedShellPresencasRoute: AuthenticatedShellPresencasRoute,
+    AuthenticatedShellSugestoesRoute: AuthenticatedShellSugestoesRoute,
+    AuthenticatedShellConfiguracoesGlobaisCargosRoute:
+      AuthenticatedShellConfiguracoesGlobaisCargosRoute,
     AuthenticatedShellEventosIdRoute: AuthenticatedShellEventosIdRoute,
     AuthenticatedShellEventosCheckinsRoute:
       AuthenticatedShellEventosCheckinsRoute,
@@ -1461,6 +1559,28 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface AuthRouteRouteChildren {
+  AuthAdicionarOrganizacaoRoute: typeof AuthAdicionarOrganizacaoRoute
+  AuthAssinaturaRoute: typeof AuthAssinaturaRoute
+  AuthNovaSenhaRoute: typeof AuthNovaSenhaRoute
+  AuthRecuperarSenhaRoute: typeof AuthRecuperarSenhaRoute
+  AuthRedefinirSenhaRoute: typeof AuthRedefinirSenhaRoute
+  AuthIndexRoute: typeof AuthIndexRoute
+}
+
+const AuthRouteRouteChildren: AuthRouteRouteChildren = {
+  AuthAdicionarOrganizacaoRoute: AuthAdicionarOrganizacaoRoute,
+  AuthAssinaturaRoute: AuthAssinaturaRoute,
+  AuthNovaSenhaRoute: AuthNovaSenhaRoute,
+  AuthRecuperarSenhaRoute: AuthRecuperarSenhaRoute,
+  AuthRedefinirSenhaRoute: AuthRedefinirSenhaRoute,
+  AuthIndexRoute: AuthIndexRoute,
+}
+
+const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(
+  AuthRouteRouteChildren,
+)
+
 interface DocumentacaoRouteRouteChildren {
   DocumentacaoGuiaRoute: typeof DocumentacaoGuiaRoute
   DocumentacaoOpenSourceRoute: typeof DocumentacaoOpenSourceRoute
@@ -1499,17 +1619,14 @@ const CTokenRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRouteRoute: AuthRouteRouteWithChildren,
   DocumentacaoRouteRoute: DocumentacaoRouteRouteWithChildren,
   AtualizarCadastroRoute: AtualizarCadastroRoute,
   AtaTokenRoute: AtaTokenRoute,
-  AuthNovaSenhaRoute: AuthNovaSenhaRoute,
-  AuthRecuperarSenhaRoute: AuthRecuperarSenhaRoute,
-  AuthRedefinirSenhaRoute: AuthRedefinirSenhaRoute,
   CTokenRoute: CTokenRouteWithChildren,
   FTokenRoute: FTokenRoute,
   FluxoCaixaTokenRoute: FluxoCaixaTokenRoute,
   MensalidadesTokenRoute: MensalidadesTokenRoute,
-  AuthIndexRoute: AuthIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

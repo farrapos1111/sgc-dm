@@ -5,7 +5,7 @@ import {
   useQueryClient,
   queryOptions,
 } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { PageHeader } from "@/components/PageHeader";
@@ -28,12 +28,39 @@ import {
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatDateTimeBR } from "@/lib/format";
 import { useOngoingRealtime } from "@/hooks/useOngoingRealtime";
-import { ArrowLeft, Check, Radio, Search, X } from "lucide-react";
+import { ArrowLeft, Check, Plus, Radio, Search, X } from "lucide-react";
+
+type SessionMinute = {
+  id: string;
+  content: string;
+  opened_at: string;
+  updated_at: string;
+  status: string;
+  title: string | null;
+  kind?: string | null;
+};
+
+const NEW_MINUTE_KEY = "__new__";
+
+function minuteTabLabel(m: SessionMinute, index: number) {
+  const title = m.title?.trim();
+  return title || `Ata ${index + 1}`;
+}
+type OngoingSearch = {
+  tab: "ata" | "chamada";
+  minute?: string;
+};
 
 export const Route = createFileRoute("/_authenticated/_shell/ongoing/$id")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    tab: search.tab === "ata" ? ("ata" as const) : ("chamada" as const),
-  }),
+  validateSearch: (search: Record<string, unknown>): OngoingSearch => {
+    const result: OngoingSearch = {
+      tab: search.tab === "ata" ? "ata" : "chamada",
+    };
+    if (typeof search.minute === "string" && search.minute.length > 0) {
+      result.minute = search.minute;
+    }
+    return result;
+  },
   head: () => ({
     meta: [
       { title: "Sessão em andamento — Templo Virtual" },
@@ -54,13 +81,32 @@ const ongoingQO = (id: string) =>
 
 function OngoingPage() {
   const { id } = Route.useParams();
-  const { tab: searchTab } = Route.useSearch();
+  const { tab: searchTab, minute: searchMinute } = Route.useSearch();
   const { active } = useActiveChapter();
   const { ctx } = useChapterAccess();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data } = useSuspenseQuery(ongoingQO(id));
   const [search, setSearch] = useState("");
+  const minutesList = (data.minutes as SessionMinute[]) ?? [];
+  const [selectedMinuteKey, setSelectedMinuteKey] = useState<string>(() => {
+    if (searchMinute && minutesList.some((m) => m.id === searchMinute)) {
+      return searchMinute;
+    }
+    return minutesList[0]?.id ?? NEW_MINUTE_KEY;
+  });
+
+  useEffect(() => {
+    if (selectedMinuteKey === NEW_MINUTE_KEY) return;
+    if (minutesList.some((m) => m.id === selectedMinuteKey)) return;
+    setSelectedMinuteKey(minutesList[0]?.id ?? NEW_MINUTE_KEY);
+  }, [minutesList, selectedMinuteKey]);
+
+  const selectedMinute =
+    selectedMinuteKey === NEW_MINUTE_KEY
+      ? null
+      : (minutesList.find((m) => m.id === selectedMinuteKey) ?? null);
+
   const hasAttendance = supportsAttendance(
     (data.item as { event_type: string }).event_type,
   );
@@ -82,6 +128,13 @@ function OngoingPage() {
       );
       return false;
     }
+  }
+
+  async function selectMinuteTab(key: string) {
+    if (key === selectedMinuteKey) return;
+    const ok = await flushAtaBeforeLeave();
+    if (!ok) return;
+    setSelectedMinuteKey(key);
   }
 
   async function leaveWithAtaFlush(to: "/atas" | "/presencas") {
@@ -465,7 +518,40 @@ function OngoingPage() {
 
         {hasAta ? (
           <TabsContent value="ata">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {minutesList.map((m, index) => (
+                <Button
+                  key={m.id}
+                  type="button"
+                  size="sm"
+                  variant={selectedMinuteKey === m.id ? "default" : "outline"}
+                  style={
+                    selectedMinuteKey === m.id
+                      ? { backgroundColor: "var(--chapter-primary)" }
+                      : undefined
+                  }
+                  onClick={() => void selectMinuteTab(m.id)}
+                >
+                  {minuteTabLabel(m, index)}
+                </Button>
+              ))}
+              <Button
+                type="button"
+                size="sm"
+                variant={selectedMinuteKey === NEW_MINUTE_KEY ? "default" : "outline"}
+                style={
+                  selectedMinuteKey === NEW_MINUTE_KEY
+                    ? { backgroundColor: "var(--chapter-primary)" }
+                    : undefined
+                }
+                onClick={() => void selectMinuteTab(NEW_MINUTE_KEY)}
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                Nova ata
+              </Button>
+            </div>
             <MinutesPanel
+              key={selectedMinuteKey}
               chapterId={item.chapter_id}
               calendarEventId={id}
               item={{
@@ -474,13 +560,19 @@ function OngoingPage() {
                 location: item.location,
                 address: item.address ?? null,
               }}
-              minutes={(data.minutes as any) ?? null}
+              minutes={selectedMinute}
               roleName={active?.role.name ?? null}
               flushSaveRef={flushAtaSaveRef}
-              onChanged={() =>
-                qc.invalidateQueries({ queryKey: ["ongoing", id] })
-              }
-              onDeleted={() => navigate({ to: "/atas" })}
+              onChanged={(info) => {
+                if (info?.minuteId) setSelectedMinuteKey(info.minuteId);
+                void qc.invalidateQueries({ queryKey: ["ongoing", id] });
+              }}
+              onDeleted={() => {
+                const remaining = minutesList.filter(
+                  (m) => m.id !== selectedMinuteKey,
+                );
+                setSelectedMinuteKey(remaining[0]?.id ?? NEW_MINUTE_KEY);
+              }}
             />
           </TabsContent>
         ) : null}

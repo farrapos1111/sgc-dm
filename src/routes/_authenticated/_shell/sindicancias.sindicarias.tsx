@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatDateTimeBR } from "@/lib/format";
 import {
@@ -81,7 +82,9 @@ export const Route = createFileRoute(
 function SindicariasPage() {
   const { active } = useActiveChapter();
   const { canManage } = useCommissionAccess();
-  const writable = canManage("sindicancias");
+  const { canScreen } = useChapterAccess();
+  const writable =
+    canScreen("sindicancias", "edit") || canManage("sindicancias");
   const isMobile = useIsMobile();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();

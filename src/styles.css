@@ -7,9 +7,8 @@
 /*
  * Templo Virtual design system.
  *
- * Institutional tokens (bg #FAFAF8, fg #1A1A1A, muted #6B6B6B).
- * Primary is per-chapter: --chapter-primary set inline by the shell,
- * defaulting to #9E1B32 here so screens outside the shell (auth, selecionar-capitulo) still render brand color.
+ * Fundo/texto vêm de --chapter-bg / --chapter-font (tema do capítulo).
+ * Destaque: --chapter-primary. No modo escuro, fundo/texto ficam fixos.
  */
 
 @theme inline {
@@ -57,42 +56,69 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Clicáveis: cursor pointer consistente (exceto desabilitados) */
+a[href],
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="menuitem"],
+[role="option"],
+[role="tab"],
+[role="checkbox"],
+[role="radio"],
+[role="switch"],
+summary,
+label[for],
+select:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+input[type="file"]:not(:disabled),
+input[type="date"]:not(:disabled) {
+  cursor: pointer;
+}
+
 :root {
   --radius: 0.5rem; /* inputs 8px */
-  --chapter-primary: #9E1B32;
+  --chapter-primary: #072D5A;
+  --chapter-bg: #FFFFFF;
+  --chapter-accent: #072D5A;
+  --chapter-accent-dark: #051E3E;
+  --chapter-highlight: #D6E4F0;
+  --chapter-font: #1A1A1A;
+  --chapter-sidebar: #FFFFFF;
 
-  --background: oklch(0.985 0.002 100);   /* #FAFAF8 */
-  --foreground: oklch(0.22 0 0);           /* #1A1A1A */
+  /* Fundo/texto/sidebar do capítulo (settings.theme) — no .dark ficam sobrescritos. */
+  --background: var(--chapter-bg);
+  --foreground: var(--chapter-font);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0 0);
+  --card-foreground: var(--chapter-font);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0 0);
-  --primary: oklch(0.44 0.16 20);          /* #9E1B32 approx */
+  --popover-foreground: var(--chapter-font);
+  --primary: oklch(0.32 0.08 250);          /* #072D5A approx */
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.96 0.003 100);
-  --secondary-foreground: oklch(0.22 0 0);
-  --muted: oklch(0.96 0.003 100);
-  --muted-foreground: oklch(0.5 0 0);       /* #6B6B6B */
-  --accent: oklch(0.96 0.003 100);
-  --accent-foreground: oklch(0.22 0 0);
+  --secondary: color-mix(in srgb, var(--chapter-bg) 88%, var(--chapter-font));
+  --secondary-foreground: var(--chapter-font);
+  --muted: color-mix(in srgb, var(--chapter-bg) 88%, var(--chapter-font));
+  --muted-foreground: color-mix(in srgb, var(--chapter-font) 55%, var(--chapter-bg));
+  --accent: color-mix(in srgb, var(--chapter-bg) 88%, var(--chapter-font));
+  --accent-foreground: var(--chapter-font);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.92 0.003 100);
-  --input: oklch(0.92 0.003 100);
-  --ring: oklch(0.44 0.16 20);
+  --border: color-mix(in srgb, var(--chapter-font) 12%, var(--chapter-bg));
+  --input: color-mix(in srgb, var(--chapter-font) 12%, var(--chapter-bg));
+  --ring: var(--chapter-primary);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.22 0 0);
-  --sidebar-primary: oklch(0.44 0.16 20);
+  --sidebar: var(--chapter-sidebar);
+  --sidebar-foreground: var(--chapter-font);
+  --sidebar-primary: var(--chapter-primary);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.96 0.003 100);
-  --sidebar-accent-foreground: oklch(0.22 0 0);
-  --sidebar-border: oklch(0.92 0.003 100);
-  --sidebar-ring: oklch(0.44 0.16 20);
+  --sidebar-accent: color-mix(in srgb, var(--chapter-sidebar) 88%, var(--chapter-font));
+  --sidebar-accent-foreground: var(--chapter-font);
+  --sidebar-border: color-mix(in srgb, var(--chapter-font) 12%, var(--chapter-sidebar));
+  --sidebar-ring: var(--chapter-primary);
 }
 
 .dark {

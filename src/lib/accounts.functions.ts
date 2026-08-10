@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
+import { createHash } from "node:crypto";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
@@ -657,6 +658,168 @@ export const getMustChangePassword = createServerFn({ method: "POST" })
 const IRREGULAR_LOGIN_MESSAGE =
   "Membros irregulares não podem acessar a plataforma. Regularize sua situação junto à secretaria ou tesouraria do capítulo.";
 
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_ID_MAX_FAILS = 5;
+const LOGIN_IP_MAX_FAILS = 20;
+const LOGIN_LOCK_MS = 15 * 60 * 1000;
+
+type ThrottleRow = {
+  scope: string;
+  scope_key: string;
+  fail_count: number;
+  window_started_at: string;
+  locked_until: string | null;
+};
+
+async function clientIpForLogin(): Promise<string> {
+  try {
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const request = getRequest();
+    const forwarded = request.headers.get("x-forwarded-for");
+    if (forwarded) {
+      const first = forwarded.split(",")[0]?.trim();
+      if (first) return first.slice(0, 64);
+    }
+    const realIp = request.headers.get("x-real-ip")?.trim();
+    if (realIp) return realIp.slice(0, 64);
+  } catch {
+    /* SSR / ambiente sem request */
+  }
+  return "unknown";
+}
+
+function hashIdentifierKey(identifier: string): string {
+  return createHash("sha256")
+    .update(identifier.trim().toLowerCase())
+    .digest("hex");
+}
+
+function lockMessage(lockedUntil: Date): string {
+  const ms = Math.max(0, lockedUntil.getTime() - Date.now());
+  const mins = Math.max(1, Math.ceil(ms / 60_000));
+  return `Muitas tentativas de login. Tente novamente em ${mins} minuto${mins === 1 ? "" : "s"}.`;
+}
+
+function isMissingThrottleTable(message: string): boolean {
+  return /auth_login_throttle|schema cache|does not exist/i.test(message);
+}
+
+async function fetchThrottleRow(
+  admin: SupabaseClient<Database>,
+  scope: "identifier" | "ip",
+  key: string,
+): Promise<Omit<ThrottleRow, "scope" | "scope_key"> | null> {
+  const { data, error } = await admin
+    .from("auth_login_throttle" as never)
+    .select("fail_count, window_started_at, locked_until")
+    .eq("scope", scope)
+    .eq("scope_key", key)
+    .maybeSingle();
+  if (error) {
+    if (isMissingThrottleTable(error.message)) return null;
+    throw new Error("Não foi possível validar o login. Tente novamente.");
+  }
+  return data as Omit<ThrottleRow, "scope" | "scope_key"> | null;
+}
+
+async function assertLoginNotLocked(
+  admin: SupabaseClient<Database>,
+  identifierKey: string,
+  ip: string,
+) {
+  const now = Date.now();
+  const rows = await Promise.all([
+    fetchThrottleRow(admin, "identifier", identifierKey),
+    fetchThrottleRow(admin, "ip", ip),
+  ]);
+  for (const row of rows) {
+    if (!row?.locked_until) continue;
+    const until = new Date(row.locked_until).getTime();
+    if (until > now) throw new Error(lockMessage(new Date(until)));
+  }
+}
+
+async function recordLoginFailure(
+  admin: SupabaseClient<Database>,
+  identifierKey: string,
+  ip: string,
+) {
+  const now = new Date();
+  const scopes: { scope: "identifier" | "ip"; key: string; max: number }[] = [
+    { scope: "identifier", key: identifierKey, max: LOGIN_ID_MAX_FAILS },
+    { scope: "ip", key: ip, max: LOGIN_IP_MAX_FAILS },
+  ];
+
+  let lockUntilThrown: Date | null = null;
+
+  for (const s of scopes) {
+    const row = await fetchThrottleRow(admin, s.scope, s.key);
+    let failCount = 1;
+    let windowStarted = now.toISOString();
+    let lockedUntil: string | null = null;
+
+    if (row) {
+      const windowStart = new Date(row.window_started_at).getTime();
+      const stillInWindow = now.getTime() - windowStart < LOGIN_WINDOW_MS;
+      const stillLocked =
+        row.locked_until &&
+        new Date(row.locked_until).getTime() > now.getTime();
+
+      if (stillLocked) {
+        lockedUntil = row.locked_until;
+        failCount = row.fail_count;
+        windowStarted = row.window_started_at;
+      } else if (stillInWindow) {
+        failCount = row.fail_count + 1;
+        windowStarted = row.window_started_at;
+        if (failCount >= s.max) {
+          lockedUntil = new Date(now.getTime() + LOGIN_LOCK_MS).toISOString();
+        }
+      }
+    }
+
+    const { error } = await admin.from("auth_login_throttle" as never).upsert(
+      {
+        scope: s.scope,
+        scope_key: s.key,
+        fail_count: failCount,
+        window_started_at: windowStarted,
+        locked_until: lockedUntil,
+        updated_at: now.toISOString(),
+      } as never,
+      { onConflict: "scope,scope_key" },
+    );
+    if (error && !isMissingThrottleTable(error.message)) {
+      // não mascara a falha de senha se o throttle falhar
+    }
+
+    if (lockedUntil && new Date(lockedUntil).getTime() > now.getTime()) {
+      lockUntilThrown = new Date(lockedUntil);
+    }
+  }
+
+  if (lockUntilThrown) throw new Error(lockMessage(lockUntilThrown));
+}
+
+async function clearLoginFailures(
+  admin: SupabaseClient<Database>,
+  identifierKey: string,
+  ip: string,
+) {
+  await Promise.all([
+    admin
+      .from("auth_login_throttle" as never)
+      .delete()
+      .eq("scope", "identifier")
+      .eq("scope_key", identifierKey),
+    admin
+      .from("auth_login_throttle" as never)
+      .delete()
+      .eq("scope", "ip")
+      .eq("scope_key", ip),
+  ]);
+}
+
 export const signInWithIdentifier = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
     z
@@ -668,59 +831,91 @@ export const signInWithIdentifier = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const identifier = data.identifier.trim();
+    const identifierKey = hashIdentifierKey(identifier);
+    const ip = await clientIpForLogin();
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+
+    await assertLoginNotLocked(supabaseAdmin, identifierKey, ip);
+
     let email: string | null = null;
 
-    if (identifier.includes("@")) {
-      email = identifier.toLowerCase();
-    } else {
-      const { supabaseAdmin } = await import(
-        "@/integrations/supabase/client.server"
-      );
-      const normalizedId = normalizeDemolayId(identifier);
-      if (!normalizedId) {
+    try {
+      if (identifier.includes("@")) {
+        email = identifier.toLowerCase();
+      } else {
+        const normalizedId = normalizeDemolayId(identifier);
+        if (!normalizedId) {
+          throw new Error("Identificador ou senha inválidos.");
+        }
+        const { data: rows, error } = await supabaseAdmin.rpc(
+          "find_member_auth_by_demolay_id" as never,
+          { _demolay_id: normalizedId } as never,
+        );
+        if (error) throw new Error("Identificador ou senha inválidos.");
+        const member = Array.isArray(rows) ? rows[0] : rows;
+        if (!member?.user_id) {
+          throw new Error("Identificador ou senha inválidos.");
+        }
+        if (member.status === "irregular") {
+          throw new Error(IRREGULAR_LOGIN_MESSAGE);
+        }
+        const { data: authUser, error: authErr } =
+          await supabaseAdmin.auth.admin.getUserById(member.user_id);
+        if (authErr || !authUser.user?.email) {
+          throw new Error("Identificador ou senha inválidos.");
+        }
+        email = authUser.user.email;
+      }
+
+      const anon = getAnonAuthClient();
+      const { data: sessionData, error: signErr } =
+        await anon.auth.signInWithPassword({
+          email: email!,
+          password: data.password,
+        });
+      if (signErr || !sessionData.session) {
         throw new Error("Identificador ou senha inválidos.");
       }
-      const { data: rows, error } = await supabaseAdmin.rpc(
-        "find_member_auth_by_demolay_id" as never,
-        { _demolay_id: normalizedId } as never,
-      );
-      if (error) throw new Error("Identificador ou senha inválidos.");
-      const member = Array.isArray(rows) ? rows[0] : rows;
-      if (!member?.user_id) {
-        throw new Error("Identificador ou senha inválidos.");
-      }
-      if (member.status === "irregular") {
-        throw new Error(IRREGULAR_LOGIN_MESSAGE);
-      }
-      const { data: authUser, error: authErr } =
-        await supabaseAdmin.auth.admin.getUserById(member.user_id);
-      if (authErr || !authUser.user?.email) {
-        throw new Error("Identificador ou senha inválidos.");
-      }
-      email = authUser.user.email;
-    }
 
-    const anon = getAnonAuthClient();
-    const { data: sessionData, error: signErr } =
-      await anon.auth.signInWithPassword({
-        email: email!,
-        password: data.password,
-      });
-    if (signErr || !sessionData.session) {
-      throw new Error("Identificador ou senha inválidos.");
-    }
+      const userId = sessionData.session.user.id;
+      const gate = await evaluateMemberLoginGate(userId);
+      if (!gate.allowed) {
+        await anon.auth.signOut();
+        throw new Error(gate.message);
+      }
 
-    const userId = sessionData.session.user.id;
-    const gate = await evaluateMemberLoginGate(userId);
-    if (!gate.allowed) {
-      await anon.auth.signOut();
-      throw new Error(gate.message);
-    }
+      await clearLoginFailures(supabaseAdmin, identifierKey, ip);
 
-    return {
-      access_token: sessionData.session.access_token,
-      refresh_token: sessionData.session.refresh_token,
-    };
+      return {
+        access_token: sessionData.session.access_token,
+        refresh_token: sessionData.session.refresh_token,
+      };
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Identificador ou senha inválidos.";
+      // Não contabiliza bloqueio já ativo / irregular (não é brute-force de senha)
+      if (
+        message.startsWith("Muitas tentativas") ||
+        message === IRREGULAR_LOGIN_MESSAGE
+      ) {
+        throw err;
+      }
+      try {
+        await recordLoginFailure(supabaseAdmin, identifierKey, ip);
+      } catch (lockErr) {
+        if (
+          lockErr instanceof Error &&
+          lockErr.message.startsWith("Muitas tentativas")
+        ) {
+          throw lockErr;
+        }
+      }
+      throw err instanceof Error
+        ? err
+        : new Error("Identificador ou senha inválidos.");
+    }
   });
 
 async function evaluateMemberLoginGate(

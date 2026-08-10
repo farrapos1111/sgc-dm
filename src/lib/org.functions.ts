@@ -5,6 +5,7 @@ import { todayYmd } from "@/lib/timezone";
 import { currentTerm } from "@/lib/terms";
 import { normalizeDemolayId } from "@/lib/member-identity";
 import { matchesLooseSearch } from "@/lib/utils";
+import { ORG_TYPES } from "@/lib/org-types";
 
 const orgRoleEnum = z.enum(["gme", "mce", "mcr", "oe"]);
 
@@ -186,7 +187,7 @@ export const listScopeChapters = createServerFn({ method: "POST" })
     let q = context.supabase
       .from("chapters")
       .select(
-        "id, name, number, city, primary_color, logo_url, active, region_id, state_id",
+        "id, name, number, city, primary_color, logo_url, active, region_id, state_id, org_type",
       )
       .order("number", { ascending: true });
     q =
@@ -570,6 +571,7 @@ export const saveChapter = createServerFn({ method: "POST" })
         name: z.string().min(1),
         number: z.string().min(1),
         city: z.string().nullable().optional(),
+        org_type: z.enum(ORG_TYPES).optional(),
         active: z.boolean().optional(),
       })
       .parse(raw),
@@ -586,6 +588,7 @@ export const saveChapter = createServerFn({ method: "POST" })
       name: data.name,
       number: data.number,
       city: data.city ?? null,
+      ...(data.org_type === undefined ? {} : { org_type: data.org_type }),
       ...(data.active === undefined ? {} : { active: data.active }),
     };
     if (data.id) {

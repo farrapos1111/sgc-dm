@@ -9,6 +9,7 @@ import {
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMustChangePassword, signInWithIdentifier } from "@/lib/accounts.functions";
+import { needsSignatureForOffices } from "@/lib/office-signatures.functions";
 
 export const Route = createFileRoute("/auth/")({
   ssr: false,
@@ -32,6 +33,14 @@ export const Route = createFileRoute("/auth/")({
         const { mustChangePassword } = await getMustChangePassword();
         if (mustChangePassword) {
           throw redirect({ to: "/auth/redefinir-senha" });
+        }
+      } catch (e) {
+        if (isRedirect(e)) throw e;
+      }
+      try {
+        const { needsSignature } = await needsSignatureForOffices();
+        if (needsSignature) {
+          throw redirect({ to: "/auth/assinatura" });
         }
       } catch (e) {
         if (isRedirect(e)) throw e;
@@ -76,9 +85,14 @@ function AuthPage() {
       await router.invalidate();
       if (mustChangePassword) {
         navigate({ to: "/auth/redefinir-senha" });
-      } else {
-        navigate({ to: "/" });
+        return;
       }
+      const { needsSignature } = await needsSignatureForOffices();
+      if (needsSignature) {
+        navigate({ to: "/auth/assinatura" });
+        return;
+      }
+      navigate({ to: "/" });
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Identificador ou senha inválidos.",
@@ -169,6 +183,16 @@ function AuthPage() {
               {submitting ? "Entrando..." : "Entrar"}
             </button>
           </form>
+
+          <p className="mt-4 text-center text-sm">
+            <Link
+              to="/auth/adicionar-organizacao"
+              className="font-medium underline underline-offset-2 hover:opacity-80"
+              style={{ color: "#9E1B32" }}
+            >
+              Quero Adicionar à Minha Organização
+            </Link>
+          </p>
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
@@ -177,6 +201,21 @@ function AuthPage() {
             className="underline underline-offset-2 hover:text-foreground"
           >
             Documentação
+          </a>
+          <span className="mx-2 text-border">·</span>
+          Sugestões:{" "}
+          <a
+            href="mailto:pedro.bossle.s@gmail.com?subject=Sugest%C3%A3o%20%E2%80%94%20Templo%20Virtual"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            Pedro Bossle
+          </a>
+          {" · "}
+          <a
+            href="mailto:lucasboeiraborges@gmail.com?subject=Sugest%C3%A3o%20%E2%80%94%20Templo%20Virtual"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            Lucas Borges
           </a>
         </p>
       </div>
