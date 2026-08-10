@@ -4,14 +4,17 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Lightbulb, Mail, MessageCircle, Phone, Users } from "lucide-react";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   getTechCommissionContacts,
   type TechCommissionContact,
 } from "@/lib/tech-commission";
 
-const loadTechContacts = createServerFn({ method: "GET" }).handler(
-  async (): Promise<TechCommissionContact[]> => getTechCommissionContacts(),
-);
+const loadTechContacts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(
+    async (): Promise<TechCommissionContact[]> => getTechCommissionContacts(),
+  );
 
 export const Route = createFileRoute("/_authenticated/_shell/sugestoes")({
   head: () => ({

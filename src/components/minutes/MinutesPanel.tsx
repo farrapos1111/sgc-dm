@@ -170,6 +170,10 @@ export function MinutesPanel({
   });
   /** Evita segundo save no unmount depois de flush explícito (voltar / trocar aba). */
   const allowUnmountSaveRef = useRef(true);
+  /** Chave estável desta instância de “Nova ata” (não reutiliza outro rascunho). */
+  const clientDraftKeyRef = useRef(
+    minutes?.id ? null : crypto.randomUUID(),
+  );
 
   useEffect(() => {
     draftRef.current = {
@@ -207,7 +211,9 @@ export function MinutesPanel({
         calendarEventId,
         content,
         kind: nextKind,
-        ...(minutes?.id ? { id: minutes.id } : {}),
+        ...(minutes?.id
+          ? { id: minutes.id }
+          : { clientDraftKey: clientDraftKeyRef.current! }),
       },
     });
   }
@@ -225,7 +231,9 @@ export function MinutesPanel({
         calendarEventId: d.calendarEventId,
         content: d.ata,
         kind: d.kind,
-        ...(d.minuteId ? { id: d.minuteId } : {}),
+        ...(d.minuteId
+          ? { id: d.minuteId }
+          : { clientDraftKey: clientDraftKeyRef.current! }),
       },
     });
   }

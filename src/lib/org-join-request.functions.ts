@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { sendTransactionalEmail } from "@/lib/email";
 import { getTechCommissionEmails } from "@/lib/tech-commission";
+import { isMissingAuthLoginThrottleTable } from "@/lib/auth-throttle-errors";
+import { resolveTrustedClientIp } from "@/lib/trusted-client-ip";
 
 export const ORG_JOIN_TYPES = [
   "capitulo",
@@ -153,30 +155,15 @@ const ORG_JOIN_IP_MAX = 8;
 const ORG_JOIN_ID_MAX = 3;
 const ORG_JOIN_LOCK_MS = 15 * 60 * 1000;
 
-async function edgeClientIp(): Promise<string | null> {
-  try {
-    const { getRequest } = await import("@tanstack/react-start/server");
-    const request = getRequest();
-    for (const name of [
-      "cf-connecting-ip",
-      "true-client-ip",
-      "x-vercel-forwarded-for",
-      "fly-client-ip",
-    ] as const) {
-      const raw = request.headers.get(name)?.trim();
-      if (!raw) continue;
-      const ip = raw.split(",")[0]?.trim();
-      if (ip) return ip.slice(0, 64);
-    }
-  } catch {
-    /* sem request */
-  }
-  return null;
+function digitsOnlyPhone(phone: string): string {
+  return phone.replace(/\D/g, "");
 }
 
-function hashOrgJoinKey(parts: string[]): string {
+function hashOrgJoinKey(email: string, phone: string): string {
   return createHash("sha256")
-    .update(parts.map((p) => p.trim().toLowerCase()).join("|"))
+    .update(
+      [email.trim().toLowerCase(), digitsOnlyPhone(phone)].join("|"),
+    )
     .digest("hex");
 }
 
@@ -188,24 +175,28 @@ async function assertOrgJoinNotThrottled(
   const { supabaseAdmin } = await import(
     "@/integrations/supabase/client.server"
   );
-  const idKey = hashOrgJoinKey([email, phone]);
+  const idKey = hashOrgJoinKey(email, phone);
   const scopes: { scope: string; key: string }[] = [
     { scope: "org_join", key: idKey },
   ];
   if (ip) scopes.push({ scope: "org_join", key: `ip:${ip}` });
 
   const now = Date.now();
-  for (const s of scopes) {
-    const { data, error } = await supabaseAdmin
-      .from("auth_login_throttle" as never)
-      .select("locked_until")
-      .eq("scope", s.scope)
-      .eq("scope_key", s.key)
-      .maybeSingle();
+  const reads = await Promise.all(
+    scopes.map((s) =>
+      supabaseAdmin
+        .from("auth_login_throttle" as never)
+        .select("locked_until")
+        .eq("scope", s.scope)
+        .eq("scope_key", s.key)
+        .maybeSingle()
+        .then((res) => ({ ...res, scope: s.scope })),
+    ),
+  );
+
+  for (const { data, error } of reads) {
     if (error) {
-      if (/auth_login_throttle|schema cache|does not exist/i.test(error.message)) {
-        return;
-      }
+      if (isMissingAuthLoginThrottleTable(error.message)) return;
       console.error("[org-join] throttle read failed", error.message);
       continue;
     }
@@ -225,7 +216,7 @@ async function recordOrgJoinAttempt(
   const { supabaseAdmin } = await import(
     "@/integrations/supabase/client.server"
   );
-  const idKey = hashOrgJoinKey([email, phone]);
+  const idKey = hashOrgJoinKey(email, phone);
   const jobs: { key: string; max: number }[] = [
     { key: idKey, max: ORG_JOIN_ID_MAX },
   ];
@@ -242,7 +233,7 @@ async function recordOrgJoinAttempt(
         _lock_ms: ORG_JOIN_LOCK_MS,
       } as never,
     );
-    if (error && !/auth_login_throttle|schema cache|does not exist/i.test(error.message)) {
+    if (error && !isMissingAuthLoginThrottleTable(error.message)) {
       console.error("[org-join] throttle write failed", error.message);
     }
   }
@@ -251,14 +242,8 @@ async function recordOrgJoinAttempt(
 export const submitOrgJoinRequest = createServerFn({ method: "POST" })
   .inputValidator((raw) => orgJoinRequestSchema.parse(raw))
   .handler(async ({ data }) => {
-    const ip = await edgeClientIp();
+    const ip = await resolveTrustedClientIp();
     await assertOrgJoinNotThrottled(
-      data.responsibleEmail,
-      data.responsiblePhone,
-      ip,
-    );
-    // Conta a tentativa antes do RPC (anti-spam de IP/e-mail).
-    await recordOrgJoinAttempt(
       data.responsibleEmail,
       data.responsiblePhone,
       ip,
@@ -280,7 +265,7 @@ export const submitOrgJoinRequest = createServerFn({ method: "POST" })
             ? null
             : data.sponsoringLodge?.trim() || null,
         _responsible_name: data.responsibleName,
-        _responsible_phone: data.responsiblePhone,
+        _responsible_phone: digitsOnlyPhone(data.responsiblePhone) || data.responsiblePhone,
         _responsible_email: data.responsibleEmail,
         _responsible_role: data.responsibleRole,
       } as never,
@@ -289,11 +274,34 @@ export const submitOrgJoinRequest = createServerFn({ method: "POST" })
     if (error) {
       console.error("[org-join] submit_org_join_request failed", error.message);
       const msg = error.message ?? "";
+      const code = (error as { code?: string }).code ?? "";
       if (/muitas solicitações/i.test(msg)) {
+        await recordOrgJoinAttempt(
+          data.responsibleEmail,
+          data.responsiblePhone,
+          null,
+        );
         throw new Error("Muitas solicitações. Tente novamente mais tarde.");
+      }
+      // Conta tentativa em falhas que não são validação de input (22023)
+      if (code !== "22023") {
+        await recordOrgJoinAttempt(
+          data.responsibleEmail,
+          data.responsiblePhone,
+          null,
+        );
+      }
+      if (code === "22023" && msg.trim()) {
+        throw new Error(msg);
       }
       throw new Error("Não foi possível registrar a solicitação.");
     }
+
+    await recordOrgJoinAttempt(
+      data.responsibleEmail,
+      data.responsiblePhone,
+      null,
+    );
 
     const row = payload as { id?: string; ok?: boolean } | null;
     const id = row?.id;

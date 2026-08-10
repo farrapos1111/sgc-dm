@@ -85,6 +85,16 @@ export async function resolveSubcategory(
     ) {
       throw new Error("Item inexistente ou desativado no financeiro do evento");
     }
+    const { data: event, error: evErr } = await supabase
+      .from("events")
+      .select("id, starts_at, status")
+      .eq("id", item.event_id)
+      .maybeSingle();
+    if (evErr) throw new Error(evErr.message);
+    if (!event) throw new Error("Evento não encontrado");
+    const { assertEventFinanceOpen } = await import("@/lib/event-lifecycle");
+    assertEventFinanceOpen(event.starts_at, event.status);
+
     return {
       subcategory: item.name,
       calendar_event_id: null,

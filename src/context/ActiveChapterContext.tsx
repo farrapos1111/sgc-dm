@@ -231,7 +231,6 @@ export function ActiveChapterProvider({
     () => readSessionChapterId(),
   );
   const activeChapterIdRef = useRef(activeChapterId);
-  activeChapterIdRef.current = activeChapterId;
 
   const [roleView, setRoleViewState] = useState<RoleName | null>(() =>
     readStoredRoleView(readSessionChapterId()),
@@ -255,6 +254,7 @@ export function ActiveChapterProvider({
   const setActiveChapterId = useCallback(
     (id: string | null) => {
       const prev = activeChapterIdRef.current;
+      activeChapterIdRef.current = id;
       if (prev !== id) {
         // Carrega roleView keyed pelo novo capítulo; não apaga o do anterior.
         const nextView = readStoredRoleView(id);

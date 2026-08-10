@@ -607,12 +607,14 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: event, error: eventErr } = await context.supabase
       .from("events")
-      .select("id, name, chapter_id")
+      .select("id, name, chapter_id, starts_at, status")
       .eq("id", data.eventId)
       .eq("chapter_id", data.chapterId)
       .maybeSingle();
     if (eventErr) throw new Error(eventErr.message);
     if (!event) throw new Error("Evento não encontrado");
+    const { assertEventFinanceOpen } = await import("@/lib/event-lifecycle");
+    assertEventFinanceOpen(event.starts_at, event.status);
 
     const budgetKey = normalizeFinanceNameKey(BUDGET_CATEGORY_NAME);
     const { data: cat, error: catErr } = await context.supabase
@@ -917,12 +919,25 @@ async function assertComandaEditable(
 
   const { data: ticket, error: tErr } = await supabase
     .from("tickets")
-    .select("status")
+    .select("status, event_id")
     .eq("id", ticketId)
     .maybeSingle();
   if (tErr) throw new Error(tErr.message);
   if (ticket?.status === "cancelado") {
     throw new Error("Ingresso cancelado");
+  }
+
+  if (ticket?.event_id) {
+    const { data: event, error: evErr } = await supabase
+      .from("events")
+      .select("starts_at, status")
+      .eq("id", ticket.event_id)
+      .maybeSingle();
+    if (evErr) throw new Error(evErr.message);
+    if (event) {
+      const { assertEventFinanceOpen } = await import("@/lib/event-lifecycle");
+      assertEventFinanceOpen(event.starts_at, event.status);
+    }
   }
 
   const { data: checkin, error: cinErr } = await supabase

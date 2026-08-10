@@ -36,7 +36,7 @@ export function isThemeHex(v: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(v);
 }
 
-/** Texto legível sobre a cor (luminância relativa WCAG). */
+/** Texto legível sobre a cor — escolhe #FFF ou #1A1A1A pelo maior contraste WCAG. */
 export function readableOnHex(hex: string): string {
   if (!isThemeHex(hex)) return "#FFFFFF";
   const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
@@ -44,7 +44,21 @@ export function readableOnHex(hex: string): string {
     v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4,
   );
   const L = 0.2126 * lin[0]! + 0.7152 * lin[1]! + 0.0722 * lin[2]!;
-  return L > 0.55 ? "#1A1A1A" : "#FFFFFF";
+  const contrastWith = (fgL: number) => {
+    const lighter = Math.max(L, fgL);
+    const darker = Math.min(L, fgL);
+    return (lighter + 0.05) / (darker + 0.05);
+  };
+  const whiteL = 1;
+  const darkChannels = [0x1a, 0x1a, 0x1a].map((n) => {
+    const v = n / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  const darkLum =
+    0.2126 * darkChannels[0]! +
+    0.7152 * darkChannels[1]! +
+    0.0722 * darkChannels[2]!;
+  return contrastWith(whiteL) >= contrastWith(darkLum) ? "#FFFFFF" : "#1A1A1A";
 }
 
 function parseRgb(hex: string): [number, number, number] {

@@ -77,6 +77,10 @@ import { formatBRL, formatDateTimeBR } from "@/lib/format";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { matchesLooseSearch } from "@/lib/utils";
 import {
+  eventDisplayStatusLabel,
+  isEventFinanceOpen,
+} from "@/lib/event-lifecycle";
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -150,11 +154,20 @@ function EventoDetalhe() {
   const [tab, setTab] = useState("resumo");
   const canDelete = canDo("eventos.manage");
   const canManageTickets = canDo("eventos.manage");
+  const financeWindowOpen = isEventFinanceOpen(
+    data.event.starts_at,
+    data.event.status,
+  );
   const canEditFinance =
-    canPerm("admin") ||
-    canPerm("tesouraria") ||
-    canPerm("comissoes") ||
-    canDo("eventos.orcamento");
+    financeWindowOpen &&
+    (canPerm("admin") ||
+      canPerm("tesouraria") ||
+      canPerm("comissoes") ||
+      canDo("eventos.orcamento"));
+  const statusLabel = eventDisplayStatusLabel(
+    data.event.starts_at,
+    data.event.status,
+  );
 
   const remove = useMutation({
     mutationFn: () => deleteEvent({ data: { id } }),
@@ -177,7 +190,7 @@ function EventoDetalhe() {
     <div>
       <PageHeader
         title={data.event.name}
-        subtitle={`${formatDateTimeBR(data.event.starts_at)}${data.event.location ? ` · ${data.event.location}` : ""}`}
+        subtitle={`${formatDateTimeBR(data.event.starts_at)}${data.event.location ? ` · ${data.event.location}` : ""} · ${statusLabel}${financeWindowOpen ? "" : " · caixa encerrado"}`}
         actions={
           <div className="flex flex-wrap gap-2">
             {canDelete ? (

@@ -1,7 +1,7 @@
 import { isRedirect, redirect } from "@tanstack/react-router";
 import { needsSignatureForOffices } from "@/lib/office-signatures.functions";
 
-/** Soft gate: redireciona se faltar assinatura de cargo; erros de rede são ignorados. */
+/** Redireciona se faltar assinatura de cargo; propaga falhas (não mascara como “ok”). */
 export async function redirectIfNeedsOfficeSignature(): Promise<void> {
   try {
     const { needsSignature } = await needsSignatureForOffices();
@@ -10,15 +10,12 @@ export async function redirectIfNeedsOfficeSignature(): Promise<void> {
     }
   } catch (e) {
     if (isRedirect(e)) throw e;
+    throw e;
   }
 }
 
-/** Soft check para pós-login (navigate em vez de throw redirect). */
+/** Pós-login: true se precisa assinar; propaga erro de rede/RPC. */
 export async function checkNeedsOfficeSignature(): Promise<boolean> {
-  try {
-    const { needsSignature } = await needsSignatureForOffices();
-    return needsSignature;
-  } catch {
-    return false;
-  }
+  const { needsSignature } = await needsSignatureForOffices();
+  return needsSignature;
 }

@@ -617,9 +617,8 @@ export const listCashCategories = createServerFn({ method: "POST" })
         .from("events")
         .select("id, name, starts_at, status")
         .eq("chapter_id", data.chapterId)
-        .in("status", ["rascunho", "publicado"])
         .order("starts_at", { ascending: false })
-        .limit(100),
+        .limit(200),
       context.supabase
         .from("event_finance_items")
         .select(
@@ -640,28 +639,35 @@ export const listCashCategories = createServerFn({ method: "POST" })
       return !isBudgetCategoryName(cat?.name ?? "");
     });
 
+    const { isEventFinanceOpen } = await import("@/lib/event-lifecycle");
+    const openOpsEvents = (opsEvents.data ?? []).filter((e) =>
+      isEventFinanceOpen(e.starts_at, e.status),
+    );
+
     return {
       categories: cats.data ?? [],
       /** @deprecated legado calendar_events — use operationalEvents */
       events: calendar.data ?? [],
       subcategories: subs.data ?? [],
-      operationalEvents: (opsEvents.data ?? []).map((e) => ({
+      operationalEvents: openOpsEvents.map((e) => ({
         id: e.id,
         title: e.name,
         start_at: e.starts_at,
         status: e.status,
       })),
-      eventFinanceItems: revenueFinanceItems.map((i) => ({
-        id: i.id,
-        event_id: i.event_id,
-        category_id: i.category_id,
-        name: i.name,
-        unit_price: i.unit_price == null ? null : Number(i.unit_price),
-        track_stock: i.track_stock,
-        stock_qty: i.stock_qty,
-        active: i.active,
-        scope: "eventos" as const,
-      })),
+      eventFinanceItems: revenueFinanceItems
+        .filter((i) => openOpsEvents.some((e) => e.id === i.event_id))
+        .map((i) => ({
+          id: i.id,
+          event_id: i.event_id,
+          category_id: i.category_id,
+          name: i.name,
+          unit_price: i.unit_price == null ? null : Number(i.unit_price),
+          track_stock: i.track_stock,
+          stock_qty: i.stock_qty,
+          active: i.active,
+          scope: "eventos" as const,
+        })),
     };
   });
 

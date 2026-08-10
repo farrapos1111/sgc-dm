@@ -161,14 +161,27 @@ export const deleteOficio = createServerFn({ method: "POST" })
       number: number;
     };
 
-    const { data: allowed, error: roleErr } = await context.supabase.rpc(
+    const { data: adminOk, error: adminErr } = await context.supabase.rpc(
       "has_permission",
       {
         _chapter_id: oficio.chapter_id,
         _perm: "admin",
       },
     );
-    if (roleErr) throw new Error(roleErr.message);
+    if (adminErr) throw new Error(adminErr.message);
+    // Alinha à UI: canScreen("oficios","delete") ≈ admin/conselho (CRUD total)
+    let allowed = Boolean(adminOk);
+    if (!allowed) {
+      const { data: conselhoOk, error: conselhoErr } = await context.supabase.rpc(
+        "has_permission",
+        {
+          _chapter_id: oficio.chapter_id,
+          _perm: "conselho",
+        },
+      );
+      if (conselhoErr) throw new Error(conselhoErr.message);
+      allowed = Boolean(conselhoOk);
+    }
     if (!allowed) {
       throw new Error("Sem permissão para excluir este ofício");
     }

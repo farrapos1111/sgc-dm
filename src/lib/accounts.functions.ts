@@ -7,6 +7,8 @@ import type { Database } from "@/integrations/supabase/types";
 import { resolveAccess, type RoleName } from "@/lib/permissions";
 import { normalizeDemolayId } from "@/lib/member-identity";
 import { currentTerm } from "@/lib/terms";
+import { isMissingAuthLoginThrottleTable } from "@/lib/auth-throttle-errors";
+import { resolveTrustedClientIp } from "@/lib/trusted-client-ip";
 
 const passwordSchema = z
   .string()
@@ -660,7 +662,8 @@ const IRREGULAR_LOGIN_MESSAGE =
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_ID_MAX_FAILS = 5;
-const LOGIN_IP_MAX_FAILS = 20;
+/** NAT compartilhado: limite mais alto por IP para não bloquear colegas. */
+const LOGIN_IP_MAX_FAILS = 80;
 const LOGIN_LOCK_MS = 15 * 60 * 1000;
 
 type ThrottleRow = {
@@ -671,30 +674,8 @@ type ThrottleRow = {
   locked_until: string | null;
 };
 
-/**
- * IP só de headers de borda (não confiar em x-forwarded-for do cliente).
- * Sem IP determinável → null (pula escopo ip no throttle).
- */
 async function clientIpForLogin(): Promise<string | null> {
-  try {
-    const { getRequest } = await import("@tanstack/react-start/server");
-    const request = getRequest();
-    const edgeHeaders = [
-      "cf-connecting-ip",
-      "true-client-ip",
-      "x-vercel-forwarded-for",
-      "fly-client-ip",
-    ] as const;
-    for (const name of edgeHeaders) {
-      const raw = request.headers.get(name)?.trim();
-      if (!raw) continue;
-      const ip = raw.split(",")[0]?.trim();
-      if (ip) return ip.slice(0, 64);
-    }
-  } catch {
-    /* SSR / ambiente sem request */
-  }
-  return null;
+  return resolveTrustedClientIp();
 }
 
 function hashIdentifierKey(identifier: string): string {
@@ -709,10 +690,6 @@ function lockMessage(lockedUntil: Date): string {
   return `Muitas tentativas de login. Tente novamente em ${mins} minuto${mins === 1 ? "" : "s"}.`;
 }
 
-function isMissingThrottleTable(message: string): boolean {
-  return /auth_login_throttle|schema cache|does not exist/i.test(message);
-}
-
 async function fetchThrottleRow(
   admin: SupabaseClient<Database>,
   scope: "identifier" | "ip",
@@ -725,7 +702,7 @@ async function fetchThrottleRow(
     .eq("scope_key", key)
     .maybeSingle();
   if (error) {
-    if (isMissingThrottleTable(error.message)) return null;
+    if (isMissingAuthLoginThrottleTable(error.message)) return null;
     throw new Error("Não foi possível validar o login. Tente novamente.");
   }
   return data as Omit<ThrottleRow, "scope" | "scope_key"> | null;
@@ -771,8 +748,12 @@ async function recordLoginFailure(
       } as never,
     );
     if (error) {
-      if (isMissingThrottleTable(error.message)) continue;
-      console.error("[auth] record_login_throttle_failure failed", {
+      if (isMissingAuthLoginThrottleTable(error.message)) {
+        continue;
+      }
+      // Continua o login; alerta identificável para ops (RPC/GRANT/migration).
+      console.error("[auth.metric] throttle_rpc_failed", {
+        metric: "auth_login_throttle_rpc_failed",
         scope: s.scope,
         message: error.message,
       });
@@ -793,11 +774,15 @@ async function clearLoginFailures(
   admin: SupabaseClient<Database>,
   identifierKey: string,
 ) {
-  await admin
+  const { error } = await admin
     .from("auth_login_throttle" as never)
     .delete()
     .eq("scope", "identifier")
     .eq("scope_key", identifierKey);
+  if (error) {
+    if (isMissingAuthLoginThrottleTable(error.message)) return;
+    console.error("[auth] clearLoginFailures failed", error.message);
+  }
 }
 
 export const signInWithIdentifier = createServerFn({ method: "POST" })

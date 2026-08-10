@@ -12,24 +12,20 @@ type OficioSignatureSlot = {
 
 /**
  * Carrega assinaturas oficiais para PDF de ofício.
- * Falhas são isoladas (retorna mapa vazio) para não bloquear a exportação.
+ * Propaga erros — o chamador decide se aborta a exportação.
  */
 export async function loadOficioSignatureMap(
   chapterId: string | null | undefined,
 ): Promise<Record<string, OficioSignatureSlot>> {
   if (!chapterId) return {};
-  try {
-    const { listChapterOfficeSignatures } = await import(
-      "@/lib/office-signatures.functions"
-    );
-    const slots = await listChapterOfficeSignatures({
-      data: {
-        chapterId,
-        positionCodes: [...OFICIO_PDF_SIGNATURE_CODES],
-      },
-    });
-    return Object.fromEntries(slots.map((s) => [s.positionCode, s]));
-  } catch {
-    return {};
-  }
+  const { listChapterOfficeSignatures } = await import(
+    "@/lib/office-signatures.functions"
+  );
+  const slots = await listChapterOfficeSignatures({
+    data: {
+      chapterId,
+      positionCodes: [...OFICIO_PDF_SIGNATURE_CODES],
+    },
+  });
+  return Object.fromEntries(slots.map((s) => [s.positionCode, s]));
 }

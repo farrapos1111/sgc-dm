@@ -499,51 +499,15 @@ export const removePlatformAccessRoleFromOrgType = createServerFn({
     );
     const db = await adminDb();
 
-    const { data: links, error: linksErr } = await db
-      .from("platform_access_role_org_types")
-      .select("org_type")
-      .eq("role_id", data.roleId);
-    if (linksErr) throw new Error(linksErr.message);
-
-    const others = (links ?? []).filter(
-      (r: { org_type: string }) => r.org_type !== data.orgType,
-    );
-    if (others.length === 0) {
-      const { data: role, error: roleErr } = await db
-        .from("platform_access_roles")
-        .select("is_system")
-        .eq("id", data.roleId)
-        .maybeSingle();
-      if (roleErr) throw new Error(roleErr.message);
-      if (role?.is_system) {
-        throw new Error(
-          "Não é possível remover o último vínculo de um cargo de sistema.",
-        );
-      }
-    }
-
-    const { error } = await db
-      .from("platform_access_role_org_types")
-      .delete()
-      .eq("role_id", data.roleId)
-      .eq("org_type", data.orgType);
+    const { data, error } = await db.rpc("set_platform_access_role_org_type", {
+      _role_id: data.roleId,
+      _org_type: data.orgType,
+      _enabled: false,
+      _role_group: null,
+    });
     if (error) throw new Error(error.message);
-
-    await db
-      .from("platform_access_grants")
-      .delete()
-      .eq("role_id", data.roleId)
-      .eq("org_type", data.orgType);
-
-    if (others.length === 0) {
-      const { error: delErr } = await db
-        .from("platform_access_roles")
-        .delete()
-        .eq("id", data.roleId);
-      if (delErr) throw new Error(delErr.message);
-      return { deletedRole: true };
-    }
-    return { deletedRole: false };
+    const result = data as { deletedRole?: boolean } | null;
+    return { deletedRole: Boolean(result?.deletedRole) };
   });
 
 const grantRowSchema = z.object({

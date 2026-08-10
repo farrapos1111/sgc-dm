@@ -181,6 +181,8 @@ export const saveMinutes = createServerFn({ method: "POST" })
         kind: z.enum(["publica", "grau_iniciatico", "grau_demolay"]).optional(),
         /** Se informado, atualiza a ata existente; senão cria uma nova. */
         id: z.string().uuid().optional(),
+        /** Chave estável por instância de “Nova ata” (dedupe atômico). */
+        clientDraftKey: z.string().uuid().optional(),
         title: z.string().nullable().optional(),
       })
       .parse(raw),
@@ -201,102 +203,58 @@ export const saveMinutes = createServerFn({ method: "POST" })
     }
 
     if (data.id) {
-      const { data: existing, error: exErr } = await context.supabase
+      const kind = data.kind ?? "publica";
+      const patch: Record<string, unknown> = {
+        content: data.content,
+        kind,
+      };
+      if (data.title !== undefined) patch.title = data.title;
+
+      const { data: saved, error } = await context.supabase
         .from("session_minutes")
-        .select("id, status, kind, calendar_event_id, chapter_id")
+        .update(patch as never)
         .eq("id", data.id)
+        .eq("status", "rascunho")
+        .eq("calendar_event_id", data.calendarEventId)
+        .eq("chapter_id", data.chapterId)
+        .select("id, status, kind, title")
         .maybeSingle();
-      if (exErr) throw new Error(exErr.message);
-      if (!existing) throw new Error("Ata não encontrada");
-      if (
-        existing.calendar_event_id !== data.calendarEventId ||
-        existing.chapter_id !== data.chapterId
-      ) {
-        throw new Error("Ata não pertence a este evento");
-      }
-      if (existing.status !== "rascunho") {
+      if (error) throw new Error(error.message);
+      if (!saved) {
         throw new Error(
           "Ata bloqueada para edição. Reabra a ata para correção antes de alterar o texto.",
         );
       }
-
-      const kind =
-        data.kind ??
-        (existing.kind as "publica" | "grau_iniciatico" | "grau_demolay" | null) ??
-        "publica";
-
-      const patch: Record<string, unknown> = {
-        content: data.content,
-        kind,
-      };
-      if (data.title !== undefined) patch.title = data.title;
-
-      const { data: saved, error } = await context.supabase
-        .from("session_minutes")
-        .update(patch as never)
-        .eq("id", data.id)
-        .select("id, status, kind, title")
-        .single();
-      if (error) throw new Error(error.message);
       return { ok: true, minute: saved };
     }
 
-    // Evita duplicar rascunho em corrida no 1º save (sem id): reutiliza draft recente do mesmo user.
-    const { data: existingDraft, error: draftErr } = await context.supabase
-      .from("session_minutes")
-      .select("id, status, kind, title")
-      .eq("calendar_event_id", data.calendarEventId)
-      .eq("chapter_id", data.chapterId)
-      .eq("opened_by", context.userId)
-      .eq("status", "rascunho")
-      .gte("opened_at", new Date(Date.now() - 15 * 60 * 1000).toISOString())
-      .order("opened_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (draftErr) throw new Error(draftErr.message);
-
-    if (existingDraft) {
-      const kind =
-        data.kind ??
-        (existingDraft.kind as
-          | "publica"
-          | "grau_iniciatico"
-          | "grau_demolay"
-          | null) ??
-        "publica";
-      const patch: Record<string, unknown> = {
-        content: data.content,
-        kind,
-      };
-      if (data.title !== undefined) patch.title = data.title;
-
-      const { data: saved, error } = await context.supabase
-        .from("session_minutes")
-        .update(patch as never)
-        .eq("id", existingDraft.id)
-        .select("id, status, kind, title")
-        .single();
-      if (error) throw new Error(error.message);
-      return { ok: true, minute: saved };
+    if (!data.clientDraftKey) {
+      throw new Error("Chave de rascunho obrigatória para nova ata.");
     }
 
     const kind = data.kind ?? "publica";
-    const insertRow: Record<string, unknown> = {
-      chapter_id: data.chapterId,
-      calendar_event_id: data.calendarEventId,
-      content: data.content,
-      kind,
-      opened_by: context.userId,
-    };
-    if (data.title !== undefined) insertRow.title = data.title;
-
-    const { data: saved, error } = await context.supabase
-      .from("session_minutes")
-      .insert(insertRow as never)
-      .select("id, status, kind, title")
-      .single();
-    if (error) throw new Error(error.message);
-    return { ok: true, minute: saved };
+    const { data: saved, error } = await context.supabase.rpc(
+      "upsert_session_minute_draft" as never,
+      {
+        _chapter_id: data.chapterId,
+        _calendar_event_id: data.calendarEventId,
+        _content: data.content,
+        _kind: kind,
+        _title: data.title === undefined ? null : data.title,
+        _client_draft_key: data.clientDraftKey,
+      } as never,
+    );
+    if (error) {
+      if (/unique|duplicate/i.test(error.message)) {
+        throw new Error(
+          "Rascunho já está sendo salvo. Aguarde e tente novamente.",
+        );
+      }
+      throw new Error(error.message);
+    }
+    const minute = Array.isArray(saved) ? saved[0] : saved;
+    if (!minute) throw new Error("Não foi possível salvar o rascunho.");
+    return { ok: true, minute };
   });
 
 
