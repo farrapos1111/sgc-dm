@@ -161,6 +161,18 @@ export const deleteOficio = createServerFn({ method: "POST" })
       number: number;
     };
 
+    const { data: allowed, error: roleErr } = await context.supabase.rpc(
+      "has_permission",
+      {
+        _chapter_id: oficio.chapter_id,
+        _perm: "admin",
+      },
+    );
+    if (roleErr) throw new Error(roleErr.message);
+    if (!allowed) {
+      throw new Error("Sem permissão para excluir este ofício");
+    }
+
     const { error: delErr } = await context.supabase
       .from("oficios" as never)
       .delete()

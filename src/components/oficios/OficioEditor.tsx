@@ -369,24 +369,10 @@ export function OficioViewPanel({ oficio }: ViewProps) {
           onClick={async () => {
             setExporting(true);
             try {
-              const { listChapterOfficeSignatures } = await import(
-                "@/lib/office-signatures.functions"
+              const { loadOficioSignatureMap } = await import(
+                "@/lib/oficio-signatures"
               );
-              const slots = active?.chapter_id
-                ? await listChapterOfficeSignatures({
-                    data: {
-                      chapterId: active.chapter_id,
-                      positionCodes: [
-                        "presidente_conselho_consultivo",
-                        "mestre_conselheiro",
-                        "escrivao",
-                      ],
-                    },
-                  })
-                : [];
-              const byCode = Object.fromEntries(
-                slots.map((s) => [s.positionCode, s]),
-              );
+              const byCode = await loadOficioSignatureMap(active?.chapter_id);
               const { exportOficioPdf } = await import("@/lib/oficio-pdf");
               await exportOficioPdf({
                 chapterName,

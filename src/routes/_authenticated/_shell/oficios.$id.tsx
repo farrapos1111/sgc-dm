@@ -38,8 +38,8 @@ function OficioDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
-  const allowed =
-    canScreen("oficios", "edit") || can("secretaria") || can("admin");
+  const canDelete =
+    canScreen("oficios", "delete") || can("admin");
 
   const remove = useMutation({
     mutationFn: () => deleteOficio({ data: { id: oficio.id } }),
@@ -68,7 +68,7 @@ function OficioDetailPage() {
         title={formatOficioNumber(oficio.number, oficio.year)}
         subtitle={oficio.title}
         actions={
-          allowed ? (
+          canDelete ? (
             <Button
               variant="destructive"
               size="sm"

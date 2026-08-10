@@ -36,6 +36,17 @@ export function isThemeHex(v: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(v);
 }
 
+/** Texto legível sobre a cor (luminância relativa WCAG). */
+export function readableOnHex(hex: string): string {
+  if (!isThemeHex(hex)) return "#FFFFFF";
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const lin = c.map((v) =>
+    v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4,
+  );
+  const L = 0.2126 * lin[0]! + 0.7152 * lin[1]! + 0.0722 * lin[2]!;
+  return L > 0.55 ? "#1A1A1A" : "#FFFFFF";
+}
+
 function parseRgb(hex: string): [number, number, number] {
   return [
     parseInt(hex.slice(1, 3), 16),
@@ -129,6 +140,10 @@ export function applyChapterThemeVars(
   el.style.setProperty("--chapter-font", theme.font);
   el.style.setProperty("--chapter-sidebar", theme.sidebar);
   el.style.setProperty("--chapter-primary", theme.accent);
+  el.style.setProperty("--primary", theme.accent);
+  const onPrimary = readableOnHex(theme.accent);
+  el.style.setProperty("--primary-foreground", onPrimary);
+  el.style.setProperty("--sidebar-primary-foreground", onPrimary);
 }
 
 /** Restaura o tema institucional (azul escuro + branco) fora de organização. */
@@ -150,6 +165,9 @@ export function clearChapterThemeVars(el: HTMLElement | null | undefined): void 
     "--chapter-font",
     "--chapter-sidebar",
     "--chapter-primary",
+    "--primary",
+    "--primary-foreground",
+    "--sidebar-primary-foreground",
   ]) {
     el.style.removeProperty(key);
   }

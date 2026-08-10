@@ -671,21 +671,30 @@ type ThrottleRow = {
   locked_until: string | null;
 };
 
-async function clientIpForLogin(): Promise<string> {
+/**
+ * IP só de headers de borda (não confiar em x-forwarded-for do cliente).
+ * Sem IP determinável → null (pula escopo ip no throttle).
+ */
+async function clientIpForLogin(): Promise<string | null> {
   try {
     const { getRequest } = await import("@tanstack/react-start/server");
     const request = getRequest();
-    const forwarded = request.headers.get("x-forwarded-for");
-    if (forwarded) {
-      const first = forwarded.split(",")[0]?.trim();
-      if (first) return first.slice(0, 64);
+    const edgeHeaders = [
+      "cf-connecting-ip",
+      "true-client-ip",
+      "x-vercel-forwarded-for",
+      "fly-client-ip",
+    ] as const;
+    for (const name of edgeHeaders) {
+      const raw = request.headers.get(name)?.trim();
+      if (!raw) continue;
+      const ip = raw.split(",")[0]?.trim();
+      if (ip) return ip.slice(0, 64);
     }
-    const realIp = request.headers.get("x-real-ip")?.trim();
-    if (realIp) return realIp.slice(0, 64);
   } catch {
     /* SSR / ambiente sem request */
   }
-  return "unknown";
+  return null;
 }
 
 function hashIdentifierKey(identifier: string): string {
@@ -725,13 +734,12 @@ async function fetchThrottleRow(
 async function assertLoginNotLocked(
   admin: SupabaseClient<Database>,
   identifierKey: string,
-  ip: string,
+  ip: string | null,
 ) {
   const now = Date.now();
-  const rows = await Promise.all([
-    fetchThrottleRow(admin, "identifier", identifierKey),
-    fetchThrottleRow(admin, "ip", ip),
-  ]);
+  const fetches = [fetchThrottleRow(admin, "identifier", identifierKey)];
+  if (ip) fetches.push(fetchThrottleRow(admin, "ip", ip));
+  const rows = await Promise.all(fetches);
   for (const row of rows) {
     if (!row?.locked_until) continue;
     const until = new Date(row.locked_until).getTime();
@@ -742,58 +750,37 @@ async function assertLoginNotLocked(
 async function recordLoginFailure(
   admin: SupabaseClient<Database>,
   identifierKey: string,
-  ip: string,
+  ip: string | null,
 ) {
-  const now = new Date();
   const scopes: { scope: "identifier" | "ip"; key: string; max: number }[] = [
     { scope: "identifier", key: identifierKey, max: LOGIN_ID_MAX_FAILS },
-    { scope: "ip", key: ip, max: LOGIN_IP_MAX_FAILS },
   ];
+  if (ip) scopes.push({ scope: "ip", key: ip, max: LOGIN_IP_MAX_FAILS });
 
   let lockUntilThrown: Date | null = null;
 
   for (const s of scopes) {
-    const row = await fetchThrottleRow(admin, s.scope, s.key);
-    let failCount = 1;
-    let windowStarted = now.toISOString();
-    let lockedUntil: string | null = null;
-
-    if (row) {
-      const windowStart = new Date(row.window_started_at).getTime();
-      const stillInWindow = now.getTime() - windowStart < LOGIN_WINDOW_MS;
-      const stillLocked =
-        row.locked_until &&
-        new Date(row.locked_until).getTime() > now.getTime();
-
-      if (stillLocked) {
-        lockedUntil = row.locked_until;
-        failCount = row.fail_count;
-        windowStarted = row.window_started_at;
-      } else if (stillInWindow) {
-        failCount = row.fail_count + 1;
-        windowStarted = row.window_started_at;
-        if (failCount >= s.max) {
-          lockedUntil = new Date(now.getTime() + LOGIN_LOCK_MS).toISOString();
-        }
-      }
-    }
-
-    const { error } = await admin.from("auth_login_throttle" as never).upsert(
+    const { data, error } = await admin.rpc(
+      "record_login_throttle_failure" as never,
       {
-        scope: s.scope,
-        scope_key: s.key,
-        fail_count: failCount,
-        window_started_at: windowStarted,
-        locked_until: lockedUntil,
-        updated_at: now.toISOString(),
+        _scope: s.scope,
+        _scope_key: s.key,
+        _max_fails: s.max,
+        _window_ms: LOGIN_WINDOW_MS,
+        _lock_ms: LOGIN_LOCK_MS,
       } as never,
-      { onConflict: "scope,scope_key" },
     );
-    if (error && !isMissingThrottleTable(error.message)) {
-      // não mascara a falha de senha se o throttle falhar
+    if (error) {
+      if (isMissingThrottleTable(error.message)) continue;
+      console.error("[auth] record_login_throttle_failure failed", {
+        scope: s.scope,
+        message: error.message,
+      });
+      continue;
     }
-
-    if (lockedUntil && new Date(lockedUntil).getTime() > now.getTime()) {
+    const lockedUntil = (data as { locked_until?: string | null } | null)
+      ?.locked_until;
+    if (lockedUntil && new Date(lockedUntil).getTime() > Date.now()) {
       lockUntilThrown = new Date(lockedUntil);
     }
   }
@@ -801,23 +788,16 @@ async function recordLoginFailure(
   if (lockUntilThrown) throw new Error(lockMessage(lockUntilThrown));
 }
 
+/** Só limpa o identificador — nunca o contador de IP (evita reset por credencial válida). */
 async function clearLoginFailures(
   admin: SupabaseClient<Database>,
   identifierKey: string,
-  ip: string,
 ) {
-  await Promise.all([
-    admin
-      .from("auth_login_throttle" as never)
-      .delete()
-      .eq("scope", "identifier")
-      .eq("scope_key", identifierKey),
-    admin
-      .from("auth_login_throttle" as never)
-      .delete()
-      .eq("scope", "ip")
-      .eq("scope_key", ip),
-  ]);
+  await admin
+    .from("auth_login_throttle" as never)
+    .delete()
+    .eq("scope", "identifier")
+    .eq("scope_key", identifierKey);
 }
 
 export const signInWithIdentifier = createServerFn({ method: "POST" })
@@ -886,7 +866,7 @@ export const signInWithIdentifier = createServerFn({ method: "POST" })
         throw new Error(gate.message);
       }
 
-      await clearLoginFailures(supabaseAdmin, identifierKey, ip);
+      await clearLoginFailures(supabaseAdmin, identifierKey);
 
       return {
         access_token: sessionData.session.access_token,

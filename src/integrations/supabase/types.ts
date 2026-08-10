@@ -3325,7 +3325,11 @@ export type Database = {
       }
       my_org_state_ids: { Args: never; Returns: string[] }
       patch_chapter_settings: {
-        Args: { _chapter_id: string; _patch: Json }
+        Args: {
+          _chapter_id: string
+          _patch: Json
+          _primary_color?: string | null
+        }
         Returns: Json
       }
       peek_public_minute: { Args: { _token: string }; Returns: Json }

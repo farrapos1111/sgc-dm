@@ -23,6 +23,10 @@ import type {
 
 type AnyClient = {
   from: (table: string) => any;
+  rpc: (fn: string, args?: Record<string, unknown>) => Promise<{
+    data: unknown;
+    error: { message: string } | null;
+  }>;
 };
 
 const orgTypeSchema = z.enum(ORG_TYPES);
@@ -400,55 +404,17 @@ export const setPlatformAccessRoleOrgType = createServerFn({ method: "POST" })
     );
     const db = await adminDb();
 
-    if (data.enabled) {
-      const roleGroup = resolveRoleGroup(
-        data.orgType,
-        data.roleGroup ?? undefined,
-      );
-      let maxSortQ = db
-        .from("platform_access_role_org_types")
-        .select("sort_order")
-        .eq("org_type", data.orgType)
-        .order("sort_order", { ascending: false })
-        .limit(1);
-      maxSortQ =
-        roleGroup == null
-          ? maxSortQ.is("role_group", null)
-          : maxSortQ.eq("role_group", roleGroup);
-      const { data: maxRow } = await maxSortQ.maybeSingle();
+    const roleGroup = data.enabled
+      ? resolveRoleGroup(data.orgType, data.roleGroup ?? undefined)
+      : null;
 
-      const { error } = await db.from("platform_access_role_org_types").upsert(
-        {
-          role_id: data.roleId,
-          org_type: data.orgType,
-          role_group: roleGroup,
-          sort_order: (maxRow?.sort_order ?? 0) + 10,
-        },
-        { onConflict: "role_id,org_type" },
-      );
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await db
-        .from("platform_access_role_org_types")
-        .delete()
-        .eq("role_id", data.roleId)
-        .eq("org_type", data.orgType);
-      if (error) throw new Error(error.message);
-
-      const { data: remaining, error: remErr } = await db
-        .from("platform_access_role_org_types")
-        .select("org_type")
-        .eq("role_id", data.roleId)
-        .limit(1);
-      if (remErr) throw new Error(remErr.message);
-      if ((remaining ?? []).length === 0) {
-        const { error: delErr } = await db
-          .from("platform_access_roles")
-          .delete()
-          .eq("id", data.roleId);
-        if (delErr) throw new Error(delErr.message);
-      }
-    }
+    const { error } = await db.rpc("set_platform_access_role_org_type", {
+      _role_id: data.roleId,
+      _org_type: data.orgType,
+      _enabled: data.enabled,
+      _role_group: roleGroup,
+    });
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
@@ -475,20 +441,12 @@ export const reorderPlatformAccessRoles = createServerFn({ method: "POST" })
       data.roleGroup ?? undefined,
     );
 
-    for (let i = 0; i < data.orderedRoleIds.length; i++) {
-      const roleId = data.orderedRoleIds[i]!;
-      let q = db
-        .from("platform_access_role_org_types")
-        .update({ sort_order: (i + 1) * 10 })
-        .eq("role_id", roleId)
-        .eq("org_type", data.orgType);
-      q =
-        roleGroup == null
-          ? q.is("role_group", null)
-          : q.eq("role_group", roleGroup);
-      const { error } = await q;
-      if (error) throw new Error(error.message);
-    }
+    const { error } = await db.rpc("reorder_platform_access_roles", {
+      _org_type: data.orgType,
+      _role_group: roleGroup,
+      _ordered_role_ids: data.orderedRoleIds,
+    });
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
@@ -501,6 +459,17 @@ export const deletePlatformAccessRole = createServerFn({ method: "POST" })
       context.userId,
     );
     const db = await adminDb();
+
+    const { data: role, error: readErr } = await db
+      .from("platform_access_roles")
+      .select("id, is_system")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!role) throw new Error("Cargo não encontrado");
+    if (role.is_system) {
+      throw new Error("Cargos de sistema não podem ser excluídos.");
+    }
 
     const { error } = await db
       .from("platform_access_roles")
@@ -530,6 +499,29 @@ export const removePlatformAccessRoleFromOrgType = createServerFn({
     );
     const db = await adminDb();
 
+    const { data: links, error: linksErr } = await db
+      .from("platform_access_role_org_types")
+      .select("org_type")
+      .eq("role_id", data.roleId);
+    if (linksErr) throw new Error(linksErr.message);
+
+    const others = (links ?? []).filter(
+      (r: { org_type: string }) => r.org_type !== data.orgType,
+    );
+    if (others.length === 0) {
+      const { data: role, error: roleErr } = await db
+        .from("platform_access_roles")
+        .select("is_system")
+        .eq("id", data.roleId)
+        .maybeSingle();
+      if (roleErr) throw new Error(roleErr.message);
+      if (role?.is_system) {
+        throw new Error(
+          "Não é possível remover o último vínculo de um cargo de sistema.",
+        );
+      }
+    }
+
     const { error } = await db
       .from("platform_access_role_org_types")
       .delete()
@@ -543,14 +535,7 @@ export const removePlatformAccessRoleFromOrgType = createServerFn({
       .eq("role_id", data.roleId)
       .eq("org_type", data.orgType);
 
-    const { data: remaining, error: remErr } = await db
-      .from("platform_access_role_org_types")
-      .select("org_type")
-      .eq("role_id", data.roleId)
-      .limit(1);
-    if (remErr) throw new Error(remErr.message);
-
-    if ((remaining ?? []).length === 0) {
+    if (others.length === 0) {
       const { error: delErr } = await db
         .from("platform_access_roles")
         .delete()

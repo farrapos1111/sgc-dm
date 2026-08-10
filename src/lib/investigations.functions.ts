@@ -1309,6 +1309,37 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    const { data: canManage, error: mErr } = await context.supabase.rpc(
+      "can_manage_commission" as never,
+      {
+        _chapter_id: data.chapterId,
+        _commission_code: "sindicancias",
+      } as never,
+    );
+    if (mErr) throw new Error(mErr.message);
+    if (!canManage) {
+      throw new Error("Sem permissão para gravar a ata de sindicância");
+    }
+
+    const email = (context.claims as { email?: string } | null)?.email ?? null;
+    const escrivaoInk = data.signatures?.escrivao;
+    if (escrivaoInk && String(escrivaoInk).startsWith("data:image")) {
+      const { userHoldsOfficeInChapter } = await import(
+        "@/lib/office-signatures.functions"
+      );
+      const canSignEsc = await userHoldsOfficeInChapter(context.supabase, {
+        userId: context.userId,
+        chapterId: data.chapterId,
+        positionCode: "escrivao",
+        email,
+      });
+      if (!canSignEsc) {
+        throw new Error(
+          "Apenas o Escrivão do capítulo pode gravar a assinatura oficial neste campo.",
+        );
+      }
+    }
+
     // Persist signature data URLs as storage PNGs when long
     const signatures: Record<string, string | null> = {
       ...data.signatures,

@@ -22,6 +22,7 @@ import {
   applyChapterThemeVars,
   deriveThemeFromPrimary,
   isThemeHex,
+  readableOnHex,
   resolveChapterTheme,
   type ChapterTheme,
 } from "@/lib/chapter-theme";
@@ -86,17 +87,25 @@ const THEME_FIELDS: {
 
 /** Texto legível sobre a cor escolhida (luminância relativa). */
 function readableOn(hex: string) {
-  if (!isThemeHex(hex)) return "#FFFFFF";
-  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const lin = c.map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
-  const L = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
-  return L > 0.55 ? "#1A1A1A" : "#FFFFFF";
+  return readableOnHex(hex);
 }
 
 function themesEqual(a: ChapterTheme, b: ChapterTheme) {
   return THEME_FIELDS.every(
     (f) => a[f.key].toUpperCase() === b[f.key].toUpperCase(),
   );
+}
+
+/** Preview / live CSS: só hex válidos; inválidos caem no tema salvo. */
+function themeForPreview(draft: ChapterTheme, fallback: ChapterTheme): ChapterTheme {
+  return {
+    background: isThemeHex(draft.background) ? draft.background : fallback.background,
+    accent: isThemeHex(draft.accent) ? draft.accent : fallback.accent,
+    accentDark: isThemeHex(draft.accentDark) ? draft.accentDark : fallback.accentDark,
+    highlight: isThemeHex(draft.highlight) ? draft.highlight : fallback.highlight,
+    font: isThemeHex(draft.font) ? draft.font : fallback.font,
+    sidebar: isThemeHex(draft.sidebar) ? draft.sidebar : fallback.sidebar,
+  };
 }
 
 function AccentColorSection() {
@@ -108,6 +117,7 @@ function AccentColorSection() {
     active?.chapter.primary_color || DEFAULT_ACCENT,
   );
   const [theme, setTheme] = useState<ChapterTheme>(saved);
+  const preview = themeForPreview(theme, saved);
 
   useEffect(() => {
     setTheme(saved);
@@ -122,17 +132,17 @@ function AccentColorSection() {
 
   // Pré-visualização ao vivo (mesmo alvo do AppShell) + restaura o tema salvo ao sair
   useEffect(() => {
-    applyChapterThemeVars(document.documentElement, theme);
+    applyChapterThemeVars(document.documentElement, preview);
     return () => {
       applyChapterThemeVars(document.documentElement, saved);
     };
   }, [
-    theme.background,
-    theme.accent,
-    theme.accentDark,
-    theme.highlight,
-    theme.font,
-    theme.sidebar,
+    preview.background,
+    preview.accent,
+    preview.accentDark,
+    preview.highlight,
+    preview.font,
+    preview.sidebar,
     saved.background,
     saved.accent,
     saved.accentDark,
@@ -247,13 +257,13 @@ function AccentColorSection() {
 
       <div
         className="mt-4 overflow-hidden rounded-[12px] border border-border"
-        style={{ backgroundColor: theme.background, color: theme.font }}
+        style={{ backgroundColor: preview.background, color: preview.font }}
       >
         <div className="flex min-h-[140px]">
           <div
             className="flex w-[38%] flex-col gap-2 border-r p-3"
             style={{
-              backgroundColor: theme.sidebar,
+              backgroundColor: preview.sidebar,
               borderColor: "color-mix(in srgb, currentColor 12%, transparent)",
             }}
           >
@@ -263,8 +273,8 @@ function AccentColorSection() {
             <div
               className="rounded-[6px] px-2 py-1.5 text-xs font-medium"
               style={{
-                backgroundColor: `${theme.accent}22`,
-                color: theme.accent,
+                backgroundColor: `${preview.accent}22`,
+                color: preview.accent,
               }}
             >
               Item ativo
@@ -283,8 +293,8 @@ function AccentColorSection() {
               <span
                 className="inline-flex h-9 items-center rounded-[8px] px-3 text-sm font-medium"
                 style={{
-                  backgroundColor: theme.accent,
-                  color: readableOn(theme.accent),
+                  backgroundColor: preview.accent,
+                  color: readableOn(preview.accent),
                 }}
               >
                 Botão principal
@@ -292,15 +302,18 @@ function AccentColorSection() {
               <span
                 className="inline-flex h-9 items-center rounded-[8px] px-3 text-sm font-medium"
                 style={{
-                  backgroundColor: theme.accentDark,
-                  color: readableOn(theme.accentDark),
+                  backgroundColor: preview.accentDark,
+                  color: readableOn(preview.accentDark),
                 }}
               >
                 Destaque escuro
               </span>
               <span
                 className="inline-flex h-9 items-center rounded-[8px] px-3 text-sm font-medium"
-                style={{ backgroundColor: theme.highlight, color: theme.font }}
+                style={{
+                  backgroundColor: preview.highlight,
+                  color: preview.font,
+                }}
               >
                 Realce
               </span>
@@ -316,8 +329,8 @@ function AccentColorSection() {
           </Button>
           <Button
             style={{
-              backgroundColor: theme.accent,
-              color: readableOn(theme.accent),
+              backgroundColor: preview.accent,
+              color: readableOn(preview.accent),
             }}
             disabled={save.isPending || !valid || !dirty}
             onClick={() => save.mutate()}

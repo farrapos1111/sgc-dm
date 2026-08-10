@@ -572,6 +572,7 @@ function OngoingPage() {
                   (m) => m.id !== selectedMinuteKey,
                 );
                 setSelectedMinuteKey(remaining[0]?.id ?? NEW_MINUTE_KEY);
+                void qc.invalidateQueries({ queryKey: ["ongoing", id] });
               }}
             />
           </TabsContent>

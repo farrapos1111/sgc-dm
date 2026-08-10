@@ -66,8 +66,7 @@ export async function resolveLinkedMemberIdsForChapter(
   const { data: byUser, error: userErr } = await supabase
     .from("members")
     .select("id")
-    .eq("user_id", userId)
-    .limit(20);
+    .eq("user_id", userId);
   if (userErr) throw new Error(userErr.message);
 
   let ids = (byUser ?? []).map((m: { id: string }) => m.id as string);
@@ -78,8 +77,7 @@ export async function resolveLinkedMemberIdsForChapter(
       const { data: byEmail, error: emailErr } = await supabase
         .from("members")
         .select("id")
-        .eq("email", normalized)
-        .limit(20);
+        .eq("email", normalized);
       if (emailErr) throw new Error(emailErr.message);
       ids = (byEmail ?? []).map((m: { id: string }) => m.id as string);
     }
@@ -99,8 +97,7 @@ export async function resolveLinkedMemberIdsGlobal(
   const { data: byUser, error: userErr } = await supabase
     .from("members")
     .select("id")
-    .eq("user_id", opts.userId)
-    .limit(20);
+    .eq("user_id", opts.userId);
   if (userErr) throw new Error(userErr.message);
 
   let ids = (byUser ?? []).map((m: { id: string }) => m.id as string);
@@ -112,8 +109,7 @@ export async function resolveLinkedMemberIdsGlobal(
   const { data: byEmail, error: emailErr } = await supabase
     .from("members")
     .select("id")
-    .eq("email", email)
-    .limit(20);
+    .eq("email", email);
   if (emailErr) throw new Error(emailErr.message);
   return [...new Set((byEmail ?? []).map((m: { id: string }) => m.id as string))];
 }

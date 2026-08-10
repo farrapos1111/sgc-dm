@@ -412,6 +412,7 @@ function GestaoContent({ active }: { active: Membership }) {
                     label: "Funções de comissão",
                     conselho: false,
                   },
+                  { id: "outros", label: "Outros", conselho: false },
                 ] as const)
               : ([{ id: "all", label: "Cargos", conselho: false }] as const);
 
@@ -427,10 +428,16 @@ function GestaoContent({ active }: { active: Membership }) {
                   const scopePositions =
                     section.id === "all"
                       ? filteredPositions
-                      : filteredPositions.filter(
-                          (p) => p.role_group === section.id,
-                        );
-                  if (hasGrouped && scopePositions.length === 0 && q) {
+                      : section.id === "outros"
+                        ? filteredPositions.filter((p) => p.role_group == null)
+                        : filteredPositions.filter(
+                            (p) => p.role_group === section.id,
+                          );
+                  if (
+                    hasGrouped &&
+                    scopePositions.length === 0 &&
+                    (q || section.id === "outros")
+                  ) {
                     return null;
                   }
                   return (
