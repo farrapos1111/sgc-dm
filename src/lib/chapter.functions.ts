@@ -155,32 +155,38 @@ export const updateChapterAccentColor = createServerFn({ method: "POST" })
       data.theme?.accent ?? data.primary_color!
     ).toUpperCase();
 
+    const theme = data.theme
+      ? {
+          background: data.theme.background.toUpperCase(),
+          accent: data.theme.accent.toUpperCase(),
+          accentDark: data.theme.accentDark.toUpperCase(),
+          highlight: data.theme.highlight.toUpperCase(),
+          font: data.theme.font.toUpperCase(),
+          sidebar: data.theme.sidebar.toUpperCase(),
+        }
+      : null;
+
+    const { data: settings, error: patchErr } = await context.supabase.rpc(
+      "patch_chapter_settings",
+      {
+        _chapter_id: data.chapter_id,
+        _patch: theme ? { theme } : {},
+        _primary_color: accent,
+      },
+    );
+    if (patchErr) throw new Error(patchErr.message);
+
     const { data: row, error } = await context.supabase
       .from("chapters")
-      .update({ primary_color: accent })
-      .eq("id", data.chapter_id)
       .select()
+      .eq("id", data.chapter_id)
       .single();
     if (error) throw new Error(error.message);
 
-    if (data.theme) {
-      const theme = {
-        background: data.theme.background.toUpperCase(),
-        accent: data.theme.accent.toUpperCase(),
-        accentDark: data.theme.accentDark.toUpperCase(),
-        highlight: data.theme.highlight.toUpperCase(),
-        font: data.theme.font.toUpperCase(),
-        sidebar: data.theme.sidebar.toUpperCase(),
-      };
-      const { error: patchErr } = await context.supabase.rpc(
-        "patch_chapter_settings",
-        { _chapter_id: data.chapter_id, _patch: { theme } },
-      );
-      if (patchErr) throw new Error(patchErr.message);
-      return { ...row, settings: { ...(row.settings as object), theme } };
-    }
-
-    return row;
+    return {
+      ...row,
+      settings: (settings as object) ?? row.settings,
+    };
   });
 
 /** Salva a chave Pix e/ou o path da imagem QR em chapters.settings. */

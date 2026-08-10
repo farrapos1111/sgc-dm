@@ -9,7 +9,10 @@ import {
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMustChangePassword, signInWithIdentifier } from "@/lib/accounts.functions";
-import { needsSignatureForOffices } from "@/lib/office-signatures.functions";
+import {
+  checkNeedsOfficeSignature,
+  redirectIfNeedsOfficeSignature,
+} from "@/lib/office-signature-gate";
 
 export const Route = createFileRoute("/auth/")({
   ssr: false,
@@ -37,14 +40,7 @@ export const Route = createFileRoute("/auth/")({
       } catch (e) {
         if (isRedirect(e)) throw e;
       }
-      try {
-        const { needsSignature } = await needsSignatureForOffices();
-        if (needsSignature) {
-          throw redirect({ to: "/auth/assinatura" });
-        }
-      } catch (e) {
-        if (isRedirect(e)) throw e;
-      }
+      await redirectIfNeedsOfficeSignature();
       throw redirect({ to: "/" });
     }
   },
@@ -87,8 +83,7 @@ function AuthPage() {
         navigate({ to: "/auth/redefinir-senha" });
         return;
       }
-      const { needsSignature } = await needsSignatureForOffices();
-      if (needsSignature) {
+      if (await checkNeedsOfficeSignature()) {
         navigate({ to: "/auth/assinatura" });
         return;
       }

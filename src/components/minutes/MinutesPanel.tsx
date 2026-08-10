@@ -300,8 +300,9 @@ export function MinutesPanel({
 
   const refresh = (minuteId?: string) => {
     onChanged(minuteId ? { minuteId } : undefined);
-    qc.invalidateQueries({ queryKey: ["minute-approvals", minutes?.id] });
-    qc.invalidateQueries({ queryKey: ["minute-public-votes", minutes?.id] });
+    const id = minuteId ?? minutes?.id;
+    qc.invalidateQueries({ queryKey: ["minute-approvals", id] });
+    qc.invalidateQueries({ queryKey: ["minute-public-votes", id] });
     qc.invalidateQueries({ queryKey: ["chapter-minutes", chapterId] });
   };
 

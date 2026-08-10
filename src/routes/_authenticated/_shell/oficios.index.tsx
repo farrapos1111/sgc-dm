@@ -86,24 +86,10 @@ function ExportPdfButton({ oficio, size }: { oficio: OficioRow; size?: "sm" }) {
         e.stopPropagation();
         setBusy(true);
         try {
-          const { listChapterOfficeSignatures } = await import(
-            "@/lib/office-signatures.functions"
+          const { loadOficioSignatureMap } = await import(
+            "@/lib/oficio-signatures"
           );
-          const slots = active?.chapter_id
-            ? await listChapterOfficeSignatures({
-                data: {
-                  chapterId: active.chapter_id,
-                  positionCodes: [
-                    "presidente_conselho_consultivo",
-                    "mestre_conselheiro",
-                    "escrivao",
-                  ],
-                },
-              })
-            : [];
-          const byCode = Object.fromEntries(
-            slots.map((s) => [s.positionCode, s]),
-          );
+          const byCode = await loadOficioSignatureMap(active?.chapter_id);
           const { exportOficioPdf } = await import("@/lib/oficio-pdf");
           await exportOficioPdf({
             chapterName: active?.chapter.name ?? "",
@@ -144,6 +130,7 @@ function OficiosPage() {
   const { data: oficios } = useSuspenseQuery(oficiosQO(chapterId));
   const allowed =
     canScreen("oficios", "edit") || can("secretaria") || can("admin");
+  const canDelete = canScreen("oficios", "delete") || can("admin");
 
   return (
     <div>
@@ -173,6 +160,7 @@ function OficiosPage() {
             oficios={oficios}
             chapterId={chapterId}
             allowed={allowed}
+            canDelete={canDelete}
           />
         </TabsContent>
 
@@ -203,10 +191,12 @@ function ExpedidosList({
   oficios,
   chapterId,
   allowed,
+  canDelete,
 }: {
   oficios: OficioRow[];
   chapterId: string;
   allowed: boolean;
+  canDelete: boolean;
 }) {
   const { active } = useActiveChapter();
   const qc = useQueryClient();
@@ -360,7 +350,7 @@ function ExpedidosList({
                       Abrir
                     </Link>
                   </Button>
-                  {allowed ? (
+                  {canDelete ? (
                     <Button
                       size="icon"
                       variant="ghost"

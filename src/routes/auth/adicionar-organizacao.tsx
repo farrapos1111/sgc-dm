@@ -61,18 +61,23 @@ function composeFullAddress(parts: {
 
 function Field({
   label,
+  htmlFor,
   children,
   error,
   className,
 }: {
   label: string;
+  htmlFor?: string;
   children: React.ReactNode;
   error?: string;
   className?: string;
 }) {
   return (
     <div className={className}>
-      <label className="mb-1 block text-xs font-medium text-foreground">
+      <label
+        htmlFor={htmlFor}
+        className="mb-1 block text-xs font-medium text-foreground"
+      >
         {label}
       </label>
       {children}
@@ -259,8 +264,9 @@ function AdicionarOrganizacaoPage() {
 
               <form onSubmit={handleSubmit} className="space-y-3">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label="Tipo de organização *">
+                  <Field label="Tipo de organização *" htmlFor="org-type">
                     <select
+                      id="org-type"
                       value={orgType}
                       onChange={(e) =>
                         setOrgType(e.target.value as OrgJoinType)
@@ -279,9 +285,11 @@ function AdicionarOrganizacaoPage() {
                   {needsOther ? (
                     <Field
                       label="Especifique o tipo *"
+                      htmlFor="org-type-other"
                       error={fieldErrors.orgTypeOther}
                     >
                       <input
+                        id="org-type-other"
                         value={orgTypeOther}
                         onChange={(e) => setOrgTypeOther(e.target.value)}
                         className={inputClass}
@@ -291,10 +299,12 @@ function AdicionarOrganizacaoPage() {
                     </Field>
                   ) : (
                     <Field
-                      label="Nome / Número *"
+                      label="Nome e número da organização *"
+                      htmlFor="org-name-number"
                       error={fieldErrors.nameNumber}
                     >
                       <input
+                        id="org-name-number"
                         value={nameNumber}
                         onChange={(e) => setNameNumber(e.target.value)}
                         className={inputClass}
@@ -307,8 +317,13 @@ function AdicionarOrganizacaoPage() {
                 </div>
 
                 {needsOther ? (
-                  <Field label="Nome / Número *" error={fieldErrors.nameNumber}>
+                  <Field
+                    label="Nome e número da organização *"
+                    htmlFor="org-name-number-other"
+                    error={fieldErrors.nameNumber}
+                  >
                     <input
+                      id="org-name-number-other"
                       value={nameNumber}
                       onChange={(e) => setNameNumber(e.target.value)}
                       className={inputClass}
@@ -320,8 +335,13 @@ function AdicionarOrganizacaoPage() {
                 ) : null}
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label="Data de Fundação/Instalação *" error={fieldErrors.foundedOn}>
+                  <Field
+                    label="Data de Fundação/Instalação *"
+                    htmlFor="founded-on"
+                    error={fieldErrors.foundedOn}
+                  >
                     <input
+                      id="founded-on"
                       type="date"
                       value={foundedOn}
                       onChange={(e) => setFoundedOn(e.target.value)}
@@ -333,9 +353,11 @@ function AdicionarOrganizacaoPage() {
                   {needsLodge ? (
                     <Field
                       label="Loja patrocinadora *"
+                      htmlFor="sponsoring-lodge"
                       error={fieldErrors.sponsoringLodge}
                     >
                       <input
+                        id="sponsoring-lodge"
                         value={sponsoringLodge}
                         onChange={(e) => setSponsoringLodge(e.target.value)}
                         className={inputClass}
@@ -389,11 +411,13 @@ function AdicionarOrganizacaoPage() {
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
                     <Field
                       label="CEP *"
+                      htmlFor="addr-zip"
                       className="sm:col-span-2"
                       error={fieldErrors.fullAddress}
                     >
                       <div className="relative">
                         <input
+                          id="addr-zip"
                           value={zip}
                           onChange={(e) => {
                             const masked = maskCepInput(e.target.value);
@@ -425,8 +449,13 @@ function AdicionarOrganizacaoPage() {
                         </p>
                       ) : null}
                     </Field>
-                    <Field label="Número" className="sm:col-span-2">
+                    <Field
+                      label="Número do endereço"
+                      htmlFor="addr-number"
+                      className="sm:col-span-2"
+                    >
                       <input
+                        id="addr-number"
                         value={number}
                         onChange={(e) => setNumber(e.target.value)}
                         className={inputClass}
@@ -434,8 +463,13 @@ function AdicionarOrganizacaoPage() {
                         placeholder="Nº"
                       />
                     </Field>
-                    <Field label="Complemento" className="sm:col-span-2">
+                    <Field
+                      label="Complemento"
+                      htmlFor="addr-complement"
+                      className="sm:col-span-2"
+                    >
                       <input
+                        id="addr-complement"
                         value={complement}
                         onChange={(e) => setComplement(e.target.value)}
                         className={inputClass}
@@ -443,8 +477,13 @@ function AdicionarOrganizacaoPage() {
                         placeholder="Apto, sala…"
                       />
                     </Field>
-                    <Field label="Logradouro *" className="sm:col-span-6">
+                    <Field
+                      label="Logradouro *"
+                      htmlFor="addr-street"
+                      className="sm:col-span-6"
+                    >
                       <input
+                        id="addr-street"
                         value={street}
                         onChange={(e) => setStreet(e.target.value)}
                         className={inputClass}
@@ -453,16 +492,26 @@ function AdicionarOrganizacaoPage() {
                         required
                       />
                     </Field>
-                    <Field label="Bairro" className="sm:col-span-2">
+                    <Field
+                      label="Bairro"
+                      htmlFor="addr-neighborhood"
+                      className="sm:col-span-2"
+                    >
                       <input
+                        id="addr-neighborhood"
                         value={neighborhood}
                         onChange={(e) => setNeighborhood(e.target.value)}
                         className={inputClass}
                         style={RING}
                       />
                     </Field>
-                    <Field label="Cidade *" className="sm:col-span-3">
+                    <Field
+                      label="Cidade *"
+                      htmlFor="addr-city"
+                      className="sm:col-span-3"
+                    >
                       <input
+                        id="addr-city"
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
                         className={inputClass}
@@ -470,8 +519,9 @@ function AdicionarOrganizacaoPage() {
                         required
                       />
                     </Field>
-                    <Field label="UF *" className="sm:col-span-1">
+                    <Field label="UF *" htmlFor="addr-state" className="sm:col-span-1">
                       <input
+                        id="addr-state"
                         value={state}
                         onChange={(e) =>
                           setState(e.target.value.toUpperCase().slice(0, 2))
@@ -492,9 +542,11 @@ function AdicionarOrganizacaoPage() {
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Field
                       label="Nome *"
+                      htmlFor="responsible-name"
                       error={fieldErrors.responsibleName}
                     >
                       <input
+                        id="responsible-name"
                         value={responsibleName}
                         onChange={(e) => setResponsibleName(e.target.value)}
                         className={inputClass}
@@ -504,9 +556,11 @@ function AdicionarOrganizacaoPage() {
                     </Field>
                     <Field
                       label="Cargo (MC, VM, HR…) *"
+                      htmlFor="responsible-role"
                       error={fieldErrors.responsibleRole}
                     >
                       <input
+                        id="responsible-role"
                         value={responsibleRole}
                         onChange={(e) => setResponsibleRole(e.target.value)}
                         className={inputClass}
@@ -517,9 +571,11 @@ function AdicionarOrganizacaoPage() {
                     </Field>
                     <Field
                       label="Telefone *"
+                      htmlFor="responsible-phone"
                       error={fieldErrors.responsiblePhone}
                     >
                       <input
+                        id="responsible-phone"
                         type="tel"
                         value={responsiblePhone}
                         onChange={(e) => setResponsiblePhone(e.target.value)}
@@ -531,9 +587,11 @@ function AdicionarOrganizacaoPage() {
                     </Field>
                     <Field
                       label="E-mail *"
+                      htmlFor="responsible-email"
                       error={fieldErrors.responsibleEmail}
                     >
                       <input
+                        id="responsible-email"
                         type="email"
                         value={responsibleEmail}
                         onChange={(e) => setResponsibleEmail(e.target.value)}

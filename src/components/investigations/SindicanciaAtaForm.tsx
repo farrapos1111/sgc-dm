@@ -163,16 +163,20 @@ export function SindicanciaAtaForm({
     setHydrated(true);
   }, [minute, row, hydrated, isRoteiro]);
 
-  // Pré-preenche assinatura oficial do Escrivão do capítulo (cargo do sistema).
+  // Pré-preenche assinatura oficial do Escrivão só se o usuário for o cargo.
   useEffect(() => {
     if (!hydrated || isRoteiro || !answersWritable) return;
     if (signatures.escrivao?.startsWith("data:")) return;
     let cancelled = false;
     void (async () => {
       try {
-        const { listChapterOfficeSignatures } = await import(
+        const { canSignAsOffice, listChapterOfficeSignatures } = await import(
           "@/lib/office-signatures.functions"
         );
+        const gate = await canSignAsOffice({
+          data: { chapterId, positionCode: "escrivao" },
+        });
+        if (!gate.canSign) return;
         const slots = await listChapterOfficeSignatures({
           data: { chapterId, positionCodes: ["escrivao"] },
         });

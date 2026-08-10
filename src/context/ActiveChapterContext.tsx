@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -229,6 +230,8 @@ export function ActiveChapterProvider({
   const [activeChapterId, setActiveChapterIdState] = useState<string | null>(
     () => readSessionChapterId(),
   );
+  const activeChapterIdRef = useRef(activeChapterId);
+  activeChapterIdRef.current = activeChapterId;
 
   const [roleView, setRoleViewState] = useState<RoleName | null>(() =>
     readStoredRoleView(readSessionChapterId()),
@@ -251,18 +254,17 @@ export function ActiveChapterProvider({
   // Sessão atual apenas — multi-filiado escolhe de novo a cada login.
   const setActiveChapterId = useCallback(
     (id: string | null) => {
-      setActiveChapterIdState((prev) => {
-        if (prev !== id) {
-          // Carrega roleView keyed pelo novo capítulo; não apaga o do anterior.
-          const nextView = readStoredRoleView(id);
-          setRoleViewState(nextView);
-          if (typeof window !== "undefined") {
-            window.localStorage.removeItem(LEGACY_ROLE_VIEW_KEY);
-          }
-          invalidateRbacQueries();
+      const prev = activeChapterIdRef.current;
+      if (prev !== id) {
+        // Carrega roleView keyed pelo novo capítulo; não apaga o do anterior.
+        const nextView = readStoredRoleView(id);
+        setRoleViewState(nextView);
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(LEGACY_ROLE_VIEW_KEY);
         }
-        return id;
-      });
+        invalidateRbacQueries();
+      }
+      setActiveChapterIdState(id);
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(LEGACY_STORAGE_KEY);
         if (id) window.sessionStorage.setItem(SESSION_KEY, id);

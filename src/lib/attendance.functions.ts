@@ -241,6 +241,45 @@ export const saveMinutes = createServerFn({ method: "POST" })
       return { ok: true, minute: saved };
     }
 
+    // Evita duplicar rascunho em corrida no 1º save (sem id): reutiliza draft recente do mesmo user.
+    const { data: existingDraft, error: draftErr } = await context.supabase
+      .from("session_minutes")
+      .select("id, status, kind, title")
+      .eq("calendar_event_id", data.calendarEventId)
+      .eq("chapter_id", data.chapterId)
+      .eq("opened_by", context.userId)
+      .eq("status", "rascunho")
+      .gte("opened_at", new Date(Date.now() - 15 * 60 * 1000).toISOString())
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (draftErr) throw new Error(draftErr.message);
+
+    if (existingDraft) {
+      const kind =
+        data.kind ??
+        (existingDraft.kind as
+          | "publica"
+          | "grau_iniciatico"
+          | "grau_demolay"
+          | null) ??
+        "publica";
+      const patch: Record<string, unknown> = {
+        content: data.content,
+        kind,
+      };
+      if (data.title !== undefined) patch.title = data.title;
+
+      const { data: saved, error } = await context.supabase
+        .from("session_minutes")
+        .update(patch as never)
+        .eq("id", existingDraft.id)
+        .select("id, status, kind, title")
+        .single();
+      if (error) throw new Error(error.message);
+      return { ok: true, minute: saved };
+    }
+
     const kind = data.kind ?? "publica";
     const insertRow: Record<string, unknown> = {
       chapter_id: data.chapterId,

@@ -41,6 +41,7 @@ export async function sendTransactionalEmail(
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
+      signal: AbortSignal.timeout(15_000),
       body: JSON.stringify({
         from,
         to,

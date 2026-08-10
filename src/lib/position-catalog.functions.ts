@@ -159,12 +159,10 @@ export const upsertCatalogPosition = createServerFn({ method: "POST" })
         throw new Error("Cargos regionais não são gerenciados nesta tela.");
       }
 
+      // Edição por org_type: não altera positions.scope global (só label + vínculo).
       const { data: row, error } = await db
         .from("positions")
-        .update({
-          label: data.label,
-          ...(existing.is_system ? {} : { scope }),
-        })
+        .update({ label: data.label })
         .eq("id", data.id)
         .select("id, code, label, scope, sort_order, is_system")
         .single();
