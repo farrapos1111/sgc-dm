@@ -18,6 +18,7 @@ import {
   type NavGroup,
 } from "@/lib/nav";
 import { supabase } from "@/integrations/supabase/client";
+import { clearAuthNavCache } from "@/lib/auth-nav-cache";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/_shell/mais")({
@@ -114,6 +115,7 @@ function MaisPage() {
       clearChapterSessionStorage();
       window.localStorage.removeItem("sgcdm.activeOrgScope");
     }
+    clearAuthNavCache();
     await supabase.auth.signOut();
     window.location.assign("/auth");
   }

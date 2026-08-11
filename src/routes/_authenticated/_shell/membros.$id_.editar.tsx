@@ -93,6 +93,7 @@ function EditarMembro() {
       iniciacao_grau_demolay: data.member.iniciacao_grau_demolay ?? "",
       demolay_id: (data.member as { demolay_id?: string }).demolay_id ?? "",
       masonic_id: (data.member as { masonic_id?: string }).masonic_id ?? "",
+      masonic_degree: "",
       initiation_chapter_id:
         (data.member as { initiation_chapter_id?: string | null }).initiation_chapter_id ??
         originChapterId,
@@ -146,6 +147,7 @@ function EditarMembro() {
   );
 
   const menor = isUnder21(dados.birth_date);
+  const needsGuardians = menor && dados.kind !== "macom";
 
   function buildDiff() {
     const keys = Object.keys(FIELD_LABELS) as (keyof MemberFormData)[];
@@ -168,11 +170,14 @@ function EditarMembro() {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const guardians = [
-        ...(guardian1.full_name.trim() ? [guardian1] : []),
-        ...(guardian2?.full_name.trim() ? [guardian2] : []),
-      ];
-      if (menor && guardians.length === 0) {
+      const guardians =
+        dados.kind === "macom"
+          ? []
+          : [
+              ...(guardian1.full_name.trim() ? [guardian1] : []),
+              ...(guardian2?.full_name.trim() ? [guardian2] : []),
+            ];
+      if (needsGuardians && guardians.length === 0) {
         throw new Error("Membros com menos de 21 anos precisam de ao menos um responsável");
       }
       const statusChanging = dados.status !== (rawStatus === "irregular" ? "irregular" : "regular");
@@ -278,18 +283,22 @@ function EditarMembro() {
           initialStatus={rawStatus === "irregular" ? "irregular" : "regular"}
           chapters={chapters}
           cepResetKey={id}
+          orgType={active?.chapter?.org_type}
         />
 
-        {isOrigin && (
+        {isOrigin && dados.kind !== "macom" && (
           <div className="space-y-4">
             <h3 className="text-base font-semibold">
-              Responsáveis {menor && <span className="text-sm text-muted-foreground">(obrigatório)</span>}
+              Responsáveis{" "}
+              {needsGuardians && (
+                <span className="text-sm text-muted-foreground">(obrigatório)</span>
+              )}
             </h3>
             <GuardianFields
               title="Responsável 1 (principal)"
               value={guardian1}
               onChange={(p) => setGuardian1((g) => ({ ...g, ...p }))}
-              required={menor}
+              required={needsGuardians}
             />
             {guardian2 ? (
               <div className="space-y-2">

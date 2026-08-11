@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { applyPlatformDefaultThemeVars } from "@/lib/chapter-theme";
 
 export const Route = createFileRoute("/auth")({
+  ssr: false,
   component: AuthLayout,
 });
 

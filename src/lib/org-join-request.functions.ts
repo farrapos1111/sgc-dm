@@ -6,31 +6,21 @@ import { sendTransactionalEmail } from "@/lib/email";
 import { getTechCommissionEmails } from "@/lib/tech-commission";
 import { isMissingAuthLoginThrottleTable } from "@/lib/auth-throttle-errors";
 import { resolveTrustedClientIp } from "@/lib/trusted-client-ip";
+import {
+  ORG_TYPE_LABELS,
+  ORG_TYPES,
+  needsSponsor,
+  type BillingModel,
+  type OrgType,
+  type OrgTypeFormSchema,
+} from "@/lib/org-types";
 
-export const ORG_JOIN_TYPES = [
-  "capitulo",
-  "priorado",
-  "castelo",
-  "bethel",
-  "abelhinhas",
-  "arco_iris",
-  "apj",
-  "loja",
-  "outro",
-] as const;
+export const ORG_JOIN_TYPES = ORG_TYPES;
 
-export type OrgJoinType = (typeof ORG_JOIN_TYPES)[number];
+export type OrgJoinType = OrgType;
 
 export const ORG_JOIN_TYPE_LABELS: Record<OrgJoinType, string> = {
-  capitulo: "Capítulo",
-  priorado: "Priorado",
-  castelo: "Castelo",
-  bethel: "Bethel",
-  abelhinhas: "Abelhinhas",
-  arco_iris: "Arco Íris",
-  apj: "APJ",
-  loja: "Loja",
-  outro: "Outro",
+  ...ORG_TYPE_LABELS,
 };
 
 export const ACTIVE_MEMBERS_BANDS = [
@@ -42,12 +32,35 @@ export const ACTIVE_MEMBERS_BANDS = [
 
 export type ActiveMembersBand = (typeof ACTIVE_MEMBERS_BANDS)[number];
 
+export type OrgJoinPotencia = {
+  id: string;
+  nome: string;
+  sigla: string;
+  abrangencia: string;
+  org_types: OrgJoinType[];
+};
+
+export type OrgJoinTypeDef = {
+  org_type: OrgJoinType;
+  label: string;
+  unit_label: string;
+  billing_model: BillingModel;
+  rollout_scope: string;
+  form_schema: OrgTypeFormSchema;
+};
+
+export type OrgJoinCatalog = {
+  potencias: OrgJoinPotencia[];
+  org_types: OrgJoinTypeDef[];
+};
+
 const phoneRegex = /^[\d\s()+-]{8,20}$/;
 
 export const orgJoinRequestSchema = z
   .object({
     orgType: z.enum(ORG_JOIN_TYPES),
     orgTypeOther: z.string().trim().max(120).optional().nullable(),
+    potenciaId: z.string().uuid("Informe a potência"),
     nameNumber: z.string().trim().min(1, "Informe o nome/número").max(200),
     fullAddress: z
       .string()
@@ -79,6 +92,7 @@ export const orgJoinRequestSchema = z
       .trim()
       .min(1, "Informe o cargo do responsável")
       .max(120),
+    sponsorKind: z.enum(["loja", "capitulo"]).nullable().optional(),
   })
   .superRefine((v, ctx) => {
     if (v.orgType === "outro") {
@@ -90,14 +104,16 @@ export const orgJoinRequestSchema = z
         });
       }
     }
-    if (v.orgType !== "loja") {
-      if (!v.sponsoringLodge?.trim()) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["sponsoringLodge"],
-          message: "Informe a loja patrocinadora",
-        });
-      }
+    const kind = v.sponsorKind ?? null;
+    if (needsSponsor(kind) && !v.sponsoringLodge?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["sponsoringLodge"],
+        message:
+          kind === "capitulo"
+            ? "Informe o capítulo patrocinador"
+            : "Informe a loja patrocinadora",
+      });
     }
   });
 
@@ -118,7 +134,11 @@ function formatFoundedOn(ymd: string): string {
   return `${d}/${m}/${y}`;
 }
 
-function buildEmailBody(data: OrgJoinRequestInput): string {
+function buildEmailBody(
+  data: OrgJoinRequestInput,
+  potenciaLabel: string | null,
+  billing: string | null,
+): string {
   const typeLabel =
     data.orgType === "outro"
       ? `Outro (${data.orgTypeOther?.trim()})`
@@ -128,14 +148,20 @@ function buildEmailBody(data: OrgJoinRequestInput): string {
     "Nova solicitação — Quero Adicionar à Minha Organização",
     "",
     `Tipo de organização: ${typeLabel}`,
+    potenciaLabel ? `Potência: ${potenciaLabel}` : null,
+    billing ? `Modelo de cobrança: ${billing}` : null,
     `Nome / Número: ${data.nameNumber}`,
     `Endereço completo: ${data.fullAddress}`,
     `Data de Fundação/Instalação: ${formatFoundedOn(data.foundedOn)}`,
     `Membros ativos: ${data.activeMembersBand}`,
-  ];
+  ].filter(Boolean) as string[];
 
-  if (data.orgType !== "loja") {
-    lines.push(`Loja patrocinadora: ${data.sponsoringLodge?.trim()}`);
+  if (needsSponsor(data.sponsorKind ?? null) && data.sponsoringLodge?.trim()) {
+    const sponsorLabel =
+      data.sponsorKind === "capitulo"
+        ? "Capítulo patrocinador"
+        : "Loja patrocinadora";
+    lines.push(`${sponsorLabel}: ${data.sponsoringLodge.trim()}`);
   }
 
   lines.push(
@@ -239,6 +265,73 @@ async function recordOrgJoinAttempt(
   }
 }
 
+function parseCatalog(raw: unknown): OrgJoinCatalog {
+  const obj = (raw ?? {}) as {
+    potencias?: unknown[];
+    org_types?: unknown[];
+  };
+  const potencias: OrgJoinPotencia[] = (obj.potencias ?? []).map((p) => {
+    const row = p as Record<string, unknown>;
+    return {
+      id: String(row.id),
+      nome: String(row.nome ?? ""),
+      sigla: String(row.sigla ?? ""),
+      abrangencia: String(row.abrangencia ?? ""),
+      org_types: ((row.org_types as string[]) ?? []).filter((t) =>
+        (ORG_JOIN_TYPES as readonly string[]).includes(t),
+      ) as OrgJoinType[],
+    };
+  });
+  const org_types: OrgJoinTypeDef[] = (obj.org_types ?? [])
+    .map((t) => {
+      const row = t as Record<string, unknown>;
+      const orgType = String(row.org_type);
+      if (!(ORG_JOIN_TYPES as readonly string[]).includes(orgType)) return null;
+      return {
+        org_type: orgType as OrgJoinType,
+        label: String(row.label ?? orgType),
+        unit_label: String(row.unit_label ?? ""),
+        billing_model: (row.billing_model === "pago" ? "pago" : "gratuito") as BillingModel,
+        rollout_scope: String(row.rollout_scope ?? "RS"),
+        form_schema: (row.form_schema ?? {}) as OrgTypeFormSchema,
+      };
+    })
+    .filter(Boolean) as OrgJoinTypeDef[];
+  return { potencias, org_types };
+}
+
+export const getOrgJoinCatalog = createServerFn({ method: "GET" }).handler(
+  async (): Promise<OrgJoinCatalog> => {
+    const supabase = getPublicSupabase();
+    const { data, error } = await supabase.rpc(
+      "list_org_join_catalog" as never,
+    );
+    if (error) {
+      console.error("[org-join] list_org_join_catalog failed", error.message);
+      // Fallback estático se a migration ainda não estiver aplicada
+      return {
+        potencias: [],
+        org_types: ORG_JOIN_TYPES.map((t) => ({
+          org_type: t,
+          label: ORG_JOIN_TYPE_LABELS[t],
+          unit_label: ORG_JOIN_TYPE_LABELS[t],
+          billing_model: (t === "loja" ? "pago" : "gratuito") as BillingModel,
+          rollout_scope: "RS",
+          form_schema: {
+            sponsor_kind:
+              t === "loja" || t === "alumni"
+                ? null
+                : t === "castelo" || t === "priorado"
+                  ? "capitulo"
+                  : "loja",
+          },
+        })),
+      };
+    }
+    return parseCatalog(data);
+  },
+);
+
 export const submitOrgJoinRequest = createServerFn({ method: "POST" })
   .inputValidator((raw) => orgJoinRequestSchema.parse(raw))
   .handler(async ({ data }) => {
@@ -260,14 +353,15 @@ export const submitOrgJoinRequest = createServerFn({ method: "POST" })
         _full_address: data.fullAddress,
         _founded_on: data.foundedOn,
         _active_members_band: data.activeMembersBand,
-        _sponsoring_lodge:
-          data.orgType === "loja"
-            ? null
-            : data.sponsoringLodge?.trim() || null,
+        _sponsoring_lodge: needsSponsor(data.sponsorKind ?? null)
+          ? data.sponsoringLodge?.trim() || null
+          : null,
         _responsible_name: data.responsibleName,
-        _responsible_phone: digitsOnlyPhone(data.responsiblePhone) || data.responsiblePhone,
+        _responsible_phone:
+          digitsOnlyPhone(data.responsiblePhone) || data.responsiblePhone,
         _responsible_email: data.responsibleEmail,
         _responsible_role: data.responsibleRole,
+        _potencia_id: data.potenciaId,
       } as never,
     );
 
@@ -283,7 +377,6 @@ export const submitOrgJoinRequest = createServerFn({ method: "POST" })
         );
         throw new Error("Muitas solicitações. Tente novamente mais tarde.");
       }
-      // Conta tentativa em falhas que não são validação de input (22023)
       if (code !== "22023") {
         await recordOrgJoinAttempt(
           data.responsibleEmail,
@@ -307,10 +400,24 @@ export const submitOrgJoinRequest = createServerFn({ method: "POST" })
     const id = row?.id;
     if (!id) throw new Error("Não foi possível registrar a solicitação.");
 
+    let potenciaLabel: string | null = null;
+    let billing: string | null = null;
+    try {
+      const catalog = await getOrgJoinCatalog();
+      const pot = catalog.potencias.find((p) => p.id === data.potenciaId);
+      if (pot) potenciaLabel = `${pot.nome} (${pot.sigla})`;
+      const def = catalog.org_types.find((t) => t.org_type === data.orgType);
+      if (def) {
+        billing = def.billing_model === "pago" ? "Pago" : "Gratuito";
+      }
+    } catch {
+      // best-effort
+    }
+
     const mail = await sendTransactionalEmail({
       to: getTechCommissionEmails(),
       subject: `[Templo Virtual] Solicitação de organização — ${data.nameNumber}`,
-      text: buildEmailBody(data),
+      text: buildEmailBody(data, potenciaLabel, billing),
     });
 
     let emailStatus: "sent" | "failed" | "skipped" = "skipped";

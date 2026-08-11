@@ -26,6 +26,7 @@ import {
   assignCommissionMember,
 } from "@/lib/organization.functions";
 import { grauOf, is21OrOlder, isUnder21 } from "@/lib/format";
+import { normalizeOrgType, formatPositionOptionLabel } from "@/lib/org-types";
 import {
   currentTerm,
   termOptions,
@@ -98,6 +99,12 @@ function NovoMembro() {
   const [dados, setDados] = useState<MemberFormData>(() => ({
     ...emptyMember,
     initiation_chapter_id: "",
+    kind:
+      normalizeOrgType(active?.chapter?.org_type) === "loja"
+        ? "macom"
+        : "demolay_ativo",
+    masonic_degree:
+      normalizeOrgType(active?.chapter?.org_type) === "loja" ? "mestre" : "",
   }));
   const [guardian1, setGuardian1] = useState<GuardianFormData>(emptyGuardian);
   const [guardian2, setGuardian2] = useState<GuardianFormData | null>(null);
@@ -128,8 +135,12 @@ function NovoMembro() {
     }
   }, [active?.chapter_id]);
 
+  const orgType = normalizeOrgType(active?.chapter?.org_type);
+  const isLodge = orgType === "loja";
+  const isMacom = isLodge || dados.kind === "macom";
   const menor = isUnder21(dados.birth_date);
-  const hasGrauDemolay = grauOf(dados).code === "DM";
+  const needsGuardians = menor && !isMacom;
+  const hasGrauDemolay = !isLodge && grauOf(dados).code === "DM";
   const foundedAt = chapterFoundedAt(active?.chapter);
   const cur = currentTerm();
   const terms = useMemo(() => termOptions({ foundedAt }), [foundedAt]);
@@ -138,10 +149,11 @@ function NovoMembro() {
     // Vínculo a membro existente: só dados (solicitação ao originário); cargos após aprovação
     if (linkedMemberId) return ["dados"];
     const list: StepId[] = ["dados"];
-    if (hasGrauDemolay) list.push("cargos");
-    if (menor) list.push("pais");
+    // Loja: cargos do preset; Capítulo: só com Grau DeMolay
+    if (isLodge || hasGrauDemolay) list.push("cargos");
+    if (needsGuardians) list.push("pais");
     return list;
-  }, [hasGrauDemolay, menor, linkedMemberId]);
+  }, [hasGrauDemolay, needsGuardians, linkedMemberId, isLodge]);
 
   const step = steps[Math.min(stepIndex, steps.length - 1)] ?? "dados";
   const totalSteps = steps.length;
@@ -155,7 +167,7 @@ function NovoMembro() {
   const { data: catalog } = useQuery({
     queryKey: ["org-catalog", chapterId],
     queryFn: () => listCatalog({ data: { chapterId } }),
-    enabled: hasGrauDemolay && Boolean(chapterId),
+    enabled: (isLodge || hasGrauDemolay) && Boolean(chapterId),
   });
 
   const { data: chapters = [] } = useQuery({
@@ -165,6 +177,7 @@ function NovoMembro() {
 
   // Autocomplete: ao digitar ID DeMolay, busca e preenche dados existentes
   useEffect(() => {
+    if (isLodge) return;
     const raw = dados.demolay_id.trim();
     const normalized = normalizeDemolayId(raw);
     if (!active?.chapter_id) return;
@@ -272,7 +285,7 @@ function NovoMembro() {
     }, 450);
 
     return () => window.clearTimeout(handle);
-  }, [dados.demolay_id, active?.chapter_id, linkedMemberId, linkedDemolayId]);
+  }, [dados.demolay_id, active?.chapter_id, linkedMemberId, linkedDemolayId, isLodge]);
 
   const positionOptions = useMemo(() => {
     const eligible = (catalog?.positions ?? []).filter((p) => {
@@ -281,9 +294,9 @@ function NovoMembro() {
     });
     return eligible.map((p) => ({
       value: String(p.id),
-      label: `${p.label} · ${p.scope === "consultivo" ? "Conselho" : "Capítulo"}`,
+      label: formatPositionOptionLabel(p.label, p.scope, orgType),
     }));
-  }, [catalog?.positions, dados.birth_date]);
+  }, [catalog?.positions, dados.birth_date, orgType]);
 
   const commissionOptions = useMemo(
     () =>
@@ -309,7 +322,7 @@ function NovoMembro() {
         return { id: linkedMemberId, kind: "affiliation_request" as const };
       }
 
-      const guardians = menor
+      const guardians = needsGuardians
         ? [guardian1, ...(guardian2 && guardian2.full_name.trim() ? [guardian2] : [])]
         : [];
       const created = await createMember({
@@ -322,7 +335,7 @@ function NovoMembro() {
           exam_grau_demolay: dados.exam_grau_demolay || null,
           iniciacao_ordem: dados.iniciacao_ordem || null,
           iniciacao_grau_demolay: dados.iniciacao_grau_demolay || null,
-          demolay_id: normalizeDemolayId(dados.demolay_id) || null,
+          demolay_id: normalizeDemolayId(dados.demolay_id) || "",
           masonic_id: dados.masonic_id,
           cpf: dados.cpf,
           rg: dados.rg,
@@ -342,7 +355,7 @@ function NovoMembro() {
           kind: dados.kind,
           status_effective_on: dados.status_effective_on || null,
           guardians,
-          consent_text_version: menor ? CONSENT_VERSION : "",
+          consent_text_version: needsGuardians ? CONSENT_VERSION : "",
         },
       });
 
@@ -411,7 +424,7 @@ function NovoMembro() {
       }
     }
     if (isLast) {
-      if (menor && !consent && !linkedMemberId) {
+      if (needsGuardians && !consent && !linkedMemberId) {
         toast.error("O responsável precisa assinalar o consentimento LGPD");
         return;
       }
@@ -447,9 +460,19 @@ function NovoMembro() {
         {step === "dados" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Ao informar um <strong>ID DeMolay</strong> já cadastrado, os dados são preenchidos
-              automaticamente (somente leitura). O vínculo a este capítulo só ocorre após o
-              capítulo originário aprovar a solicitação.
+              {isLodge ? (
+                <>
+                  Cadastro de membro da Loja. Use o <strong>nº / ID maçônico</strong> e o{" "}
+                  <strong>Grau</strong> (Aprendiz, Companheiro ou Mestre). Não use
+                  nomenclatura DeMolay nesta esfera.
+                </>
+              ) : (
+                <>
+                  Ao informar um <strong>ID DeMolay</strong> já cadastrado, os dados são
+                  preenchidos automaticamente (somente leitura). O vínculo a este capítulo
+                  só ocorre após o capítulo originário aprovar a solicitação.
+                </>
+              )}
             </p>
 
             {(positionHistory.length > 0 || linkedMemberId) && (
@@ -476,6 +499,7 @@ function NovoMembro() {
               readOnlyMaster={Boolean(linkedMemberId)}
               demolayLookupStatus={demolayLookupStatus}
               cepResetKey={linkedMemberId ?? "new"}
+              orgType={active?.chapter?.org_type}
             />
             <div className="flex justify-end pt-2">
               <Button
@@ -501,7 +525,9 @@ function NovoMembro() {
         {step === "cargos" && (
           <div className="space-y-6">
             <p className="text-sm text-muted-foreground">
-              O membro possui Grau DeMolay. Informe cargos e comissões desta gestão (opcional).
+              {isLodge
+                ? "Informe cargos desta gestão (opcional), conforme o quadro da Loja."
+                : "O membro possui Grau DeMolay. Informe cargos e comissões desta gestão (opcional)."}
             </p>
 
             <div className="space-y-3">

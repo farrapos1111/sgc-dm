@@ -30,19 +30,23 @@ export const Route = createFileRoute("/auth/")({
     ],
   }),
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getUser();
-    if (data.user) {
-      try {
-        const { mustChangePassword } = await getMustChangePassword();
-        if (mustChangePassword) {
-          throw redirect({ to: "/auth/redefinir-senha" });
-        }
-      } catch (e) {
-        if (isRedirect(e)) throw e;
+    // getSession é local/rápido; evita 500 de getUser/RPC no SSR residual
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
+    if (!user) return;
+
+    try {
+      const { mustChangePassword } = await getMustChangePassword();
+      if (mustChangePassword) {
+        throw redirect({ to: "/auth/redefinir-senha" });
       }
-      await redirectIfNeedsOfficeSignature();
-      throw redirect({ to: "/" });
+    } catch (e) {
+      if (isRedirect(e)) throw e;
+      console.error("[auth] mustChangePassword failed", e);
     }
+
+    await redirectIfNeedsOfficeSignature();
+    throw redirect({ to: "/" });
   },
   component: AuthPage,
 });
@@ -146,6 +150,7 @@ function AuthPage() {
                 </label>
                 <Link
                   to="/auth/recuperar-senha"
+                  preload={false}
                   className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
                 >
                   Esqueci a senha

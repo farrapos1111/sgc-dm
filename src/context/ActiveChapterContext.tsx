@@ -166,6 +166,7 @@ export function ActiveChapterProvider({
   const queryClient = useQueryClient();
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["memberships", userId],
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<Membership[]> => {
       const { data, error } = await supabase
         .from("chapter_members")
@@ -175,37 +176,10 @@ export function ActiveChapterProvider({
         .eq("user_id", userId)
         .eq("active", true);
       if (error) throw error;
-      const rows = (data ?? []) as unknown as Membership[];
-
-      const isAdminTotal = rows.some((m) => m.role?.name === "admin_total");
-      if (isAdminTotal || rows.length === 0) return rows;
-
-      const orgTypes = [
-        ...new Set(
-          rows.map((m) =>
-            (m.chapter?.org_type || "capitulo").toLowerCase(),
-          ),
-        ),
-      ];
-      const allowed = new Set<string>();
-      await Promise.all(
-        orgTypes.map(async (ot) => {
-          const { data: ok, error: rpcErr } = await supabase.rpc(
-            "platform_org_type_has_any_view" as never,
-            { _org_type: ot } as never,
-          );
-          if (rpcErr) {
-            // Se a RPC falhar, não esconder instituições (fail-open).
-            allowed.add(ot);
-            return;
-          }
-          if (ok === true) allowed.add(ot);
-        }),
-      );
-
-      return rows.filter((m) =>
-        allowed.has((m.chapter?.org_type || "capitulo").toLowerCase()),
-      );
+      // Vínculo ativo em chapter_members é a fonte de verdade.
+      // Não filtrar por platform_org_type_has_any_view: a matriz de Loja/outras
+      // esferas pode estar com can_view=false e escondia a instituição inteira.
+      return (data ?? []) as unknown as Membership[];
     },
   });
 

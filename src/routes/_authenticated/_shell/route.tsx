@@ -2,10 +2,8 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useOrgScope } from "@/context/OrgScopeContext";
 import { AppShell } from "@/components/shell/AppShell";
-import { PageSkeleton } from "@/components/PageSkeleton";
+import { DelayedPageSkeleton } from "@/components/PageSkeleton";
 import { Suspense, useEffect } from "react";
-
-
 
 export const Route = createFileRoute("/_authenticated/_shell")({
   component: ShellLayout,
@@ -46,7 +44,12 @@ function ShellLayout() {
     }
   }, [loading, memberships, activeChapterId, activeScope, navigate]);
 
-  if (loading || orgLoading) {
+  // Só bloqueia o shell no 1º load (sem dados ainda). Refetch não esconde a UI.
+  const bootstrapping =
+    (loading && memberships.length === 0 && !activeScope) ||
+    (orgLoading && scopes.length === 0 && memberships.length === 0);
+
+  if (bootstrapping) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-sm text-muted-foreground">Carregando…</div>
@@ -54,31 +57,37 @@ function ShellLayout() {
     );
   }
 
-  if (memberships.length === 0 && scopes.length === 0) {
+  if (
+    !loading &&
+    !orgLoading &&
+    memberships.length === 0 &&
+    scopes.length === 0
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="max-w-md rounded-[12px] border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
-          Sua conta não está vinculada a nenhum capítulo. Contate o
-          administrador do seu capítulo.
+          Sua conta não está vinculada a nenhuma instituição. Contate o
+          administrador.
         </div>
       </div>
     );
   }
 
-  if (!active && !activeScope) {
+  if (!loading && !active && !activeScope) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-sm text-muted-foreground">Selecione um capítulo…</div>
+        <div className="text-sm text-muted-foreground">
+          Selecione uma instituição…
+        </div>
       </div>
     );
   }
 
   return (
     <AppShell>
-      <Suspense fallback={<PageSkeleton />}>
+      <Suspense fallback={<DelayedPageSkeleton />}>
         <Outlet />
       </Suspense>
     </AppShell>
   );
-
 }

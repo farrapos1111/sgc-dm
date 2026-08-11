@@ -73,6 +73,15 @@ import {
 } from "@/lib/format";
 import { PositionHistoryCollapsible } from "@/components/members/PositionHistoryCollapsible";
 import {
+  formatPositionOptionLabel,
+  initiationOrgFieldLabel,
+  originOrgFieldLabel,
+  affiliatedOrgsHeading,
+  usesDemolayRitualFields,
+  usesDemolayIdField,
+  normalizeOrgType,
+} from "@/lib/org-types";
+import {
   ArrowLeft,
   Banknote,
   Eye,
@@ -144,6 +153,12 @@ function MembroPerfil() {
   const isOriginChapter = Boolean(
     active && active.chapter_id === originChapterId,
   );
+  const orgType = active?.chapter?.org_type;
+  const isLodge = normalizeOrgType(orgType) === "loja";
+  const showDemolayRitual = usesDemolayRitualFields(orgType);
+  const showDemolayId = usesDemolayIdField(orgType);
+  const memberKind = (member as { kind?: string }).kind;
+  const showMasonicId = isLodge || memberKind === "macom";
 
   const needsOrg = tab === "cargos";
   const needsAttendance = tab === "presencas";
@@ -219,9 +234,10 @@ function MembroPerfil() {
   const canEditOrg = can("conselho") || can("secretaria");
   const isAdminView = canEditOrg || can("admin");
   const canManageProficiencyCard =
-    roleName === "mestre_conselheiro" ||
     roleName === "admin_total" ||
-    positions.includes("mestre_conselheiro");
+    roleName === "mestre_conselheiro" ||
+    positions.includes("mestre_conselheiro") ||
+    positions.includes("loja_veneravel_mestre");
   const canManageAccount = can("admin") && isOriginChapter;
   const foundedAt = chapterFoundedAt(active?.chapter);
   const [term, setTerm] = useState(currentTerm());
@@ -312,8 +328,13 @@ function MembroPerfil() {
             {(() => {
               const kind = (member as { kind?: string }).kind;
               const parts = [statusLabel(member.status), kindLabel(kind)];
-              if (kind !== "senior" && kind !== "macom")
+              if (
+                showDemolayRitual &&
+                kind !== "senior" &&
+                kind !== "macom"
+              ) {
                 parts.push(grauOf(member).label);
+              }
               return parts.join(" · ");
             })()}
           </p>
@@ -375,31 +396,38 @@ function MembroPerfil() {
               <dl className="space-y-2 text-sm">
                 <Row k="Nome" v={member.full_name} />
                 <Row k="Nascimento" v={formatDateBR(member.birth_date)} />
+                {showDemolayRitual ? (
+                  <Row
+                    k="Grau"
+                    v={
+                      <span className="flex flex-wrap items-center justify-end gap-1.5">
+                        <Badge variant="outline">{grauOf(member).label}</Badge>
+                        {isAdminView && isAptoGrauDemolay(member) && (
+                          <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 dark:bg-amber-500/20 dark:text-amber-200 dark:hover:bg-amber-500/20">
+                            Apto a G∴D∴
+                          </Badge>
+                        )}
+                      </span>
+                    }
+                  />
+                ) : null}
+                {showDemolayRitual ? (
+                  <Row
+                    k="Iniciação à Ordem DeMolay"
+                    v={formatDateBR(member.iniciacao_ordem)}
+                  />
+                ) : null}
+                {showDemolayId ? (
+                  <Row
+                    k="ID DeMolay"
+                    v={
+                      (member as { demolay_id?: string | null }).demolay_id ||
+                      "—"
+                    }
+                  />
+                ) : null}
                 <Row
-                  k="Grau"
-                  v={
-                    <span className="flex flex-wrap items-center justify-end gap-1.5">
-                      <Badge variant="outline">{grauOf(member).label}</Badge>
-                      {isAdminView && isAptoGrauDemolay(member) && (
-                        <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 dark:bg-amber-500/20 dark:text-amber-200 dark:hover:bg-amber-500/20">
-                          Apto a G∴D∴
-                        </Badge>
-                      )}
-                    </span>
-                  }
-                />
-                <Row
-                  k="Iniciação à Ordem DeMolay"
-                  v={formatDateBR(member.iniciacao_ordem)}
-                />
-                <Row
-                  k="ID DeMolay"
-                  v={
-                    (member as { demolay_id?: string | null }).demolay_id || "—"
-                  }
-                />
-                <Row
-                  k="Capítulo de Iniciação"
+                  k={initiationOrgFieldLabel(orgType)}
                   v={
                     initiationChapter
                       ? `${initiationChapter.name}${
@@ -411,7 +439,7 @@ function MembroPerfil() {
                   }
                 />
                 <Row
-                  k="Capítulo originário"
+                  k={originOrgFieldLabel(orgType)}
                   v={
                     originChapter
                       ? `${originChapter.name}${
@@ -422,21 +450,25 @@ function MembroPerfil() {
                       : "—"
                   }
                 />
-                <Row
-                  k="Exame de Grau Iniciático"
-                  v={formatDateBR(member.exam_grau_iniciatico)}
-                />
-                <Row
-                  k="Iniciação ao Grau DeMolay"
-                  v={formatDateBR(member.iniciacao_grau_demolay)}
-                />
-                <Row
-                  k="Exame de Grau DeMolay"
-                  v={formatDateBR(member.exam_grau_demolay)}
-                />
-                {(member as { kind?: string }).kind === "macom" && (
+                {showDemolayRitual ? (
+                  <>
+                    <Row
+                      k="Exame de Grau Iniciático"
+                      v={formatDateBR(member.exam_grau_iniciatico)}
+                    />
+                    <Row
+                      k="Iniciação ao Grau DeMolay"
+                      v={formatDateBR(member.iniciacao_grau_demolay)}
+                    />
+                    <Row
+                      k="Exame de Grau DeMolay"
+                      v={formatDateBR(member.exam_grau_demolay)}
+                    />
+                  </>
+                ) : null}
+                {showMasonicId && (
                   <Row
-                    k="ID maçônica"
+                    k={isLodge ? "Nº / ID maçônico" : "ID maçônica"}
                     v={
                       (member as { masonic_id?: string | null }).masonic_id ||
                       "—"
@@ -547,16 +579,18 @@ function MembroPerfil() {
               </dl>
             </Card>
 
-            <MemberProficiencyCardPanel
-              chapterId={chapterId}
-              memberId={id}
-              demolayId={
-                (member as { demolay_id?: string | null }).demolay_id ?? null
-              }
-              examGrauIniciatico={member.exam_grau_iniciatico}
-              examGrauDemolay={member.exam_grau_demolay}
-              canManage={canManageProficiencyCard}
-            />
+            {showDemolayRitual ? (
+              <MemberProficiencyCardPanel
+                chapterId={chapterId}
+                memberId={id}
+                demolayId={
+                  (member as { demolay_id?: string | null }).demolay_id ?? null
+                }
+                examGrauIniciatico={member.exam_grau_iniciatico}
+                examGrauDemolay={member.exam_grau_demolay}
+                canManage={canManageProficiencyCard}
+              />
+            ) : null}
 
             {canManageAccount ? (
               <MemberAccountPanel
@@ -616,7 +650,7 @@ function MembroPerfil() {
               return (
                 <Card className="rounded-[12px] p-5 md:col-span-2">
                   <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                    Capítulos vinculados
+                    {affiliatedOrgsHeading(orgType)}
                   </h3>
                   <ul className="divide-y divide-border text-sm">
                     {activeAffs.map((a) => {
@@ -753,7 +787,11 @@ function MembroPerfil() {
                     <NewPositionForms
                       options={(catalog?.positions ?? []).map((p) => ({
                         value: String(p.id),
-                        label: `${p.label} · ${p.scope === "consultivo" ? "Conselho" : "Capítulo"}`,
+                        label: formatPositionOptionLabel(
+                          p.label,
+                          p.scope,
+                          active?.chapter?.org_type,
+                        ),
                       }))}
                       foundedAt={foundedAt}
                       pending={addPos.isPending}

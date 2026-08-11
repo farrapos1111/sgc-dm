@@ -339,8 +339,14 @@ const createInput = z.object({
   exam_grau_demolay: z.string().optional().nullable(),
   iniciacao_ordem: z.string().optional().nullable(),
   iniciacao_grau_demolay: z.string().optional().nullable(),
-  demolay_id: z.string().optional().default(""),
-  masonic_id: z.string().optional().default(""),
+  demolay_id: z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((v) => v ?? ""),
+  masonic_id: z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((v) => v ?? ""),
   cpf: z.string().optional().default(""),
   rg: z.string().optional().default(""),
   phone: z.string().optional().default(""),
@@ -416,8 +422,14 @@ const updateInput = z.object({
   exam_grau_demolay: z.string().optional().nullable(),
   iniciacao_ordem: z.string().optional().nullable(),
   iniciacao_grau_demolay: z.string().optional().nullable(),
-  demolay_id: z.string().optional().default(""),
-  masonic_id: z.string().optional().default(""),
+  demolay_id: z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((v) => v ?? ""),
+  masonic_id: z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((v) => v ?? ""),
   initiation_chapter_id: z.string().uuid().optional().nullable(),
   cpf: z.string().optional().default(""),
   rg: z.string().optional().default(""),

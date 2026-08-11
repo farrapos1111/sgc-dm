@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect, useState, type ReactNode } from "react";
 
 export function PageSkeleton() {
   return (
@@ -18,4 +19,37 @@ export function PageSkeleton() {
       </div>
     </div>
   );
+}
+
+/** Só mostra o skeleton se o Suspense passar de `delayMs` (evita flash em cache hit). */
+export function DelayedPageSkeleton({
+  delayMs = 120,
+}: {
+  delayMs?: number;
+}) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setShow(true), delayMs);
+    return () => window.clearTimeout(id);
+  }, [delayMs]);
+  if (!show) {
+    return <div className="min-h-[12rem]" aria-busy="true" />;
+  }
+  return <PageSkeleton />;
+}
+
+export function DelayedSuspenseFallback({
+  delayMs = 120,
+  children,
+}: {
+  delayMs?: number;
+  children?: ReactNode;
+}) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setShow(true), delayMs);
+    return () => window.clearTimeout(id);
+  }, [delayMs]);
+  if (!show) return children ?? <div className="min-h-[12rem]" aria-busy="true" />;
+  return <PageSkeleton />;
 }

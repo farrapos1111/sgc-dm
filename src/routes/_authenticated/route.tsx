@@ -1,50 +1,17 @@
-import { createFileRoute, Outlet, isRedirect, redirect } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { ActiveChapterProvider } from "@/context/ActiveChapterContext";
 import { OrgScopeProvider } from "@/context/OrgScopeContext";
-import {
-  getMemberLoginGate,
-  getMustChangePassword,
-} from "@/lib/accounts.functions";
-import { redirectIfNeedsOfficeSignature } from "@/lib/office-signature-gate";
+import { runAuthenticatedBeforeLoad } from "@/lib/auth-nav-cache";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
-
-    try {
-      const gate = await getMemberLoginGate();
-      if (!gate.allowed) {
-        await supabase.auth.signOut();
-        throw redirect({
-          to: "/auth",
-          search: { reason: "irregular" },
-        });
-      }
-    } catch (e) {
-      if (isRedirect(e)) throw e;
-    }
-
-    try {
-      const { mustChangePassword } = await getMustChangePassword();
-      if (mustChangePassword) {
-        throw redirect({ to: "/auth/redefinir-senha" });
-      }
-    } catch (e) {
-      if (isRedirect(e)) throw e;
-    }
-
-    await redirectIfNeedsOfficeSignature();
-
-    return { user: data.user };
-  },
+  beforeLoad: () => runAuthenticatedBeforeLoad(),
   component: AuthenticatedLayout,
 });
 
 function AuthenticatedLayout() {
   const { user } = Route.useRouteContext();
+  if (!user) throw redirect({ to: "/auth" });
   return (
     <ActiveChapterProvider userId={user.id}>
       <OrgScopeProvider>

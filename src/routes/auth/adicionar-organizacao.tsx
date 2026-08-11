@@ -1,14 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ACTIVE_MEMBERS_BANDS,
-  ORG_JOIN_TYPE_LABELS,
-  ORG_JOIN_TYPES,
+  getOrgJoinCatalog,
   orgJoinRequestSchema,
   submitOrgJoinRequest,
   type ActiveMembersBand,
+  type OrgJoinCatalog,
   type OrgJoinType,
+  type OrgJoinTypeDef,
 } from "@/lib/org-join-request.functions";
+import {
+  needsSponsor,
+  sponsorFieldLabel,
+} from "@/lib/org-types";
 import {
   createCepLookupSeq,
   digitsOnly,
@@ -89,6 +94,9 @@ function Field({
 }
 
 function AdicionarOrganizacaoPage() {
+  const [catalog, setCatalog] = useState<OrgJoinCatalog | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [potenciaId, setPotenciaId] = useState("");
   const [orgType, setOrgType] = useState<OrgJoinType>("capitulo");
   const [orgTypeOther, setOrgTypeOther] = useState("");
   const [nameNumber, setNameNumber] = useState("");
@@ -120,8 +128,63 @@ function AdicionarOrganizacaoPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  const needsLodge = orgType !== "loja";
+  useEffect(() => {
+    let cancelled = false;
+    getOrgJoinCatalog()
+      .then((data) => {
+        if (cancelled) return;
+        setCatalog(data);
+        const firstPot = data.potencias[0];
+        if (firstPot) {
+          setPotenciaId(firstPot.id);
+          const firstType =
+            firstPot.org_types[0] ??
+            data.org_types[0]?.org_type ??
+            "capitulo";
+          setOrgType(firstType);
+        } else if (data.org_types[0]) {
+          setOrgType(data.org_types[0].org_type);
+        }
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setCatalogError(
+          e instanceof Error ? e.message : "Não foi possível carregar o catálogo",
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedPotencia = useMemo(
+    () => catalog?.potencias.find((p) => p.id === potenciaId) ?? null,
+    [catalog, potenciaId],
+  );
+
+  const availableTypes = useMemo(() => {
+    if (!catalog) return [] as OrgJoinTypeDef[];
+    const allowed = selectedPotencia?.org_types;
+    const list = catalog.org_types;
+    if (!allowed || allowed.length === 0) return list;
+    return list.filter((t) => allowed.includes(t.org_type));
+  }, [catalog, selectedPotencia]);
+
+  const typeDef = useMemo(
+    () => availableTypes.find((t) => t.org_type === orgType) ?? null,
+    [availableTypes, orgType],
+  );
+
+  const sponsorKind = typeDef?.form_schema.sponsor_kind ?? null;
+  const needsLodge = needsSponsor(sponsorKind);
   const needsOther = orgType === "outro";
+
+  useEffect(() => {
+    if (availableTypes.length === 0) return;
+    if (!availableTypes.some((t) => t.org_type === orgType)) {
+      setOrgType(availableTypes[0].org_type);
+    }
+  }, [availableTypes, orgType]);
 
   const fullAddress = useMemo(
     () =>
@@ -141,6 +204,7 @@ function AdicionarOrganizacaoPage() {
     () => ({
       orgType,
       orgTypeOther: needsOther ? orgTypeOther : null,
+      potenciaId,
       nameNumber,
       fullAddress,
       foundedOn,
@@ -150,11 +214,13 @@ function AdicionarOrganizacaoPage() {
       responsiblePhone,
       responsibleEmail,
       responsibleRole,
+      sponsorKind,
     }),
     [
       orgType,
       orgTypeOther,
       needsOther,
+      potenciaId,
       nameNumber,
       fullAddress,
       foundedOn,
@@ -165,6 +231,7 @@ function AdicionarOrganizacaoPage() {
       responsiblePhone,
       responsibleEmail,
       responsibleRole,
+      sponsorKind,
     ],
   );
 
@@ -263,7 +330,37 @@ function AdicionarOrganizacaoPage() {
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-3">
+                {catalogError ? (
+                  <p className="text-sm text-destructive">{catalogError}</p>
+                ) : null}
+
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field
+                    label="Potência *"
+                    htmlFor="potencia"
+                    error={fieldErrors.potenciaId}
+                  >
+                    <select
+                      id="potencia"
+                      value={potenciaId}
+                      onChange={(e) => setPotenciaId(e.target.value)}
+                      className={inputClass}
+                      style={RING}
+                      required
+                      disabled={!catalog?.potencias.length}
+                    >
+                      {(catalog?.potencias ?? []).length === 0 ? (
+                        <option value="">Carregando…</option>
+                      ) : (
+                        catalog!.potencias.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.sigla} — {p.nome}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </Field>
+
                   <Field label="Tipo de organização *" htmlFor="org-type">
                     <select
                       id="org-type"
@@ -274,14 +371,29 @@ function AdicionarOrganizacaoPage() {
                       className={inputClass}
                       style={RING}
                     >
-                      {ORG_JOIN_TYPES.map((t) => (
-                        <option key={t} value={t}>
-                          {ORG_JOIN_TYPE_LABELS[t]}
+                      {availableTypes.map((t) => (
+                        <option key={t.org_type} value={t.org_type}>
+                          {t.label}
+                          {t.billing_model === "pago" ? " (pago)" : ""}
                         </option>
                       ))}
                     </select>
+                    {typeDef ? (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {typeDef.unit_label}
+                        {" · "}
+                        {typeDef.billing_model === "pago" ? "Pago" : "Gratuito"}
+                        {" · "}
+                        liberado em {typeDef.rollout_scope}
+                        {typeDef.form_schema.admin_max_label
+                          ? ` · admin: ${typeDef.form_schema.admin_max_label}`
+                          : ""}
+                      </p>
+                    ) : null}
                   </Field>
+                </div>
 
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {needsOther ? (
                     <Field
                       label="Especifique o tipo *"
@@ -297,42 +409,29 @@ function AdicionarOrganizacaoPage() {
                         placeholder="Ex.: Conselho de Pais"
                       />
                     </Field>
-                  ) : (
-                    <Field
-                      label="Nome e número da organização *"
-                      htmlFor="org-name-number"
-                      error={fieldErrors.nameNumber}
-                    >
-                      <input
-                        id="org-name-number"
-                        value={nameNumber}
-                        onChange={(e) => setNameNumber(e.target.value)}
-                        className={inputClass}
-                        style={RING}
-                        placeholder="Ex.: Capítulo Exemplo Nº 123"
-                        required
-                      />
-                    </Field>
-                  )}
-                </div>
+                  ) : null}
 
-                {needsOther ? (
                   <Field
                     label="Nome e número da organização *"
-                    htmlFor="org-name-number-other"
+                    htmlFor="org-name-number"
                     error={fieldErrors.nameNumber}
+                    className={needsOther ? undefined : "sm:col-span-2"}
                   >
                     <input
-                      id="org-name-number-other"
+                      id="org-name-number"
                       value={nameNumber}
                       onChange={(e) => setNameNumber(e.target.value)}
                       className={inputClass}
                       style={RING}
-                      placeholder="Ex.: Capítulo Exemplo Nº 123"
+                      placeholder={
+                        typeDef?.unit_label
+                          ? `Ex.: ${typeDef.unit_label} Exemplo Nº 123`
+                          : "Ex.: Nome Nº 123"
+                      }
                       required
                     />
                   </Field>
-                ) : null}
+                </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Field
@@ -352,7 +451,7 @@ function AdicionarOrganizacaoPage() {
                   </Field>
                   {needsLodge ? (
                     <Field
-                      label="Loja patrocinadora *"
+                      label={`${sponsorFieldLabel(sponsorKind)} *`}
                       htmlFor="sponsoring-lodge"
                       error={fieldErrors.sponsoringLodge}
                     >
@@ -362,7 +461,11 @@ function AdicionarOrganizacaoPage() {
                         onChange={(e) => setSponsoringLodge(e.target.value)}
                         className={inputClass}
                         style={RING}
-                        placeholder="Nome da loja"
+                        placeholder={
+                          sponsorKind === "capitulo"
+                            ? "Nome/número do capítulo"
+                            : "Nome da loja"
+                        }
                         required
                       />
                     </Field>

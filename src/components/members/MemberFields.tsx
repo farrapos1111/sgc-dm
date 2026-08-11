@@ -8,7 +8,13 @@ import { createCepLookupSeq, lookupCep, maskCepInput } from "@/lib/cep";
 import { todayYmd } from "@/lib/timezone";
 import { useIsomorphicLayoutEffect } from "@/lib/use-isomorphic-layout-effect";
 import { Loader2 } from "lucide-react";
-import { ORG_TYPE_LABELS, normalizeOrgType } from "@/lib/org-types";
+import {
+  ORG_TYPE_LABELS,
+  normalizeOrgType,
+  initiationOrgFieldLabel,
+  usesDemolayIdField,
+  usesDemolayRitualFields,
+} from "@/lib/org-types";
 
 export type MemberStatus = "regular" | "irregular";
 export type MemberKind = "demolay_ativo" | "senior" | "macom";
@@ -22,6 +28,8 @@ export type MemberFormData = {
   exam_grau_demolay: string;
   demolay_id: string;
   masonic_id: string;
+  /** Grau simbólico (Loja). Ainda sem coluna dedicada — só UI/local. */
+  masonic_degree: "" | "aprendiz" | "companheiro" | "mestre";
   /** Capítulo de iniciação (UUID). */
   initiation_chapter_id: string;
   status: MemberStatus;
@@ -59,6 +67,7 @@ export const emptyMember: MemberFormData = {
   exam_grau_demolay: "",
   demolay_id: "",
   masonic_id: "",
+  masonic_degree: "",
   initiation_chapter_id: "",
   status: "regular",
   kind: "demolay_ativo",
@@ -126,6 +135,7 @@ export function MemberDataFields({
   readOnlyMaster = false,
   demolayLookupStatus = "idle",
   cepResetKey,
+  orgType = "capitulo",
 }: {
   value: MemberFormData;
   onChange: (patch: Partial<MemberFormData>) => void;
@@ -140,7 +150,19 @@ export function MemberDataFields({
   demolayLookupStatus?: "idle" | "loading" | "found" | "not_found" | "already_affiliated";
   /** Invalida lookup CEP em voo ao trocar de registro (ex.: member id). */
   cepResetKey?: string | null;
+  /** Tipo da instituição ativa — evita nomenclatura DeMolay em Loja/outras esferas. */
+  orgType?: string | null;
 }) {
+  const sphere = normalizeOrgType(orgType);
+  const isLodge = sphere === "loja";
+  const showDemolayId = usesDemolayIdField(orgType);
+  const showDemolayRitual = usesDemolayRitualFields(orgType);
+  const showMasonicId = isLodge || value.kind === "macom";
+  const initiationLabel = initiationOrgFieldLabel(orgType);
+  const initiationPlaceholder = isLodge
+    ? "Selecione a loja"
+    : "Selecione o capítulo";
+
   const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "error" | "ok">("idle");
   const [cepError, setCepError] = useState("");
   const lastLookedUp = useRef("");
@@ -156,6 +178,17 @@ export function MemberDataFields({
     setCepStatus("idle");
     setCepError("");
   }, [cepResetKey, cepSeq]);
+
+  // Loja: tipo sempre maçom (sem Demolay Ativo / Senior).
+  useIsomorphicLayoutEffect(() => {
+    if (!isLodge) return;
+    const patch: Partial<MemberFormData> = {};
+    if (value.kind !== "macom") patch.kind = "macom";
+    if (!value.masonic_degree) patch.masonic_degree = "mestre";
+    if (Object.keys(patch).length) onChange(patch);
+    // onChange do pai costuma ser inline — não incluir nas deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLodge, value.kind, value.masonic_degree]);
 
   async function doLookupCep(raw: string) {
     const cep = digitsOnly(raw);
@@ -210,7 +243,11 @@ export function MemberDataFields({
 
       <div
         className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${
-          value.kind === "macom" ? "lg:grid-cols-5" : "lg:grid-cols-4"
+          showMasonicId && showDemolayId
+            ? "lg:grid-cols-5"
+            : showMasonicId || showDemolayId
+              ? "lg:grid-cols-4"
+              : "lg:grid-cols-3"
         }`}
       >
         <Field label="Nascimento">
@@ -221,37 +258,41 @@ export function MemberDataFields({
             onChange={(e) => {
               const birth_date = e.target.value;
               const patch: Partial<MemberFormData> = { birth_date };
-              if (is21OrOlder(birth_date) && value.kind !== "macom") {
-                patch.kind = "senior";
-              } else if (isUnder21(birth_date) && value.kind === "senior") {
-                patch.kind = "demolay_ativo";
+              if (!isLodge) {
+                if (is21OrOlder(birth_date) && value.kind !== "macom") {
+                  patch.kind = "senior";
+                } else if (isUnder21(birth_date) && value.kind === "senior") {
+                  patch.kind = "demolay_ativo";
+                }
               }
               onChange(patch);
             }}
           />
         </Field>
-        <Field label="ID DeMolay">
-          <Input
-            value={value.demolay_id}
-            placeholder="Número de identificação"
-            onChange={(e) => onChange({ demolay_id: e.target.value.slice(0, 40) })}
-          />
-          {demolayLookupStatus === "loading" && (
-            <p className="mt-1 text-xs text-muted-foreground">Buscando cadastro existente…</p>
-          )}
-          {demolayLookupStatus === "found" && (
-            <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
-              Membro encontrado — dados preenchidos automaticamente (somente leitura).
-            </p>
-          )}
-          {demolayLookupStatus === "already_affiliated" && (
-            <p className="mt-1 text-xs text-destructive">
-              Este ID DeMolay já está vinculado a este capítulo.
-            </p>
-          )}
-        </Field>
-        {value.kind === "macom" && (
-          <Field label="ID maçônica">
+        {showDemolayId ? (
+          <Field label="ID DeMolay">
+            <Input
+              value={value.demolay_id}
+              placeholder="Número de identificação"
+              onChange={(e) => onChange({ demolay_id: e.target.value.slice(0, 40) })}
+            />
+            {demolayLookupStatus === "loading" && (
+              <p className="mt-1 text-xs text-muted-foreground">Buscando cadastro existente…</p>
+            )}
+            {demolayLookupStatus === "found" && (
+              <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+                Membro encontrado — dados preenchidos automaticamente (somente leitura).
+              </p>
+            )}
+            {demolayLookupStatus === "already_affiliated" && (
+              <p className="mt-1 text-xs text-destructive">
+                Este ID DeMolay já está vinculado a este capítulo.
+              </p>
+            )}
+          </Field>
+        ) : null}
+        {showMasonicId ? (
+          <Field label={isLodge ? "Nº / ID maçônico" : "ID maçônica"}>
             <Input
               value={value.masonic_id}
               placeholder="Número de identificação"
@@ -259,7 +300,7 @@ export function MemberDataFields({
               onChange={(e) => onChange({ masonic_id: e.target.value.slice(0, 40) })}
             />
           </Field>
-        )}
+        ) : null}
         <Field label="Status">
           <Select
             value={value.status}
@@ -282,39 +323,72 @@ export function MemberDataFields({
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Tipo">
-          <Select
-            value={value.kind}
-            disabled={readOnlyMaster}
-            onValueChange={(v) => {
-              let kind = v as MemberKind;
-              if (kind === "demolay_ativo" && is21OrOlder(value.birth_date)) kind = "senior";
-              onChange({ kind });
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="demolay_ativo" disabled={is21OrOlder(value.birth_date)}>
-                Demolay Ativo
-              </SelectItem>
-              <SelectItem value="senior">Senior Demolay</SelectItem>
-              <SelectItem value="macom">Maçom</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
+        {!isLodge ? (
+          <Field label="Tipo">
+            <Select
+              value={value.kind}
+              disabled={readOnlyMaster}
+              onValueChange={(v) => {
+                let kind = v as MemberKind;
+                if (kind === "demolay_ativo" && is21OrOlder(value.birth_date)) kind = "senior";
+                onChange({ kind });
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="demolay_ativo" disabled={is21OrOlder(value.birth_date)}>
+                  Demolay Ativo
+                </SelectItem>
+                <SelectItem value="senior">Senior Demolay</SelectItem>
+                <SelectItem value="macom">Maçom</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+        ) : (
+          <Field label="Grau">
+            <Select
+              value={value.masonic_degree || "mestre"}
+              disabled={readOnlyMaster}
+              onValueChange={(grau) =>
+                onChange({
+                  kind: "macom",
+                  masonic_degree: grau as MemberFormData["masonic_degree"],
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o grau" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="aprendiz">Aprendiz</SelectItem>
+                <SelectItem value="companheiro">Companheiro</SelectItem>
+                <SelectItem value="mestre">Mestre</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Grau simbólico (Aprendiz / Companheiro / Mestre).
+            </p>
+          </Field>
+        )}
       </div>
 
-      <Field label="Capítulo de Iniciação">
+      <Field label={initiationLabel}>
         <SearchableSelect
           value={value.initiation_chapter_id || ""}
           disabled={readOnlyMaster || chapters.length === 0}
           onChange={(v) => onChange({ initiation_chapter_id: v })}
-          placeholder="Selecione o capítulo"
-          searchPlaceholder="Buscar capítulo…"
-          emptyText="Nenhum capítulo encontrado."
-          options={chapters.map((ch) => ({
+          placeholder={initiationPlaceholder}
+          searchPlaceholder={isLodge ? "Buscar loja…" : "Buscar capítulo…"}
+          emptyText={isLodge ? "Nenhuma loja encontrada." : "Nenhum capítulo encontrado."}
+          options={chapters
+            .filter((ch) =>
+              isLodge
+                ? !ch.org_type || normalizeOrgType(ch.org_type) === "loja"
+                : true,
+            )
+            .map((ch) => ({
             value: ch.id,
             label: [
               ch.org_type
@@ -350,55 +424,59 @@ export function MemberDataFields({
           </p>
         </Field>
       )}
-      {is21OrOlder(value.birth_date) && value.kind === "senior" && (
+      {!isLodge && is21OrOlder(value.birth_date) && value.kind === "senior" && (
         <p className="text-xs text-muted-foreground">
           Com 21 anos ou mais, o tipo Demolay Ativo passa automaticamente a Senior Demolay.
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Iniciação Ordem DeMolay">
-          <Input
-            type="date"
-            value={value.iniciacao_ordem}
-            onChange={(e) => onChange({ iniciacao_ordem: e.target.value })}
-          />
-        </Field>
-        <Field label="Exame Grau Iniciático">
-          <Input
-            type="date"
-            value={value.exam_grau_iniciatico}
-            onChange={(e) => onChange({ exam_grau_iniciatico: e.target.value })}
-          />
-        </Field>
-      </div>
-      {!value.iniciacao_ordem && (
-        <p className="text-xs text-muted-foreground">
-          Sem data de iniciação à Ordem, o membro é considerado não DeMolay.
-        </p>
-      )}
+      {showDemolayRitual ? (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Iniciação Ordem DeMolay">
+              <Input
+                type="date"
+                value={value.iniciacao_ordem}
+                onChange={(e) => onChange({ iniciacao_ordem: e.target.value })}
+              />
+            </Field>
+            <Field label="Exame Grau Iniciático">
+              <Input
+                type="date"
+                value={value.exam_grau_iniciatico}
+                onChange={(e) => onChange({ exam_grau_iniciatico: e.target.value })}
+              />
+            </Field>
+          </div>
+          {!value.iniciacao_ordem && (
+            <p className="text-xs text-muted-foreground">
+              Sem data de iniciação à Ordem, o membro é considerado não DeMolay.
+            </p>
+          )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Iniciação Grau DeMolay">
-          <Input
-            type="date"
-            value={value.iniciacao_grau_demolay}
-            onChange={(e) => onChange({ iniciacao_grau_demolay: e.target.value })}
-          />
-        </Field>
-        <Field label="Exame Grau DeMolay">
-          <Input
-            type="date"
-            value={value.exam_grau_demolay}
-            onChange={(e) => onChange({ exam_grau_demolay: e.target.value })}
-          />
-        </Field>
-      </div>
-      {value.iniciacao_ordem && value.exam_grau_iniciatico && !value.iniciacao_grau_demolay && (
-        <p className="text-xs font-medium text-primary">
-          Apto a G∴D∴ — exame de Grau Iniciático concluído, aguardando iniciação no Grau DeMolay.
-        </p>
-      )}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Iniciação Grau DeMolay">
+              <Input
+                type="date"
+                value={value.iniciacao_grau_demolay}
+                onChange={(e) => onChange({ iniciacao_grau_demolay: e.target.value })}
+              />
+            </Field>
+            <Field label="Exame Grau DeMolay">
+              <Input
+                type="date"
+                value={value.exam_grau_demolay}
+                onChange={(e) => onChange({ exam_grau_demolay: e.target.value })}
+              />
+            </Field>
+          </div>
+          {value.iniciacao_ordem && value.exam_grau_iniciatico && !value.iniciacao_grau_demolay && (
+            <p className="text-xs font-medium text-primary">
+              Apto a G∴D∴ — exame de Grau Iniciático concluído, aguardando iniciação no Grau DeMolay.
+            </p>
+          )}
+        </>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="CPF">

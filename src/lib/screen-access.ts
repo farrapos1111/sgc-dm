@@ -1,6 +1,10 @@
 /** Matriz global de acesso por tela (cargo × org_type). */
 
-import type { AccessContext } from "@/lib/permissions";
+import {
+  hasOrgLeaderPosition,
+  isOrgLeader,
+  type AccessContext,
+} from "@/lib/permissions";
 import { normalizeOrgType, type OrgType } from "@/lib/org-types";
 
 export type ScreenAction = "view" | "edit" | "create" | "delete";
@@ -132,7 +136,8 @@ export function matchingRoleKeys(
   }
 
   for (const code of ctx.currentPositions ?? []) {
-    if (code === "mestre_conselheiro") keys.add("mc");
+    if (code === "mestre_conselheiro" || code === "loja_veneravel_mestre")
+      keys.add("mc");
     else if (code === "presidente_conselho_consultivo") keys.add("pcc");
     else if (code === "conselheiro_consultor") keys.add("cc");
     else if (code === "primeiro_conselheiro") keys.add("1c");
@@ -313,15 +318,15 @@ function hasPos(ctx: AccessContext, code: string): boolean {
 
 function isFullChapterLeader(ctx: AccessContext): boolean {
   if (ctx.roleName === "admin_total") return true;
+  if (isOrgLeader(ctx)) return true;
   if (
-    ctx.roleName === "mestre_conselheiro" ||
     ctx.roleName === "consultor" ||
     ctx.roleName === "presidente_conselho"
   ) {
     return true;
   }
   return (
-    hasPos(ctx, "mestre_conselheiro") ||
+    hasOrgLeaderPosition(ctx.currentPositions) ||
     hasPos(ctx, "presidente_conselho_consultivo") ||
     hasPos(ctx, "conselheiro_consultor")
   );

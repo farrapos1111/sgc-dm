@@ -785,6 +785,61 @@ async function clearLoginFailures(
   }
 }
 
+type AdminClient = Awaited<
+  ReturnType<typeof import("@/integrations/supabase/client.server")>
+>["supabaseAdmin"];
+
+/**
+ * Resolve conta por ID DeMolay ou ID maçônico.
+ * Se houver mais de um cadastro, prefere quem tem chapter_members ativo.
+ */
+async function findMemberAuthByIdentifier(
+  admin: AdminClient,
+  normalizedId: string,
+): Promise<{ user_id: string; status: string } | null> {
+  const { data: rpcRows, error: rpcErr } = await admin.rpc(
+    "find_member_auth_by_demolay_id" as never,
+    { _demolay_id: normalizedId } as never,
+  );
+  if (rpcErr) {
+    console.error("[auth] find_member_auth_by_demolay_id", rpcErr.message);
+  }
+
+  const { data: masonicRows, error: masonicErr } = await admin
+    .from("members")
+    .select("user_id, status, masonic_id, demolay_id")
+    .not("user_id", "is", null)
+    .or(`masonic_id.eq.${normalizedId},demolay_id.eq.${normalizedId}`);
+  if (masonicErr) {
+    console.error("[auth] members identifier lookup", masonicErr.message);
+  }
+
+  const byUser = new Map<string, { user_id: string; status: string }>();
+  const rpcMember = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
+  if (rpcMember && typeof rpcMember === "object" && "user_id" in rpcMember) {
+    const row = rpcMember as { user_id: string; status: string };
+    if (row.user_id) byUser.set(row.user_id, row);
+  }
+  for (const row of masonicRows ?? []) {
+    if (row.user_id) {
+      byUser.set(row.user_id, { user_id: row.user_id, status: row.status });
+    }
+  }
+  if (byUser.size === 0) return null;
+
+  const userIds = [...byUser.keys()];
+  const { data: activeLinks } = await admin
+    .from("chapter_members")
+    .select("user_id")
+    .in("user_id", userIds)
+    .eq("active", true);
+  const active = new Set((activeLinks ?? []).map((r) => r.user_id));
+  for (const id of userIds) {
+    if (active.has(id)) return byUser.get(id) ?? null;
+  }
+  return byUser.values().next().value ?? null;
+}
+
 export const signInWithIdentifier = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
     z
@@ -814,12 +869,10 @@ export const signInWithIdentifier = createServerFn({ method: "POST" })
         if (!normalizedId) {
           throw new Error("Identificador ou senha inválidos.");
         }
-        const { data: rows, error } = await supabaseAdmin.rpc(
-          "find_member_auth_by_demolay_id" as never,
-          { _demolay_id: normalizedId } as never,
+        const member = await findMemberAuthByIdentifier(
+          supabaseAdmin,
+          normalizedId,
         );
-        if (error) throw new Error("Identificador ou senha inválidos.");
-        const member = Array.isArray(rows) ? rows[0] : rows;
         if (!member?.user_id) {
           throw new Error("Identificador ou senha inválidos.");
         }

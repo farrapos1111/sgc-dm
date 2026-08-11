@@ -6,7 +6,12 @@ import { getMySindicanciaAccess } from "@/lib/investigations.functions";
 import { getMyCurrentPositions } from "@/lib/members.functions";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { currentTerm } from "@/lib/terms";
-import { canAccess, canAction, type AccessContext } from "@/lib/permissions";
+import {
+  canAccess,
+  canAction,
+  isOrgLeader,
+  type AccessContext,
+} from "@/lib/permissions";
 
 export type CommissionAccess = {
   commissions: MyCommission[];
@@ -81,8 +86,7 @@ export function useCommissionAccess(): CommissionAccess {
   );
 
   const isAdmin = canAccess(ctx, "admin") || canAccess(ctx, "conselho");
-  const isMC =
-    role === "mestre_conselheiro" || positions.includes("mestre_conselheiro");
+  const isMC = isOrgLeader(ctx);
   const voteAccess = Boolean(sindAccess?.canAccess);
 
   const canView = useCallback(

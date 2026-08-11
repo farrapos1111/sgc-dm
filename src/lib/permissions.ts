@@ -42,9 +42,26 @@ const MATRIX: Record<string, Permission[]> = {
   membro: ["visualizar"],
 };
 
+const FULL_PERMS: Permission[] = [
+  "admin",
+  "secretaria",
+  "tesouraria",
+  "comissoes",
+  "conselho",
+  "visualizar",
+  "visualizar_total",
+];
+
+/** Presidente da instituição (MC no Capítulo, VM na Loja) — CRUD total. */
+export const ORG_LEADER_POSITION_CODES = [
+  "mestre_conselheiro",
+  "loja_veneravel_mestre",
+] as const;
+
 /** Cargos ritualísticos (positions.code) que concedem permissões no termo vigente. */
 const POSITION_PERMS: Record<string, Permission[]> = {
-  mestre_conselheiro: ["admin", "secretaria", "tesouraria", "comissoes", "conselho", "visualizar", "visualizar_total"],
+  mestre_conselheiro: FULL_PERMS,
+  loja_veneravel_mestre: FULL_PERMS,
   presidente_conselho_consultivo: [
     "admin",
     "secretaria",
@@ -122,9 +139,22 @@ function hasPos(ctx: AccessContext, code: string): boolean {
   return (ctx.currentPositions ?? []).includes(code);
 }
 
-function isMestreConselheiro(ctx: AccessContext): boolean {
+export function hasOrgLeaderPosition(
+  positions: readonly string[] | null | undefined,
+): boolean {
+  return (positions ?? []).some((c) =>
+    (ORG_LEADER_POSITION_CODES as readonly string[]).includes(c),
+  );
+}
+
+/** MC (Capítulo) ou Venerável Mestre (Loja): poder pleno na instituição. */
+export function isOrgLeader(ctx: AccessContext): boolean {
   if (ctx.roleName === "mestre_conselheiro") return true;
-  return hasPos(ctx, "mestre_conselheiro");
+  return hasOrgLeaderPosition(ctx.currentPositions);
+}
+
+function isMestreConselheiro(ctx: AccessContext): boolean {
+  return isOrgLeader(ctx);
 }
 
 function isTesoureiro(ctx: AccessContext): boolean {
@@ -267,7 +297,7 @@ export function canManageMinutePasswordsAccess(ctx: AccessContext): boolean {
   const positions = ctx.currentPositions ?? [];
   return (
     positions.includes("escrivao") ||
-    positions.includes("mestre_conselheiro") ||
+    hasOrgLeaderPosition(positions) ||
     positions.includes("presidente_conselho_consultivo")
   );
 }

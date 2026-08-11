@@ -43,6 +43,16 @@ assert.ok(canAccess(ctx("membro", ["mestre_conselheiro"]), "admin"));
 assert.ok(canAccess(ctx("membro", ["mestre_conselheiro"]), "tesouraria"));
 assert.ok(screen(ctx("membro", ["mestre_conselheiro"]), "cobrancas", "delete"));
 
+// Venerável Mestre (Loja) — mesmo CRUD total do MC
+assert.ok(canAccess(ctx("membro", ["loja_veneravel_mestre"]), "admin"));
+assert.ok(canAccess(ctx("membro", ["loja_veneravel_mestre"]), "secretaria"));
+assert.ok(canAccess(ctx("membro", ["loja_veneravel_mestre"]), "tesouraria"));
+assert.ok(canAccess(ctx("membro", ["loja_veneravel_mestre"]), "conselho"));
+assert.ok(screen(ctx("membro", ["loja_veneravel_mestre"]), "membros", "delete"));
+assert.ok(screen(ctx("membro", ["loja_veneravel_mestre"]), "caixa", "delete"));
+assert.ok(screen(ctx("membro", ["loja_veneravel_mestre"]), "configuracoes", "edit"));
+assert.ok(canAction(ctx("membro", ["loja_veneravel_mestre"]), "eventos.manage"));
+
 // Escrivão: Secretaria CRU; Tesouraria view; Gestão view; Sindicâncias CRU
 assert.ok(canAccess(ctx("escrivao"), "secretaria"));
 assert.ok(canAccess(ctx("membro", ["escrivao"]), "secretaria"));
@@ -252,6 +262,7 @@ assert.ok(!canAccess(chapterY, "conselho"));
 
 const elevatedOnlyInX = [
   ["mestre_conselheiro"],
+  ["loja_veneravel_mestre"],
   ["escrivao"],
   ["tesoureiro"],
   ["presidente_conselho_consultivo"],
@@ -264,7 +275,10 @@ for (const positions of elevatedOnlyInX) {
   const inY = ctx("membro", []);
   assert.ok(resolveAccess(inX).length >= resolveAccess(inY).length);
   assert.deepEqual(resolveAccess(inY), ["visualizar"]);
-  if (positions[0] === "mestre_conselheiro") {
+  if (
+    positions[0] === "mestre_conselheiro" ||
+    positions[0] === "loja_veneravel_mestre"
+  ) {
     assert.ok(canAccess(inX, "admin"));
     assert.ok(!canAccess(inY, "admin"));
   }

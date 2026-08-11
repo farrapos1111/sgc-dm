@@ -8,6 +8,7 @@ import { ArrowLeftRight, ChevronDown, LogOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { clearAuthNavCache } from "@/lib/auth-nav-cache";
 import {
   clearChapterSessionStorage,
   useActiveChapter,
@@ -41,6 +42,12 @@ const PRELOAD_ROUTES = [
   "/gestao",
   "/calendario",
   "/atas",
+  "/inicio",
+  "/membros",
+  "/eventos",
+  "/tesouraria/mensalidades",
+  "/tesouraria/fluxo",
+  "/perfil",
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -53,9 +60,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     cycleRoleView,
   } = useActiveChapter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isNavigating = useRouterState({
-    select: (s) => s.status === "pending" || s.isLoading === true,
-  });
+  const routerStatus = useRouterState({ select: (s) => s.status });
+  const isNavigating = routerStatus === "pending";
   const { canView } = useCommissionAccess();
   const { ctx: accessCtx, positionLabels, canScreen, isAdminTotal } =
     useChapterAccess();
@@ -207,6 +213,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     setPendingTo(null);
   }, [pathname]);
 
+  // Limpa highlight de nav se o pending acabou sem mudar o path (ex.: redirect cancelado)
+  useEffect(() => {
+    if (routerStatus !== "pending") setPendingTo(null);
+  }, [routerStatus]);
+
   const isActive = (to: string) =>
     pathname === to || pathname.startsWith(to + "/");
 
@@ -270,6 +281,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       clearChapterSessionStorage();
       window.localStorage.removeItem("sgcdm.activeOrgScope");
     }
+    clearAuthNavCache();
     await supabase.auth.signOut();
     window.location.assign("/auth");
   }
@@ -288,9 +300,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   function preloadRoute(to: string) {
     if (!PRELOAD_ROUTES.includes(to as (typeof PRELOAD_ROUTES)[number])) return;
-    void router
-      .preloadRoute({ to: to as (typeof PRELOAD_ROUTES)[number] })
-      .catch(() => {});
+    try {
+      void router
+        .preloadRoute({ to: to as (typeof PRELOAD_ROUTES)[number] })
+        .catch(() => {});
+    } catch {
+      // preload opcional — falhas de match não devem quebrar a UI
+    }
   }
 
   return (
@@ -409,7 +425,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        {(isNavigating || pendingTo) && (
+        {isNavigating && (
           <div
             className="fixed left-0 right-0 top-0 z-50 h-0.5 origin-left animate-pulse lg:left-64"
             style={{ backgroundColor: primary }}
@@ -420,14 +436,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <main className="relative flex-1 px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8 xl:px-10">
           <div
-            className={`mx-auto w-full transition-opacity duration-150 ${
+            className={`mx-auto w-full ${
               pathname.startsWith("/tesouraria/mensalidades")
                 ? "max-w-[1680px]"
                 : "max-w-6xl"
-            } ${
-              isNavigating || pendingTo
-                ? "pointer-events-none opacity-60"
-                : "opacity-100"
             }`}
           >
             {children}
