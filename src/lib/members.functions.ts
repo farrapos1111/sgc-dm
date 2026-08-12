@@ -5,6 +5,8 @@ import { is21OrOlder, isUnder21 } from "@/lib/format";
 import { normalizeDemolayId } from "@/lib/member-identity";
 import { todayYmd } from "@/lib/timezone";
 
+/** Fichas ODM (Capítulo/Alumni/Castelo/Priorado). FDJ e Loja usam tabelas próprias. */
+
 const statusEnum = z.enum(["regular", "irregular"]);
 const kindEnum = z.enum(["demolay_ativo", "senior", "macom"]);
 

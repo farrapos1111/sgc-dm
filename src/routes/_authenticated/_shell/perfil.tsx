@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
+import { useSuspenseQuery, useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -33,6 +33,9 @@ import {
   type LinkedMemberSummary,
   type ProficiencyCardView,
 } from "@/lib/profile.functions";
+import { getMyCrossRealmFichas } from "@/lib/sphere-members.functions";
+import { REALM_LABELS, getClientRealm } from "@/lib/realm";
+import { affiliatedOrgsHeading } from "@/lib/org-types";
 import { formatDateBR, kindLabel, statusLabel } from "@/lib/format";
 import {
   CalendarCheck,
@@ -57,6 +60,13 @@ const profileQO = () =>
 
 function PerfilPage() {
   const { data } = useSuspenseQuery(profileQO());
+  const { data: crossRealm } = useQuery({
+    queryKey: ["my-cross-realm-fichas"],
+    queryFn: () => getMyCrossRealmFichas(),
+  });
+  const otherSphereFichas = (crossRealm?.fichas ?? []).filter(
+    (f) => f.realm !== getClientRealm(),
+  );
   const [viewCard, setViewCard] = useState<CarteirinhaDados | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
   const [tab, setTab] = useState("cadastro");
@@ -90,12 +100,45 @@ function PerfilPage() {
       />
 
       {data.members.length === 0 ? (
-        <Card className="rounded-[12px] p-5">
-          <p className="text-sm text-muted-foreground">
-            Nenhum cadastro de membro vinculado à sua conta. Peça ao Escrivão
-            para conferir o e-mail no cadastro e liberar o acesso ao sistema.
-          </p>
-        </Card>
+        <div className="space-y-4">
+          <Card className="rounded-[12px] p-5">
+            <p className="text-sm text-muted-foreground">
+              Nenhum cadastro de membro vinculado à sua conta neste ambiente.
+              Peça ao Escrivão para conferir o e-mail no cadastro e liberar o
+              acesso ao sistema.
+            </p>
+          </Card>
+          {otherSphereFichas.length > 0 ? (
+            <Card className="rounded-[12px] p-5">
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <IdCard className="h-4 w-4" />
+                Outras esferas
+              </h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Somente leitura. Permissões não atravessam o ambiente.
+              </p>
+              <ul className="space-y-3">
+                {otherSphereFichas.map((f) => (
+                  <li
+                    key={`${f.realm}-${f.id}`}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2.5"
+                  >
+                    <div>
+                      <div className="font-medium">
+                        {f.chapterName} nº {f.chapterNumber}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {REALM_LABELS[f.realm]}
+                        {f.extra ? ` · ${f.extra}` : ""}
+                      </div>
+                    </div>
+                    <Badge variant="outline">{f.status}</Badge>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+        </div>
       ) : (
         <div className="space-y-4">
           {data.members.length > 1 ? (
@@ -217,7 +260,7 @@ function PerfilPage() {
                   <Card className="rounded-[12px] p-5">
                     <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                       <IdCard className="h-4 w-4" />
-                      Capítulos vinculados
+                      {affiliatedOrgsHeading("capitulo")}
                     </h2>
                     <ul className="space-y-3">
                       {data.members.map((m) => (
@@ -243,6 +286,36 @@ function PerfilPage() {
                             </Badge>
                             <Badge variant="secondary">{m.grauLabel}</Badge>
                           </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                ) : null}
+                {otherSphereFichas.length > 0 ? (
+                  <Card className="rounded-[12px] p-5">
+                    <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                      <IdCard className="h-4 w-4" />
+                      Outras esferas
+                    </h2>
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      Somente leitura. Permissões não atravessam o ambiente.
+                    </p>
+                    <ul className="space-y-3">
+                      {otherSphereFichas.map((f) => (
+                        <li
+                          key={`${f.realm}-${f.id}`}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2.5"
+                        >
+                          <div>
+                            <div className="font-medium">
+                              {f.chapterName} nº {f.chapterNumber}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {REALM_LABELS[f.realm]}
+                              {f.extra ? ` · ${f.extra}` : ""}
+                            </div>
+                          </div>
+                          <Badge variant="outline">{f.status}</Badge>
                         </li>
                       ))}
                     </ul>

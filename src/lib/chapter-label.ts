@@ -4,7 +4,7 @@ export function formatChapterIdentity(chapter: {
   number?: string | null;
   city?: string | null;
 } | null | undefined): string {
-  if (!chapter?.name) return "Outro capítulo";
+  if (!chapter?.name) return "Outra instituição";
   const num = chapter.number ? ` Nº ${chapter.number}` : "";
   const city = chapter.city?.trim() ? ` — ${chapter.city.trim()}` : "";
   return `${chapter.name}${num}${city}`;

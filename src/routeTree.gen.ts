@@ -9,11 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AtualizarCadastroRouteImport } from './routes/atualizar-cadastro'
 import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as DocumentacaoRouteRouteImport } from './routes/documentacao/route'
-import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedShellRouteRouteImport } from './routes/_authenticated/_shell/route'
 import { Route as AuthenticatedSelecionarCapituloRouteImport } from './routes/_authenticated/selecionar-capitulo'
 import { Route as AtaTokenRouteImport } from './routes/ata.$token'
@@ -81,6 +81,11 @@ import { Route as AuthenticatedShellTesourariaMensalidadesRouteImport } from './
 import { Route as AuthenticatedShellMembrosIdEditarRouteImport } from './routes/_authenticated/_shell/membros.$id_.editar'
 import { Route as AuthenticatedShellSindicanciasSindicariasEventIdRouteImport } from './routes/_authenticated/_shell/sindicancias.sindicarias_.$eventId'
 
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
@@ -99,11 +104,6 @@ const DocumentacaoRouteRoute = DocumentacaoRouteRouteImport.update({
   id: '/documentacao',
   path: '/documentacao',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedShellRouteRoute = AuthenticatedShellRouteRouteImport.update({
   id: '/_shell',
@@ -480,7 +480,7 @@ const AuthenticatedShellSindicanciasSindicariasEventIdRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AuthenticatedIndexRoute
+  '/': typeof IndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
@@ -551,8 +551,8 @@ export interface FileRoutesByFullPath {
   '/sindicancias/sindicarias/$eventId': typeof AuthenticatedShellSindicanciasSindicariasEventIdRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
-  '/': typeof AuthenticatedIndexRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
   '/auth/adicionar-organizacao': typeof AuthAdicionarOrganizacaoRoute
@@ -620,6 +620,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRouteRouteWithChildren
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
@@ -639,7 +640,6 @@ export interface FileRoutesById {
   '/f/$token': typeof FTokenRoute
   '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
-  '/_authenticated/': typeof AuthenticatedIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/documentacao/': typeof DocumentacaoIndexRoute
   '/_authenticated/_shell/atas': typeof AuthenticatedShellAtasRoute
@@ -766,8 +766,8 @@ export interface FileRouteTypes {
     | '/sindicancias/sindicarias/$eventId'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/atualizar-cadastro'
     | '/'
+    | '/atualizar-cadastro'
     | '/selecionar-capitulo'
     | '/ata/$token'
     | '/auth/adicionar-organizacao'
@@ -834,6 +834,7 @@ export interface FileRouteTypes {
     | '/sindicancias/sindicarias/$eventId'
   id:
     | '__root__'
+    | '/'
     | '/_authenticated'
     | '/auth'
     | '/documentacao'
@@ -853,7 +854,6 @@ export interface FileRouteTypes {
     | '/f/$token'
     | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
-    | '/_authenticated/'
     | '/auth/'
     | '/documentacao/'
     | '/_authenticated/_shell/atas'
@@ -908,6 +908,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRouteRoute: typeof AuthRouteRouteWithChildren
   DocumentacaoRouteRoute: typeof DocumentacaoRouteRouteWithChildren
@@ -921,6 +922,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
@@ -948,13 +956,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/documentacao'
       preLoaderRoute: typeof DocumentacaoRouteRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/': {
-      id: '/_authenticated/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/_shell': {
       id: '/_authenticated/_shell'
@@ -1547,13 +1548,11 @@ const AuthenticatedShellRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedShellRouteRoute: typeof AuthenticatedShellRouteRouteWithChildren
   AuthenticatedSelecionarCapituloRoute: typeof AuthenticatedSelecionarCapituloRoute
-  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedShellRouteRoute: AuthenticatedShellRouteRouteWithChildren,
   AuthenticatedSelecionarCapituloRoute: AuthenticatedSelecionarCapituloRoute,
-  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -1618,6 +1617,7 @@ const CTokenRouteWithChildren =
   CTokenRoute._addFileChildren(CTokenRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRouteRoute: AuthRouteRouteWithChildren,
   DocumentacaoRouteRoute: DocumentacaoRouteRouteWithChildren,

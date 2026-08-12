@@ -26,18 +26,27 @@ export function clearAuthNavCache() {
   inflight = null;
 }
 
+/** Pós-login: carga completa evita 404 do Start em rotas `ssr: false`. */
+export function enterAuthenticatedApp(path = "/inicio") {
+  clearAuthNavCache();
+  if (typeof window !== "undefined") {
+    window.location.assign(path);
+  }
+}
+
 function applyCachedRedirects(entry: AuthNavCache): void {
   if (!entry.allowed) {
     throw redirect({
       to: "/auth",
       search: { reason: "irregular" },
+      reloadDocument: true,
     });
   }
   if (entry.mustChangePassword) {
-    throw redirect({ to: "/auth/redefinir-senha" });
+    throw redirect({ to: "/auth/redefinir-senha", reloadDocument: true });
   }
   if (entry.needsSignature) {
-    throw redirect({ to: "/auth/assinatura" });
+    throw redirect({ to: "/auth/assinatura", reloadDocument: true });
   }
 }
 
@@ -92,7 +101,9 @@ export async function runAuthenticatedBeforeLoad(): Promise<{ user: User }> {
 
   if (!user) {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
+    if (error || !data.user) {
+      throw redirect({ to: "/auth", search: {}, reloadDocument: true });
+    }
     user = data.user;
   }
 

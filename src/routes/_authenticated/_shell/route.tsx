@@ -4,13 +4,22 @@ import { useOrgScope } from "@/context/OrgScopeContext";
 import { AppShell } from "@/components/shell/AppShell";
 import { DelayedPageSkeleton } from "@/components/PageSkeleton";
 import { Suspense, useEffect } from "react";
+import {
+  getClientRealm,
+  getRealmForOrgType,
+  hubAbsoluteUrl,
+  realmEntryUrl,
+  REALM_LABELS,
+  type Realm,
+} from "@/lib/realm";
 
 export const Route = createFileRoute("/_authenticated/_shell")({
   component: ShellLayout,
 });
 
 function ShellLayout() {
-  const { memberships, loading, active, activeChapterId } = useActiveChapter();
+  const { memberships, otherRealmMemberships, loading, active, activeChapterId } =
+    useActiveChapter();
   const {
     scopes,
     activeScope,
@@ -63,6 +72,49 @@ function ShellLayout() {
     memberships.length === 0 &&
     scopes.length === 0
   ) {
+    const otherRealms = new Set<Realm>();
+    for (const m of otherRealmMemberships) {
+      const r = getRealmForOrgType(m.chapter.org_type);
+      if (r) otherRealms.add(r);
+    }
+    const hostRealm = getClientRealm();
+    if (otherRealms.size > 0) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background px-6">
+          <div className="max-w-md rounded-[12px] border border-border bg-card p-6 text-sm">
+            <p className="font-medium">
+              Esta conta não tem instituição neste ambiente
+              {hostRealm ? ` (${REALM_LABELS[hostRealm]})` : ""}.
+            </p>
+            <p className="mt-2 text-muted-foreground">
+              Seus vínculos estão em:
+            </p>
+            <ul className="mt-3 space-y-2">
+              {[...otherRealms].map((r) => (
+                <li key={r}>
+                  <a
+                    href={realmEntryUrl(r)}
+                    className="font-medium underline underline-offset-2"
+                  >
+                    {REALM_LABELS[r]}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-xs text-muted-foreground">
+              Ou volte ao{" "}
+              <a
+                href={hubAbsoluteUrl()}
+                className="underline underline-offset-2"
+              >
+                hub
+              </a>
+              .
+            </p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="max-w-md rounded-[12px] border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">

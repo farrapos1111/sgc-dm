@@ -2,6 +2,7 @@ import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/r
 
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+import { getDevRealmOverride, resolveRealmFromHost } from "@/lib/realm";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -25,7 +26,18 @@ const csrfMiddleware = createCsrfMiddleware({
   filter: (ctx) => ctx.handlerType === "serverFn",
 });
 
+const realmHostMiddleware = createMiddleware().server(async ({ next, request }) => {
+  const url = new URL(request.url);
+  const realm = resolveRealmFromHost(
+    url.hostname,
+    request.headers.get("x-dev-realm") || getDevRealmOverride(),
+  );
+  return next({
+    context: { realm },
+  });
+});
+
 export const startInstance = createStart(() => ({
   functionMiddleware: [attachSupabaseAuth],
-  requestMiddleware: [errorMiddleware, csrfMiddleware],
+  requestMiddleware: [errorMiddleware, csrfMiddleware, realmHostMiddleware],
 }));

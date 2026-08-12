@@ -10,6 +10,7 @@ import {
   clearMustChangePassword,
   getMustChangePassword,
 } from "@/lib/accounts.functions";
+import { enterAuthenticatedApp } from "@/lib/auth-nav-cache";
 
 export const Route = createFileRoute("/auth/redefinir-senha")({
   ssr: false,
@@ -21,7 +22,9 @@ export const Route = createFileRoute("/auth/redefinir-senha")({
     if (error || !data.user)
       throw redirect({ to: "/auth", search: { reason: undefined } });
     const { mustChangePassword } = await getMustChangePassword();
-    if (!mustChangePassword) throw redirect({ to: "/" });
+    if (!mustChangePassword) {
+      throw redirect({ to: "/inicio", reloadDocument: true });
+    }
     return { user: data.user };
   },
   component: RedefinirSenhaPage,
@@ -68,8 +71,7 @@ function RedefinirSenhaPage() {
         return;
       }
       await clearMustChangePassword();
-      await router.invalidate();
-      navigate({ to: "/" });
+      enterAuthenticatedApp("/inicio");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível salvar");
     } finally {

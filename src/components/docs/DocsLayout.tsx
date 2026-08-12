@@ -50,6 +50,7 @@ export function DocsLayout({ children, activeSlug = "hub" }: DocsLayoutProps) {
           <div className="ml-auto">
             <Link
               to="/auth"
+              search={{}}
               className="rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
             >
               Entrar

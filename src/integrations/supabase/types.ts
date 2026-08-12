@@ -534,6 +534,7 @@ export type Database = {
           number: string
           org_type: string
           primary_color: string
+          realm: string | null
           region_id: string | null
           settings: Json
           state_id: string | null
@@ -2079,6 +2080,7 @@ export type Database = {
           phone: string | null
           rg_encrypted: string | null
           rg_last2: string | null
+          person_id: string | null
           status: Database["public"]["Enums"]["member_status"]
           updated_at: string
           user_id: string | null
@@ -2106,6 +2108,7 @@ export type Database = {
           initiation_chapter_id?: string | null
           kind?: Database["public"]["Enums"]["member_kind"]
           masonic_id?: string | null
+          person_id?: string | null
           phone?: string | null
           rg_encrypted?: string | null
           rg_last2?: string | null
@@ -2136,6 +2139,7 @@ export type Database = {
           initiation_chapter_id?: string | null
           kind?: Database["public"]["Enums"]["member_kind"]
           masonic_id?: string | null
+          person_id?: string | null
           phone?: string | null
           rg_encrypted?: string | null
           rg_last2?: string | null
@@ -2163,6 +2167,201 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      people: {
+        Row: {
+          cpf_encrypted: string | null
+          cpf_last2: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          cpf_encrypted?: string | null
+          cpf_last2?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          cpf_encrypted?: string | null
+          cpf_last2?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "people_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fdj_members: {
+        Row: {
+          address: Json
+          birth_date: string | null
+          chapter_id: string
+          cpf_encrypted: string | null
+          cpf_last2: string | null
+          created_at: string
+          email: string | null
+          fdj_id: string | null
+          full_name: string
+          id: string
+          person_id: string
+          phone: string | null
+          rg_encrypted: string | null
+          rg_last2: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          address?: Json
+          birth_date?: string | null
+          chapter_id: string
+          cpf_encrypted?: string | null
+          cpf_last2?: string | null
+          created_at?: string
+          email?: string | null
+          fdj_id?: string | null
+          full_name: string
+          id?: string
+          person_id: string
+          phone?: string | null
+          rg_encrypted?: string | null
+          rg_last2?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          address?: Json
+          birth_date?: string | null
+          chapter_id?: string
+          cpf_encrypted?: string | null
+          cpf_last2?: string | null
+          created_at?: string
+          email?: string | null
+          fdj_id?: string | null
+          full_name?: string
+          id?: string
+          person_id?: string
+          phone?: string | null
+          rg_encrypted?: string | null
+          rg_last2?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fdj_members_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fdj_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loja_members: {
+        Row: {
+          address: Json
+          birth_date: string | null
+          chapter_id: string
+          cpf_encrypted: string | null
+          cpf_last2: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          grau: string | null
+          id: string
+          masonic_id: string | null
+          person_id: string
+          phone: string | null
+          rg_encrypted: string | null
+          rg_last2: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          address?: Json
+          birth_date?: string | null
+          chapter_id: string
+          cpf_encrypted?: string | null
+          cpf_last2?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          grau?: string | null
+          id?: string
+          masonic_id?: string | null
+          person_id: string
+          phone?: string | null
+          rg_encrypted?: string | null
+          rg_last2?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          address?: Json
+          birth_date?: string | null
+          chapter_id?: string
+          cpf_encrypted?: string | null
+          cpf_last2?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          grau?: string | null
+          id?: string
+          masonic_id?: string | null
+          person_id?: string
+          phone?: string | null
+          rg_encrypted?: string | null
+          rg_last2?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loja_members_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loja_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
             referencedColumns: ["id"]
           },
         ]
@@ -2497,6 +2696,7 @@ export type Database = {
           full_name: string | null
           id: string
           must_change_password: boolean
+          person_id: string | null
           phone: string | null
         }
         Insert: {
@@ -2505,6 +2705,7 @@ export type Database = {
           full_name?: string | null
           id: string
           must_change_password?: boolean
+          person_id?: string | null
           phone?: string | null
         }
         Update: {
@@ -2513,6 +2714,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           must_change_password?: boolean
+          person_id?: string | null
           phone?: string | null
         }
         Relationships: [

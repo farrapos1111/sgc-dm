@@ -82,7 +82,7 @@ function RecuperarSenhaPage() {
             </>
           )}
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            <Link to="/auth" className="underline underline-offset-2">
+            <Link to="/auth" search={{}} className="underline underline-offset-2">
               Voltar ao login
             </Link>
           </p>
