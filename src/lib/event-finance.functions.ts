@@ -976,13 +976,24 @@ export const getComandaCheckout = createServerFn({ method: "POST" })
     const { data: ticket, error: ticketErr } = await context.supabase
       .from("tickets")
       .select(
-        "id, event_id, buyer_name, price_paid, status, seller_member_id, seller_charge_id",
+        "id, event_id, buyer_name, price_paid, status, seller_member_id, seller_charge_id, ticket_type_id",
       )
       .eq("id", data.ticketId)
       .eq("event_id", data.eventId)
       .maybeSingle();
     if (ticketErr) throw new Error(ticketErr.message);
     if (!ticket) throw new Error("Ingresso não encontrado");
+
+    let ticketTypeName: string | null = null;
+    if (ticket.ticket_type_id) {
+      const { data: ticketType, error: typeErr } = await context.supabase
+        .from("ticket_types")
+        .select("name")
+        .eq("id", ticket.ticket_type_id)
+        .maybeSingle();
+      if (typeErr) throw new Error(typeErr.message);
+      ticketTypeName = ticketType?.name?.trim() || null;
+    }
 
     const { data: lineRows, error: linesErr } = await context.supabase
       .from("event_ticket_items")
@@ -1108,6 +1119,8 @@ export const getComandaCheckout = createServerFn({ method: "POST" })
         seller_member_id: ticket.seller_member_id,
         seller_name: sellerName,
         seller_charge_id: ticket.seller_charge_id,
+        ticket_type_id: ticket.ticket_type_id,
+        ticket_type_name: ticketTypeName ?? "Avulso",
       },
       charge: charge
         ? {

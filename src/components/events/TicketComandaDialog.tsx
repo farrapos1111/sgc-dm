@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -22,7 +22,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { formatBRL } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { useChapterLogo } from "@/lib/chapter-logo";
 import { useTicketComandaRealtime } from "@/hooks/useTicketComandaRealtime";
 import {
@@ -84,8 +86,6 @@ function ComandaReceiptBody({
     ticketDue <= 0 ||
     (data.charge != null &&
       (data.charge.status === "pago" || data.charge.remaining <= 0));
-  const unpaidComanda = data.unpaidComandaTotal ?? data.comandaTotal;
-  const settledComanda = Math.max(0, data.comandaTotal - unpaidComanda);
   return (
     <div className="space-y-4">
       <div className="rounded-md border border-dashed border-border bg-muted/30 p-4 font-mono text-sm">
@@ -102,11 +102,18 @@ function ComandaReceiptBody({
             : ""}
         </div>
         <div className="my-3 border-t border-border border-dashed" />
-        <div className="flex justify-between gap-2">
-          <span className="flex items-center gap-2">
-            Ingresso
+        <div
+          className={cn(
+            "flex justify-between gap-2",
+            ticketPaid && "text-muted-foreground",
+          )}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <span className={cn("truncate", ticketPaid && "line-through")}>
+              {data.ticket.ticket_type_name ?? "Ingresso"}
+            </span>
             {ticketPaid ? (
-              <Badge variant="secondary" className="font-sans text-[10px]">
+              <Badge variant="secondary" className="font-sans text-[10px] no-underline">
                 Pago
               </Badge>
             ) : (
@@ -115,7 +122,9 @@ function ComandaReceiptBody({
               </Badge>
             )}
           </span>
-          <span>{formatBRL(data.ticketAmount)}</span>
+          <span className={cn("shrink-0", ticketPaid && "line-through")}>
+            {formatBRL(ticketFace)}
+          </span>
         </div>
         {data.charge && data.charge.amount_paid > 0 && !ticketPaid ? (
           <div className="mt-1 flex justify-between gap-2 text-xs text-muted-foreground">
@@ -127,25 +136,27 @@ function ComandaReceiptBody({
           </div>
         ) : null}
         {data.lines.map((l) => (
-          <div key={l.id} className="mt-1.5 flex justify-between gap-2">
-            <span className="min-w-0 truncate">
+          <div
+            key={l.id}
+            className={cn(
+              "mt-1.5 flex justify-between gap-2",
+              l.paid && "text-muted-foreground",
+            )}
+          >
+            <span
+              className={cn(
+                "min-w-0 truncate",
+                l.paid && "line-through",
+              )}
+            >
               {l.item_name ?? "Item"} × {l.qty}
-              {l.paid ? " · pago" : ""}
             </span>
-            <span className="shrink-0">{formatBRL(l.amount)}</span>
+            <span className={cn("shrink-0", l.paid && "line-through")}>
+              {formatBRL(l.amount)}
+            </span>
           </div>
         ))}
         <div className="my-3 border-t border-border border-dashed" />
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>Consumo (comanda)</span>
-          <span>{formatBRL(unpaidComanda)}</span>
-        </div>
-        {settledComanda > 0 ? (
-          <div className="mt-0.5 flex justify-between text-xs text-muted-foreground">
-            <span>Já liquidado</span>
-            <span>{formatBRL(settledComanda)}</span>
-          </div>
-        ) : null}
         <div className="mt-1 flex justify-between font-sans text-base font-semibold">
           <span>Total</span>
           <span>{formatBRL(data.grandTotal)}</span>
@@ -272,12 +283,22 @@ export function TicketComandaDialog({
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
   const [itemId, setItemId] = useState("");
-  const [qty, setQty] = useState("1");
+  const [qty, setQty] = useState("0");
   const [price, setPrice] = useState("");
   const [editing, setEditing] = useState<EventTicketItemRow | null>(null);
   const [editQty, setEditQty] = useState("");
   const [editPrice, setEditPrice] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+
+  useEffect(() => {
+    setItemId("");
+    setQty("0");
+    setPrice("");
+    if (!open) {
+      setCheckoutOpen(false);
+      setEditing(null);
+    }
+  }, [open]);
 
   const financeQ = useQuery({
     queryKey: ["event-finance", eventId],
@@ -326,19 +347,19 @@ export function TicketComandaDialog({
   );
   const selected = items.find((i) => i.id === itemId);
 
-  const grouped = useMemo(() => {
-    return categories
-      .filter(
-        (c) =>
-          !c.is_system &&
-          c.id !== INGRESSOS_CATEGORY_ID &&
-          c.name.trim().toLowerCase() !== "ingressos",
-      )
-      .map((c) => ({
-        ...c,
-        items: items.filter((i) => i.category_id === c.id),
-      }))
-      .filter((c) => c.items.length > 0);
+  const itemOptions = useMemo(() => {
+    const catName = new Map(categories.map((c) => [c.id, c.name]));
+    return items.map((it) => {
+      const cat = catName.get(it.category_id) ?? "";
+      const priceLabel =
+        it.unit_price != null ? ` · ${formatBRL(Number(it.unit_price))}` : "";
+      const stock = it.track_stock ? ` (${it.stock_qty ?? 0})` : "";
+      return {
+        value: it.id,
+        label: `${it.name}${priceLabel}${stock}`,
+        group: cat || undefined,
+      };
+    });
   }, [categories, items]);
 
   const comandaTotal = lines.reduce((s, l) => s + Number(l.amount), 0);
@@ -369,7 +390,7 @@ export function TicketComandaDialog({
     onSuccess: () => {
       toast.success("Item adicionado à comanda");
       setItemId("");
-      setQty("1");
+      setQty("0");
       setPrice("");
       invalidateComanda(qc, eventId);
     },
@@ -515,11 +536,6 @@ export function TicketComandaDialog({
                   "Erro ao carregar comanda",
                 )}
               </p>
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                  Fechar
-                </Button>
-              </DialogFooter>
             </>
           ) : (
             <>
@@ -539,18 +555,28 @@ export function TicketComandaDialog({
                 <div className="rounded-md border border-border px-3 py-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="text-sm font-medium">Ingresso</div>
+                      <div className="truncate text-sm font-medium">
+                        {checkout?.ticket.ticket_type_name ?? "Ingresso"}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {!hasTicketCharge
                           ? "Sem cobrança vinculada"
                           : ticketFullyPaid
                             ? "Quitado"
-                            : `Saldo ${formatBRL(ticketRemaining)}`}
+                            : checkout?.ticket.seller_name
+                              ? ticketRemaining > 0 &&
+                                ticketRemaining < chargeAmount
+                                ? `Cobrança vinculada a ${checkout.ticket.seller_name} · Saldo ${formatBRL(ticketRemaining)}`
+                                : `Cobrança vinculada a ${checkout.ticket.seller_name}`
+                              : ticketRemaining > 0 &&
+                                  ticketRemaining < chargeAmount
+                                ? `Saldo ${formatBRL(ticketRemaining)}`
+                                : "Cobrança vinculada ao vendedor"}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <span className="text-sm font-medium">
-                        {formatBRL(checkout?.ticketAmount ?? 0)}
+                        {formatBRL(chargeAmount)}
                       </span>
                       {ticketFullyPaid ? (
                         <Badge variant="secondary">Pago</Badge>
@@ -570,111 +596,8 @@ export function TicketComandaDialog({
                 </div>
 
                 <div>
-                  <div className="mb-2 text-sm font-medium">Adicionar item</div>
-                  {grouped.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      Cadastre itens na aba Financeiro do evento primeiro.
-                      Ingressos não podem ser lançados na comanda.
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border border-border p-2">
-                        {grouped.map((c) => (
-                          <div key={c.id}>
-                            <div className="px-1 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                              {c.name}
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {c.items.map((it) => (
-                                <button
-                                  key={it.id}
-                                  type="button"
-                                  onClick={() => pickItem(it.id)}
-                                  className={`rounded-full border px-3 py-1 text-xs transition ${
-                                    itemId === it.id
-                                      ? "border-transparent text-white"
-                                      : "border-border"
-                                  }`}
-                                  style={
-                                    itemId === it.id
-                                      ? { backgroundColor: primary }
-                                      : undefined
-                                  }
-                                >
-                                  {it.name}
-                                  {it.unit_price != null
-                                    ? ` · ${formatBRL(Number(it.unit_price))}`
-                                    : ""}
-                                  {it.track_stock
-                                    ? ` (${it.stock_qty ?? 0})`
-                                    : ""}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      {itemId && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="mb-1 block text-xs">Qtd</Label>
-                            <Input
-                              type="number"
-                              min={1}
-                              step={1}
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={qty}
-                              onChange={(e) =>
-                                setQty(sanitizeIntegerQty(e.target.value))
-                              }
-                            />
-                          </div>
-                          <div>
-                            <Label className="mb-1 block text-xs">
-                              Valor unit.{" "}
-                              {selected?.unit_price == null ? "*" : ""}
-                            </Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              value={price}
-                              onChange={(e) => setPrice(e.target.value)}
-                              placeholder="R$"
-                            />
-                          </div>
-                        </div>
-                      )}
-                      <Button
-                        className="w-full"
-                        disabled={
-                          !itemId ||
-                          add.isPending ||
-                          !(Number.isInteger(parsedQty) && parsedQty >= 1) ||
-                          !(
-                            (price.trim() === "" &&
-                              selected?.unit_price != null) ||
-                            (Number.isFinite(parsedPrice) && parsedPrice >= 0)
-                          )
-                        }
-                        onClick={() => add.mutate()}
-                        style={{ backgroundColor: primary }}
-                      >
-                        <Plus className="mr-2 h-4 w-4" /> Adicionar item
-                      </Button>
-                      <p className="text-[11px] text-muted-foreground">
-                        Itens ficam em aberto até a baixa. Só então entram no
-                        fluxo de caixa (Eventos). Estoque, se houver, é
-                        decrementado ao adicionar.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div>
                   <div className="mb-2 flex items-center justify-between text-sm font-medium">
-                    <span>Itens da comanda</span>
+                    <span>Consumo</span>
                     <span>
                       {unpaidComandaTotal > 0 && unpaidComandaTotal < comandaTotal
                         ? `${formatBRL(unpaidComandaTotal)} em aberto · ${formatBRL(comandaTotal)}`
@@ -769,12 +692,87 @@ export function TicketComandaDialog({
                     </ul>
                   )}
                 </div>
+
+                <div>
+                  <div className="mb-2 text-sm font-medium">Adicionar item</div>
+                  {itemOptions.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Cadastre itens na aba Financeiro do evento primeiro.
+                      Ingressos não podem ser lançados na comanda.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-end gap-2">
+                        <div className="min-w-0 flex-1">
+                          <SearchableSelect
+                            value={itemId}
+                            options={itemOptions}
+                            onChange={pickItem}
+                            placeholder="Buscar item…"
+                            searchPlaceholder="Nome ou categoria…"
+                            emptyText="Nenhum item encontrado."
+                          />
+                        </div>
+                        <div className="w-16 shrink-0">
+                          <Label className="mb-1 block text-xs">Qtd</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            step={1}
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={qty}
+                            onChange={(e) =>
+                              setQty(sanitizeIntegerQty(e.target.value))
+                            }
+                          />
+                        </div>
+                        <Button
+                          size="icon"
+                          className="shrink-0"
+                          disabled={
+                            !itemId ||
+                            add.isPending ||
+                            !(Number.isInteger(parsedQty) && parsedQty >= 1) ||
+                            !(
+                              (price.trim() === "" &&
+                                selected?.unit_price != null) ||
+                              (Number.isFinite(parsedPrice) && parsedPrice >= 0)
+                            )
+                          }
+                          onClick={() => add.mutate()}
+                          style={{ backgroundColor: primary }}
+                          aria-label="Adicionar item"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {itemId && selected?.unit_price == null ? (
+                        <div>
+                          <Label className="mb-1 block text-xs">
+                            Valor unit. *
+                          </Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={price}
+                            onChange={(e) => setPrice(e.target.value)}
+                            placeholder="R$"
+                          />
+                        </div>
+                      ) : null}
+                      <p className="text-[11px] text-muted-foreground">
+                        Itens ficam em aberto até a baixa. Só então entram no
+                        fluxo de caixa (Eventos). Estoque, se houver, é
+                        decrementado ao adicionar.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <DialogFooter className="flex-col gap-2 sm:flex-row">
-                <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                  Fechar
-                </Button>
                 <Button
                   variant="outline"
                   onClick={() => setCheckoutOpen(true)}
@@ -814,11 +812,8 @@ export function TicketComandaDialog({
               showPix
             />
           ) : null}
-          <DialogFooter className="flex-col gap-2 sm:flex-row">
-            <Button variant="ghost" onClick={() => setCheckoutOpen(false)}>
-              Fechar
-            </Button>
-            {hasPending ? (
+          {hasPending ? (
+            <DialogFooter>
               <Button
                 style={{ backgroundColor: primary }}
                 disabled={payAllPending.isPending}
@@ -828,8 +823,8 @@ export function TicketComandaDialog({
                   ? "Baixando…"
                   : "Baixar pendências"}
               </Button>
-            ) : null}
-          </DialogFooter>
+            </DialogFooter>
+          ) : null}
         </DialogContent>
       </Dialog>
 

@@ -134,15 +134,7 @@ function AdicionarOrganizacaoPage() {
       .then((data) => {
         if (cancelled) return;
         setCatalog(data);
-        const firstPot = data.potencias[0];
-        if (firstPot) {
-          setPotenciaId(firstPot.id);
-          const firstType =
-            firstPot.org_types[0] ??
-            data.org_types[0]?.org_type ??
-            "capitulo";
-          setOrgType(firstType);
-        } else if (data.org_types[0]) {
+        if (data.org_types[0]) {
           setOrgType(data.org_types[0].org_type);
         }
       })
@@ -157,18 +149,20 @@ function AdicionarOrganizacaoPage() {
     };
   }, []);
 
-  const selectedPotencia = useMemo(
-    () => catalog?.potencias.find((p) => p.id === potenciaId) ?? null,
-    [catalog, potenciaId],
+  const isLoja = orgType === "loja";
+
+  const lodgePotencias = useMemo(
+    () =>
+      (catalog?.potencias ?? []).filter(
+        (p) => p.org_types.length === 0 || p.org_types.includes("loja"),
+      ),
+    [catalog],
   );
 
-  const availableTypes = useMemo(() => {
-    if (!catalog) return [] as OrgJoinTypeDef[];
-    const allowed = selectedPotencia?.org_types;
-    const list = catalog.org_types;
-    if (!allowed || allowed.length === 0) return list;
-    return list.filter((t) => allowed.includes(t.org_type));
-  }, [catalog, selectedPotencia]);
+  const availableTypes = useMemo(
+    () => (catalog?.org_types ?? []) as OrgJoinTypeDef[],
+    [catalog],
+  );
 
   const typeDef = useMemo(
     () => availableTypes.find((t) => t.org_type === orgType) ?? null,
@@ -185,6 +179,21 @@ function AdicionarOrganizacaoPage() {
       setOrgType(availableTypes[0].org_type);
     }
   }, [availableTypes, orgType]);
+
+  useEffect(() => {
+    if (!isLoja) {
+      if (potenciaId) setPotenciaId("");
+      return;
+    }
+    if (
+      potenciaId &&
+      lodgePotencias.some((p) => p.id === potenciaId)
+    ) {
+      return;
+    }
+    const first = lodgePotencias[0];
+    setPotenciaId(first?.id ?? "");
+  }, [isLoja, lodgePotencias, potenciaId]);
 
   const fullAddress = useMemo(
     () =>
@@ -204,7 +213,7 @@ function AdicionarOrganizacaoPage() {
     () => ({
       orgType,
       orgTypeOther: needsOther ? orgTypeOther : null,
-      potenciaId,
+      potenciaId: isLoja ? potenciaId || null : null,
       nameNumber,
       fullAddress,
       foundedOn,
@@ -220,6 +229,7 @@ function AdicionarOrganizacaoPage() {
       orgType,
       orgTypeOther,
       needsOther,
+      isLoja,
       potenciaId,
       nameNumber,
       fullAddress,
@@ -335,33 +345,13 @@ function AdicionarOrganizacaoPage() {
                   <p className="text-sm text-destructive">{catalogError}</p>
                 ) : null}
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field
-                    label="Potência *"
-                    htmlFor="potencia"
-                    error={fieldErrors.potenciaId}
-                  >
-                    <select
-                      id="potencia"
-                      value={potenciaId}
-                      onChange={(e) => setPotenciaId(e.target.value)}
-                      className={inputClass}
-                      style={RING}
-                      required
-                      disabled={!catalog?.potencias.length}
-                    >
-                      {(catalog?.potencias ?? []).length === 0 ? (
-                        <option value="">Carregando…</option>
-                      ) : (
-                        catalog!.potencias.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.sigla} — {p.nome}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </Field>
-
+                <div
+                  className={
+                    isLoja
+                      ? "grid grid-cols-1 gap-3 sm:grid-cols-2"
+                      : undefined
+                  }
+                >
                   <Field label="Tipo de organização *" htmlFor="org-type">
                     <select
                       id="org-type"
@@ -375,23 +365,38 @@ function AdicionarOrganizacaoPage() {
                       {availableTypes.map((t) => (
                         <option key={t.org_type} value={t.org_type}>
                           {t.label}
-                          {t.billing_model === "pago" ? " (pago)" : ""}
                         </option>
                       ))}
                     </select>
-                    {typeDef ? (
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        {typeDef.unit_label}
-                        {" · "}
-                        {typeDef.billing_model === "pago" ? "Pago" : "Gratuito"}
-                        {" · "}
-                        liberado em {typeDef.rollout_scope}
-                        {typeDef.form_schema.admin_max_label
-                          ? ` · admin: ${typeDef.form_schema.admin_max_label}`
-                          : ""}
-                      </p>
-                    ) : null}
                   </Field>
+
+                  {isLoja ? (
+                    <Field
+                      label="Potência *"
+                      htmlFor="potencia"
+                      error={fieldErrors.potenciaId}
+                    >
+                      <select
+                        id="potencia"
+                        value={potenciaId}
+                        onChange={(e) => setPotenciaId(e.target.value)}
+                        className={inputClass}
+                        style={RING}
+                        required
+                        disabled={lodgePotencias.length === 0}
+                      >
+                        {lodgePotencias.length === 0 ? (
+                          <option value="">Carregando…</option>
+                        ) : (
+                          lodgePotencias.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.sigla} — {p.nome}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </Field>
+                  ) : null}
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

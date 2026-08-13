@@ -35,6 +35,8 @@ import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { formatBRL } from "@/lib/format";
 import { todayYmd } from "@/lib/timezone";
 import {
+  buildComandaReportRows,
+  exportEventComandasPdf,
   exportEventFinancePdf,
   exportEventTicketsXlsx,
 } from "@/lib/event-finance-export";
@@ -47,6 +49,7 @@ import {
   isBudgetCategoryName,
   listEventBudgetExpenses,
   listEventFinance,
+  listEventTicketItems,
   upsertEventFinanceCategory,
   upsertEventFinanceItem,
   type EventFinanceCategory,
@@ -86,12 +89,16 @@ export function EventFinancePanel({
   chapterCity?: string | null;
   logoPath?: string | null;
   tickets?: Array<{
+    id: string;
     buyer_name: string;
     seller_name?: string | null;
     ticket_type_id: string | null;
     price_paid: number | string;
     status: string;
     sold_at?: string | null;
+    settlement?: "open" | "partial" | "paid";
+    seller_charge_paid?: boolean;
+    seller_charge_amount_paid?: number;
   }>;
   ticketTypes?: Array<{ id: string; name: string }>;
 }) {
@@ -126,6 +133,7 @@ export function EventFinancePanel({
 
   const [exporting, setExporting] = useState(false);
   const [exportingTickets, setExportingTickets] = useState(false);
+  const [exportingComandas, setExportingComandas] = useState(false);
 
   const typeNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -475,6 +483,52 @@ export function EventFinancePanel({
             >
               <FileSpreadsheet className="mr-1 h-4 w-4" />{" "}
               {exportingTickets ? "Gerando…" : "Excel"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={exportingComandas || tickets.length === 0}
+              onClick={async () => {
+                setExportingComandas(true);
+                try {
+                  const items = await listEventTicketItems({
+                    data: { eventId },
+                  });
+                  const filteredTickets = tickets.filter((t) => {
+                    if (t.status === "cancelado") return false;
+                    if (!from && !until) return true;
+                    const day = t.sold_at ? t.sold_at.slice(0, 10) : "";
+                    if (!day) return !from && !until;
+                    if (from && day < from) return false;
+                    if (until && day > until) return false;
+                    return true;
+                  });
+                  const rows = buildComandaReportRows({
+                    tickets: filteredTickets,
+                    ticketTypes,
+                    items,
+                  });
+                  await exportEventComandasPdf({
+                    chapterName: chapterName || "Capítulo",
+                    chapterCity: chapterCity ?? null,
+                    logoPath: logoPath ?? null,
+                    eventName,
+                    rows,
+                  });
+                  toast.success("Relatório de comandas gerado");
+                } catch (e) {
+                  toast.error(
+                    e instanceof Error
+                      ? e.message
+                      : "Erro ao gerar relatório de comandas",
+                  );
+                } finally {
+                  setExportingComandas(false);
+                }
+              }}
+            >
+              <FileText className="mr-1 h-4 w-4" />{" "}
+              {exportingComandas ? "Gerando…" : "Comandas"}
             </Button>
           </div>
         </div>

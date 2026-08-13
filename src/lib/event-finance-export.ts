@@ -13,6 +13,7 @@ const COLOR_GREEN = [4, 120, 87] as const;
 const COLOR_RED = [185, 28, 28] as const;
 const COLOR_BLACK = [26, 26, 26] as const;
 const COLOR_GRAY = [107, 107, 107] as const;
+const COLOR_AMBER = [180, 83, 9] as const;
 
 type Rgb = readonly [number, number, number];
 
@@ -370,4 +371,367 @@ export function exportEventTicketsXlsx(
     fileName ||
     `ingressos-${fileSafe(options?.eventName || "evento") || "evento"}.xlsx`;
   XLSX.writeFile(wb, safe.endsWith(".xlsx") ? safe : `${safe}.xlsx`);
+}
+
+export type ComandaReportItem = {
+  name: string;
+  qty: number;
+  unit_price: number;
+  amount: number;
+  paid: boolean;
+};
+
+export type ComandaReportRow = {
+  buyer_name: string;
+  seller_name: string | null;
+  ticket_type_name: string;
+  ticket_amount: number;
+  ticket_paid_amount: number;
+  settlement: "open" | "partial" | "paid";
+  items: ComandaReportItem[];
+};
+
+export function buildComandaReportRows(input: {
+  tickets: Array<{
+    id: string;
+    buyer_name: string;
+    seller_name?: string | null;
+    ticket_type_id: string | null;
+    price_paid: number | string;
+    status: string;
+    settlement?: "open" | "partial" | "paid";
+    seller_charge_paid?: boolean;
+    seller_charge_amount_paid?: number;
+  }>;
+  ticketTypes: Array<{ id: string; name: string }>;
+  items: Array<{
+    ticket_id: string;
+    item_name?: string | null;
+    qty: number;
+    unit_price: number;
+    amount: number;
+    paid?: boolean;
+    created_at?: string;
+  }>;
+}): ComandaReportRow[] {
+  const typeNameById = new Map(input.ticketTypes.map((t) => [t.id, t.name]));
+  const itemsByTicket = new Map<string, ComandaReportItem[]>();
+  const sortedItems = [...input.items].sort((a, b) =>
+    String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")),
+  );
+  for (const line of sortedItems) {
+    const list = itemsByTicket.get(line.ticket_id) ?? [];
+    list.push({
+      name: line.item_name?.trim() || "Item",
+      qty: Number(line.qty) || 0,
+      unit_price: Number(line.unit_price) || 0,
+      amount: Number(line.amount) || 0,
+      paid: !!line.paid,
+    });
+    itemsByTicket.set(line.ticket_id, list);
+  }
+
+  return input.tickets
+    .filter((t) => t.status !== "cancelado")
+    .map((t) => {
+      const ticketAmount = Number(t.price_paid) || 0;
+      let ticketPaidAmount = 0;
+      if (ticketAmount <= 0 || t.seller_charge_paid) {
+        ticketPaidAmount = ticketAmount;
+      } else if ((t.seller_charge_amount_paid ?? 0) > 0) {
+        ticketPaidAmount = Math.min(
+          Number(t.seller_charge_amount_paid) || 0,
+          ticketAmount,
+        );
+      }
+      return {
+        buyer_name: t.buyer_name || "—",
+        seller_name: t.seller_name?.trim() || null,
+        ticket_type_name: t.ticket_type_id
+          ? (typeNameById.get(t.ticket_type_id) ?? "Tipo removido")
+          : "Avulso",
+        ticket_amount: ticketAmount,
+        ticket_paid_amount: ticketPaidAmount,
+        settlement: t.settlement ?? "open",
+        items: itemsByTicket.get(t.id) ?? [],
+      };
+    })
+    .sort((a, b) => {
+      const sellerCmp = (a.seller_name || "—").localeCompare(
+        b.seller_name || "—",
+        "pt-BR",
+        { sensitivity: "base" },
+      );
+      if (sellerCmp !== 0) return sellerCmp;
+      return a.buyer_name.localeCompare(b.buyer_name, "pt-BR", {
+        sensitivity: "base",
+      });
+    });
+}
+
+function settlementLabel(s: ComandaReportRow["settlement"]) {
+  if (s === "paid") return { text: "Pago", color: COLOR_GREEN };
+  if (s === "partial") return { text: "Parcial", color: COLOR_AMBER };
+  return { text: "Em aberto", color: COLOR_GRAY };
+}
+
+function lineStatus(paid: boolean, partial = false) {
+  if (paid) return { text: "Pago", color: COLOR_GREEN };
+  if (partial) return { text: "Parcial", color: COLOR_AMBER };
+  return { text: "Em aberto", color: COLOR_GRAY };
+}
+
+function fitText(doc: jsPDF, text: string, maxW: number) {
+  if (doc.getTextWidth(text) <= maxW) return text;
+  let s = text;
+  while (s.length > 4 && doc.getTextWidth(`${s}…`) > maxW) s = s.slice(0, -1);
+  return `${s}…`;
+}
+
+export async function exportEventComandasPdf(input: {
+  chapterName: string;
+  chapterCity?: string | null;
+  logoPath?: string | null;
+  eventName: string;
+  rows: ComandaReportRow[];
+}) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const contentW = pageW - MARGIN * 2;
+  const rightX = pageW - MARGIN;
+
+  const logo = await loadLogoDataUrl(input.logoPath);
+  let y = MARGIN;
+
+  if (logo) {
+    try {
+      const props = doc.getImageProperties(logo);
+      const ratio = props.width / props.height;
+      const h = ratio >= 1 ? LOGO_MAX / ratio : LOGO_MAX;
+      doc.addImage(logo, (pageW - h * ratio) / 2, y, h * ratio, h);
+      y += h + 4;
+    } catch {
+      /* ignora logo inválida */
+    }
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  setRgb(doc, COLOR_BLACK);
+  doc.text(input.chapterName, pageW / 2, y, {
+    align: "center",
+    maxWidth: contentW,
+  });
+  y += 6;
+
+  if (input.chapterCity) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    setRgb(doc, COLOR_GRAY);
+    doc.text(input.chapterCity, pageW / 2, y, { align: "center" });
+    y += 5;
+  }
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+  setRgb(doc, COLOR_BLACK);
+  doc.text("Relatório de Comandas", pageW / 2, y, { align: "center" });
+  y += 5;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text(input.eventName, pageW / 2, y, {
+    align: "center",
+    maxWidth: contentW,
+  });
+  y += 8;
+
+  let grandOpen = 0;
+  let grandPaid = 0;
+  for (const r of input.rows) {
+    grandPaid += r.ticket_paid_amount;
+    grandOpen += Math.max(0, r.ticket_amount - r.ticket_paid_amount);
+    for (const i of r.items) {
+      if (i.paid) grandPaid += i.amount;
+      else grandOpen += i.amount;
+    }
+  }
+
+  doc.setFillColor(245, 245, 242);
+  doc.rect(MARGIN, y - 4, contentW, 12, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  setRgb(doc, COLOR_BLACK);
+  doc.text(`${input.rows.length} comanda(s)`, MARGIN + 3, y + 3);
+  setRgb(doc, COLOR_GRAY);
+  doc.text(`Em aberto ${formatBRL(grandOpen)}`, pageW / 2, y + 3, {
+    align: "center",
+  });
+  setRgb(doc, COLOR_GREEN);
+  doc.text(`Pago ${formatBRL(grandPaid)}`, rightX - 2, y + 3, {
+    align: "right",
+  });
+  setRgb(doc, COLOR_BLACK);
+  y += 14;
+
+  const ensureSpace = (need: number) => {
+    if (y > pageH - need) {
+      doc.addPage();
+      y = MARGIN + 4;
+    }
+  };
+
+  if (input.rows.length === 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    setRgb(doc, COLOR_GRAY);
+    doc.text("Nenhuma comanda neste evento.", MARGIN, y);
+  }
+
+  for (const row of input.rows) {
+    const openAmount =
+      Math.max(0, row.ticket_amount - row.ticket_paid_amount) +
+      row.items.filter((i) => !i.paid).reduce((s, i) => s + i.amount, 0);
+    const paidAmount =
+      row.ticket_paid_amount +
+      row.items.filter((i) => i.paid).reduce((s, i) => s + i.amount, 0);
+    const ticketFullyPaid =
+      row.ticket_amount <= 0 || row.ticket_paid_amount >= row.ticket_amount - 0.001;
+    const ticketPartial =
+      !ticketFullyPaid && row.ticket_paid_amount > 0.001;
+
+    ensureSpace(28 + row.items.length * 5);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    setRgb(doc, COLOR_BLACK);
+    const buyer = fitText(doc, row.buyer_name, contentW * 0.55);
+    doc.text(buyer, MARGIN, y);
+    if (row.seller_name) {
+      const buyerW = doc.getTextWidth(buyer);
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8);
+      setRgb(doc, COLOR_GRAY);
+      doc.text(
+        fitText(doc, row.seller_name, contentW - buyerW - 6),
+        MARGIN + buyerW + 3,
+        y,
+      );
+    }
+    y += 5.5;
+
+    const ticketStatus = lineStatus(ticketFullyPaid, ticketPartial);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    setRgb(doc, COLOR_BLACK);
+    const ticketLeft = fitText(
+      doc,
+      `${row.ticket_type_name} · ${formatBRL(row.ticket_amount)} · `,
+      contentW - 22,
+    );
+    doc.text(ticketLeft, MARGIN, y);
+    doc.setFont("helvetica", "bold");
+    setRgb(doc, ticketStatus.color);
+    doc.text(ticketStatus.text, MARGIN + doc.getTextWidth(ticketLeft), y);
+    y += 5;
+
+    if (row.items.length === 0) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8);
+      setRgb(doc, COLOR_GRAY);
+      doc.text("Sem itens lançados", MARGIN + 2, y);
+      y += 5;
+    } else {
+      for (const item of row.items) {
+        ensureSpace(12);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        setRgb(doc, COLOR_BLACK);
+        const name = fitText(doc, item.name, contentW * 0.42);
+        doc.text(name, MARGIN + 2, y);
+        let x = MARGIN + 2 + doc.getTextWidth(name) + 2;
+
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8);
+        setRgb(doc, COLOR_GRAY);
+        const unit = formatBRL(item.unit_price);
+        doc.text(unit, x, y);
+        x += doc.getTextWidth(unit) + 3;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        setRgb(doc, COLOR_BLACK);
+        const qty = `× ${item.qty}`;
+        doc.text(qty, x, y);
+        x += doc.getTextWidth(qty) + 3;
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        const totalLabel = formatBRL(item.amount);
+        doc.text(totalLabel, x, y);
+        x += doc.getTextWidth(totalLabel) + 3;
+
+        const itemStatus = lineStatus(item.paid);
+        setRgb(doc, itemStatus.color);
+        doc.text(itemStatus.text, x, y);
+        y += 5;
+      }
+    }
+
+    y += 1;
+    doc.setDrawColor(210, 210, 208);
+    doc.line(MARGIN, y, rightX, y);
+    y += 5;
+
+    const status = settlementLabel(row.settlement);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    setRgb(doc, status.color);
+    doc.text(status.text, MARGIN, y);
+    const statusW = doc.getTextWidth(status.text);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    const openLabel = `Em aberto: ${formatBRL(openAmount)}`;
+    const paidLabel = `Pago: ${formatBRL(paidAmount)}`;
+    setRgb(doc, COLOR_GREEN);
+    doc.text(paidLabel, rightX, y, { align: "right" });
+    const paidW = doc.getTextWidth(paidLabel);
+    setRgb(doc, COLOR_GRAY);
+    doc.text(openLabel, pageW / 2, y, { align: "center" });
+    const openW = doc.getTextWidth(openLabel);
+
+    const openLeft = pageW / 2 - openW / 2;
+    const openRight = pageW / 2 + openW / 2;
+    doc.setDrawColor(190, 190, 188);
+    doc.setLineDashPattern([1.2, 1.2], 0);
+    if (openLeft - (MARGIN + statusW) > 6) {
+      doc.line(MARGIN + statusW + 2, y - 1, openLeft - 2, y - 1);
+    }
+    if (rightX - paidW - openRight > 6) {
+      doc.line(openRight + 2, y - 1, rightX - paidW - 2, y - 1);
+    }
+    doc.setLineDashPattern([], 0);
+
+    y += 4;
+    doc.setDrawColor(230, 230, 228);
+    doc.line(MARGIN, y, rightX, y);
+    y += 6;
+  }
+
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    setRgb(doc, COLOR_GRAY);
+    doc.text(
+      `Gerado em ${new Date().toLocaleString("pt-BR")}  ·  pág. ${p}/${pages}`,
+      pageW / 2,
+      pageH - 8,
+      { align: "center" },
+    );
+  }
+
+  doc.save(`comandas-${fileSafe(input.eventName) || "evento"}.pdf`);
 }
