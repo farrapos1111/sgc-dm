@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { classifyAuditSeverity, type AuditSeverity } from "@/lib/audit-log";
+import { ymdRangeIso } from "@/lib/audit.functions";
 import { datePartsInAppTz, todayYmd } from "@/lib/timezone";
 
 const eventIdInput = z.object({ eventId: z.string().uuid() });
@@ -1279,4 +1281,213 @@ export const checkoutEventTicketComanda = createServerFn({ method: "POST" })
       amount: Number(result?.amount) || 0,
       remaining: Number(result?.remaining) || 0,
     };
+  });
+
+const COMANDA_AUDIT_ACTIONS = [
+  "comanda_item_add",
+  "comanda_item_update",
+  "comanda_item_delete",
+  "comanda_item_pay",
+] as const;
+
+export type EventComandaAuditRow = {
+  id: string;
+  action: (typeof COMANDA_AUDIT_ACTIONS)[number] | string;
+  createdAt: string;
+  userId: string | null;
+  userName: string;
+  severity: AuditSeverity;
+  buyerName: string | null;
+  itemName: string | null;
+  qty: number | null;
+  amount: number | null;
+  tender: string | null;
+  remaining: number | null;
+  oldQty: number | null;
+  oldAmount: number | null;
+  newQty: number | null;
+  newAmount: number | null;
+};
+
+function jsonObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function jsonString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const t = value.trim();
+  return t ? t : null;
+}
+
+function jsonNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const n = Number(value.replace(",", "."));
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/** Audit log de comandas do evento — só MC / Admin Total. */
+export const listEventComandaAudit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    eventIdInput
+      .extend({
+        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+        until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }): Promise<EventComandaAuditRow[]> => {
+    const { data: event, error: evErr } = await context.supabase
+      .from("events")
+      .select("id, chapter_id")
+      .eq("id", data.eventId)
+      .maybeSingle();
+    if (evErr) throw new Error(evErr.message);
+    if (!event) throw new Error("Evento não encontrado");
+
+    const email =
+      (context.claims as { email?: string } | null)?.email ?? null;
+    const { userHoldsOfficeInChapter } = await import(
+      "@/lib/office-signatures.functions"
+    );
+    const canView = await userHoldsOfficeInChapter(context.supabase, {
+      userId: context.userId,
+      chapterId: event.chapter_id,
+      positionCode: "mestre_conselheiro",
+      email,
+    });
+    if (!canView) {
+      throw new Error(
+        "Apenas o Mestre Conselheiro ou o Administrador Total podem ver o audit log",
+      );
+    }
+
+    const { start, endExclusive } = ymdRangeIso(data.from, data.until);
+    let logsQuery = context.supabase
+      .from("audit_logs")
+      .select("id, action, new_value, user_id, created_at, record_id")
+      .eq("chapter_id", event.chapter_id)
+      .in("action", [...COMANDA_AUDIT_ACTIONS])
+      .order("created_at", { ascending: false })
+      .limit(2000);
+    if (start) logsQuery = logsQuery.gte("created_at", start);
+    if (endExclusive) logsQuery = logsQuery.lt("created_at", endExclusive);
+
+    const [ticketsRes, linesRes, logsRes] = await Promise.all([
+      context.supabase
+        .from("tickets")
+        .select("id, buyer_name")
+        .eq("event_id", data.eventId),
+      context.supabase
+        .from("event_ticket_items")
+        .select("id, item_id, ticket_id")
+        .eq("event_id", data.eventId),
+      logsQuery,
+    ]);
+    if (ticketsRes.error) throw new Error(ticketsRes.error.message);
+    if (linesRes.error) throw new Error(linesRes.error.message);
+    if (logsRes.error) throw new Error(logsRes.error.message);
+
+    const ticketIds = new Set((ticketsRes.data ?? []).map((t) => t.id));
+    const buyerByTicket = new Map(
+      (ticketsRes.data ?? []).map((t) => [
+        t.id,
+        jsonString(t.buyer_name),
+      ]),
+    );
+    const lineIds = new Set((linesRes.data ?? []).map((l) => l.id));
+    const itemIdByLine = new Map(
+      (linesRes.data ?? []).map((l) => [l.id, l.item_id as string]),
+    );
+
+    const matched = (logsRes.data ?? []).filter((row) => {
+      const nv = jsonObject(row.new_value);
+      const eventId = jsonString(nv?.event_id);
+      if (eventId === data.eventId) return true;
+      const ticketId = jsonString(nv?.ticket_id);
+      if (ticketId && ticketIds.has(ticketId)) return true;
+      if (row.record_id && lineIds.has(row.record_id)) return true;
+      return false;
+    });
+
+    const itemIds = new Set<string>();
+    for (const row of matched) {
+      const nv = jsonObject(row.new_value);
+      const fromPayload = jsonString(nv?.item_id);
+      if (fromPayload) itemIds.add(fromPayload);
+      const fromLine = row.record_id ? itemIdByLine.get(row.record_id) : null;
+      if (fromLine) itemIds.add(fromLine);
+    }
+    const userIds = [
+      ...new Set(
+        matched
+          .map((r) => r.user_id)
+          .filter((id): id is string => typeof id === "string" && !!id),
+      ),
+    ];
+
+    const [itemsRes, profilesRes] = await Promise.all([
+      itemIds.size > 0
+        ? context.supabase
+            .from("event_finance_items")
+            .select("id, name")
+            .in("id", [...itemIds])
+        : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+      userIds.length > 0
+        ? context.supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", userIds)
+        : Promise.resolve({
+            data: [] as { id: string; full_name: string | null }[],
+            error: null,
+          }),
+    ]);
+    if (itemsRes.error) throw new Error(itemsRes.error.message);
+    if (profilesRes.error) throw new Error(profilesRes.error.message);
+
+    const itemNameById = new Map(
+      (itemsRes.data ?? []).map((i) => [i.id, i.name]),
+    );
+    const userNameById = new Map(
+      (profilesRes.data ?? []).map((p) => [
+        p.id,
+        jsonString(p.full_name) ?? "Usuário",
+      ]),
+    );
+
+    return matched.map((row) => {
+      const nv = jsonObject(row.new_value);
+      const oldV = jsonObject(nv?.old);
+      const newV = jsonObject(nv?.new);
+      const ticketId = jsonString(nv?.ticket_id);
+      const itemId =
+        jsonString(nv?.item_id) ??
+        (row.record_id ? itemIdByLine.get(row.record_id) ?? null : null);
+      return {
+        id: row.id,
+        action: row.action,
+        createdAt: row.created_at,
+        userId: row.user_id,
+        userName:
+          (row.user_id ? userNameById.get(row.user_id) : null) ?? "Usuário",
+        severity: classifyAuditSeverity(row.action, nv),
+        buyerName:
+          jsonString(nv?.buyer_name) ??
+          (ticketId ? buyerByTicket.get(ticketId) ?? null : null),
+        itemName: jsonString(nv?.item_name) ?? (itemId ? itemNameById.get(itemId) ?? null : null),
+        qty: jsonNumber(nv?.qty) ?? jsonNumber(newV?.qty),
+        amount: jsonNumber(nv?.amount) ?? jsonNumber(newV?.amount),
+        tender: jsonString(nv?.tender),
+        remaining: jsonNumber(nv?.remaining),
+        oldQty: jsonNumber(oldV?.qty),
+        oldAmount: jsonNumber(oldV?.amount),
+        newQty: jsonNumber(newV?.qty),
+        newAmount: jsonNumber(newV?.amount),
+      };
+    });
   });

@@ -81,6 +81,7 @@ import {
 } from "lucide-react";
 import { formatBRL, formatDateTimeBR } from "@/lib/format";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
+import { isOrgLeader } from "@/lib/permissions";
 import { matchesLooseSearch } from "@/lib/utils";
 import {
   eventDisplayStatusLabel,
@@ -95,6 +96,7 @@ import {
 } from "@/components/ui/collapsible";
 import { TicketPass } from "@/components/events/TicketPass";
 import { EventFinancePanel } from "@/components/events/EventFinancePanel";
+import { EventComandaAuditPanel } from "@/components/events/EventComandaAuditPanel";
 import { TicketComandaButton } from "@/components/events/TicketComandaDialog";
 import { EditSoldTicketDialog } from "@/components/events/EditSoldTicketDialog";
 import {
@@ -132,7 +134,8 @@ function EventoDetalhe() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { active } = useActiveChapter();
-  const { can: canPerm, canDo, canScreen } = useChapterAccess();
+  const { can: canPerm, canDo, canScreen, isAdminTotal, realCtx } =
+    useChapterAccess();
   const { data } = useSuspenseQuery(eventQO(id));
   const artworkUrl = useEventArtwork(data.event.ticket_artwork_url);
 
@@ -175,6 +178,7 @@ function EventoDetalhe() {
       canPerm("tesouraria") ||
       canPerm("comissoes") ||
       canDo("eventos.orcamento"));
+  const canViewComandaAudit = isAdminTotal || isOrgLeader(realCtx);
   const statusLabel = eventDisplayStatusLabel(
     data.event.starts_at,
     data.event.status,
@@ -259,6 +263,11 @@ function EventoDetalhe() {
           <TabsTrigger value="financeiro" className="shrink-0">
             Financeiro
           </TabsTrigger>
+          {canViewComandaAudit ? (
+            <TabsTrigger value="audit-log" className="shrink-0">
+              Audit Log
+            </TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="resumo">
@@ -409,6 +418,26 @@ function EventoDetalhe() {
             ticketTypes={data.ticketTypes}
           />
         </TabsContent>
+
+        {canViewComandaAudit ? (
+          <TabsContent value="audit-log">
+            <EventComandaAuditPanel
+              eventId={id}
+              eventName={data.event.name}
+              chapterId={data.event.chapter_id}
+              chapterName={
+                active
+                  ? `${active.chapter.name} nº ${active.chapter.number}`
+                  : undefined
+              }
+              chapterCity={active?.chapter.city}
+              logoPath={
+                (active?.chapter as { logo_url?: string | null } | undefined)
+                  ?.logo_url ?? null
+              }
+            />
+          </TabsContent>
+        ) : null}
 
         <TabsContent value="mesas">
           <TablesMap
