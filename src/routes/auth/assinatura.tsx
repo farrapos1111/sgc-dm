@@ -7,6 +7,7 @@ import {
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SignaturePad } from "@/components/investigations/SignaturePad";
+import { enterAuthenticatedApp } from "@/lib/auth-nav-cache";
 import {
   getRequiredOfficeSignature,
   saveOfficeSignature,
@@ -28,7 +29,9 @@ export const Route = createFileRoute("/auth/assinatura")({
     if (mustChangePassword) throw redirect({ to: "/auth/redefinir-senha" });
 
     const { needsSignature, requirement } = await getRequiredOfficeSignature();
-    if (!needsSignature || !requirement) throw redirect({ to: "/" });
+    if (!needsSignature || !requirement) {
+      throw redirect({ to: "/inicio", reloadDocument: true });
+    }
 
     return { user: data.user, requirement };
   },
@@ -90,11 +93,9 @@ function AssinaturaPage() {
         .eq("user_id", user.id)
         .eq("active", true);
       const distinct = new Set((memberships ?? []).map((m) => m.chapter_id));
-      if (distinct.size > 1) {
-        navigate({ to: "/selecionar-capitulo" });
-      } else {
-        navigate({ to: "/inicio" });
-      }
+      enterAuthenticatedApp(
+        distinct.size > 1 ? "/selecionar-capitulo" : "/inicio",
+      );
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Não foi possível salvar a assinatura",

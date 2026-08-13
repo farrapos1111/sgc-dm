@@ -13,7 +13,7 @@ import { applyPlatformDefaultThemeVars } from "@/lib/chapter-theme";
 export const Route = createFileRoute("/_authenticated/selecionar-capitulo")({
   head: () => ({
     meta: [
-      { title: "Selecionar capítulo — Templo Virtual" },
+      { title: "Selecionar instituição — Templo Virtual" },
       {
         name: "description",
         content: "Escolha a instituição com a qual deseja trabalhar.",

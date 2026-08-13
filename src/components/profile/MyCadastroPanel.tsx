@@ -225,7 +225,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
           <div>
             <h3 className="text-base font-semibold">{member.full_name}</h3>
             <p className="text-sm text-muted-foreground">
-              {member.chapter_name ?? "Capítulo"}
+              {member.chapter_name ?? "Instituição"}
               {member.demolay_id ? ` · ID ${member.demolay_id}` : ""}
             </p>
           </div>

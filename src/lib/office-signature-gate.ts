@@ -6,7 +6,7 @@ export async function redirectIfNeedsOfficeSignature(): Promise<void> {
   try {
     const { needsSignature } = await needsSignatureForOffices();
     if (needsSignature) {
-      throw redirect({ to: "/auth/assinatura" });
+      throw redirect({ to: "/auth/assinatura", reloadDocument: true });
     }
   } catch (e) {
     if (isRedirect(e)) throw e;

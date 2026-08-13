@@ -317,6 +317,7 @@ function AdicionarOrganizacaoPage() {
               </p>
               <Link
                 to="/auth"
+                search={{}}
                 className="inline-flex w-full items-center justify-center rounded-lg py-2.5 text-sm font-semibold text-white"
                 style={{ backgroundColor: PLATFORM_BLUE }}
               >
@@ -715,6 +716,7 @@ function AdicionarOrganizacaoPage() {
                 <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
                   <Link
                     to="/auth"
+                    search={{}}
                     className="order-2 text-center text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground sm:order-1 sm:text-left"
                   >
                     Voltar ao login

@@ -33,7 +33,7 @@ import {
   resolveChapterTheme,
 } from "@/lib/chapter-theme";
 import { isChapterDuesEnabled, isDuesOnlyNavPath } from "@/lib/dues-rules";
-import { compareOrgNumbers } from "@/lib/org-types";
+import { compareOrgNumbers, ORG_TYPE_LABELS, normalizeOrgType } from "@/lib/org-types";
 import { cn } from "@/lib/utils";
 
 /** Rotas mais pesadas — prefetch ao passar o mouse/foco. */
@@ -118,17 +118,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   const chapterSelectOptions = useMemo(() => {
     const byId = new Map<
       string,
-      { value: string; label: string; number: string; name: string }
+      { value: string; label: string; number: string; name: string; typeLabel: string }
     >();
     for (const m of memberships) {
       if (byId.has(m.chapter_id)) continue;
       const number = m.chapter.number ?? "";
       const name = m.chapter.name;
+      const typeLabel =
+        ORG_TYPE_LABELS[normalizeOrgType(m.chapter.org_type)] ?? "Instituição";
       byId.set(m.chapter_id, {
         value: m.chapter_id,
         name,
         number,
-        label: `Capítulo · ${name}`,
+        typeLabel,
+        label: `${typeLabel} · ${name}`,
       });
     }
     return [...byId.values()].sort((a, b) =>
@@ -159,7 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (chapterId && chapterId !== active?.chapter_id) {
         setActiveChapterId(chapterId);
         const opt = chapterSelectOptions.find((o) => o.value === chapterId);
-        toast.message(`Capítulo: ${opt?.name ?? "selecionado"}`);
+        toast.message(`${opt?.typeLabel ?? "Instituição"}: ${opt?.name ?? "selecionado"}`);
       }
       navigate({ to: "/inicio" });
       return;
@@ -198,7 +201,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         options={viewSelectOptions}
         onChange={handleViewChange}
         placeholder="Selecionar visão"
-        searchPlaceholder="Buscar capítulo ou visão…"
+        searchPlaceholder="Buscar instituição ou visão…"
         emptyText="Nenhum resultado."
         className="h-9 w-full text-xs"
       />

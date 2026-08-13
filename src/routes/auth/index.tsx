@@ -4,11 +4,11 @@ import {
   isRedirect,
   redirect,
   useNavigate,
-  useRouter,
 } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMustChangePassword, signInWithIdentifier } from "@/lib/accounts.functions";
+import { clearAuthNavCache, enterAuthenticatedApp } from "@/lib/auth-nav-cache";
 import {
   checkNeedsOfficeSignature,
   redirectIfNeedsOfficeSignature,
@@ -16,9 +16,10 @@ import {
 
 export const Route = createFileRoute("/auth/")({
   ssr: false,
-  validateSearch: (search: Record<string, unknown>) => ({
-    reason: typeof search.reason === "string" ? search.reason : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { reason?: string } => {
+    const reason = typeof search.reason === "string" ? search.reason : undefined;
+    return reason ? { reason } : {};
+  },
   head: () => ({
     meta: [
       { title: "Entrar — Templo Virtual" },
@@ -46,13 +47,12 @@ export const Route = createFileRoute("/auth/")({
     }
 
     await redirectIfNeedsOfficeSignature();
-    throw redirect({ to: "/" });
+    throw redirect({ to: "/inicio", reloadDocument: true });
   },
   component: AuthPage,
 });
 
 function AuthPage() {
-  const router = useRouter();
   const navigate = useNavigate();
   const { reason } = Route.useSearch();
   const [identifier, setIdentifier] = useState("");
@@ -82,7 +82,7 @@ function AuthPage() {
       }
 
       const { mustChangePassword } = await getMustChangePassword();
-      await router.invalidate();
+      clearAuthNavCache();
       if (mustChangePassword) {
         navigate({ to: "/auth/redefinir-senha" });
         return;
@@ -91,7 +91,7 @@ function AuthPage() {
         navigate({ to: "/auth/assinatura" });
         return;
       }
-      navigate({ to: "/" });
+      enterAuthenticatedApp("/inicio");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Identificador ou senha inválidos.",

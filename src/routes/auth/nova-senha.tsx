@@ -6,6 +6,7 @@ import {
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { clearMustChangePassword } from "@/lib/accounts.functions";
+import { enterAuthenticatedApp } from "@/lib/auth-nav-cache";
 
 export const Route = createFileRoute("/auth/nova-senha")({
   ssr: false,
@@ -81,7 +82,7 @@ function NovaSenhaPage() {
         // ok se não houver sessão autenticada para a server fn
       }
       await router.invalidate();
-      navigate({ to: "/" });
+      enterAuthenticatedApp("/inicio");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível salvar");
     } finally {

@@ -11,6 +11,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, type RoleName } from "@/lib/permissions";
+import { getClientRealm, getRealmForOrgType } from "@/lib/realm";
 
 export type Membership = {
   id: string;
@@ -47,6 +48,8 @@ export const ROLE_VIEW_ORDER: RoleName[] = [
 
 type ActiveChapterContextValue = {
   memberships: Membership[];
+  /** Vínculos em outros realms (ex.: Loja quando o host é ODM). */
+  otherRealmMemberships: Membership[];
   loading: boolean;
   activeChapterId: string | null;
   active: Membership | null;
@@ -183,7 +186,18 @@ export function ActiveChapterProvider({
     },
   });
 
-  const memberships = data ?? [];
+  const allMemberships = data ?? [];
+  const hostRealm = getClientRealm();
+  const memberships = hostRealm
+    ? allMemberships.filter(
+        (m) => getRealmForOrgType(m.chapter.org_type) === hostRealm,
+      )
+    : allMemberships;
+  const otherRealmMemberships = hostRealm
+    ? allMemberships.filter(
+        (m) => getRealmForOrgType(m.chapter.org_type) !== hostRealm,
+      )
+    : [];
 
   const { data: profile } = useQuery({
     queryKey: ["profile-active-chapter", userId],
@@ -227,6 +241,18 @@ export function ActiveChapterProvider({
   // Sessão atual apenas — multi-filiado escolhe de novo a cada login.
   const setActiveChapterId = useCallback(
     (id: string | null) => {
+      if (id) {
+        const realm = getClientRealm();
+        if (realm) {
+          const target = allMemberships.find((m) => m.chapter_id === id);
+          if (
+            target &&
+            getRealmForOrgType(target.chapter.org_type) !== realm
+          ) {
+            return;
+          }
+        }
+      }
       const prev = activeChapterIdRef.current;
       activeChapterIdRef.current = id;
       if (prev !== id) {
@@ -254,7 +280,7 @@ export function ActiveChapterProvider({
           });
       }
     },
-    [userId, invalidateRbacQueries],
+    [userId, invalidateRbacQueries, data],
   );
 
   // Auto-seleciona (1 capítulo) ou valida o capítulo ativo (2+).
@@ -404,6 +430,7 @@ export function ActiveChapterProvider({
   const value = useMemo<ActiveChapterContextValue>(
     () => ({
       memberships,
+      otherRealmMemberships,
       loading: isLoading,
       activeChapterId,
       active,
@@ -418,6 +445,7 @@ export function ActiveChapterProvider({
     }),
     [
       memberships,
+      otherRealmMemberships,
       isLoading,
       activeChapterId,
       active,
