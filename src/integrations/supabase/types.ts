@@ -3754,6 +3754,16 @@ export type Database = {
         Args: { _line_id: string; _qty?: number; _unit_price?: number }
         Returns: Json
       }
+      update_sold_ticket: {
+        Args: {
+          _buyer_name: string
+          _price_paid?: number
+          _seller_member_id: string
+          _ticket_id: string
+          _ticket_type_id?: string
+        }
+        Returns: Json
+      }
       update_member_with_pii: {
         Args: {
           _address: Json

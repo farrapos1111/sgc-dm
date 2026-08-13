@@ -21,16 +21,20 @@ import {
   deleteEvent,
   updateEvent,
   updateEventArtwork,
-  updateSoldTicketType,
 } from "@/lib/events.functions";
 import {
   deleteEventTicket,
   getEventFinanceTotals,
+  listEventTicketItems,
 } from "@/lib/event-finance.functions";
 import { listChargeMembers } from "@/lib/finance.functions";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
-import { formatEventFinanceHint } from "@/lib/event-finance-export";
+import {
+  buildComandaReportRows,
+  exportEventComandasPdf,
+  formatEventFinanceHint,
+} from "@/lib/event-finance-export";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,6 +70,7 @@ import {
 import {
   ArrowLeft,
   ChevronDown,
+  FileText,
   ImagePlus,
   Pencil,
   PlusCircle,
@@ -94,6 +99,7 @@ import {
 import { TicketPass } from "@/components/events/TicketPass";
 import { EventFinancePanel } from "@/components/events/EventFinancePanel";
 import { TicketComandaButton } from "@/components/events/TicketComandaDialog";
+import { EditSoldTicketDialog } from "@/components/events/EditSoldTicketDialog";
 import {
   EVENT_ARTWORK_BUCKET,
   buildTicketEmailPayload,
@@ -330,6 +336,7 @@ function EventoDetalhe() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
             <TicketsList
               eventId={id}
+              chapterId={data.event.chapter_id}
               tickets={data.tickets}
               types={data.ticketTypes}
               event={eventMeta}
@@ -337,6 +344,16 @@ function EventoDetalhe() {
               primary={active?.chapter.primary_color}
               canEditComanda={canEditFinance}
               canManageTickets={canManageTickets}
+              chapterName={
+                active
+                  ? `${active.chapter.name} nº ${active.chapter.number}`
+                  : undefined
+              }
+              chapterCity={active?.chapter.city}
+              logoPath={
+                (active?.chapter as { logo_url?: string | null } | undefined)
+                  ?.logo_url ?? null
+              }
             />
             <div className="space-y-4">
               <TicketTypesCard
@@ -826,6 +843,7 @@ function notifyTicketEmailSoon(pass: TicketPassData) {
 
 function TicketsList({
   eventId,
+  chapterId,
   tickets,
   types,
   event,
@@ -833,16 +851,23 @@ function TicketsList({
   primary,
   canEditComanda,
   canManageTickets,
+  chapterName,
+  chapterCity,
+  logoPath,
 }: {
   eventId: string;
+  chapterId: string;
   tickets: EventTicket[];
   types: EventTicketType[];
   event: { name: string; starts_at: string; location: string | null };
   artworkUrl: string | null;
   primary?: string;
   canEditComanda?: boolean;
-  /** MC ou presidente da Com. Eventos: trocar tipo / excluir ingresso. */
+  /** MC ou presidente da Com. Eventos: editar / excluir ingresso. */
   canManageTickets?: boolean;
+  chapterName?: string;
+  chapterCity?: string | null;
+  logoPath?: string | null;
 }) {
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
@@ -851,6 +876,7 @@ function TicketsList({
     [types],
   );
   const [search, setSearch] = useState("");
+  const [exportingComandas, setExportingComandas] = useState(false);
   const [statusFilter, setStatusFilter] = useState<
     "all" | "presente" | "ausente" | "pago" | "parcial" | "aberto"
   >("all");
@@ -858,6 +884,7 @@ function TicketsList({
     pass: TicketPassData;
     qrDataUrl: string;
   } | null>(null);
+  const [editingTicket, setEditingTicket] = useState<EventTicket | null>(null);
 
   const statusCounts = useMemo(() => {
     let presente = 0;
@@ -928,32 +955,6 @@ function TicketsList({
       toast.error(mutationErrorMessage(e, "Erro ao excluir ingresso")),
   });
 
-  const changeType = useMutation({
-    mutationFn: (input: {
-      ticketId: string;
-      ticketTypeId: string | null;
-      pricePaid?: number;
-    }) =>
-      updateSoldTicketType({
-        data: {
-          ticketId: input.ticketId,
-          ticketTypeId: input.ticketTypeId,
-          pricePaid: input.pricePaid,
-        },
-      }),
-    onSuccess: () => {
-      toast.success("Tipo de ingresso atualizado");
-      qc.invalidateQueries({ queryKey: ["event", eventId] });
-      qc.invalidateQueries({ queryKey: ["event-finance", eventId] });
-      qc.invalidateQueries({ queryKey: ["event-finance-totals", eventId] });
-      qc.invalidateQueries({ queryKey: ["member-charges"] });
-      qc.invalidateQueries({ queryKey: ["comanda-checkout", eventId] });
-      qc.invalidateQueries({ queryKey: ["checkin-tickets"] });
-    },
-    onError: (e: unknown) =>
-      toast.error(mutationErrorMessage(e, "Erro ao alterar tipo")),
-  });
-
   async function showQr(ticket: EventTicket) {
     if (!ticket.qr_code) {
       toast.error("Ingresso sem QR code");
@@ -1017,11 +1018,50 @@ function TicketsList({
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          {statusCounts.presente} presentes · {statusCounts.ausente} ausentes ·{" "}
-          {statusCounts.pago} pagos · {statusCounts.parcial} parciais ·{" "}
-          {statusCounts.aberto} em aberto
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[11px] text-muted-foreground">
+            {statusCounts.presente} presentes · {statusCounts.ausente} ausentes ·{" "}
+            {statusCounts.pago} pagos · {statusCounts.parcial} parciais ·{" "}
+            {statusCounts.aberto} em aberto
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={exportingComandas || tickets.length === 0}
+            onClick={async () => {
+              setExportingComandas(true);
+              try {
+                const items = await listEventTicketItems({
+                  data: { eventId },
+                });
+                const rows = buildComandaReportRows({
+                  tickets,
+                  ticketTypes: types,
+                  items,
+                });
+                await exportEventComandasPdf({
+                  chapterName: chapterName || "Capítulo",
+                  chapterCity: chapterCity ?? null,
+                  logoPath: logoPath ?? null,
+                  eventName: event.name,
+                  rows,
+                });
+                toast.success("Relatório de comandas gerado");
+              } catch (e) {
+                toast.error(
+                  e instanceof Error
+                    ? e.message
+                    : "Erro ao gerar relatório de comandas",
+                );
+              } finally {
+                setExportingComandas(false);
+              }
+            }}
+          >
+            <FileText className="mr-1 h-4 w-4" />
+            {exportingComandas ? "Gerando…" : "Comandas PDF"}
+          </Button>
+        </div>
       </div>
       {tickets.length === 0 ? (
         <div className="p-6 text-sm text-muted-foreground">
@@ -1054,61 +1094,10 @@ function TicketsList({
                   </div>
                 ) : null}
                 <div className="mt-0.5 break-words text-xs text-muted-foreground">
-                  {canManageTickets && t.status !== "cancelado" ? (
-                    <Select
-                      value={t.ticket_type_id ?? "__avulso__"}
-                      disabled={changeType.isPending}
-                      onValueChange={async (v) => {
-                        const ticketTypeId = v === "__avulso__" ? null : v;
-                        if (ticketTypeId === (t.ticket_type_id ?? null)) return;
-                        const type = ticketTypeId
-                          ? types.find((x) => x.id === ticketTypeId)
-                          : null;
-                        const pricePaid = type
-                          ? Number(type.price) || 0
-                          : Number(t.price_paid) || 0;
-                        const currentPrice = Number(t.price_paid) || 0;
-                        const typeLabel =
-                          type?.name ??
-                          (ticketTypeId ? "Tipo" : "Avulso");
-                        const ok = await confirm({
-                          title: "Alterar tipo de ingresso?",
-                          description: `De ${formatBRL(currentPrice)} para ${typeLabel} · ${formatBRL(pricePaid)}. A cobrança do vendedor será sincronizada com o novo valor.`,
-                          confirmLabel: "Alterar",
-                        });
-                        if (!ok) return;
-                        changeType.mutate({
-                          ticketId: t.id,
-                          ticketTypeId,
-                          pricePaid,
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="h-7 w-[min(100%,14rem)] text-xs">
-                        <SelectValue placeholder="Tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__avulso__">Avulso</SelectItem>
-                        {types.map((ty) => (
-                          <SelectItem key={ty.id} value={ty.id}>
-                            {ty.name} · {formatBRL(Number(ty.price))}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <>
-                      {(t.ticket_type_id
-                        ? typeMap.get(t.ticket_type_id)
-                        : undefined) ?? "Avulso"}{" "}
-                      · {formatBRL(Number(t.price_paid))}
-                    </>
-                  )}
-                  {canManageTickets && t.status !== "cancelado" ? (
-                    <span className="ml-1">
-                      · {formatBRL(Number(t.price_paid))}
-                    </span>
-                  ) : null}
+                  {(t.ticket_type_id
+                    ? typeMap.get(t.ticket_type_id)
+                    : undefined) ?? "Avulso"}{" "}
+                  · {formatBRL(Number(t.price_paid))}
                 </div>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -1158,6 +1147,15 @@ function TicketsList({
                       <ShoppingBag className="mr-1 h-4 w-4" /> Comanda
                     </Button>
                   )}
+                {canManageTickets && t.status !== "cancelado" ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setEditingTicket(t)}
+                  >
+                    <Pencil className="mr-1 h-4 w-4" /> Editar
+                  </Button>
+                ) : null}
                 <Button size="sm" variant="ghost" onClick={() => showQr(t)}>
                   <Ticket className="mr-1 h-4 w-4" /> QR
                 </Button>
@@ -1200,6 +1198,17 @@ function TicketsList({
           )}
         </DialogContent>
       </Dialog>
+      <EditSoldTicketDialog
+        open={!!editingTicket}
+        onOpenChange={(o) => {
+          if (!o) setEditingTicket(null);
+        }}
+        ticket={editingTicket}
+        types={types}
+        chapterId={chapterId}
+        eventId={eventId}
+        primary={primary}
+      />
     </Card>
     {dialog}
     </>

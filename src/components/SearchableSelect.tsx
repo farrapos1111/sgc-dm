@@ -12,7 +12,12 @@ import {
 } from "@/components/ui/command";
 import { cn, matchesLooseSearch } from "@/lib/utils";
 
-export type SearchableOption = { value: string; label: string };
+export type SearchableOption = {
+  value: string;
+  label: string;
+  /** Agrupa opções no dropdown (ex.: categoria). */
+  group?: string;
+};
 
 export function SearchableSelect({
   value,
@@ -46,8 +51,38 @@ export function SearchableSelect({
 
   const filtered = useMemo(() => {
     if (!queryReady) return [];
-    return options.filter((o) => matchesLooseSearch(o.label, query));
+    return options.filter(
+      (o) =>
+        matchesLooseSearch(o.label, query) ||
+        (o.group ? matchesLooseSearch(o.group, query) : false),
+    );
   }, [options, query, queryReady]);
+
+  const grouped = useMemo(() => {
+    const hasGroups = filtered.some((o) => o.group);
+    if (!hasGroups) {
+      return [{ heading: undefined as string | undefined, items: filtered }];
+    }
+    const map = new Map<string, SearchableOption[]>();
+    const ungrouped: SearchableOption[] = [];
+    for (const o of filtered) {
+      if (!o.group) {
+        ungrouped.push(o);
+        continue;
+      }
+      const list = map.get(o.group) ?? [];
+      list.push(o);
+      map.set(o.group, list);
+    }
+    const result = [...map.entries()].map(([heading, items]) => ({
+      heading,
+      items,
+    }));
+    if (ungrouped.length > 0) {
+      result.push({ heading: undefined, items: ungrouped });
+    }
+    return result;
+  }, [filtered]);
 
   const emptyMessage =
     !queryReady && minQueryLength > 0
@@ -87,27 +122,35 @@ export function SearchableSelect({
           />
           <CommandList>
             <CommandEmpty>{emptyMessage}</CommandEmpty>
-            <CommandGroup>
-              {filtered.map((o) => {
-                const isSelected = o.value === value;
-                return (
-                  <CommandItem
-                    key={o.value}
-                    value={o.value}
-                    onSelect={() => {
-                      onChange(o.value);
-                      setOpen(false);
-                      setQuery("");
-                    }}
-                  >
-                    <Check
-                      className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")}
-                    />
-                    <span className="truncate">{o.label}</span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
+            {grouped.map((g, i) => (
+              <CommandGroup
+                key={g.heading ?? `__ungrouped-${i}`}
+                heading={g.heading}
+              >
+                {g.items.map((o) => {
+                  const isSelected = o.value === value;
+                  return (
+                    <CommandItem
+                      key={o.value}
+                      value={o.value}
+                      onSelect={() => {
+                        onChange(o.value);
+                        setOpen(false);
+                        setQuery("");
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          isSelected ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      <span className="truncate">{o.label}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            ))}
           </CommandList>
         </Command>
       </PopoverContent>

@@ -60,7 +60,7 @@ export const orgJoinRequestSchema = z
   .object({
     orgType: z.enum(ORG_JOIN_TYPES),
     orgTypeOther: z.string().trim().max(120).optional().nullable(),
-    potenciaId: z.string().uuid("Informe a potência"),
+    potenciaId: z.string().uuid("Informe a potência").optional().nullable(),
     nameNumber: z.string().trim().min(1, "Informe o nome/número").max(200),
     fullAddress: z
       .string()
@@ -103,6 +103,13 @@ export const orgJoinRequestSchema = z
           message: "Descreva o tipo de organização",
         });
       }
+    }
+    if (v.orgType === "loja" && !v.potenciaId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["potenciaId"],
+        message: "Informe a potência",
+      });
     }
     const kind = v.sponsorKind ?? null;
     if (needsSponsor(kind) && !v.sponsoringLodge?.trim()) {
@@ -361,7 +368,7 @@ export const submitOrgJoinRequest = createServerFn({ method: "POST" })
           digitsOnlyPhone(data.responsiblePhone) || data.responsiblePhone,
         _responsible_email: data.responsibleEmail,
         _responsible_role: data.responsibleRole,
-        _potencia_id: data.potenciaId,
+        _potencia_id: data.orgType === "loja" ? data.potenciaId ?? null : null,
       } as never,
     );
 

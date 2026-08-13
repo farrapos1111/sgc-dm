@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { todayYmd } from "@/lib/timezone";
 
 export const listEvents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -19,20 +20,37 @@ export const listEvents = createServerFn({ method: "POST" })
     if (!events || events.length === 0) return [];
 
     const ids = events.map((e) => e.id);
-    const { data: tickets, error: tErr } = await context.supabase
-      .from("tickets")
-      .select("event_id, price_paid, status")
-      .in("event_id", ids);
-    if (tErr) throw new Error(tErr.message);
+    const today = todayYmd();
+    const [ticketsRes, cashRes] = await Promise.all([
+      context.supabase
+        .from("tickets")
+        .select("event_id, price_paid, status")
+        .in("event_id", ids),
+      context.supabase
+        .from("cash_entries")
+        .select("event_id, amount")
+        .in("event_id", ids)
+        .eq("category", "Eventos")
+        .eq("kind", "entrada")
+        .lte("entry_date", today),
+    ]);
+    if (ticketsRes.error) throw new Error(ticketsRes.error.message);
+    if (cashRes.error) throw new Error(cashRes.error.message);
 
     const totals = new Map<string, { raised: number; count: number }>();
-    for (const t of tickets ?? []) {
+    for (const t of ticketsRes.data ?? []) {
       const cur = totals.get(t.event_id) ?? { raised: 0, count: 0 };
       if (t.status !== "cancelado") {
         cur.raised += Number(t.price_paid ?? 0);
         cur.count += 1;
       }
       totals.set(t.event_id, cur);
+    }
+    for (const row of cashRes.data ?? []) {
+      if (!row.event_id) continue;
+      const cur = totals.get(row.event_id) ?? { raised: 0, count: 0 };
+      cur.raised += Number(row.amount) || 0;
+      totals.set(row.event_id, cur);
     }
     return events.map((e) => ({
       ...e,
@@ -288,6 +306,7 @@ export const getEvent = createServerFn({ method: "POST" })
           seller_charge_paid: charge
             ? charge.remaining <= 0 || charge.status === "pago"
             : Number(t.price_paid ?? 0) <= 0,
+          seller_charge_amount_paid: charge?.amount_paid ?? 0,
           settlement,
           checked_in: checkedInTicketIds.has(t.id),
         };
@@ -476,6 +495,46 @@ export const sellTicket = createServerFn({ method: "POST" })
       seller_charge_id: string;
     }>;
     return rows;
+  });
+
+/** Altera comprador, vendedor e tipo de um ingresso já vendido. */
+export const updateSoldTicket = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        ticketId: z.string().uuid(),
+        buyerName: z.string().min(2).max(120),
+        sellerMemberId: z.string().uuid(),
+        ticketTypeId: z.string().uuid().nullable(),
+        pricePaid: z.number().min(0).optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc(
+      "update_sold_ticket" as never,
+      {
+        _ticket_id: data.ticketId,
+        _buyer_name: data.buyerName,
+        _seller_member_id: data.sellerMemberId,
+        _ticket_type_id: data.ticketTypeId,
+        _price_paid: data.pricePaid ?? null,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    const row = result as {
+      ok?: boolean;
+      price_paid?: number | string;
+      seller_charge_id?: string | null;
+      buyer_name?: string;
+    } | null;
+    return {
+      ok: row?.ok !== false,
+      price_paid: Number(row?.price_paid) || 0,
+      seller_charge_id: row?.seller_charge_id ?? null,
+      buyer_name: row?.buyer_name ?? data.buyerName,
+    };
   });
 
 /** Altera o tipo (e opcionalmente o valor) de um ingresso já vendido. */

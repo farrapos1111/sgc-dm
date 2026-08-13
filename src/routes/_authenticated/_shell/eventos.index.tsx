@@ -294,10 +294,9 @@ function EventosList() {
 }
 
 function EventCard({ event: e }: { event: EventRow }) {
-  const pct =
-    e.goal_amount > 0
-      ? Math.min(100, (Number(e.raised) / Number(e.goal_amount)) * 100)
-      : 0;
+  const raised = Number(e.raised) || 0;
+  const goal = Number(e.goal_amount) || 0;
+  const pct = goal > 0 ? Math.min(100, (raised / goal) * 100) : 0;
   const display = eventDisplayStatus(e.starts_at, e.status);
   const label = EVENT_DISPLAY_STATUS_LABELS[display];
 
@@ -320,11 +319,13 @@ function EventCard({ event: e }: { event: EventRow }) {
             {label}
           </Badge>
         </div>
-        {e.goal_amount > 0 && (
+        {goal > 0 && (
           <div className="mt-4 space-y-1.5">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{formatBRL(Number(e.raised))}</span>
-              <span>Meta: {formatBRL(Number(e.goal_amount))}</span>
+              <span>
+                {formatBRL(raised)} · {pct.toFixed(0)}%
+              </span>
+              <span>Meta: {formatBRL(goal)}</span>
             </div>
             <Progress value={pct} className="h-1.5" />
           </div>
