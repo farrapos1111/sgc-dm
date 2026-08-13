@@ -198,10 +198,7 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
       const left = it.qty != null ? `${it.name}  (${it.qty} un.)` : it.name;
       const lines = doc.splitTextToSize(left, contentW - 45) as string[];
       const rowH =
-        4.5 +
-        Math.max(0, lines.length - 1) * 4 +
-        (it.expense > 0 ? 4 : 0) +
-        2;
+        4.5 + Math.max(0, lines.length - 1) * 4 + (it.expense > 0 ? 4 : 0) + 2;
       if (ensureSpace(rowH + 4)) {
         drawCategoryHeader(cat);
         doc.setFont("helvetica", "normal");
@@ -322,9 +319,7 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
     );
   }
 
-  doc.save(
-    `relatorio-evento-${fileSafe(input.eventName) || "evento"}.pdf`,
-  );
+  doc.save(`relatorio-evento-${fileSafe(input.eventName) || "evento"}.pdf`);
 }
 
 export type EventTicketExportRow = {
@@ -351,19 +346,9 @@ export function exportEventTicketsXlsx(
   }));
 
   const ws = XLSX.utils.json_to_sheet(sheetRows, {
-    header: [
-      "Nome Comprador",
-      "Nome Vendedor",
-      "Tipo de Ingresso",
-      "Valor",
-    ],
+    header: ["Nome Comprador", "Nome Vendedor", "Tipo de Ingresso", "Valor"],
   });
-  ws["!cols"] = [
-    { wch: 32 },
-    { wch: 28 },
-    { wch: 24 },
-    { wch: 12 },
-  ];
+  ws["!cols"] = [{ wch: 32 }, { wch: 28 }, { wch: 24 }, { wch: 12 }];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Ingressos");
@@ -596,9 +581,9 @@ export async function exportEventComandasPdf(input: {
       row.ticket_paid_amount +
       row.items.filter((i) => i.paid).reduce((s, i) => s + i.amount, 0);
     const ticketFullyPaid =
-      row.ticket_amount <= 0 || row.ticket_paid_amount >= row.ticket_amount - 0.001;
-    const ticketPartial =
-      !ticketFullyPaid && row.ticket_paid_amount > 0.001;
+      row.ticket_amount <= 0 ||
+      row.ticket_paid_amount >= row.ticket_amount - 0.001;
+    const ticketPartial = !ticketFullyPaid && row.ticket_paid_amount > 0.001;
 
     ensureSpace(28 + row.items.length * 5);
 

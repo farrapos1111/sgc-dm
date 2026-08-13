@@ -28,7 +28,7 @@ export const listEvents = createServerFn({ method: "POST" })
         .in("event_id", ids),
       context.supabase
         .from("cash_entries")
-        .select("event_id, amount")
+        .select("id, event_id, amount")
         .in("event_id", ids)
         .eq("category", "Eventos")
         .eq("kind", "entrada")
@@ -36,6 +36,21 @@ export const listEvents = createServerFn({ method: "POST" })
     ]);
     if (ticketsRes.error) throw new Error(ticketsRes.error.message);
     if (cashRes.error) throw new Error(cashRes.error.message);
+
+    const cashIds = (cashRes.data ?? [])
+      .map((r) => r.id)
+      .filter((id): id is string => !!id);
+    const chargeCashIds = new Set<string>();
+    if (cashIds.length > 0) {
+      const { data: pays, error: payErr } = await context.supabase
+        .from("member_charge_payments")
+        .select("cash_entry_id")
+        .in("cash_entry_id", cashIds);
+      if (payErr) throw new Error(payErr.message);
+      for (const p of pays ?? []) {
+        if (p.cash_entry_id) chargeCashIds.add(p.cash_entry_id);
+      }
+    }
 
     const totals = new Map<string, { raised: number; count: number }>();
     for (const t of ticketsRes.data ?? []) {
@@ -47,7 +62,7 @@ export const listEvents = createServerFn({ method: "POST" })
       totals.set(t.event_id, cur);
     }
     for (const row of cashRes.data ?? []) {
-      if (!row.event_id) continue;
+      if (!row.event_id || chargeCashIds.has(row.id)) continue;
       const cur = totals.get(row.event_id) ?? { raised: 0, count: 0 };
       cur.raised += Number(row.amount) || 0;
       totals.set(row.event_id, cur);
@@ -245,10 +260,7 @@ export const getEvent = createServerFn({ method: "POST" })
       });
     }
 
-    const itemsByTicket = new Map<
-      string,
-      { total: number; paid: number }
-    >();
+    const itemsByTicket = new Map<string, { total: number; paid: number }>();
     for (const row of itemsRes.data ?? []) {
       const cur = itemsByTicket.get(row.ticket_id) ?? { total: 0, paid: 0 };
       cur.total += 1;
@@ -260,19 +272,15 @@ export const getEvent = createServerFn({ method: "POST" })
       (checkins.data ?? []).map((c) => c.ticket_id),
     );
 
-    function settlementOf(t: (typeof ticketRows)[number]): "open" | "partial" | "paid" {
+    function settlementOf(
+      t: (typeof ticketRows)[number],
+    ): "open" | "partial" | "paid" {
       const charge = t.seller_charge_id
         ? chargeById.get(t.seller_charge_id)
         : undefined;
       const price = Number(t.price_paid ?? 0);
-      const ticketRemaining = charge
-        ? charge.remaining
-        : price > 0
-          ? price
-          : 0;
-      const ticketPaidAmount = charge
-        ? charge.amount_paid
-        : 0;
+      const ticketRemaining = charge ? charge.remaining : price > 0 ? price : 0;
+      const ticketPaidAmount = charge ? charge.amount_paid : 0;
       const items = itemsByTicket.get(t.id) ?? { total: 0, paid: 0 };
       const unpaidItems = items.total - items.paid;
       const ticketSettled = ticketRemaining <= 0;
@@ -505,7 +513,7 @@ export const updateSoldTicket = createServerFn({ method: "POST" })
       .object({
         ticketId: z.string().uuid(),
         buyerName: z.string().min(2).max(120),
-        sellerMemberId: z.string().uuid(),
+        sellerMemberId: z.string().uuid().nullable(),
         ticketTypeId: z.string().uuid().nullable(),
         pricePaid: z.number().min(0).optional(),
       })
@@ -513,14 +521,14 @@ export const updateSoldTicket = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc(
-      "update_sold_ticket" as never,
+      "update_sold_ticket",
       {
         _ticket_id: data.ticketId,
         _buyer_name: data.buyerName,
         _seller_member_id: data.sellerMemberId,
         _ticket_type_id: data.ticketTypeId,
-        _price_paid: data.pricePaid ?? null,
-      } as never,
+        _price_paid: data.pricePaid,
+      },
     );
     if (error) throw new Error(error.message);
     const row = result as {
@@ -534,40 +542,6 @@ export const updateSoldTicket = createServerFn({ method: "POST" })
       price_paid: Number(row?.price_paid) || 0,
       seller_charge_id: row?.seller_charge_id ?? null,
       buyer_name: row?.buyer_name ?? data.buyerName,
-    };
-  });
-
-/** Altera o tipo (e opcionalmente o valor) de um ingresso já vendido. */
-export const updateSoldTicketType = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((raw) =>
-    z
-      .object({
-        ticketId: z.string().uuid(),
-        ticketTypeId: z.string().uuid().nullable(),
-        pricePaid: z.number().min(0).optional(),
-      })
-      .parse(raw),
-  )
-  .handler(async ({ data, context }) => {
-    const { data: result, error } = await context.supabase.rpc(
-      "update_sold_ticket_type" as never,
-      {
-        _ticket_id: data.ticketId,
-        _ticket_type_id: data.ticketTypeId,
-        _price_paid: data.pricePaid ?? null,
-      } as never,
-    );
-    if (error) throw new Error(error.message);
-    const row = result as {
-      ok?: boolean;
-      price_paid?: number | string;
-      seller_charge_id?: string | null;
-    } | null;
-    return {
-      ok: row?.ok !== false,
-      price_paid: Number(row?.price_paid) || 0,
-      seller_charge_id: row?.seller_charge_id ?? null,
     };
   });
 
@@ -616,9 +590,7 @@ export const assignSeat = createServerFn({ method: "POST" })
 
 export const deleteTable = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) =>
-    z.object({ table_id: z.string().uuid() }).parse(raw),
-  )
+  .inputValidator((raw) => z.object({ table_id: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const { data: deleted, error } = await context.supabase
       .from("event_tables")
@@ -689,7 +661,8 @@ export const previewTicketByQr = createServerFn({ method: "POST" })
     if (event.chapter_id !== data.chapterId) {
       throw new Error("Ingresso de outro capítulo");
     }
-    if (t.status !== "valido") throw new Error("Ingresso inválido ou cancelado");
+    if (t.status !== "valido")
+      throw new Error("Ingresso inválido ou cancelado");
     if (
       buyerName &&
       t.buyer_name.trim().toLowerCase() !== buyerName.toLowerCase()
@@ -859,7 +832,8 @@ export const listChapterTicketsForCheckin = createServerFn({ method: "POST" })
 
     const ticketIds = ticketRows.map((t) => t.id);
     // PostgREST limita URLs; consulta check-ins em lotes por ticket_id.
-    const checkinChunks: Array<{ ticket_id: string; checked_in_at: string }> = [];
+    const checkinChunks: Array<{ ticket_id: string; checked_in_at: string }> =
+      [];
     const chunkSize = 200;
     for (let i = 0; i < ticketIds.length; i += chunkSize) {
       const chunk = ticketIds.slice(i, i + chunkSize);

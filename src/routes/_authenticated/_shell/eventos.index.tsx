@@ -319,17 +319,16 @@ function EventCard({ event: e }: { event: EventRow }) {
             {label}
           </Badge>
         </div>
-        {goal > 0 && (
-          <div className="mt-4 space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>
-                {formatBRL(raised)} · {pct.toFixed(0)}%
-              </span>
-              <span>Meta: {formatBRL(goal)}</span>
-            </div>
-            <Progress value={pct} className="h-1.5" />
+        <div className="mt-4 space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              {formatBRL(raised)}
+              {goal > 0 ? ` · ${pct.toFixed(0)}%` : ""}
+            </span>
+            {goal > 0 ? <span>Meta: {formatBRL(goal)}</span> : null}
           </div>
-        )}
+          {goal > 0 ? <Progress value={pct} className="h-1.5" /> : null}
+        </div>
         <div className="mt-3 text-xs text-muted-foreground">
           {e.tickets_sold}{" "}
           {e.tickets_sold === 1 ? "ingresso vendido" : "ingressos vendidos"}

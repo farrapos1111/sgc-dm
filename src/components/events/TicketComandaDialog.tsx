@@ -113,7 +113,10 @@ function ComandaReceiptBody({
               {data.ticket.ticket_type_name ?? "Ingresso"}
             </span>
             {ticketPaid ? (
-              <Badge variant="secondary" className="font-sans text-[10px] no-underline">
+              <Badge
+                variant="secondary"
+                className="font-sans text-[10px] no-underline"
+              >
                 Pago
               </Badge>
             ) : (
@@ -143,12 +146,7 @@ function ComandaReceiptBody({
               l.paid && "text-muted-foreground",
             )}
           >
-            <span
-              className={cn(
-                "min-w-0 truncate",
-                l.paid && "line-through",
-              )}
-            >
+            <span className={cn("min-w-0 truncate", l.paid && "line-through")}>
               {l.item_name ?? "Item"} × {l.qty}
             </span>
             <span className={cn("shrink-0", l.paid && "line-through")}>
@@ -415,8 +413,7 @@ export function TicketComandaDialog({
   });
 
   const removeLine = useMutation({
-    mutationFn: (lineId: string) =>
-      deleteEventTicketItem({ data: { lineId } }),
+    mutationFn: (lineId: string) => deleteEventTicketItem({ data: { lineId } }),
     onSuccess: () => {
       toast.success("Item removido da comanda");
       invalidateComanda(qc, eventId);
@@ -425,8 +422,7 @@ export function TicketComandaDialog({
   });
 
   const payLine = useMutation({
-    mutationFn: (lineId: string) =>
-      payEventTicketItem({ data: { lineId } }),
+    mutationFn: (lineId: string) => payEventTicketItem({ data: { lineId } }),
     onSuccess: (res) => {
       toast.success(
         res.alreadyPaid
@@ -541,7 +537,9 @@ export function TicketComandaDialog({
             <>
               <DialogHeader>
                 <DialogTitle>
-                  {unpaidLines.length === 0 && ticketFullyPaid && lines.length > 0
+                  {unpaidLines.length === 0 &&
+                  ticketFullyPaid &&
+                  lines.length > 0
                     ? "Extrato"
                     : "Comanda"}{" "}
                   · {buyerName}
@@ -599,7 +597,8 @@ export function TicketComandaDialog({
                   <div className="mb-2 flex items-center justify-between text-sm font-medium">
                     <span>Consumo</span>
                     <span>
-                      {unpaidComandaTotal > 0 && unpaidComandaTotal < comandaTotal
+                      {unpaidComandaTotal > 0 &&
+                      unpaidComandaTotal < comandaTotal
                         ? `${formatBRL(unpaidComandaTotal)} em aberto · ${formatBRL(comandaTotal)}`
                         : formatBRL(comandaTotal)}
                     </span>
@@ -773,10 +772,7 @@ export function TicketComandaDialog({
               </div>
 
               <DialogFooter className="flex-col gap-2 sm:flex-row">
-                <Button
-                  variant="outline"
-                  onClick={() => setCheckoutOpen(true)}
-                >
+                <Button variant="outline" onClick={() => setCheckoutOpen(true)}>
                   <Receipt className="mr-2 h-4 w-4" /> Recibo / Pix
                 </Button>
                 {hasPending ? (
@@ -819,9 +815,7 @@ export function TicketComandaDialog({
                 disabled={payAllPending.isPending}
                 onClick={() => void confirmPayAllPending()}
               >
-                {payAllPending.isPending
-                  ? "Baixando…"
-                  : "Baixar pendências"}
+                {payAllPending.isPending ? "Baixando…" : "Baixar pendências"}
               </Button>
             </DialogFooter>
           ) : null}

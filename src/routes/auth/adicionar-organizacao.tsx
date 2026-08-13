@@ -10,10 +10,7 @@ import {
   type OrgJoinType,
   type OrgJoinTypeDef,
 } from "@/lib/org-join-request.functions";
-import {
-  needsSponsor,
-  sponsorFieldLabel,
-} from "@/lib/org-types";
+import { needsSponsor, sponsorFieldLabel } from "@/lib/org-types";
 import {
   createCepLookupSeq,
   digitsOnly,
@@ -30,8 +27,7 @@ export const Route = createFileRoute("/auth/adicionar-organizacao")({
       },
       {
         name: "description",
-        content:
-          "Solicite a inclusão da sua organização no Templo Virtual.",
+        content: "Solicite a inclusão da sua organização no Templo Virtual.",
       },
     ],
   }),
@@ -59,7 +55,9 @@ function composeFullAddress(parts: {
   const line2 = [parts.complement.trim(), parts.neighborhood.trim()]
     .filter(Boolean)
     .join(" — ");
-  const line3 = [parts.city.trim(), parts.state.trim()].filter(Boolean).join("/");
+  const line3 = [parts.city.trim(), parts.state.trim()]
+    .filter(Boolean)
+    .join("/");
   const cep = parts.zip.trim() ? `CEP ${parts.zip.trim()}` : "";
   return [line1, line2, line3, cep].filter(Boolean).join(". ");
 }
@@ -141,7 +139,9 @@ function AdicionarOrganizacaoPage() {
       .catch((e) => {
         if (cancelled) return;
         setCatalogError(
-          e instanceof Error ? e.message : "Não foi possível carregar o catálogo",
+          e instanceof Error
+            ? e.message
+            : "Não foi possível carregar o catálogo",
         );
       });
     return () => {
@@ -150,7 +150,7 @@ function AdicionarOrganizacaoPage() {
   }, []);
 
   const isLoja = orgType === "loja";
-
+  const catalogLoading = catalog === null && !catalogError;
   const lodgePotencias = useMemo(
     () =>
       (catalog?.potencias ?? []).filter(
@@ -158,6 +158,7 @@ function AdicionarOrganizacaoPage() {
       ),
     [catalog],
   );
+  const noLodgePotencias = catalog !== null && lodgePotencias.length === 0;
 
   const availableTypes = useMemo(
     () => (catalog?.org_types ?? []) as OrgJoinTypeDef[],
@@ -185,10 +186,7 @@ function AdicionarOrganizacaoPage() {
       if (potenciaId) setPotenciaId("");
       return;
     }
-    if (
-      potenciaId &&
-      lodgePotencias.some((p) => p.id === potenciaId)
-    ) {
+    if (potenciaId && lodgePotencias.some((p) => p.id === potenciaId)) {
       return;
     }
     const first = lodgePotencias[0];
@@ -281,6 +279,18 @@ function AdicionarOrganizacaoPage() {
       return;
     }
 
+    if (isLoja && catalogLoading) {
+      setError("Aguarde o carregamento das potências");
+      return;
+    }
+    if (isLoja && noLodgePotencias) {
+      setFieldErrors({
+        potenciaId: "Nenhuma potência disponível para loja",
+      });
+      setError("Nenhuma potência disponível para loja");
+      return;
+    }
+
     const parsed = orgJoinRequestSchema.safeParse(payload);
     if (!parsed.success) {
       const next: Record<string, string> = {};
@@ -347,9 +357,7 @@ function AdicionarOrganizacaoPage() {
 
                 <div
                   className={
-                    isLoja
-                      ? "grid grid-cols-1 gap-3 sm:grid-cols-2"
-                      : undefined
+                    isLoja ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : undefined
                   }
                 >
                   <Field label="Tipo de organização *" htmlFor="org-type">
@@ -383,10 +391,12 @@ function AdicionarOrganizacaoPage() {
                         className={inputClass}
                         style={RING}
                         required
-                        disabled={lodgePotencias.length === 0}
+                        disabled={catalogLoading || noLodgePotencias}
                       >
-                        {lodgePotencias.length === 0 ? (
+                        {catalogLoading ? (
                           <option value="">Carregando…</option>
+                        ) : noLodgePotencias ? (
+                          <option value="">Indisponível</option>
                         ) : (
                           lodgePotencias.map((p) => (
                             <option key={p.id} value={p.id}>
@@ -395,6 +405,11 @@ function AdicionarOrganizacaoPage() {
                           ))
                         )}
                       </select>
+                      {noLodgePotencias ? (
+                        <p className="mt-0.5 text-[11px] text-destructive">
+                          Nenhuma potência disponível para loja.
+                        </p>
+                      ) : null}
                     </Field>
                   ) : null}
                 </div>
@@ -493,7 +508,8 @@ function AdicionarOrganizacaoPage() {
                           activeMembersBand === band
                             ? {
                                 borderColor: PLATFORM_BLUE,
-                                backgroundColor: "color-mix(in srgb, #072D5A 10%, transparent)",
+                                backgroundColor:
+                                  "color-mix(in srgb, #072D5A 10%, transparent)",
                                 color: PLATFORM_BLUE,
                               }
                             : undefined
@@ -628,7 +644,11 @@ function AdicionarOrganizacaoPage() {
                         required
                       />
                     </Field>
-                    <Field label="UF *" htmlFor="addr-state" className="sm:col-span-1">
+                    <Field
+                      label="UF *"
+                      htmlFor="addr-state"
+                      className="sm:col-span-1"
+                    >
                       <input
                         id="addr-state"
                         value={state}
@@ -728,7 +748,10 @@ function AdicionarOrganizacaoPage() {
                   </Link>
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={
+                      submitting ||
+                      (isLoja && (catalogLoading || noLodgePotencias))
+                    }
                     className="order-1 h-10 w-full cursor-pointer rounded-lg text-sm font-semibold text-white transition-opacity disabled:opacity-60 sm:order-2 sm:w-auto sm:min-w-[200px] sm:px-6"
                     style={{ backgroundColor: PLATFORM_BLUE }}
                   >
