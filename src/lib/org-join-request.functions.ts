@@ -23,12 +23,7 @@ export const ORG_JOIN_TYPE_LABELS: Record<OrgJoinType, string> = {
   ...ORG_TYPE_LABELS,
 };
 
-export const ACTIVE_MEMBERS_BANDS = [
-  "5-10",
-  "10-25",
-  "25-30",
-  "30+",
-] as const;
+export const ACTIVE_MEMBERS_BANDS = ["5-10", "10-25", "25-30", "30+"] as const;
 
 export type ActiveMembersBand = (typeof ACTIVE_MEMBERS_BANDS)[number];
 
@@ -67,9 +62,7 @@ export const orgJoinRequestSchema = z
       .trim()
       .min(1, "Informe o endereço completo")
       .max(500),
-    foundedOn: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida"),
+    foundedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida"),
     activeMembersBand: z.enum(ACTIVE_MEMBERS_BANDS),
     sponsoringLodge: z.string().trim().max(200).optional().nullable(),
     responsibleName: z
@@ -82,11 +75,7 @@ export const orgJoinRequestSchema = z
       .trim()
       .min(1, "Informe o telefone")
       .regex(phoneRegex, "Telefone inválido"),
-    responsibleEmail: z
-      .string()
-      .trim()
-      .email("E-mail inválido")
-      .max(200),
+    responsibleEmail: z.string().trim().email("E-mail inválido").max(200),
     responsibleRole: z
       .string()
       .trim()
@@ -194,9 +183,7 @@ function digitsOnlyPhone(phone: string): string {
 
 function hashOrgJoinKey(email: string, phone: string): string {
   return createHash("sha256")
-    .update(
-      [email.trim().toLowerCase(), digitsOnlyPhone(phone)].join("|"),
-    )
+    .update([email.trim().toLowerCase(), digitsOnlyPhone(phone)].join("|"))
     .digest("hex");
 }
 
@@ -205,9 +192,8 @@ async function assertOrgJoinNotThrottled(
   phone: string,
   ip: string | null,
 ) {
-  const { supabaseAdmin } = await import(
-    "@/integrations/supabase/client.server"
-  );
+  const { supabaseAdmin } =
+    await import("@/integrations/supabase/client.server");
   const idKey = hashOrgJoinKey(email, phone);
   const scopes: { scope: string; key: string }[] = [
     { scope: "org_join", key: idKey },
@@ -246,9 +232,8 @@ async function recordOrgJoinAttempt(
   phone: string,
   ip: string | null,
 ) {
-  const { supabaseAdmin } = await import(
-    "@/integrations/supabase/client.server"
-  );
+  const { supabaseAdmin } =
+    await import("@/integrations/supabase/client.server");
   const idKey = hashOrgJoinKey(email, phone);
   const jobs: { key: string; max: number }[] = [
     { key: idKey, max: ORG_JOIN_ID_MAX },
@@ -298,7 +283,9 @@ function parseCatalog(raw: unknown): OrgJoinCatalog {
         org_type: orgType as OrgJoinType,
         label: String(row.label ?? orgType),
         unit_label: String(row.unit_label ?? ""),
-        billing_model: (row.billing_model === "pago" ? "pago" : "gratuito") as BillingModel,
+        billing_model: (row.billing_model === "pago"
+          ? "pago"
+          : "gratuito") as BillingModel,
         rollout_scope: String(row.rollout_scope ?? "RS"),
         form_schema: (row.form_schema ?? {}) as OrgTypeFormSchema,
       };
@@ -368,7 +355,8 @@ export const submitOrgJoinRequest = createServerFn({ method: "POST" })
           digitsOnlyPhone(data.responsiblePhone) || data.responsiblePhone,
         _responsible_email: data.responsibleEmail,
         _responsible_role: data.responsibleRole,
-        _potencia_id: data.orgType === "loja" ? data.potenciaId ?? null : null,
+        _potencia_id:
+          data.orgType === "loja" ? (data.potenciaId ?? null) : null,
       } as never,
     );
 
@@ -440,9 +428,8 @@ export const submitOrgJoinRequest = createServerFn({ method: "POST" })
     }
 
     try {
-      const { supabaseAdmin } = await import(
-        "@/integrations/supabase/client.server"
-      );
+      const { supabaseAdmin } =
+        await import("@/integrations/supabase/client.server");
       await supabaseAdmin
         .from("org_join_requests" as never)
         .update({

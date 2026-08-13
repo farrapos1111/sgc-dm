@@ -77,10 +77,7 @@ export function EditSoldTicketDialog({
     [sellersQ.data],
   );
 
-  const sellerLocked =
-    !!ticket &&
-    ((ticket.seller_charge_amount_paid ?? 0) > 0 ||
-      ticket.seller_charge_paid === true);
+  const sellerLocked = !!ticket && (ticket.seller_charge_amount_paid ?? 0) > 0;
 
   useEffect(() => {
     if (!open || !ticket) return;
@@ -100,7 +97,9 @@ export function EditSoldTicketDialog({
 
   const parsedPrice = Number(String(price).replace(",", "."));
   const typeChanged =
-    !!ticket && (ticket.ticket_type_id ?? null) !== (typeId === "__avulso__" ? null : typeId);
+    !!ticket &&
+    (ticket.ticket_type_id ?? null) !==
+      (typeId === "__avulso__" ? null : typeId);
   const priceChanged =
     !!ticket && Math.abs(Number(ticket.price_paid) - parsedPrice) > 0.001;
 
@@ -111,7 +110,7 @@ export function EditSoldTicketDialog({
         data: {
           ticketId: ticket.id,
           buyerName: buyer.trim(),
-          sellerMemberId: sellerId,
+          sellerMemberId: sellerId || null,
           ticketTypeId: typeId === "__avulso__" ? null : typeId,
           pricePaid: parsedPrice,
         },
@@ -140,13 +139,10 @@ export function EditSoldTicketDialog({
         <div className="space-y-3">
           <div>
             <Label className="mb-1 block text-xs">Comprador *</Label>
-            <Input
-              value={buyer}
-              onChange={(e) => setBuyer(e.target.value)}
-            />
+            <Input value={buyer} onChange={(e) => setBuyer(e.target.value)} />
           </div>
           <div>
-            <Label className="mb-1 block text-xs">Vendedor *</Label>
+            <Label className="mb-1 block text-xs">Vendedor</Label>
             <SearchableSelect
               value={sellerId}
               options={sellerOptions}
@@ -210,7 +206,6 @@ export function EditSoldTicketDialog({
             disabled={
               save.isPending ||
               buyer.trim().length < 2 ||
-              !sellerId ||
               !(Number.isFinite(parsedPrice) && parsedPrice >= 0)
             }
             onClick={() => save.mutate()}

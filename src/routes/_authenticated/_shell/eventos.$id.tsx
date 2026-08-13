@@ -86,10 +86,7 @@ import {
   eventDisplayStatusLabel,
   isEventFinanceOpen,
 } from "@/lib/event-lifecycle";
-import {
-  fromAppTzDateTimeLocal,
-  toAppTzDateTimeLocal,
-} from "@/lib/timezone";
+import { fromAppTzDateTimeLocal, toAppTzDateTimeLocal } from "@/lib/timezone";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Collapsible,
@@ -167,9 +164,7 @@ function EventoDetalhe() {
   const canDelete = canDo("eventos.manage");
   const canManageTickets = canDo("eventos.manage");
   const canEditEvent =
-    canDo("eventos.manage") ||
-    canPerm("admin") ||
-    canScreen("eventos", "edit");
+    canDo("eventos.manage") || canPerm("admin") || canScreen("eventos", "edit");
   const financeWindowOpen = isEventFinanceOpen(
     data.event.starts_at,
     data.event.status,
@@ -822,8 +817,7 @@ function TicketArtworkCard({
           </Button>
         ) : null}
         <p className="w-full text-xs text-muted-foreground">
-          Recomendado: 1200×600 px. Aparece no topo do ingresso (estilo
-          Sympla).
+          Recomendado: 1200×600 px. Aparece no topo do ingresso (estilo Sympla).
         </p>
       </div>
     </Card>
@@ -836,9 +830,7 @@ function notifyTicketEmailSoon(pass: TicketPassData) {
     toast.error("Este ingresso não tem e-mail do comprador");
     return;
   }
-  toast.info(
-    `Envio por e-mail em breve — destino: ${payload.to}`,
-  );
+  toast.info(`Envio por e-mail em breve — destino: ${payload.to}`);
 }
 
 function TicketsList({
@@ -908,7 +900,8 @@ function TicketsList({
       if (statusFilter === "presente" && !t.checked_in) return false;
       if (statusFilter === "ausente" && t.checked_in) return false;
       if (statusFilter === "pago" && t.settlement !== "paid") return false;
-      if (statusFilter === "parcial" && t.settlement !== "partial") return false;
+      if (statusFilter === "parcial" && t.settlement !== "partial")
+        return false;
       if (
         statusFilter === "aberto" &&
         (t.settlement === "paid" || t.settlement === "partial")
@@ -937,8 +930,7 @@ function TicketsList({
   }, [tickets, search, typeMap, statusFilter]);
 
   const removeTicket = useMutation({
-    mutationFn: (ticketId: string) =>
-      deleteEventTicket({ data: { ticketId } }),
+    mutationFn: (ticketId: string) => deleteEventTicket({ data: { ticketId } }),
     onSuccess: (res) => {
       toast.success(
         res.comanda_items_removed > 0
@@ -976,241 +968,243 @@ function TicketsList({
 
   return (
     <>
-    <Card className="rounded-[12px] p-0">
-      <div className="border-b border-border p-3 space-y-2">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar nome, vendedor, tipo ou status…"
-            className="pl-9"
-            aria-label="Buscar ingressos"
-          />
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {(
-            [
-              ["all", "Todos"],
-              ["presente", `Presentes (${statusCounts.presente})`],
-              ["ausente", `Ausentes (${statusCounts.ausente})`],
-              ["pago", `Pagos (${statusCounts.pago})`],
-              ["parcial", `Parciais (${statusCounts.parcial})`],
-              ["aberto", `Em aberto (${statusCounts.aberto})`],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setStatusFilter(key)}
-              className="cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors"
-              style={
-                statusFilter === key
-                  ? {
-                      backgroundColor: primary || "var(--chapter-primary)",
-                      borderColor: primary || "var(--chapter-primary)",
-                      color: "#fff",
-                    }
-                  : undefined
-              }
+      <Card className="rounded-[12px] p-0">
+        <div className="border-b border-border p-3 space-y-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar nome, vendedor, tipo ou status…"
+              className="pl-9"
+              aria-label="Buscar ingressos"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {(
+              [
+                ["all", "Todos"],
+                ["presente", `Presentes (${statusCounts.presente})`],
+                ["ausente", `Ausentes (${statusCounts.ausente})`],
+                ["pago", `Pagos (${statusCounts.pago})`],
+                ["parcial", `Parciais (${statusCounts.parcial})`],
+                ["aberto", `Em aberto (${statusCounts.aberto})`],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStatusFilter(key)}
+                className="cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors"
+                style={
+                  statusFilter === key
+                    ? {
+                        backgroundColor: primary || "var(--chapter-primary)",
+                        borderColor: primary || "var(--chapter-primary)",
+                        color: "#fff",
+                      }
+                    : undefined
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] text-muted-foreground">
+              {statusCounts.presente} presentes · {statusCounts.ausente}{" "}
+              ausentes · {statusCounts.pago} pagos · {statusCounts.parcial}{" "}
+              parciais · {statusCounts.aberto} em aberto
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={exportingComandas || tickets.length === 0}
+              onClick={async () => {
+                setExportingComandas(true);
+                try {
+                  const items = await listEventTicketItems({
+                    data: { eventId },
+                  });
+                  const rows = buildComandaReportRows({
+                    tickets,
+                    ticketTypes: types,
+                    items,
+                  });
+                  await exportEventComandasPdf({
+                    chapterName: chapterName || "Capítulo",
+                    chapterCity: chapterCity ?? null,
+                    logoPath: logoPath ?? null,
+                    eventName: event.name,
+                    rows,
+                  });
+                  toast.success("Relatório de comandas gerado");
+                } catch (e) {
+                  toast.error(
+                    e instanceof Error
+                      ? e.message
+                      : "Erro ao gerar relatório de comandas",
+                  );
+                } finally {
+                  setExportingComandas(false);
+                }
+              }}
             >
-              {label}
-            </button>
-          ))}
+              <FileText className="mr-1 h-4 w-4" />
+              {exportingComandas ? "Gerando…" : "Comandas PDF"}
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] text-muted-foreground">
-            {statusCounts.presente} presentes · {statusCounts.ausente} ausentes ·{" "}
-            {statusCounts.pago} pagos · {statusCounts.parcial} parciais ·{" "}
-            {statusCounts.aberto} em aberto
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={exportingComandas || tickets.length === 0}
-            onClick={async () => {
-              setExportingComandas(true);
-              try {
-                const items = await listEventTicketItems({
-                  data: { eventId },
-                });
-                const rows = buildComandaReportRows({
-                  tickets,
-                  ticketTypes: types,
-                  items,
-                });
-                await exportEventComandasPdf({
-                  chapterName: chapterName || "Capítulo",
-                  chapterCity: chapterCity ?? null,
-                  logoPath: logoPath ?? null,
-                  eventName: event.name,
-                  rows,
-                });
-                toast.success("Relatório de comandas gerado");
-              } catch (e) {
-                toast.error(
-                  e instanceof Error
-                    ? e.message
-                    : "Erro ao gerar relatório de comandas",
-                );
-              } finally {
-                setExportingComandas(false);
-              }
-            }}
-          >
-            <FileText className="mr-1 h-4 w-4" />
-            {exportingComandas ? "Gerando…" : "Comandas PDF"}
-          </Button>
-        </div>
-      </div>
-      {tickets.length === 0 ? (
-        <div className="p-6 text-sm text-muted-foreground">
-          Nenhum ingresso vendido ainda.
-        </div>
-      ) : filteredTickets.length === 0 ? (
-        <div className="p-6 text-sm text-muted-foreground">
-          Nenhum ingresso encontrado para “{search.trim()}”.
-        </div>
-      ) : (
-        <ul className="divide-y divide-border">
-          {filteredTickets.map((t) => (
-            <li
-              key={t.id}
-              className={
-                t.settlement === "paid"
-                  ? "flex flex-col gap-2 bg-emerald-500/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
-                  : t.settlement === "partial"
-                    ? "flex flex-col gap-2 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
-                    : "flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
-              }
-            >
-              <div className="min-w-0 flex-1">
-                <div className="break-words font-medium leading-snug">
-                  {t.buyer_name}
-                </div>
-                {t.seller_name ? (
-                  <div className="break-words text-xs text-muted-foreground">
-                    Vend. {t.seller_name}
+        {tickets.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground">
+            Nenhum ingresso vendido ainda.
+          </div>
+        ) : filteredTickets.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground">
+            Nenhum ingresso encontrado para “{search.trim()}”.
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {filteredTickets.map((t) => (
+              <li
+                key={t.id}
+                className={
+                  t.settlement === "paid"
+                    ? "flex flex-col gap-2 bg-emerald-500/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                    : t.settlement === "partial"
+                      ? "flex flex-col gap-2 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                      : "flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                }
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="break-words font-medium leading-snug">
+                    {t.buyer_name}
                   </div>
-                ) : null}
-                <div className="mt-0.5 break-words text-xs text-muted-foreground">
-                  {(t.ticket_type_id
-                    ? typeMap.get(t.ticket_type_id)
-                    : undefined) ?? "Avulso"}{" "}
-                  · {formatBRL(Number(t.price_paid))}
+                  {t.seller_name ? (
+                    <div className="break-words text-xs text-muted-foreground">
+                      Vend. {t.seller_name}
+                    </div>
+                  ) : null}
+                  <div className="mt-0.5 break-words text-xs text-muted-foreground">
+                    {(t.ticket_type_id
+                      ? typeMap.get(t.ticket_type_id)
+                      : undefined) ?? "Avulso"}{" "}
+                    · {formatBRL(Number(t.price_paid))}
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {t.settlement === "paid" ? (
-                  <Badge className="border-transparent bg-emerald-500/20 text-emerald-800 capitalize dark:text-emerald-300">
-                    <span
-                      className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400"
-                      aria-hidden
-                    />
-                    Paga
-                  </Badge>
-                ) : t.settlement === "partial" ? (
-                  <Badge className="border-transparent bg-amber-500/20 text-amber-900 capitalize dark:text-amber-200">
-                    <span
-                      className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-600 dark:bg-amber-400"
-                      aria-hidden
-                    />
-                    Parcialmente pago
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary" className="capitalize">
-                    <span
-                      className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/70"
-                      aria-hidden
-                    />
-                    {t.status}
-                  </Badge>
-                )}
-                {canEditComanda && t.status !== "cancelado" && t.checked_in && (
-                  <TicketComandaButton
-                    eventId={eventId}
-                    ticketId={t.id}
-                    buyerName={t.buyer_name}
-                    primary={primary}
-                    paid={t.settlement === "paid"}
-                  />
-                )}
-                {canEditComanda &&
-                  t.status !== "cancelado" &&
-                  !t.checked_in && (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {t.settlement === "paid" ? (
+                    <Badge className="border-transparent bg-emerald-500/20 text-emerald-800 capitalize dark:text-emerald-300">
+                      <span
+                        className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400"
+                        aria-hidden
+                      />
+                      Paga
+                    </Badge>
+                  ) : t.settlement === "partial" ? (
+                    <Badge className="border-transparent bg-amber-500/20 text-amber-900 capitalize dark:text-amber-200">
+                      <span
+                        className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-600 dark:bg-amber-400"
+                        aria-hidden
+                      />
+                      Parcialmente pago
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="capitalize">
+                      <span
+                        className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/70"
+                        aria-hidden
+                      />
+                      {t.status}
+                    </Badge>
+                  )}
+                  {canEditComanda &&
+                    t.status !== "cancelado" &&
+                    t.checked_in && (
+                      <TicketComandaButton
+                        eventId={eventId}
+                        ticketId={t.id}
+                        buyerName={t.buyer_name}
+                        primary={primary}
+                        paid={t.settlement === "paid"}
+                      />
+                    )}
+                  {canEditComanda &&
+                    t.status !== "cancelado" &&
+                    !t.checked_in && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled
+                        title="Comanda disponível após o check-in"
+                      >
+                        <ShoppingBag className="mr-1 h-4 w-4" /> Comanda
+                      </Button>
+                    )}
+                  {canManageTickets && t.status !== "cancelado" ? (
                     <Button
                       size="sm"
-                      variant="outline"
-                      disabled
-                      title="Comanda disponível após o check-in"
+                      variant="ghost"
+                      onClick={() => setEditingTicket(t)}
                     >
-                      <ShoppingBag className="mr-1 h-4 w-4" /> Comanda
+                      <Pencil className="mr-1 h-4 w-4" /> Editar
+                    </Button>
+                  ) : null}
+                  <Button size="sm" variant="ghost" onClick={() => showQr(t)}>
+                    <Ticket className="mr-1 h-4 w-4" /> QR
+                  </Button>
+                  {canManageTickets && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive"
+                      disabled={removeTicket.isPending}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: "Excluir ingresso?",
+                          description: `Excluir o ingresso de “${t.buyer_name}”? Isso remove comanda, cobrança do vendedor, check-in, assento e lançamentos de caixa vinculados.`,
+                          confirmLabel: "Excluir",
+                        });
+                        if (ok) removeTicket.mutate(t.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
-                {canManageTickets && t.status !== "cancelado" ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setEditingTicket(t)}
-                  >
-                    <Pencil className="mr-1 h-4 w-4" /> Editar
-                  </Button>
-                ) : null}
-                <Button size="sm" variant="ghost" onClick={() => showQr(t)}>
-                  <Ticket className="mr-1 h-4 w-4" /> QR
-                </Button>
-                {canManageTickets && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive"
-                    disabled={removeTicket.isPending}
-                    onClick={async () => {
-                      const ok = await confirm({
-                        title: "Excluir ingresso?",
-                        description: `Excluir o ingresso de “${t.buyer_name}”? Isso remove comanda, cobrança do vendedor, check-in, assento e lançamentos de caixa vinculados.`,
-                        confirmLabel: "Excluir",
-                      });
-                      if (ok) removeTicket.mutate(t.id);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md p-0 gap-0 overflow-hidden">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Ingresso</DialogTitle>
-          </DialogHeader>
-          {preview && (
-            <TicketPass
-              pass={preview.pass}
-              qrDataUrl={preview.qrDataUrl}
-              className="rounded-none border-0 shadow-none"
-              onSendEmail={() => notifyTicketEmailSoon(preview.pass)}
-              sendEmailLabel="Enviar por e-mail (em breve)"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-      <EditSoldTicketDialog
-        open={!!editingTicket}
-        onOpenChange={(o) => {
-          if (!o) setEditingTicket(null);
-        }}
-        ticket={editingTicket}
-        types={types}
-        chapterId={chapterId}
-        eventId={eventId}
-        primary={primary}
-      />
-    </Card>
-    {dialog}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md p-0 gap-0 overflow-hidden">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Ingresso</DialogTitle>
+            </DialogHeader>
+            {preview && (
+              <TicketPass
+                pass={preview.pass}
+                qrDataUrl={preview.qrDataUrl}
+                className="rounded-none border-0 shadow-none"
+                onSendEmail={() => notifyTicketEmailSoon(preview.pass)}
+                sendEmailLabel="Enviar por e-mail (em breve)"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+        <EditSoldTicketDialog
+          open={!!editingTicket}
+          onOpenChange={(o) => {
+            if (!o) setEditingTicket(null);
+          }}
+          ticket={editingTicket}
+          types={types}
+          chapterId={chapterId}
+          eventId={eventId}
+          primary={primary}
+        />
+      </Card>
+      {dialog}
     </>
   );
 }
@@ -1301,215 +1295,228 @@ function TicketTypesCard({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-    <Card className="rounded-[12px] p-0">
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className="flex w-full items-center justify-between gap-2 px-5 py-4 text-left"
-        >
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold">Tipos de ingresso</h3>
-            <p className="text-xs text-muted-foreground">
-              {types.length === 0
-                ? "Nenhum tipo"
-                : `${types.length} tipo${types.length === 1 ? "" : "s"}`}
-            </p>
-          </div>
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-              open ? "rotate-180" : ""
-            }`}
-          />
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-      <div className="space-y-4 border-t border-border px-5 pb-5 pt-3">
-      <ul className="space-y-2">
-        {types.length === 0 && (
-          <li className="text-sm text-muted-foreground">
-            Nenhum tipo cadastrado.
-          </li>
-        )}
-        {types.map((t) => {
-          const sold = soldByType.get(t.id) ?? 0;
-          return (
-            <li
-              key={t.id}
-              className="rounded-[8px] border border-border px-3 py-2"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="break-words text-sm font-medium leading-snug">{t.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatBRL(Number(t.price))} · {sold}
-                    {t.quantity_total > 0
-                      ? ` / ${t.quantity_total}`
-                      : ""}{" "}
-                    vendidos
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={() => openEdit(t)}
-                    aria-label={`Editar ${t.name}`}
+      <Card className="rounded-[12px] p-0">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 px-5 py-4 text-left"
+          >
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold">Tipos de ingresso</h3>
+              <p className="text-xs text-muted-foreground">
+                {types.length === 0
+                  ? "Nenhum tipo"
+                  : `${types.length} tipo${types.length === 1 ? "" : "s"}`}
+              </p>
+            </div>
+            <ChevronDown
+              className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                open ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="space-y-4 border-t border-border px-5 pb-5 pt-3">
+            <ul className="space-y-2">
+              {types.length === 0 && (
+                <li className="text-sm text-muted-foreground">
+                  Nenhum tipo cadastrado.
+                </li>
+              )}
+              {types.map((t) => {
+                const sold = soldByType.get(t.id) ?? 0;
+                return (
+                  <li
+                    key={t.id}
+                    className="rounded-[8px] border border-border px-3 py-2"
                   >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        disabled={deleteM.isPending}
-                        aria-label={`Excluir ${t.name}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir tipo?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Remove “{t.name}”. Ingressos já vendidos deste tipo
-                          passam a figurar como avulsos.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={(e) => {
-                            e.preventDefault();
-                            deleteM.mutate(t.id);
-                          }}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="break-words text-sm font-medium leading-snug">
+                          {t.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatBRL(Number(t.price))} · {sold}
+                          {t.quantity_total > 0
+                            ? ` / ${t.quantity_total}`
+                            : ""}{" "}
+                          vendidos
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => openEdit(t)}
+                          aria-label={`Editar ${t.name}`}
                         >
-                          Excluir
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              disabled={deleteM.isPending}
+                              aria-label={`Excluir ${t.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir tipo?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Remove “{t.name}”. Ingressos já vendidos deste
+                                tipo passam a figurar como avulsos.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  deleteM.mutate(t.id);
+                                }}
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="space-y-2 border-t border-border pt-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                Novo tipo
+              </p>
+              <div>
+                <Label
+                  htmlFor="ticket-type-name"
+                  className="mb-1 block text-xs"
+                >
+                  Nome
+                </Label>
+                <Input
+                  id="ticket-type-name"
+                  placeholder="Ex: Pista"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label
+                    htmlFor="ticket-type-price"
+                    className="mb-1 block text-xs"
+                  >
+                    Preço
+                  </Label>
+                  <Input
+                    id="ticket-type-price"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={price}
+                    onChange={(e) => setPrice(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label
+                    htmlFor="ticket-type-qty"
+                    className="mb-1 block text-xs"
+                  >
+                    Quantidade
+                  </Label>
+                  <Input
+                    id="ticket-type-qty"
+                    type="number"
+                    min={0}
+                    value={qty}
+                    onChange={(e) => setQty(Number(e.target.value))}
+                  />
                 </div>
               </div>
-            </li>
-          );
-        })}
-      </ul>
-      <div className="space-y-2 border-t border-border pt-3">
-        <p className="text-xs font-medium text-muted-foreground">Novo tipo</p>
-        <div>
-          <Label htmlFor="ticket-type-name" className="mb-1 block text-xs">
-            Nome
-          </Label>
-          <Input
-            id="ticket-type-name"
-            placeholder="Ex: Pista"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label htmlFor="ticket-type-price" className="mb-1 block text-xs">
-              Preço
-            </Label>
-            <Input
-              id="ticket-type-price"
-              type="number"
-              min={0}
-              step="0.01"
-              value={price}
-              onChange={(e) => setPrice(Number(e.target.value))}
-            />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (!name.trim()) {
+                    toast.error("Informe o nome");
+                    return;
+                  }
+                  createM.mutate();
+                }}
+                disabled={createM.isPending}
+              >
+                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar tipo
+              </Button>
+            </div>
           </div>
-          <div>
-            <Label htmlFor="ticket-type-qty" className="mb-1 block text-xs">
-              Quantidade
-            </Label>
-            <Input
-              id="ticket-type-qty"
-              type="number"
-              min={0}
-              value={qty}
-              onChange={(e) => setQty(Number(e.target.value))}
-            />
-          </div>
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            if (!name.trim()) {
-              toast.error("Informe o nome");
-              return;
-            }
-            createM.mutate();
-          }}
-          disabled={createM.isPending}
-        >
-          <PlusCircle className="mr-2 h-4 w-4" /> Adicionar tipo
-        </Button>
-      </div>
-      </div>
-      </CollapsibleContent>
+        </CollapsibleContent>
 
-      <Dialog
-        open={!!editing}
-        onOpenChange={(o) => {
-          if (!o) setEditing(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar tipo de ingresso</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="mb-1 block text-xs">Nome</Label>
-              <Input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+        <Dialog
+          open={!!editing}
+          onOpenChange={(o) => {
+            if (!o) setEditing(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar tipo de ingresso</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
               <div>
-                <Label className="mb-1 block text-xs">Preço</Label>
+                <Label className="mb-1 block text-xs">Nome</Label>
                 <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={editPrice}
-                  onChange={(e) => setEditPrice(Number(e.target.value))}
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
                 />
               </div>
-              <div>
-                <Label className="mb-1 block text-xs">Quantidade</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={editQty}
-                  onChange={(e) => setEditQty(Number(e.target.value))}
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="mb-1 block text-xs">Preço</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label className="mb-1 block text-xs">Quantidade</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={editQty}
+                    onChange={(e) => setEditQty(Number(e.target.value))}
+                  />
+                </div>
               </div>
+              <Button
+                onClick={() => {
+                  if (!editName.trim()) {
+                    toast.error("Informe o nome");
+                    return;
+                  }
+                  updateM.mutate();
+                }}
+                disabled={updateM.isPending}
+              >
+                {updateM.isPending ? "Salvando…" : "Salvar"}
+              </Button>
             </div>
-            <Button
-              onClick={() => {
-                if (!editName.trim()) {
-                  toast.error("Informe o nome");
-                  return;
-                }
-                updateM.mutate();
-              }}
-              disabled={updateM.isPending}
-            >
-              {updateM.isPending ? "Salvando…" : "Salvar"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </Card>
+          </DialogContent>
+        </Dialog>
+      </Card>
     </Collapsible>
   );
 }
@@ -1643,90 +1650,96 @@ function SellTicketCard({
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="space-y-3 border-t border-border px-5 pb-5 pt-3">
-        <div>
-          <Label className="mb-1 block text-xs">Comprador *</Label>
-          <Input value={buyer} onChange={(e) => setBuyer(e.target.value)} />
-        </div>
-        <div>
-          <Label className="mb-1 block text-xs">Email</Label>
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Para enviar o ingresso depois"
-          />
-        </div>
-        <div>
-          <Label className="mb-1 block text-xs">Vendedor *</Label>
-          <SearchableSelect
-            value={sellerId}
-            options={sellerOptions}
-            onChange={setSellerId}
-            placeholder="Buscar membro…"
-            searchPlaceholder="Digite o nome…"
-            emptyText="Nenhum membro encontrado."
-            disabled={sellersQ.isLoading}
-          />
-        </div>
-        <div>
-          <Label className="mb-1 block text-xs">Tipo</Label>
-          <Select value={typeId} onValueChange={setTypeId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Avulso" />
-            </SelectTrigger>
-            <SelectContent>
-              {types.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label className="mb-1 block text-xs">Valor unitário</Label>
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={price}
-              onChange={(e) => setPrice(Number(e.target.value))}
-            />
-          </div>
-          <div>
-            <Label className="mb-1 block text-xs">Quantidade</Label>
-            <Input
-              type="number"
-              min={1}
-              max={50}
-              value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
-            />
-          </div>
-        </div>
-        {quantity > 1 && (
-          <div className="text-xs text-muted-foreground">
-            Total: {formatBRL(total)} ({quantity} × {formatBRL(Number(price))})
-          </div>
-        )}
-        <Button
-          style={{ backgroundColor: primary }}
-          disabled={m.isPending}
-          onClick={() => {
-            if (!buyer.trim()) {
-              toast.error("Informe o comprador");
-              return;
-            }
-            if (!sellerId) {
-              toast.error("Selecione o vendedor");
-              return;
-            }
-            m.mutate();
-          }}
-        >
-          {m.isPending ? "Vendendo…" : "Registrar venda"}
-        </Button>
+              <div>
+                <Label className="mb-1 block text-xs">Comprador *</Label>
+                <Input
+                  value={buyer}
+                  onChange={(e) => setBuyer(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block text-xs">Email</Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Para enviar o ingresso depois"
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block text-xs">Vendedor *</Label>
+                <SearchableSelect
+                  value={sellerId}
+                  options={sellerOptions}
+                  onChange={setSellerId}
+                  placeholder="Buscar membro…"
+                  searchPlaceholder="Digite o nome…"
+                  emptyText="Nenhum membro encontrado."
+                  disabled={sellersQ.isLoading}
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block text-xs">Tipo</Label>
+                <Select value={typeId} onValueChange={setTypeId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Avulso" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {types.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="mb-1 block text-xs">Valor unitário</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={price}
+                    onChange={(e) => setPrice(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label className="mb-1 block text-xs">Quantidade</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={quantity}
+                    onChange={(e) =>
+                      setQuantity(Math.max(1, Number(e.target.value)))
+                    }
+                  />
+                </div>
+              </div>
+              {quantity > 1 && (
+                <div className="text-xs text-muted-foreground">
+                  Total: {formatBRL(total)} ({quantity} ×{" "}
+                  {formatBRL(Number(price))})
+                </div>
+              )}
+              <Button
+                style={{ backgroundColor: primary }}
+                disabled={m.isPending}
+                onClick={() => {
+                  if (!buyer.trim()) {
+                    toast.error("Informe o comprador");
+                    return;
+                  }
+                  if (!sellerId) {
+                    toast.error("Selecione o vendedor");
+                    return;
+                  }
+                  m.mutate();
+                }}
+              >
+                {m.isPending ? "Vendendo…" : "Registrar venda"}
+              </Button>
             </div>
           </CollapsibleContent>
         </Card>
@@ -1812,108 +1825,108 @@ function TablesMap({
 
   return (
     <>
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="space-y-4">
-        {tables.length === 0 && (
-          <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
-            Nenhuma mesa criada. Adicione a primeira ao lado.
-          </Card>
-        )}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {tables.map((t) => {
-            const ts = (seatsByTable.get(t.id) ?? []).sort(
-              (a, b) => a.seat_number - b.seat_number,
-            );
-            return (
-              <Card key={t.id} className="rounded-[12px] p-5">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <div className="font-semibold">{t.label}</div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {t.capacity} lugares
-                    </span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 text-destructive"
-                      aria-label={`Excluir mesa ${t.label}`}
-                      disabled={deleteM.isPending}
-                      onClick={async () => {
-                        const ok = await confirm({
-                          title: "Excluir mesa?",
-                          description: `Excluir a mesa “${t.label}”? Os assentos serão removidos.`,
-                          confirmLabel: "Excluir",
-                        });
-                        if (ok) deleteM.mutate(t.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {ts.map((s) => (
-                    <div
-                      key={s.id}
-                      className="flex flex-col items-center gap-1"
-                    >
-                      <div
-                        className="grid h-10 w-10 place-items-center rounded-full text-xs font-semibold"
-                        style={{
-                          backgroundColor: "var(--muted)",
-                          color: "var(--muted-foreground)",
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-4">
+          {tables.length === 0 && (
+            <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+              Nenhuma mesa criada. Adicione a primeira ao lado.
+            </Card>
+          )}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {tables.map((t) => {
+              const ts = (seatsByTable.get(t.id) ?? []).sort(
+                (a, b) => a.seat_number - b.seat_number,
+              );
+              return (
+                <Card key={t.id} className="rounded-[12px] p-5">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="font-semibold">{t.label}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {t.capacity} lugares
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-destructive"
+                        aria-label={`Excluir mesa ${t.label}`}
+                        disabled={deleteM.isPending}
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: "Excluir mesa?",
+                            description: `Excluir a mesa “${t.label}”? Os assentos serão removidos.`,
+                            confirmLabel: "Excluir",
+                          });
+                          if (ok) deleteM.mutate(t.id);
                         }}
                       >
-                        {s.seat_number}
-                      </div>
-                      <div className="w-full text-center text-[10px] text-muted-foreground">
-                        Assento
-                      </div>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              </Card>
-            );
-          })}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {ts.map((s) => (
+                      <div
+                        key={s.id}
+                        className="flex flex-col items-center gap-1"
+                      >
+                        <div
+                          className="grid h-10 w-10 place-items-center rounded-full text-xs font-semibold"
+                          style={{
+                            backgroundColor: "var(--muted)",
+                            color: "var(--muted-foreground)",
+                          }}
+                        >
+                          {s.seat_number}
+                        </div>
+                        <div className="w-full text-center text-[10px] text-muted-foreground">
+                          Assento
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         </div>
+        <Card className="rounded-[12px] p-5 space-y-3">
+          <h3 className="text-sm font-semibold">Nova mesa</h3>
+          <div>
+            <Label className="mb-1 block text-xs">Nome</Label>
+            <Input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Ex: Mesa 1"
+            />
+          </div>
+          <div>
+            <Label className="mb-1 block text-xs">Capacidade</Label>
+            <Input
+              type="number"
+              min={1}
+              max={30}
+              value={cap}
+              onChange={(e) => setCap(Number(e.target.value))}
+            />
+          </div>
+          <Button
+            style={{ backgroundColor: primary }}
+            onClick={() => {
+              if (!label.trim()) {
+                toast.error("Informe o nome");
+                return;
+              }
+              createM.mutate();
+            }}
+            disabled={createM.isPending}
+          >
+            <PlusCircle className="mr-2 h-4 w-4" /> Criar mesa
+          </Button>
+        </Card>
       </div>
-      <Card className="rounded-[12px] p-5 space-y-3">
-        <h3 className="text-sm font-semibold">Nova mesa</h3>
-        <div>
-          <Label className="mb-1 block text-xs">Nome</Label>
-          <Input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Ex: Mesa 1"
-          />
-        </div>
-        <div>
-          <Label className="mb-1 block text-xs">Capacidade</Label>
-          <Input
-            type="number"
-            min={1}
-            max={30}
-            value={cap}
-            onChange={(e) => setCap(Number(e.target.value))}
-          />
-        </div>
-        <Button
-          style={{ backgroundColor: primary }}
-          onClick={() => {
-            if (!label.trim()) {
-              toast.error("Informe o nome");
-              return;
-            }
-            createM.mutate();
-          }}
-          disabled={createM.isPending}
-        >
-          <PlusCircle className="mr-2 h-4 w-4" /> Criar mesa
-        </Button>
-      </Card>
-    </div>
-    {dialog}
+      {dialog}
     </>
   );
 }
