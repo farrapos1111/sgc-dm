@@ -12,6 +12,8 @@ import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useChapterLogo, LOGO_BUCKET } from "@/lib/chapter-logo";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
+import { isOrgLeader } from "@/lib/permissions";
+import { ChapterAuditPanel } from "@/components/ChapterAuditPanel";
 import { listLodges, saveLodge, deleteLodge, updateChapterProfile, updateChapterAccentColor } from "@/lib/chapter.functions";
 import { saveDefaultDuesAmount, saveChapterDuesEnabled } from "@/lib/finance.functions";
 import {
@@ -411,11 +413,12 @@ const MAX_BYTES = 2 * 1024 * 1024;
 
 function ConfiguracoesPage() {
   const { active, refetch } = useActiveChapter();
-  const { can } = useChapterAccess();
+  const { can, isAdminTotal, realCtx } = useChapterAccess();
   const chapterId = active?.chapter_id ?? "";
   const logoPath = (active?.chapter as any)?.logo_url as string | null | undefined;
   const logoUrl = useChapterLogo(logoPath);
   const allowed = can("admin") || can("secretaria") || can("conselho");
+  const canViewAudit = isAdminTotal || isOrgLeader(realCtx);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -485,6 +488,9 @@ function ConfiguracoesPage() {
           <TabsTrigger value="secretaria">Secretaria</TabsTrigger>
           <TabsTrigger value="tesouraria">Tesouraria</TabsTrigger>
           <TabsTrigger value="visual">Visual</TabsTrigger>
+          {canViewAudit ? (
+            <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="secretaria" className="space-y-4">
@@ -571,6 +577,17 @@ function ConfiguracoesPage() {
             </div>
           </Card>
         </TabsContent>
+
+        {canViewAudit ? (
+          <TabsContent value="auditoria">
+            <ChapterAuditPanel
+              chapterId={chapterId}
+              chapterName={`${active?.chapter.name ?? "Capítulo"} nº ${active?.chapter.number ?? ""}`}
+              chapterCity={active?.chapter.city}
+              logoPath={logoPath ?? null}
+            />
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   );
