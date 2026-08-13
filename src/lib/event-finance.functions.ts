@@ -1092,11 +1092,18 @@ export const getComandaCheckout = createServerFn({ method: "POST" })
 
     const ticketAmount = Number(ticket.price_paid ?? 0);
     const comandaTotal = lines.reduce((s, l) => s + Number(l.amount), 0);
+    const paidComandaTotal = lines
+      .filter((l) => l.paid)
+      .reduce((s, l) => s + Number(l.amount), 0);
     const unpaidComandaTotal = lines
       .filter((l) => !l.paid)
       .reduce((s, l) => s + Number(l.amount), 0);
     // Saldo a pagar no recibo: ingresso em aberto + itens ainda não baixados.
     const ticketDue = charge ? charge.remaining : ticketAmount;
+    const chargeAmount = charge ? Number(charge.amount) : ticketAmount;
+    const chargePaid = charge?.amount_paid ?? 0;
+    const originalTotal = chargeAmount + paidComandaTotal + unpaidComandaTotal;
+    const paidTotal = chargePaid + paidComandaTotal;
 
     return {
       event: {
@@ -1137,6 +1144,8 @@ export const getComandaCheckout = createServerFn({ method: "POST" })
       ticketDue,
       comandaTotal,
       unpaidComandaTotal,
+      originalTotal,
+      paidTotal,
       grandTotal: ticketDue + unpaidComandaTotal,
     };
   });
@@ -1149,6 +1158,8 @@ export const payEventTicketItem = createServerFn({ method: "POST" })
       .object({
         lineId: z.string().uuid(),
         paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        tender: z.enum(["pix", "dinheiro"]).optional(),
+        amount: z.number().positive().optional(),
       })
       .parse(raw),
   )
@@ -1163,6 +1174,8 @@ export const payEventTicketItem = createServerFn({ method: "POST" })
       {
         _line_id: data.lineId,
         _paid_at: paidAt,
+        _tender: data.tender ?? null,
+        _amount: data.amount ?? null,
       } as never,
     );
     if (error) throw new Error(error.message);
@@ -1170,11 +1183,58 @@ export const payEventTicketItem = createServerFn({ method: "POST" })
       ok?: boolean;
       already_paid?: boolean;
       amount?: number;
+      remaining?: number;
     };
     return {
       ok: true as const,
       alreadyPaid: Boolean(row?.already_paid),
       amount: Number(row?.amount) || 0,
+      remaining: Number(row?.remaining) || 0,
+    };
+  });
+
+/** Recibo: baixa total ou parcial; saldo vira cobrança no vendedor. */
+export const settleEventTicketComanda = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        eventId: z.string().uuid(),
+        ticketId: z.string().uuid(),
+        amount: z.number().positive().optional(),
+        tender: z.enum(["pix", "dinheiro"]).optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    await assertComandaEditable(context.supabase, { ticketId: data.ticketId });
+    const paidAt = todayYmd();
+    const { data: result, error } = await context.supabase.rpc(
+      "settle_event_ticket_comanda" as never,
+      {
+        _event_id: data.eventId,
+        _ticket_id: data.ticketId,
+        _paid_at: paidAt,
+        _amount: data.amount ?? null,
+        _tender: data.tender ?? null,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    const row = result as {
+      ok?: boolean;
+      already_paid?: boolean;
+      fully_paid?: boolean;
+      amount?: number;
+      remaining?: number;
+      charge_id?: string | null;
+    };
+    return {
+      ok: true as const,
+      alreadyPaid: Boolean(row?.already_paid),
+      fullyPaid: Boolean(row?.fully_paid),
+      amount: Number(row?.amount) || 0,
+      remaining: Number(row?.remaining) || 0,
+      chargeId: row?.charge_id ?? null,
     };
   });
 
@@ -1187,6 +1247,7 @@ export const checkoutEventTicketComanda = createServerFn({ method: "POST" })
         eventId: z.string().uuid(),
         ticketId: z.string().uuid(),
         amount: z.number().positive().optional(),
+        tender: z.enum(["pix", "dinheiro"]).optional(),
       })
       .parse(raw),
   )
@@ -1200,6 +1261,7 @@ export const checkoutEventTicketComanda = createServerFn({ method: "POST" })
         _ticket_id: data.ticketId,
         _paid_at: paidAt,
         _amount: data.amount ?? null,
+        _tender: data.tender ?? null,
       } as never,
     );
     if (checkoutErr) throw new Error(checkoutErr.message);

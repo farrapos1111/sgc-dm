@@ -3319,11 +3319,27 @@ export type Database = {
           _paid_at?: string
           _ticket_id: string
           _amount?: number
+          _tender?: string
+        }
+        Returns: Json
+      }
+      settle_event_ticket_comanda: {
+        Args: {
+          _event_id: string
+          _paid_at?: string
+          _ticket_id: string
+          _amount?: number
+          _tender?: string
         }
         Returns: Json
       }
       pay_event_ticket_item: {
-        Args: { _line_id: string; _paid_at?: string }
+        Args: {
+          _line_id: string
+          _paid_at?: string
+          _tender?: string
+          _amount?: number
+        }
         Returns: Json
       }
       cleanup_investigation_public_attempts: { Args: never; Returns: undefined }
