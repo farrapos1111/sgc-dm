@@ -508,9 +508,9 @@ export async function exportAuditLogPdf(input: {
         : [];
       const blockH =
         titleLines.length * 4.2 +
-        4 +
-        detailLines.length * 3.8 +
-        4;
+        4.2 +
+        (detailLines.length ? detailLines.length * 3.6 : 0) +
+        8;
 
       if (y + blockH > pageH - MARGIN) {
         doc.addPage();
@@ -521,25 +521,30 @@ export async function exportAuditLogPdf(input: {
       doc.setFontSize(10);
       setRgb(doc, COLOR_BLACK);
       let ty = y;
-      for (const t of titleLines) {
-        doc.text(fitText(doc, t, contentW), MARGIN, ty);
-        ty += 4.2;
+      for (let i = 0; i < titleLines.length; i++) {
+        if (i > 0) ty += 4.2;
+        doc.text(fitText(doc, titleLines[i], contentW), MARGIN, ty);
       }
+
+      ty += 4.2;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       setRgb(doc, COLOR_GRAY);
       doc.text(fitText(doc, meta, contentW), MARGIN, ty);
-      ty += 4;
+
       if (detailLines.length) {
-        doc.setFontSize(8);
-        for (const d of detailLines) {
-          doc.text(fitText(doc, d, contentW), MARGIN, ty);
-          ty += 3.8;
+        ty += 3.6;
+        for (let i = 0; i < detailLines.length; i++) {
+          if (i > 0) ty += 3.6;
+          doc.text(fitText(doc, detailLines[i], contentW), MARGIN, ty);
         }
       }
-      y = ty + 3;
-      doc.setDrawColor(230, 230, 226);
-      doc.line(MARGIN, y - 1.5, rightX, y - 1.5);
+
+      y = ty + 2.4;
+      doc.setDrawColor(220, 220, 216);
+      doc.setLineWidth(0.25);
+      doc.line(MARGIN, y, rightX, y);
+      y += 5;
     }
   }
 

@@ -340,6 +340,31 @@ function GestaoContent({ active }: { active: Membership }) {
     return assigned;
   }
 
+  function commissionName(commissionId: number) {
+    return (
+      catalog.commissions.find((c) => c.id === commissionId)?.label ?? "Comissão"
+    );
+  }
+
+  function commissionFunctionHolders(
+    role: (typeof COMMISSION_ROLES)[number]["value"],
+    includeAll: boolean,
+  ) {
+    let rows = commissionMembers.filter((cm) => cm.role === role);
+    if (q && !includeAll) {
+      rows = rows.filter((r) => {
+        if (normalizeSearch(r.member?.full_name ?? "").includes(q)) return true;
+        return normalizeSearch(commissionName(r.commission_id)).includes(q);
+      });
+    }
+    return rows.slice().sort((a, b) =>
+      (a.member?.full_name ?? "").localeCompare(
+        b.member?.full_name ?? "",
+        "pt-BR",
+      ),
+    );
+  }
+
   return (
     <div>
       <PageHeader
@@ -396,9 +421,19 @@ function GestaoContent({ active }: { active: Membership }) {
 
         <TabsContent value="cargos">
           {(() => {
-            const hasGrouped = filteredPositions.some(
+            const cargoPositions = filteredPositions.filter(
+              (p) => p.role_group !== "comissoes",
+            );
+            const hasGrouped = cargoPositions.some(
               (p) => p.role_group != null,
             );
+            const visibleCommissionRoles = COMMISSION_ROLES.filter((role) => {
+              if (!q) return true;
+              if (normalizeSearch(role.label).includes(q)) return true;
+              return (
+                commissionFunctionHolders(role.value, false).length > 0
+              );
+            });
             const sections = hasGrouped
               ? ([
                   {
@@ -427,13 +462,17 @@ function GestaoContent({ active }: { active: Membership }) {
                 {sections.map((section) => {
                   const scopePositions =
                     section.id === "all"
-                      ? filteredPositions
+                      ? cargoPositions
                       : section.id === "outros"
-                        ? filteredPositions.filter((p) => p.role_group == null)
-                        : filteredPositions.filter(
-                            (p) => p.role_group === section.id,
-                          );
-                  if (
+                        ? cargoPositions.filter((p) => p.role_group == null)
+                        : section.id === "comissoes"
+                          ? []
+                          : cargoPositions.filter(
+                              (p) => p.role_group === section.id,
+                            );
+                  if (section.id === "comissoes") {
+                    if (q && visibleCommissionRoles.length === 0) return null;
+                  } else if (
                     hasGrouped &&
                     scopePositions.length === 0 &&
                     (q || section.id === "outros")
@@ -445,7 +484,42 @@ function GestaoContent({ active }: { active: Membership }) {
                       <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
                         {section.label}
                       </h3>
-                      {scopePositions.length === 0 ? (
+                      {section.id === "comissoes" ? (
+                        <ul className="divide-y divide-border text-sm">
+                          {visibleCommissionRoles.map((role) => {
+                            const roleMatches =
+                              !q ||
+                              normalizeSearch(role.label).includes(q);
+                            const holders = commissionFunctionHolders(
+                              role.value,
+                              roleMatches,
+                            );
+                            return (
+                              <li key={role.value} className="py-2.5">
+                                <div className="font-medium">{role.label}</div>
+                                {holders.length > 0 ? (
+                                  <ul className="mt-0.5 space-y-0.5">
+                                    {holders.map((r) => (
+                                      <li
+                                        key={r.id}
+                                        className="truncate text-xs text-muted-foreground"
+                                      >
+                                        {r.member?.full_name}
+                                        {" · "}
+                                        {commissionName(r.commission_id)}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div className="text-xs text-muted-foreground">
+                                    Ninguém nesta vigência
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : scopePositions.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
                           Nenhum cargo correspondente à busca.
                         </p>
