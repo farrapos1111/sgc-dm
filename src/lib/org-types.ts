@@ -54,7 +54,7 @@ export type RoleGroup = (typeof ROLE_GROUPS)[number];
 export const ROLE_GROUP_LABELS: Record<RoleGroup, string> = {
   ritualisticos: "Ritualísticos",
   conselho: "Conselho",
-  comissoes: "Comissões",
+  comissoes: "Funções de comissão",
 };
 
 export const ORG_TYPE_LABELS: Record<OrgType, string> = {

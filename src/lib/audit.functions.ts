@@ -52,6 +52,35 @@ function asString(value: unknown): string | null {
   return t ? t : null;
 }
 
+function payloadUuid(
+  value: unknown,
+  key: "ticket_id" | "item_id" | "member_id",
+): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const v = (value as Record<string, unknown>)[key];
+  return typeof v === "string" && v ? v : null;
+}
+
+function withComandaNames(
+  value: unknown,
+  itemNameById: Map<string, string>,
+  buyerByTicket: Map<string, string>,
+): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const rec = { ...(value as Record<string, unknown>) };
+  const itemId = payloadUuid(rec, "item_id");
+  const ticketId = payloadUuid(rec, "ticket_id");
+  if (!asString(rec.item_name) && itemId) {
+    const name = itemNameById.get(itemId);
+    if (name) rec.item_name = name;
+  }
+  if (!asString(rec.buyer_name) && ticketId) {
+    const buyer = buyerByTicket.get(ticketId);
+    if (buyer) rec.buyer_name = buyer;
+  }
+  return rec;
+}
+
 export function ymdRangeIso(from?: string | null, until?: string | null) {
   const start = from
     ? fromAppTzDateTimeLocal(`${from}T00:00`).toISOString()
@@ -130,8 +159,22 @@ export const listChapterAudit = createServerFn({ method: "POST" })
       ),
     ];
     const allMemberIds = [...new Set([...memberIds, ...chargeMemberIds])];
+    const ticketIds = [
+      ...new Set(
+        rows
+          .map((r) => payloadUuid(r.new_value, "ticket_id"))
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const itemIds = [
+      ...new Set(
+        rows
+          .map((r) => payloadUuid(r.new_value, "item_id"))
+          .filter((id): id is string => !!id),
+      ),
+    ];
 
-    const [profilesRes, membersRes] = await Promise.all([
+    const [profilesRes, membersRes, ticketsRes, itemsRes] = await Promise.all([
       userIds.length
         ? context.supabase
             .from("profiles")
@@ -150,9 +193,29 @@ export const listChapterAudit = createServerFn({ method: "POST" })
             data: [] as { id: string; full_name: string }[],
             error: null,
           }),
+      ticketIds.length
+        ? context.supabase
+            .from("tickets")
+            .select("id, buyer_name")
+            .in("id", ticketIds)
+        : Promise.resolve({
+            data: [] as { id: string; buyer_name: string }[],
+            error: null,
+          }),
+      itemIds.length
+        ? context.supabase
+            .from("event_finance_items")
+            .select("id, name")
+            .in("id", itemIds)
+        : Promise.resolve({
+            data: [] as { id: string; name: string }[],
+            error: null,
+          }),
     ]);
     if (profilesRes.error) throw new Error(profilesRes.error.message);
     if (membersRes.error) throw new Error(membersRes.error.message);
+    if (ticketsRes.error) throw new Error(ticketsRes.error.message);
+    if (itemsRes.error) throw new Error(itemsRes.error.message);
 
     const userNameById = new Map(
       (profilesRes.data ?? []).map((p) => [
@@ -163,17 +226,22 @@ export const listChapterAudit = createServerFn({ method: "POST" })
     const memberNameById = new Map(
       (membersRes.data ?? []).map((m) => [m.id, m.full_name]),
     );
+    const buyerByTicket = new Map(
+      (ticketsRes.data ?? [])
+        .map((t) => [t.id, asString(t.buyer_name)] as const)
+        .filter((e): e is readonly [string, string] => !!e[1]),
+    );
+    const itemNameById = new Map(
+      (itemsRes.data ?? []).map((i) => [i.id, i.name]),
+    );
 
     return rows.map((row) => {
-      const nv = row.new_value;
+      const nv = withComandaNames(row.new_value, itemNameById, buyerByTicket);
       const ov = row.old_value;
       const memberId =
         row.table_name === "members"
           ? row.record_id
-          : typeof (nv as { member_id?: unknown } | null)?.member_id ===
-              "string"
-            ? ((nv as { member_id: string }).member_id)
-            : null;
+          : payloadUuid(nv, "member_id");
       const subjectName = memberId ? memberNameById.get(memberId) ?? null : null;
       return {
         id: row.id,
