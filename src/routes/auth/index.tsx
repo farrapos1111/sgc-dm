@@ -13,6 +13,7 @@ import {
   checkNeedsOfficeSignature,
   redirectIfNeedsOfficeSignature,
 } from "@/lib/office-signature-gate";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/auth/")({
   ssr: false,
@@ -103,9 +104,12 @@ function AuthPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-6 bg-[#E9E8E3] dark:bg-background"
+      className="relative min-h-screen flex items-center justify-center p-6 bg-[#E9E8E3] dark:bg-background"
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
+      <div className="absolute right-3 top-3 z-10 sm:right-4 sm:top-4">
+        <ThemeToggle className="h-9 w-9" />
+      </div>
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-6">
           <img

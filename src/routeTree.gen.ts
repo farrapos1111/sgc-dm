@@ -47,6 +47,7 @@ import { Route as CTokenFluxoRouteImport } from './routes/c.$token.fluxo'
 import { Route as CTokenMensalidadesRouteImport } from './routes/c.$token.mensalidades'
 import { Route as CTokenPresencasRouteImport } from './routes/c.$token.presencas'
 import { Route as AuthenticatedShellConfiguracoesGlobaisCargosRouteImport } from './routes/_authenticated/_shell/configuracoes-globais.cargos'
+import { Route as AuthenticatedShellConfiguracoesGlobaisInboxRouteImport } from './routes/_authenticated/_shell/configuracoes-globais.inbox'
 import { Route as AuthenticatedShellEventosIndexRouteImport } from './routes/_authenticated/_shell/eventos.index'
 import { Route as AuthenticatedShellEventosIdRouteImport } from './routes/_authenticated/_shell/eventos.$id'
 import { Route as AuthenticatedShellEventosCheckinsRouteImport } from './routes/_authenticated/_shell/eventos.checkins'
@@ -278,6 +279,12 @@ const AuthenticatedShellConfiguracoesGlobaisCargosRoute =
   AuthenticatedShellConfiguracoesGlobaisCargosRouteImport.update({
     id: '/configuracoes-globais/cargos',
     path: '/configuracoes-globais/cargos',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellConfiguracoesGlobaisInboxRoute =
+  AuthenticatedShellConfiguracoesGlobaisInboxRouteImport.update({
+    id: '/configuracoes-globais/inbox',
+    path: '/configuracoes-globais/inbox',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
 const AuthenticatedShellEventosIndexRoute =
@@ -516,6 +523,7 @@ export interface FileRoutesByFullPath {
   '/c/$token/presencas': typeof CTokenPresencasRoute
   '/c/$token/': typeof CTokenIndexRoute
   '/configuracoes-globais/cargos': typeof AuthenticatedShellConfiguracoesGlobaisCargosRoute
+  '/configuracoes-globais/inbox': typeof AuthenticatedShellConfiguracoesGlobaisInboxRoute
   '/eventos/$id': typeof AuthenticatedShellEventosIdRoute
   '/eventos/checkins': typeof AuthenticatedShellEventosCheckinsRoute
   '/eventos/novo': typeof AuthenticatedShellEventosNovoRoute
@@ -584,6 +592,7 @@ export interface FileRoutesByTo {
   '/c/$token/presencas': typeof CTokenPresencasRoute
   '/c/$token': typeof CTokenIndexRoute
   '/configuracoes-globais/cargos': typeof AuthenticatedShellConfiguracoesGlobaisCargosRoute
+  '/configuracoes-globais/inbox': typeof AuthenticatedShellConfiguracoesGlobaisInboxRoute
   '/eventos/$id': typeof AuthenticatedShellEventosIdRoute
   '/eventos/checkins': typeof AuthenticatedShellEventosCheckinsRoute
   '/eventos/novo': typeof AuthenticatedShellEventosNovoRoute
@@ -658,6 +667,7 @@ export interface FileRoutesById {
   '/c/$token/presencas': typeof CTokenPresencasRoute
   '/c/$token/': typeof CTokenIndexRoute
   '/_authenticated/_shell/configuracoes-globais/cargos': typeof AuthenticatedShellConfiguracoesGlobaisCargosRoute
+  '/_authenticated/_shell/configuracoes-globais/inbox': typeof AuthenticatedShellConfiguracoesGlobaisInboxRoute
   '/_authenticated/_shell/eventos/$id': typeof AuthenticatedShellEventosIdRoute
   '/_authenticated/_shell/eventos/checkins': typeof AuthenticatedShellEventosCheckinsRoute
   '/_authenticated/_shell/eventos/novo': typeof AuthenticatedShellEventosNovoRoute
@@ -731,6 +741,7 @@ export interface FileRouteTypes {
     | '/c/$token/presencas'
     | '/c/$token/'
     | '/configuracoes-globais/cargos'
+    | '/configuracoes-globais/inbox'
     | '/eventos/$id'
     | '/eventos/checkins'
     | '/eventos/novo'
@@ -799,6 +810,7 @@ export interface FileRouteTypes {
     | '/c/$token/presencas'
     | '/c/$token'
     | '/configuracoes-globais/cargos'
+    | '/configuracoes-globais/inbox'
     | '/eventos/$id'
     | '/eventos/checkins'
     | '/eventos/novo'
@@ -872,6 +884,7 @@ export interface FileRouteTypes {
     | '/c/$token/presencas'
     | '/c/$token/'
     | '/_authenticated/_shell/configuracoes-globais/cargos'
+    | '/_authenticated/_shell/configuracoes-globais/inbox'
     | '/_authenticated/_shell/eventos/$id'
     | '/_authenticated/_shell/eventos/checkins'
     | '/_authenticated/_shell/eventos/novo'
@@ -1188,6 +1201,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellConfiguracoesGlobaisCargosRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
+    '/_authenticated/_shell/configuracoes-globais/inbox': {
+      id: '/_authenticated/_shell/configuracoes-globais/inbox'
+      path: '/configuracoes-globais/inbox'
+      fullPath: '/configuracoes-globais/inbox'
+      preLoaderRoute: typeof AuthenticatedShellConfiguracoesGlobaisInboxRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
     '/_authenticated/_shell/eventos/': {
       id: '/_authenticated/_shell/eventos/'
       path: '/eventos'
@@ -1434,6 +1454,7 @@ interface AuthenticatedShellRouteRouteChildren {
   AuthenticatedShellPresencasRoute: typeof AuthenticatedShellPresencasRoute
   AuthenticatedShellSugestoesRoute: typeof AuthenticatedShellSugestoesRoute
   AuthenticatedShellConfiguracoesGlobaisCargosRoute: typeof AuthenticatedShellConfiguracoesGlobaisCargosRoute
+  AuthenticatedShellConfiguracoesGlobaisInboxRoute: typeof AuthenticatedShellConfiguracoesGlobaisInboxRoute
   AuthenticatedShellEventosIdRoute: typeof AuthenticatedShellEventosIdRoute
   AuthenticatedShellEventosCheckinsRoute: typeof AuthenticatedShellEventosCheckinsRoute
   AuthenticatedShellEventosNovoRoute: typeof AuthenticatedShellEventosNovoRoute
@@ -1483,6 +1504,8 @@ const AuthenticatedShellRouteRouteChildren: AuthenticatedShellRouteRouteChildren
     AuthenticatedShellSugestoesRoute: AuthenticatedShellSugestoesRoute,
     AuthenticatedShellConfiguracoesGlobaisCargosRoute:
       AuthenticatedShellConfiguracoesGlobaisCargosRoute,
+    AuthenticatedShellConfiguracoesGlobaisInboxRoute:
+      AuthenticatedShellConfiguracoesGlobaisInboxRoute,
     AuthenticatedShellEventosIdRoute: AuthenticatedShellEventosIdRoute,
     AuthenticatedShellEventosCheckinsRoute:
       AuthenticatedShellEventosCheckinsRoute,

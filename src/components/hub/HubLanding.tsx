@@ -10,9 +10,9 @@ import {
   realmEntryUrl,
   type Realm,
 } from "@/lib/realm";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
-const NAVY = "#072D5A";
 const CRIMSON = "#9E1B32";
 
 type HubStatus =
@@ -98,9 +98,12 @@ export function HubLanding() {
 
   return (
     <div
-      className="flex min-h-screen flex-col bg-[#E9E8E3] text-foreground dark:bg-background"
+      className="relative flex min-h-screen flex-col bg-[#E9E8E3] text-foreground dark:bg-background"
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
+      <div className="absolute right-3 top-3 z-10 sm:right-4 sm:top-4">
+        <ThemeToggle className="h-9 w-9" />
+      </div>
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 py-12 sm:py-16">
         <header className="mb-12 text-center">
           <img
@@ -113,7 +116,7 @@ export function HubLanding() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Templo Virtual
           </p>
-          <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: NAVY }}>
+          <h1 className="mt-3 text-2xl font-bold tracking-tight text-[#072D5A] dark:text-foreground sm:text-3xl">
             A plataforma de gestão para Ordens Paramaçônicas e Lojas Maçônicas
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
@@ -149,13 +152,9 @@ export function HubLanding() {
                 }
               >
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {realm === "odm"
-                    ? "odm.templovirtual.app"
-                    : realm === "fdj"
-                      ? "fdj.templovirtual.app"
-                      : "lodge.templovirtual.app"}
+                  {realm}.templovirtual.app
                 </div>
-                <div className="mt-2 text-lg font-semibold" style={{ color: NAVY }}>
+                <div className="mt-2 text-lg font-semibold text-[#072D5A] dark:text-foreground">
                   {REALM_LABELS[realm]}
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">

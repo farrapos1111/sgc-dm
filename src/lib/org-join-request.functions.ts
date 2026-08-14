@@ -6,6 +6,7 @@ import { sendTransactionalEmail } from "@/lib/email";
 import { getTechCommissionEmails } from "@/lib/tech-commission";
 import { isMissingAuthLoginThrottleTable } from "@/lib/auth-throttle-errors";
 import { resolveTrustedClientIp } from "@/lib/trusted-client-ip";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   ORG_TYPE_LABELS,
   ORG_TYPES,
@@ -442,4 +443,163 @@ export const submitOrgJoinRequest = createServerFn({ method: "POST" })
     }
 
     return { ok: true as const, id, emailStatus };
+  });
+
+export type OrgJoinInboxStatus = "open" | "archived";
+
+export type OrgJoinInboxItem = {
+  id: string;
+  org_type: OrgJoinType;
+  org_type_other: string | null;
+  name_number: string;
+  full_address: string;
+  founded_on: string;
+  active_members_band: ActiveMembersBand;
+  sponsoring_lodge: string | null;
+  responsible_name: string;
+  responsible_phone: string;
+  responsible_email: string;
+  responsible_role: string;
+  potencia_id: string | null;
+  potencia_label: string | null;
+  email_status: string;
+  email_error: string | null;
+  status: OrgJoinInboxStatus;
+  archived_at: string | null;
+  created_at: string;
+};
+
+type AnyClient = {
+  from: (table: string) => any;
+};
+
+async function assertAdminTotal(
+  supabase: AnyClient,
+  userId: string,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from("chapter_members")
+    .select("id, role:roles(name), active")
+    .eq("user_id", userId)
+    .eq("active", true);
+  if (error) throw new Error(error.message);
+  const ok = (data ?? []).some((row: any) => row.role?.name === "admin_total");
+  if (!ok) {
+    throw new Error("Apenas Administrador Total pode acessar a inbox.");
+  }
+}
+
+function mapInboxRow(row: Record<string, unknown>): OrgJoinInboxItem {
+  const pot = row.potencia as
+    | { nome?: string; sigla?: string }
+    | { nome?: string; sigla?: string }[]
+    | null
+    | undefined;
+  const potOne = Array.isArray(pot) ? pot[0] : pot;
+  const potencia_label =
+    potOne?.nome && potOne?.sigla
+      ? `${potOne.nome} (${potOne.sigla})`
+      : potOne?.nome
+        ? String(potOne.nome)
+        : null;
+
+  return {
+    id: String(row.id),
+    org_type: row.org_type as OrgJoinType,
+    org_type_other: (row.org_type_other as string | null) ?? null,
+    name_number: String(row.name_number ?? ""),
+    full_address: String(row.full_address ?? ""),
+    founded_on: String(row.founded_on ?? ""),
+    active_members_band: row.active_members_band as ActiveMembersBand,
+    sponsoring_lodge: (row.sponsoring_lodge as string | null) ?? null,
+    responsible_name: String(row.responsible_name ?? ""),
+    responsible_phone: String(row.responsible_phone ?? ""),
+    responsible_email: String(row.responsible_email ?? ""),
+    responsible_role: String(row.responsible_role ?? ""),
+    potencia_id: (row.potencia_id as string | null) ?? null,
+    potencia_label,
+    email_status: String(row.email_status ?? "pending"),
+    email_error: (row.email_error as string | null) ?? null,
+    status: (row.status as OrgJoinInboxStatus) ?? "open",
+    archived_at: (row.archived_at as string | null) ?? null,
+    created_at: String(row.created_at ?? ""),
+  };
+}
+
+const INBOX_SELECT =
+  "id, org_type, org_type_other, name_number, full_address, founded_on, active_members_band, sponsoring_lodge, responsible_name, responsible_phone, responsible_email, responsible_role, potencia_id, email_status, email_error, status, archived_at, created_at, potencia:potencias(nome, sigla)";
+
+export const listOrgJoinInbox = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) =>
+    z
+      .object({
+        status: z.enum(["open", "archived", "all"]).default("open"),
+      })
+      .parse(raw ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as {
+      supabase: AnyClient;
+      userId: string;
+    };
+    await assertAdminTotal(supabase, userId);
+
+    let q = supabase
+      .from("org_join_requests")
+      .select(INBOX_SELECT)
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (data.status !== "all") {
+      q = q.eq("status", data.status);
+    }
+
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return {
+      items: ((rows ?? []) as Record<string, unknown>[]).map(mapInboxRow),
+    };
+  });
+
+export const countOpenOrgJoinInbox = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context as {
+      supabase: AnyClient;
+      userId: string;
+    };
+    await assertAdminTotal(supabase, userId);
+
+    const { count, error } = await supabase
+      .from("org_join_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "open");
+    if (error) throw new Error(error.message);
+    return { count: count ?? 0 };
+  });
+
+export const setOrgJoinInboxStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        status: z.enum(["open", "archived"]),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as {
+      supabase: AnyClient;
+      userId: string;
+    };
+    await assertAdminTotal(supabase, userId);
+
+    const { error } = await supabase
+      .from("org_join_requests")
+      .update({ status: data.status })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
   });

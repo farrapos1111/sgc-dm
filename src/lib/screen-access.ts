@@ -96,6 +96,7 @@ export const PATH_TO_SCREEN: Record<string, ScreenId> = {
   "/gestao": "gestao",
   "/configuracoes": "configuracoes",
   "/configuracoes-globais/cargos": "configuracoes",
+  "/configuracoes-globais/inbox": "configuracoes",
   "/eventos": "eventos",
   "/eventos/checkins": "eventos_checkins",
   "/sindicancias/fichas": "sindicancias_fichas",

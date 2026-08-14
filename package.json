@@ -9,7 +9,7 @@
     "dev:hub": "vite dev",
     "dev:odm": "vite dev --mode odm",
     "dev:fdj": "vite dev --mode fdj",
-    "dev:lodge": "vite dev --mode lodge",
+    "dev:loja": "vite dev --mode loja",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",

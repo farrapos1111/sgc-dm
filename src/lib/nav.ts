@@ -25,6 +25,7 @@ import {
   UserRound,
   Palette,
   AlertTriangle,
+  Inbox,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import {
@@ -51,6 +52,7 @@ export type NavPath =
   | "/gestao"
   | "/configuracoes"
   | "/configuracoes-globais/cargos"
+  | "/configuracoes-globais/inbox"
   | "/eventos"
   | "/eventos/checkins"
   | "/sindicancias/fichas"
@@ -134,6 +136,11 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/configuracoes-globais/cargos",
         label: "Cargos",
         icon: Briefcase,
+      },
+      {
+        to: "/configuracoes-globais/inbox",
+        label: "Inbox",
+        icon: Inbox,
       },
     ],
   },
@@ -287,7 +294,10 @@ export function visibleGroups(
   const isAdminTotal = opts?.isAdminTotal === true;
 
   function pathVisible(to: string): boolean {
-    if (to === "/configuracoes-globais/cargos") {
+    if (
+      to === "/configuracoes-globais/cargos" ||
+      to === "/configuracoes-globais/inbox"
+    ) {
       return isAdminTotal;
     }
     if (canScreen) {
