@@ -53,7 +53,7 @@ assert.ok(screen(ctx("membro", ["loja_veneravel_mestre"]), "caixa", "delete"));
 assert.ok(screen(ctx("membro", ["loja_veneravel_mestre"]), "configuracoes", "edit"));
 assert.ok(canAction(ctx("membro", ["loja_veneravel_mestre"]), "eventos.manage"));
 
-// Escrivão: Secretaria CRU; Tesouraria view; Gestão view; Sindicâncias CRU
+// Escrivão: Secretaria CRU (+ delete em atas); Tesouraria view; Gestão view; Sindicâncias CRU
 assert.ok(canAccess(ctx("escrivao"), "secretaria"));
 assert.ok(canAccess(ctx("membro", ["escrivao"]), "secretaria"));
 assert.ok(canAction(ctx("escrivao"), "comissao.view", "sindicancias"));
@@ -62,7 +62,7 @@ assert.ok(!canAction(ctx("escrivao"), "comissao.delete", "sindicancias"));
 assert.ok(!canAccess(ctx("escrivao"), "tesouraria"));
 assert.ok(screen(ctx("escrivao"), "atas", "edit"));
 assert.ok(screen(ctx("escrivao"), "atas", "create"));
-assert.ok(!screen(ctx("escrivao"), "atas", "delete"));
+assert.ok(screen(ctx("escrivao"), "atas", "delete"));
 assert.ok(screen(ctx("escrivao"), "caixa", "view"));
 assert.ok(!screen(ctx("escrivao"), "caixa", "edit"));
 assert.ok(screen(ctx("escrivao"), "gestao", "view"));

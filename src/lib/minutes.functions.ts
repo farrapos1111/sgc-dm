@@ -112,6 +112,7 @@ export const listChapterMinutes = createServerFn({ method: "POST" })
         "id, content, status, kind, opened_at, updated_at, calendar_event_id, calendar_event:calendar_events(id, title, event_type, mandatory, start_at, end_at, location, address)",
       )
       .eq("chapter_id", data.chapterId)
+      .is("deleted_at", null)
       .order("opened_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
@@ -130,6 +131,42 @@ export const listChapterMinutes = createServerFn({ method: "POST" })
       ...r,
       approvals: approvals.filter((a) => a.minute_id === r.id),
     }));
+  });
+
+/** Atas na lixeira (excluídas há menos de 30 dias). */
+export const listDeletedChapterMinutes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ chapterId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const { data: allowed, error: permErr } = await context.supabase.rpc(
+      "has_permission",
+      { _chapter_id: data.chapterId, _perm: "secretaria" } as never,
+    );
+    if (permErr) throw new Error(permErr.message);
+    const { data: isAdmin, error: adminErr } = await context.supabase.rpc(
+      "has_permission",
+      { _chapter_id: data.chapterId, _perm: "admin" } as never,
+    );
+    if (adminErr) throw new Error(adminErr.message);
+    if (!allowed && !isAdmin) {
+      throw new Error("Sem permissão para ver a lixeira de atas");
+    }
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+
+    const { data: rows, error } = await context.supabase
+      .from("session_minutes")
+      .select(
+        "id, content, status, kind, opened_at, updated_at, deleted_at, calendar_event_id, calendar_event:calendar_events(id, title, event_type, mandatory, start_at, end_at, location, address)",
+      )
+      .eq("chapter_id", data.chapterId)
+      .not("deleted_at", "is", null)
+      .gte("deleted_at", cutoff.toISOString())
+      .order("deleted_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return rows ?? [];
   });
 
 /** Sessões que suportam ata e ainda não têm registro em session_minutes. */
@@ -154,7 +191,8 @@ export const listSessionsWithoutMinutes = createServerFn({ method: "POST" })
       context.supabase
         .from("session_minutes")
         .select("calendar_event_id")
-        .eq("chapter_id", data.chapterId),
+        .eq("chapter_id", data.chapterId)
+        .is("deleted_at", null),
     ]);
     if (eventsRes.error) throw new Error(eventsRes.error.message);
     if (minutesRes.error) throw new Error(minutesRes.error.message);
@@ -231,11 +269,20 @@ export const getMinuteApprovals = createServerFn({ method: "POST" })
 async function loadMinute(supabase: any, minuteId: string) {
   const { data, error } = await supabase
     .from("session_minutes")
-    .select("id, chapter_id, status")
+    .select("id, chapter_id, status, deleted_at")
     .eq("id", minuteId)
     .single();
   if (error) throw new Error(error.message);
-  return data as { id: string; chapter_id: string; status: string };
+  const row = data as {
+    id: string;
+    chapter_id: string;
+    status: string;
+    deleted_at: string | null;
+  };
+  if (row.deleted_at) {
+    throw new Error("Ata excluída. Recupere na lixeira para continuar.");
+  }
+  return row;
 }
 
 /** Concluir a ata: passa automaticamente para "Em Revisão para Aprovação". */
@@ -342,47 +389,26 @@ export const signMinute = createServerFn({ method: "POST" })
     return { ok: true, approved: complete };
   });
 
-/** Exclui a ata da sessão (votos e assinaturas em cascade). */
+/** Exclusão lógica da ata (lixeira). Recuperável por 30 dias. */
 export const deleteMinute = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ minuteId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const minute = await loadMinute(context.supabase, data.minuteId);
-    if (minute.status !== "rascunho") {
-      throw new Error("Somente atas em rascunho podem ser excluídas.");
-    }
-
-    const { data: allowed, error: roleErr } = await context.supabase.rpc(
-      "has_any_role",
-      {
-        _chapter_id: minute.chapter_id,
-        _role_names: [
-          "admin_total",
-          "mestre_conselheiro",
-          "escrivao",
-          "consultor",
-          "presidente_conselho",
-        ],
-      },
-    );
-    if (roleErr) throw new Error(roleErr.message);
-    if (!allowed) {
-      throw new Error("Sem permissão para excluir esta ata");
-    }
-
-    const { data: deleted, error } = await context.supabase
-      .from("session_minutes")
-      .delete()
-      .eq("id", minute.id)
-      .eq("chapter_id", minute.chapter_id)
-      .eq("status", "rascunho")
-      .select("id")
-      .maybeSingle();
+    const { error } = await context.supabase.rpc("soft_delete_session_minute", {
+      _minute_id: data.minuteId,
+    });
     if (error) throw new Error(error.message);
-    if (!deleted) {
-      throw new Error(
-        "Ata não está mais em rascunho e não pode ser excluída",
-      );
-    }
+    return { ok: true as const };
+  });
+
+/** Recupera ata da lixeira (até 30 dias após a exclusão). */
+export const restoreMinute = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ minuteId: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("restore_session_minute", {
+      _minute_id: data.minuteId,
+    });
+    if (error) throw new Error(error.message);
     return { ok: true as const };
   });

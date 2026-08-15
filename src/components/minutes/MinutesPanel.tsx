@@ -118,9 +118,10 @@ export function MinutesPanel({
 }: Props) {
   const qc = useQueryClient();
   const { active } = useActiveChapter();
-  const { positions } = useChapterAccess();
+  const { positions, canScreen } = useChapterAccess();
   const term = currentTerm();
   const { confirm, dialog } = useConfirmDialog();
+  const canDelete = canScreen("atas", "delete");
 
   function canSignAs(r: SignerRole): boolean {
     if (roleName === "admin_total") return true;
@@ -388,8 +389,13 @@ export function MinutesPanel({
     onSuccess: () => {
       allowUnmountSaveRef.current = false;
       draftRef.current = { ...draftRef.current, dirty: false };
-      toast.success("Ata excluída");
+      toast.success("Ata movida para a lixeira", {
+        description: "Recuperável por 30 dias em Atas → Lixeira.",
+      });
       void qc.invalidateQueries({ queryKey: ["chapter-minutes", chapterId] });
+      void qc.invalidateQueries({
+        queryKey: ["chapter-minutes-deleted", chapterId],
+      });
       void qc.invalidateQueries({ queryKey: ["ongoing", calendarEventId] });
       onDeleted?.();
       onChanged();
@@ -398,11 +404,11 @@ export function MinutesPanel({
   });
 
   async function handleDelete() {
-    if (!minutes?.id) return;
+    if (!minutes?.id || !canDelete) return;
     const ok = await confirm({
       title: "Excluir esta ata?",
       description:
-        "O texto, o link público, votos e assinaturas serão removidos. A sessão permanece no calendário.",
+        "A ata vai para a lixeira e pode ser recuperada por 30 dias. O link público é revogado. A sessão permanece no calendário.",
       confirmLabel: "Excluir ata",
       destructive: true,
     });
@@ -602,7 +608,7 @@ export function MinutesPanel({
                 : "Ainda não salva"}
               {dirty ? " · salva ao sair" : ""}
             </span>
-            {minutes?.id ? (
+            {minutes?.id && canDelete ? (
               <Button
                 variant="outline"
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
@@ -643,7 +649,7 @@ export function MinutesPanel({
             <Lock className="h-3.5 w-3.5" /> Texto bloqueado. Reabra a ata para
             corrigir.
           </p>
-          {minutes?.id ? (
+          {minutes?.id && canDelete ? (
             <Button
               variant="outline"
               size="sm"

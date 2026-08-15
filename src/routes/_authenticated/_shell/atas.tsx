@@ -2,6 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   useSuspenseQuery,
   useQuery,
+  useMutation,
+  useQueryClient,
   queryOptions,
 } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -36,7 +38,9 @@ import {
   createTemplate,
   deleteTemplate,
   listChapterMinutes,
+  listDeletedChapterMinutes,
   listSessionsWithoutMinutes,
+  restoreMinute,
   MINUTE_STATUS_LABELS,
   SIGNER_LABELS,
   SIGNER_ROLES,
@@ -56,7 +60,7 @@ import {
   type Term,
 } from "@/lib/terms";
 import { matchesLooseSearch } from "@/lib/utils";
-import { FileText, Plus, Download, Search, X } from "lucide-react";
+import { FileText, Plus, Download, Search, X, Trash2, RotateCcw } from "lucide-react";
 import {
   DocumentTemplatesPanel,
   type DocTemplate,
@@ -94,6 +98,12 @@ const minutesQO = (chapterId: string) =>
     queryFn: () => listChapterMinutes({ data: { chapterId } }),
   });
 
+const deletedMinutesQO = (chapterId: string) =>
+  queryOptions({
+    queryKey: ["chapter-minutes-deleted", chapterId],
+    queryFn: () => listDeletedChapterMinutes({ data: { chapterId } }),
+  });
+
 const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
   rascunho: { bg: "#F3F4F6", color: "#6B6B6B" },
   em_revisao: { bg: "#FEF3C7", color: "#B45309" },
@@ -107,6 +117,7 @@ type MinuteRow = {
   title?: string | null;
   content?: string | null;
   opened_at: string;
+  deleted_at?: string | null;
   calendar_event_id: string;
   calendar_event?: {
     title?: string | null;
@@ -114,6 +125,14 @@ type MinuteRow = {
   } | null;
   approvals?: { signer_role: string }[];
 };
+
+function daysLeftInTrash(deletedAt: string | null | undefined): number {
+  if (!deletedAt) return 0;
+  const expires = new Date(deletedAt);
+  expires.setDate(expires.getDate() + 30);
+  const ms = expires.getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+}
 
 function termFromMinute(m: MinuteRow): Term {
   const iso = m.calendar_event?.start_at ?? m.opened_at;
@@ -448,11 +467,31 @@ function filterMinutes(
 function AtasPage() {
   const { active } = useActiveChapter();
   const { can, canScreen } = useChapterAccess();
+  const qc = useQueryClient();
   const chapterId = active?.chapter_id ?? "";
   const { data: templates } = useSuspenseQuery(templatesQO(chapterId));
   const { data: minutes } = useSuspenseQuery(minutesQO(chapterId));
   const allowed =
     canScreen("atas", "edit") || can("secretaria") || can("admin");
+  const canManageTrash =
+    canScreen("atas", "delete") || can("secretaria") || can("admin");
+
+  const deletedQ = useQuery({
+    ...deletedMinutesQO(chapterId),
+    enabled: Boolean(chapterId) && canManageTrash,
+  });
+
+  const restore = useMutation({
+    mutationFn: (minuteId: string) => restoreMinute({ data: { minuteId } }),
+    onSuccess: () => {
+      toast.success("Ata recuperada");
+      void qc.invalidateQueries({ queryKey: ["chapter-minutes", chapterId] });
+      void qc.invalidateQueries({
+        queryKey: ["chapter-minutes-deleted", chapterId],
+      });
+    },
+    onError: (e: Error) => toast.error(e.message ?? "Erro ao recuperar ata"),
+  });
 
   const cur = currentTerm();
   const [search, setSearch] = useState("");
@@ -463,6 +502,7 @@ function AtasPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const rows = (minutes as MinuteRow[]) ?? [];
+  const deletedRows = (deletedQ.data as MinuteRow[] | undefined) ?? [];
 
   const years = useMemo(() => {
     const founded = chapterFoundedAt(
@@ -513,13 +553,19 @@ function AtasPage() {
     <div>
       <PageHeader
         title="Atas"
-        subtitle="Atas em andamento, histórico por situação e modelos padrão do capítulo."
+        subtitle="Atas em andamento, histórico por situação, lixeira e modelos padrão do capítulo."
       />
 
       <Tabs defaultValue="atual">
         <TabsList className="mb-4">
           <TabsTrigger value="atual">Atual</TabsTrigger>
           <TabsTrigger value="todas">Todas</TabsTrigger>
+          {canManageTrash ? (
+            <TabsTrigger value="lixeira">
+              Lixeira
+              {deletedRows.length > 0 ? ` (${deletedRows.length})` : ""}
+            </TabsTrigger>
+          ) : null}
           <TabsTrigger value="modelos">Modelos</TabsTrigger>
         </TabsList>
 
@@ -631,6 +677,72 @@ function AtasPage() {
             </ul>
           )}
         </TabsContent>
+
+        {canManageTrash ? (
+          <TabsContent value="lixeira">
+            <p className="mb-3 text-sm text-muted-foreground">
+              Atas excluídas ficam recuperáveis por 30 dias. Depois são removidas
+              definitivamente.
+            </p>
+            {deletedQ.isLoading ? (
+              <p className="text-sm text-muted-foreground">Carregando…</p>
+            ) : deletedRows.length === 0 ? (
+              <EmptyState
+                icon={<Trash2 className="h-7 w-7" />}
+                title="Lixeira vazia"
+                description="Nenhuma ata excluída nos últimos 30 dias."
+              />
+            ) : (
+              <ul className="space-y-2">
+                {deletedRows.map((m) => {
+                  const left = daysLeftInTrash(m.deleted_at);
+                  return (
+                    <li key={m.id}>
+                      <div className="flex flex-col gap-3 rounded-[12px] border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="truncate text-sm font-medium">
+                              {m.calendar_event?.title ?? "Sessão"}
+                            </div>
+                            <StatusBadge status={m.status} />
+                            {m.kind ? (
+                              <Badge
+                                variant="outline"
+                                className="text-[11px] font-normal"
+                              >
+                                {MINUTE_KIND_LABELS[m.kind as MinuteKind] ??
+                                  m.kind}
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Excluída em{" "}
+                            {m.deleted_at
+                              ? formatDateTimeBR(m.deleted_at)
+                              : "—"}
+                            {" · "}
+                            {left === 0
+                              ? "Expira hoje"
+                              : `${left} dia${left === 1 ? "" : "s"} restante${left === 1 ? "" : "s"}`}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={restore.isPending}
+                          onClick={() => restore.mutate(m.id)}
+                        >
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Recuperar
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </TabsContent>
+        ) : null}
 
         <TabsContent value="modelos">
           <DocumentTemplatesPanel

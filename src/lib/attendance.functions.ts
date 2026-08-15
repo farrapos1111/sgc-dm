@@ -63,6 +63,7 @@ export const getOngoing = createServerFn({ method: "POST" })
         .from("session_minutes")
         .select("id, content, opened_at, updated_at, status, title, kind")
         .eq("calendar_event_id", data.calendarEventId)
+        .is("deleted_at", null)
         .order("opened_at", { ascending: true }),
     ]);
     if (members.error) throw new Error(members.error.message);
@@ -92,6 +93,7 @@ export const listMinutesForEvent = createServerFn({ method: "POST" })
       .from("session_minutes")
       .select("id, content, opened_at, updated_at, status, title, kind")
       .eq("calendar_event_id", data.calendarEventId)
+      .is("deleted_at", null)
       .order("opened_at", { ascending: true });
     if (error) throw new Error(error.message);
     return rows ?? [];
@@ -217,6 +219,7 @@ export const saveMinutes = createServerFn({ method: "POST" })
         .eq("status", "rascunho")
         .eq("calendar_event_id", data.calendarEventId)
         .eq("chapter_id", data.chapterId)
+        .is("deleted_at", null)
         .select("id, status, kind, title")
         .maybeSingle();
       if (error) throw new Error(error.message);

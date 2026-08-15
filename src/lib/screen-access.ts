@@ -379,6 +379,11 @@ export function resolveHardcodedScreenAccess(
 
   if (isEscrivao(ctx)) {
     grantMany(map, SECRETARIA, cru());
+    // Atas: exclusão lógica (lixeira 30 dias)
+    map.set(
+      "atas",
+      mergeGrantFlags(map.get("atas") ?? emptyGrantFlags(), crud()),
+    );
     grantMany(map, TESOURARIA, viewOnly());
     grantMany(map, GESTAO_MENU, viewOnly());
     grantMany(map, SIND, cru());
