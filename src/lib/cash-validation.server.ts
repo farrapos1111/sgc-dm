@@ -44,6 +44,9 @@ async function resolveLegacySubcategory(
  * Eventos: prioriza event_finance_items (módulo de eventos);
  * fallback legado: cash_subcategories + calendar_events.
  * Hospitalaria é categoria padrão (sem subcategoria obrigatória).
+ *
+ * `forUpdate`: lançamentos gerados por ingressos/comanda podem não ter item,
+ * ou o evento já fechou — permite manter o vínculo existente.
  */
 export async function resolveSubcategory(
   supabase: AnyClient,
@@ -51,6 +54,7 @@ export async function resolveSubcategory(
   category: string,
   subcategoryId: string | null,
   eventId: string | null = null,
+  opts: { forUpdate?: boolean } = {},
 ): Promise<ResolvedSubcategory> {
   const scope = scopeOfCategory(category);
   if (!scope) {
@@ -77,12 +81,10 @@ export async function resolveSubcategory(
   if (itemErr) throw new Error(itemErr.message);
 
   if (item) {
-    if (
-      !eventId ||
-      item.chapter_id !== chapterId ||
-      !item.active ||
-      item.event_id !== eventId
-    ) {
+    if (!eventId || item.chapter_id !== chapterId || item.event_id !== eventId) {
+      throw new Error("Item inexistente ou desativado no financeiro do evento");
+    }
+    if (!opts.forUpdate && !item.active) {
       throw new Error("Item inexistente ou desativado no financeiro do evento");
     }
     const { data: event, error: evErr } = await supabase
@@ -92,8 +94,10 @@ export async function resolveSubcategory(
       .maybeSingle();
     if (evErr) throw new Error(evErr.message);
     if (!event) throw new Error("Evento não encontrado");
-    const { assertEventFinanceOpen } = await import("@/lib/event-lifecycle");
-    assertEventFinanceOpen(event.starts_at, event.status);
+    if (!opts.forUpdate) {
+      const { assertEventFinanceOpen } = await import("@/lib/event-lifecycle");
+      assertEventFinanceOpen(event.starts_at, event.status);
+    }
 
     return {
       subcategory: item.name,

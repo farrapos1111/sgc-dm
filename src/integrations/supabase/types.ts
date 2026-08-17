@@ -273,6 +273,7 @@ export type Database = {
           event_id: string | null
           id: string
           kind: Database["public"]["Enums"]["cash_entry_kind"]
+          qty: number | null
           receipt_url: string | null
           subcategory: string | null
           updated_at: string
@@ -290,6 +291,7 @@ export type Database = {
           event_id?: string | null
           id?: string
           kind: Database["public"]["Enums"]["cash_entry_kind"]
+          qty?: number | null
           receipt_url?: string | null
           subcategory?: string | null
           updated_at?: string
@@ -307,6 +309,7 @@ export type Database = {
           event_id?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["cash_entry_kind"]
+          qty?: number | null
           receipt_url?: string | null
           subcategory?: string | null
           updated_at?: string

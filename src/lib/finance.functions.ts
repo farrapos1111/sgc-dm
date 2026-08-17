@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { competenceLabel, duesDescription } from "@/lib/cash-categories";
+import { competenceLabel, duesDescription, scopeOfCategory } from "@/lib/cash-categories";
 import {
   autoDueStatus,
   getChapterDefaultDuesAmount,
@@ -236,13 +236,14 @@ async function listCashEntriesRows(
     event_id: string | null;
     event_finance_item_id: string | null;
     calendar_event_id: string | null;
+    qty: number | null;
   }> = [];
 
   for (;;) {
     const { data, error } = await supabase
       .from("cash_entries")
       .select(
-        "id, kind, category, subcategory, description, amount, entry_date, created_at, event_id, event_finance_item_id, calendar_event_id",
+        "id, kind, category, subcategory, description, amount, entry_date, created_at, event_id, event_finance_item_id, calendar_event_id, qty",
       )
       .eq("chapter_id", chapterId)
       .gte("entry_date", periodStart)
@@ -325,10 +326,16 @@ export const listCashEntries = createServerFn({ method: "POST" })
       }
     }
 
+    const ticketLinkedIds = await ticketLinkedCashEntryIds(
+      context.supabase,
+      entries.map((e) => e.id),
+    );
+
     return {
       entries: entries.map((e) => ({
         ...e,
         event_name: e.event_id ? (eventNameById.get(e.event_id) ?? null) : null,
+        from_ticket: ticketLinkedIds.has(e.id),
       })),
       totals: periodAgg,
       bank: bankAgg,
@@ -338,6 +345,145 @@ export const listCashEntries = createServerFn({ method: "POST" })
       },
     };
   });
+
+type CashStockClient = { from: (t: string) => any };
+
+async function ticketLinkedCashEntryIds(
+  supabase: CashStockClient,
+  ids: string[],
+): Promise<Set<string>> {
+  const linked = new Set<string>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200);
+    if (chunk.length === 0) continue;
+    const { data, error } = await supabase
+      .from("event_ticket_items")
+      .select("cash_entry_id")
+      .in("cash_entry_id", chunk);
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) {
+      if (row.cash_entry_id) linked.add(row.cash_entry_id as string);
+    }
+  }
+  return linked;
+}
+
+async function cashEntryHasTicketLink(
+  supabase: CashStockClient,
+  cashEntryId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("event_ticket_items")
+    .select("id")
+    .eq("cash_entry_id", cashEntryId)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return !!data;
+}
+
+async function loadStockTrackedItem(
+  supabase: CashStockClient,
+  itemId: string | null,
+): Promise<{
+  id: string;
+  name: string;
+  track_stock: boolean;
+  stock_qty: number | null;
+} | null> {
+  if (!itemId) return null;
+  const { data, error } = await supabase
+    .from("event_finance_items")
+    .select("id, name, track_stock, stock_qty")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/** Unidades vendidas (entrada + item com estoque). Caso contrário, 0. */
+function soldQtyForStockItem(
+  kind: "entrada" | "saida",
+  qty: number | null | undefined,
+  trackStock: boolean,
+  opts: { requireQty: boolean; itemName?: string },
+): number {
+  if (!trackStock || kind !== "entrada") return 0;
+  const n = Math.trunc(Number(qty) || 0);
+  if (n < 1) {
+    if (opts.requireQty) {
+      throw new Error(
+        `Informe a quantidade vendida${opts.itemName ? ` de "${opts.itemName}"` : ""}`,
+      );
+    }
+    return 0;
+  }
+  return n;
+}
+
+/** delta negativo baixa estoque; positivo devolve. */
+async function adjustTrackedStock(
+  supabase: CashStockClient,
+  itemId: string,
+  delta: number,
+) {
+  if (!delta) return;
+  const item = await loadStockTrackedItem(supabase, itemId);
+  if (!item?.track_stock) return;
+  const current = item.stock_qty ?? 0;
+  const next = current + delta;
+  if (next < 0) {
+    throw new Error(
+      `Estoque insuficiente de "${item.name}" (disponível: ${current})`,
+    );
+  }
+  const { error } = await supabase
+    .from("event_finance_items")
+    .update({ stock_qty: next })
+    .eq("id", itemId);
+  if (error) throw new Error(error.message);
+}
+
+async function syncManualCashStock(opts: {
+  supabase: CashStockClient;
+  oldItemId: string | null;
+  oldKind: "entrada" | "saida";
+  oldQty: number | null;
+  newItemId: string | null;
+  newKind: "entrada" | "saida";
+  newQty: number | null | undefined;
+  requireNewQty: boolean;
+}): Promise<number | null> {
+  const oldItem = await loadStockTrackedItem(opts.supabase, opts.oldItemId);
+  const newItem =
+    opts.newItemId === opts.oldItemId
+      ? oldItem
+      : await loadStockTrackedItem(opts.supabase, opts.newItemId);
+  const oldSold = soldQtyForStockItem(
+    opts.oldKind,
+    opts.oldQty,
+    !!oldItem?.track_stock,
+    { requireQty: false },
+  );
+  const newSold = soldQtyForStockItem(
+    opts.newKind,
+    opts.newQty,
+    !!newItem?.track_stock,
+    { requireQty: opts.requireNewQty, itemName: newItem?.name },
+  );
+
+  if (opts.oldItemId && opts.oldItemId === opts.newItemId) {
+    await adjustTrackedStock(opts.supabase, opts.oldItemId, oldSold - newSold);
+  } else {
+    if (opts.oldItemId && oldSold) {
+      await adjustTrackedStock(opts.supabase, opts.oldItemId, oldSold);
+    }
+    if (opts.newItemId && newSold) {
+      await adjustTrackedStock(opts.supabase, opts.newItemId, -newSold);
+    }
+  }
+  return newSold > 0 ? newSold : null;
+}
 
 export const createCashEntry = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -351,6 +497,7 @@ export const createCashEntry = createServerFn({ method: "POST" })
         description: z.string().min(1, "Informe a descrição"),
         amount: z.number().nonnegative(),
         entry_date: z.string().min(1),
+        qty: z.number().int().positive().nullable().optional(),
       })
       .parse(raw),
   )
@@ -363,6 +510,16 @@ export const createCashEntry = createServerFn({ method: "POST" })
       data.subcategoryId,
       data.eventId,
     );
+    const persistedQty = await syncManualCashStock({
+      supabase: context.supabase,
+      oldItemId: null,
+      oldKind: "entrada",
+      oldQty: null,
+      newItemId: resolved.event_finance_item_id,
+      newKind: data.kind,
+      newQty: data.qty,
+      requireNewQty: true,
+    });
     const { error } = await context.supabase.from("cash_entries").insert({
       chapter_id: data.chapterId,
       kind: data.kind,
@@ -374,9 +531,19 @@ export const createCashEntry = createServerFn({ method: "POST" })
       description: data.description,
       amount: data.amount,
       entry_date: data.entry_date,
+      qty: persistedQty,
       created_by: context.userId,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (persistedQty && resolved.event_finance_item_id) {
+        await adjustTrackedStock(
+          context.supabase,
+          resolved.event_finance_item_id,
+          persistedQty,
+        );
+      }
+      throw new Error(error.message);
+    }
     return { ok: true };
   });
 
@@ -393,6 +560,7 @@ export const updateCashEntry = createServerFn({ method: "POST" })
         description: z.string().min(1),
         amount: z.number().nonnegative(),
         entry_date: z.string().min(1),
+        qty: z.number().int().positive().nullable().optional(),
       })
       .parse(raw),
   )
@@ -400,20 +568,53 @@ export const updateCashEntry = createServerFn({ method: "POST" })
     const { resolveSubcategory } = await import("@/lib/cash-validation.server");
     const { data: current, error: curErr } = await context.supabase
       .from("cash_entries")
-      .select("chapter_id")
+      .select(
+        "chapter_id, kind, subcategory, event_id, event_finance_item_id, calendar_event_id, qty",
+      )
       .eq("id", data.id)
       .single();
     if (curErr) throw new Error(curErr.message);
 
-    const resolved = await resolveSubcategory(
-      context.supabase,
-      current.chapter_id,
-      data.category,
-      data.subcategoryId,
-      data.eventId,
-    );
+    const scope = scopeOfCategory(data.category);
+    const resolved = !scope
+      ? {
+          subcategory: null as string | null,
+          calendar_event_id: null as string | null,
+          event_id: null as string | null,
+          event_finance_item_id: null as string | null,
+        }
+      : !data.subcategoryId
+        ? {
+            subcategory: current.subcategory,
+            calendar_event_id: current.calendar_event_id,
+            event_id: data.eventId || current.event_id,
+            event_finance_item_id: current.event_finance_item_id,
+          }
+        : await resolveSubcategory(
+            context.supabase,
+            current.chapter_id,
+            data.category,
+            data.subcategoryId,
+            data.eventId,
+            { forUpdate: true },
+          );
 
-    const { id, subcategoryId, eventId: _eventId, ...patch } = data;
+    const fromTicket = await cashEntryHasTicketLink(context.supabase, data.id);
+    let persistedQty = fromTicket ? (current.qty as number | null) : null;
+    if (!fromTicket) {
+      persistedQty = await syncManualCashStock({
+        supabase: context.supabase,
+        oldItemId: current.event_finance_item_id,
+        oldKind: current.kind as "entrada" | "saida",
+        oldQty: current.qty,
+        newItemId: resolved.event_finance_item_id,
+        newKind: data.kind,
+        newQty: data.qty,
+        requireNewQty: true,
+      });
+    }
+
+    const { id, subcategoryId, eventId: _eventId, qty: _qty, ...patch } = data;
     const { error } = await context.supabase
       .from("cash_entries")
       .update({
@@ -422,9 +623,24 @@ export const updateCashEntry = createServerFn({ method: "POST" })
         calendar_event_id: resolved.calendar_event_id,
         event_id: resolved.event_id,
         event_finance_item_id: resolved.event_finance_item_id,
+        qty: persistedQty,
       })
       .eq("id", id);
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (!fromTicket) {
+        await syncManualCashStock({
+          supabase: context.supabase,
+          oldItemId: resolved.event_finance_item_id,
+          oldKind: data.kind,
+          oldQty: persistedQty,
+          newItemId: current.event_finance_item_id,
+          newKind: current.kind as "entrada" | "saida",
+          newQty: current.qty,
+          requireNewQty: false,
+        });
+      }
+      throw new Error(error.message);
+    }
     return { ok: true };
   });
 
@@ -489,11 +705,41 @@ export const deleteCashEntry = createServerFn({ method: "POST" })
       .update({ status: "em_aberto", paid_at: null, cash_entry_id: null })
       .eq("cash_entry_id", data.id);
 
+    const { data: current, error: curErr } = await context.supabase
+      .from("cash_entries")
+      .select("kind, event_finance_item_id, qty")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (curErr) throw new Error(curErr.message);
+
+    const fromTicket = await cashEntryHasTicketLink(context.supabase, data.id);
+
+    // Reabre itens da comanda: o vínculo com o caixa é o que define a baixa.
+    const { error: unlinkErr } = await context.supabase
+      .from("event_ticket_items")
+      .update({ cash_entry_id: null })
+      .eq("cash_entry_id", data.id);
+    if (unlinkErr) throw new Error(unlinkErr.message);
+
     const { error } = await context.supabase
       .from("cash_entries")
       .delete()
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+
+    if (!fromTicket && current) {
+      await syncManualCashStock({
+        supabase: context.supabase,
+        oldItemId: current.event_finance_item_id,
+        oldKind: current.kind as "entrada" | "saida",
+        oldQty: current.qty,
+        newItemId: null,
+        newKind: "entrada",
+        newQty: null,
+        requireNewQty: false,
+      });
+    }
+
     return { ok: true };
   });
 

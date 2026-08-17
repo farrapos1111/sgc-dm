@@ -102,9 +102,14 @@ type EntryForm = {
   category: string;
   eventId: string;
   subcategoryId: string;
+  subcategoryLabel: string;
   description: string;
   amount: string;
   entry_date: string;
+  qty: string;
+  fromTicket?: boolean;
+  originalQty?: number;
+  originalItemId?: string;
 };
 
 const emptyForm = (): EntryForm => ({
@@ -112,10 +117,62 @@ const emptyForm = (): EntryForm => ({
   category: "Outras",
   eventId: "",
   subcategoryId: "",
+  subcategoryLabel: "",
   description: "",
   amount: "",
   entry_date: todayYmd(),
+  qty: "",
+  fromTicket: false,
+  originalQty: 0,
+  originalItemId: "",
 });
+
+function cashDeleteConfirmDescription(e: {
+  description: string;
+  kind: "entrada" | "saida";
+  amount: number | string;
+  from_ticket?: boolean;
+}) {
+  const value = `${e.kind === "entrada" ? "+" : "−"} ${formatBRL(Number(e.amount))}`;
+  const base = `Excluir “${e.description}” (${value}) do fluxo de caixa?`;
+  if (!e.from_ticket) return base;
+  return `${base} Os itens da comanda voltam a ficar em aberto.`;
+}
+
+function sanitizeIntegerQty(raw: string) {
+  return raw.replace(/\D/g, "");
+}
+
+function formFromCashEntry(e: {
+  id: string;
+  kind: "entrada" | "saida";
+  category: string;
+  event_id: string | null;
+  calendar_event_id: string | null;
+  event_finance_item_id: string | null;
+  subcategory: string | null;
+  description: string;
+  amount: number | string;
+  entry_date: string;
+  qty?: number | null;
+  from_ticket?: boolean;
+}): EntryForm {
+  return {
+    id: e.id,
+    kind: e.kind,
+    category: e.category,
+    eventId: e.event_id ?? e.calendar_event_id ?? "",
+    subcategoryId: e.event_finance_item_id ?? "",
+    subcategoryLabel: e.subcategory ?? "",
+    description: e.description,
+    amount: String(e.amount),
+    entry_date: e.entry_date,
+    qty: e.qty != null ? String(e.qty) : "",
+    fromTicket: !!e.from_ticket,
+    originalQty: e.qty ?? 0,
+    originalItemId: e.event_finance_item_id ?? "",
+  };
+}
 
 
 function FluxoCaixa() {
@@ -197,6 +254,23 @@ function FluxoCaixa() {
       s.scope === "eventos" &&
       s.calendar_event_id === form.eventId,
   );
+  if (
+    form.subcategoryId &&
+    !scopedSubs.some((s) => s.id === form.subcategoryId)
+  ) {
+    scopedSubs.push({
+      id: form.subcategoryId,
+      scope: "eventos",
+      calendar_event_id: form.eventId,
+      name: form.subcategoryLabel || "Item do evento",
+      active: true,
+    } as (typeof scopedSubs)[number]);
+  }
+  const isLinkedEventEntry =
+    Boolean(form.id) &&
+    scope === "eventos" &&
+    Boolean(form.eventId) &&
+    !form.subcategoryId;
   const eventsWithItems = useMemo(() => {
     const opts = [...eventOptions];
     if (form.eventId && !opts.some((e) => e.id === form.eventId)) {
@@ -216,7 +290,30 @@ function FluxoCaixa() {
   const selectedEventItem = eventFinanceItems.find(
     (i) => i.id === form.subcategoryId,
   );
+  const showStockQty =
+    !isLinkedEventEntry &&
+    !form.fromTicket &&
+    form.kind === "entrada" &&
+    !!selectedEventItem?.track_stock;
+  const reservedStock =
+    form.id &&
+    form.kind === "entrada" &&
+    selectedEventItem?.id &&
+    selectedEventItem.id === form.originalItemId
+      ? form.originalQty ?? 0
+      : 0;
+  const stockAvailable =
+    (selectedEventItem?.stock_qty ?? 0) + reservedStock;
+  const parsedQty = Number(form.qty);
+  const qtyValid =
+    Number.isInteger(parsedQty) && parsedQty >= 1;
+  const qtyOverStock = showStockQty && qtyValid && parsedQty > stockAvailable;
   const isManualDues = form.category === "Mensalidades" && !form.id;
+
+  useEffect(() => {
+    if (!showStockQty || form.qty) return;
+    setForm((f) => (f.qty ? f : { ...f, qty: "1" }));
+  }, [showStockQty, form.qty]);
 
   const categoryNames = useMemo(() => {
     const names = new Set<string>(FIXED_CATEGORIES);
@@ -505,6 +602,11 @@ function FluxoCaixa() {
         description: form.description.trim(),
         amount: Number(String(form.amount).replace(",", ".")) || 0,
         entry_date: form.entry_date,
+        qty: showStockQty
+          ? Number(form.qty) || null
+          : form.fromTicket
+            ? null
+            : form.originalQty || null,
       };
       if (form.id) return updateCashEntry({ data: { id: form.id, ...payload } });
       return createCashEntry({ data: { chapterId: active!.chapter_id, ...payload } });
@@ -518,6 +620,8 @@ function FluxoCaixa() {
       setDuesMonths([]);
       await invalidate();
       await qc.invalidateQueries({ queryKey: ["dues"] });
+      await qc.invalidateQueries({ queryKey: ["cash-categories"] });
+      await qc.invalidateQueries({ queryKey: ["event-finance"] });
     },
 
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
@@ -568,7 +672,7 @@ function FluxoCaixa() {
     },
     onSuccess: () => {
       toast.success(
-        "Lançamento excluído — cobrança/mensalidade vinculada atualizada",
+        "Lançamento excluído — comanda, cobrança ou mensalidade vinculada atualizada",
       );
     },
     onSettled: () => {
@@ -579,6 +683,10 @@ function FluxoCaixa() {
       void qc.invalidateQueries({ queryKey: ["year-dues"] });
       void qc.invalidateQueries({ queryKey: ["member-finance"] });
       void qc.invalidateQueries({ queryKey: ["dashboard-finance"] });
+      void qc.invalidateQueries({ queryKey: ["cash-categories"] });
+      void qc.invalidateQueries({ queryKey: ["event-finance"] });
+      void qc.invalidateQueries({ queryKey: ["event-ticket-items"] });
+      void qc.invalidateQueries({ queryKey: ["comanda-checkout"] });
     },
   });
 
@@ -1078,16 +1186,7 @@ function FluxoCaixa() {
                     sortDir={sortDir}
                     onSort={toggleSort}
                     onEdit={(e) => {
-                      setForm({
-                        id: e.id,
-                        kind: e.kind,
-                        category: e.category,
-                        eventId: e.event_id ?? e.calendar_event_id ?? "",
-                        subcategoryId: e.event_finance_item_id ?? "",
-                        description: e.description,
-                        amount: String(e.amount),
-                        entry_date: e.entry_date,
-                      });
+                      setForm(formFromCashEntry(e));
                       setEntryOpen(true);
                     }}
                     onDelete={async (id) => {
@@ -1095,7 +1194,7 @@ function FluxoCaixa() {
                       const ok = await confirm({
                         title: "Excluir lançamento?",
                         description: e
-                          ? `Excluir “${e.description}” (${e.kind === "entrada" ? "+" : "−"} ${formatBRL(Number(e.amount))}) do fluxo de caixa?`
+                          ? cashDeleteConfirmDescription(e)
                           : "Excluir este lançamento do fluxo de caixa?",
                         confirmLabel: "Excluir",
                       });
@@ -1116,16 +1215,7 @@ function FluxoCaixa() {
             sortDir={sortDir}
             onSort={toggleSort}
             onEdit={(e) => {
-              setForm({
-                id: e.id,
-                kind: e.kind,
-                category: e.category,
-                eventId: e.event_id ?? e.calendar_event_id ?? "",
-                subcategoryId: e.event_finance_item_id ?? "",
-                description: e.description,
-                amount: String(e.amount),
-                entry_date: e.entry_date,
-              });
+              setForm(formFromCashEntry(e));
               setEntryOpen(true);
             }}
             onDelete={async (id) => {
@@ -1133,7 +1223,7 @@ function FluxoCaixa() {
               const ok = await confirm({
                 title: "Excluir lançamento?",
                 description: e
-                  ? `Excluir “${e.description}” (${e.kind === "entrada" ? "+" : "−"} ${formatBRL(Number(e.amount))}) do fluxo de caixa?`
+                  ? cashDeleteConfirmDescription(e)
                   : "Excluir este lançamento do fluxo de caixa?",
                 confirmLabel: "Excluir",
               });
@@ -1155,7 +1245,16 @@ function FluxoCaixa() {
               <Label className="mb-1.5 block text-sm">Tipo</Label>
               <Select
                 value={form.kind}
-                onValueChange={(v) => setForm((f) => ({ ...f, kind: v as "entrada" | "saida" }))}
+                onValueChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    kind: v as "entrada" | "saida",
+                    qty:
+                      v === "entrada" && selectedEventItem?.track_stock
+                        ? f.qty || "1"
+                        : f.qty,
+                  }))
+                }
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1169,7 +1268,13 @@ function FluxoCaixa() {
               <Select
                 value={form.category}
                 onValueChange={(v) =>
-                  setForm((f) => ({ ...f, category: v, eventId: "", subcategoryId: "" }))
+                  setForm((f) => ({
+                    ...f,
+                    category: v,
+                    eventId: "",
+                    subcategoryId: "",
+                    subcategoryLabel: "",
+                  }))
                 }
               >
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -1187,20 +1292,33 @@ function FluxoCaixa() {
             {scope === "eventos" && (
               <div className="sm:col-span-2">
                 <Label className="mb-1.5 block text-sm">Evento *</Label>
-                <SearchableSelect
-                  value={form.eventId}
-                  onChange={(v) =>
-                    setForm((f) => ({ ...f, eventId: v, subcategoryId: "" }))
-                  }
-                  placeholder="Selecione o evento"
-                  searchPlaceholder="Buscar evento…"
-                  emptyText="Nenhum evento encontrado."
-                  options={eventsWithItems.map((e) => ({
-                    value: e.id,
-                    label: e.title,
-                  }))}
-                />
-                {eventsWithItems.length === 0 && (
+                {isLinkedEventEntry ? (
+                  <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+                    {eventsWithItems.find((e) => e.id === form.eventId)?.title ??
+                      form.subcategoryLabel ??
+                      "Evento"}
+                  </p>
+                ) : (
+                  <SearchableSelect
+                    value={form.eventId}
+                    onChange={(v) =>
+                      setForm((f) => ({
+                        ...f,
+                        eventId: v,
+                        subcategoryId: "",
+                        subcategoryLabel: "",
+                      }))
+                    }
+                    placeholder="Selecione o evento"
+                    searchPlaceholder="Buscar evento…"
+                    emptyText="Nenhum evento encontrado."
+                    options={eventsWithItems.map((e) => ({
+                      value: e.id,
+                      label: e.title,
+                    }))}
+                  />
+                )}
+                {eventsWithItems.length === 0 && !isLinkedEventEntry && (
                   <p className="mt-1 text-xs text-muted-foreground">
                     Nenhum evento ativo. Crie um evento em Eventos e cadastre
                     itens na aba Financeiro.
@@ -1209,23 +1327,39 @@ function FluxoCaixa() {
               </div>
             )}
 
-            {scope && form.eventId && (
+            {scope && form.eventId && isLinkedEventEntry && (
+              <div className="sm:col-span-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                Lançamento gerado pela venda de ingressos ou comanda
+                {form.subcategoryLabel ? ` (${form.subcategoryLabel})` : ""}.
+                Você pode ajustar descrição, valor e data; o vínculo com o
+                evento é preservado.
+              </div>
+            )}
+
+            {scope && form.eventId && !isLinkedEventEntry && (
               <div className="sm:col-span-2">
                 <Label className="mb-1.5 block text-sm">Tipo de movimentação *</Label>
                 <Select
                   value={form.subcategoryId}
                   onValueChange={(v) => {
                     const item = eventFinanceItems.find((i) => i.id === v);
-                    setForm((f) => ({
-                      ...f,
-                      subcategoryId: v,
-                      amount:
-                        item?.unit_price != null && !f.amount
-                          ? String(item.unit_price)
-                          : item?.unit_price != null
-                            ? String(item.unit_price)
-                            : f.amount,
-                    }));
+                    setForm((f) => {
+                      const nextQty =
+                        item?.track_stock && f.kind === "entrada"
+                          ? f.qty || "1"
+                          : f.qty;
+                      const q = Number(nextQty) || 1;
+                      const amount =
+                        item?.unit_price != null
+                          ? (item.unit_price * (item.track_stock ? q : 1)).toFixed(2)
+                          : f.amount;
+                      return {
+                        ...f,
+                        subcategoryId: v,
+                        qty: item?.track_stock && f.kind === "entrada" ? String(q) : f.qty,
+                        amount,
+                      };
+                    });
                   }}
                 >
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -1240,10 +1374,42 @@ function FluxoCaixa() {
                     A comissão ainda não liberou itens para esta categoria.
                   </p>
                 )}
-                {scope === "eventos" && selectedEventItem?.track_stock && (
+              </div>
+            )}
+
+            {showStockQty && (
+              <div>
+                <Label className="mb-1.5 block text-sm">Quantidade vendida *</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  max={stockAvailable > 0 ? stockAvailable : undefined}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={form.qty}
+                  onChange={(e) => {
+                    const qty = sanitizeIntegerQty(e.target.value);
+                    const q = Number(qty) || 0;
+                    setForm((f) => ({
+                      ...f,
+                      qty,
+                      amount:
+                        selectedEventItem?.unit_price != null && q >= 1
+                          ? (selectedEventItem.unit_price * q).toFixed(2)
+                          : f.amount,
+                    }));
+                  }}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Estoque disponível: {stockAvailable}
+                  {selectedEventItem?.unit_price != null
+                    ? ` · valor unitário ${formatBRL(selectedEventItem.unit_price)}`
+                    : ""}
+                </p>
+                {qtyOverStock && (
                   <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                    Este item controla estoque. Lançamentos manuais no Caixa não
-                    baixam estoque — use a comanda do ingresso para isso.
+                    Quantidade acima do estoque disponível.
                   </p>
                 )}
               </div>
@@ -1347,7 +1513,9 @@ function FluxoCaixa() {
                 !form.entry_date ||
                 (isManualDues
                   ? !duesMemberId || duesCompetences.length === 0
-                  : !form.description.trim() || (!!scope && !form.subcategoryId))
+                  : !form.description.trim() ||
+                    (!form.id && !!scope && !form.subcategoryId) ||
+                    (showStockQty && (!qtyValid || qtyOverStock)))
               }
               style={{ backgroundColor: active?.chapter.primary_color }}
             >
@@ -1602,6 +1770,8 @@ type CashEntryRow = {
   event_finance_item_id: string | null;
   calendar_event_id: string | null;
   event_name?: string | null;
+  qty?: number | null;
+  from_ticket?: boolean;
 };
 
 type CashSortKey = "entry_date" | "kind" | "category" | "description" | "amount";
