@@ -322,7 +322,7 @@ export function PublicCashFlowView({
           className="border-b border-border px-4 py-5 sm:px-6"
           style={{ borderTop: `3px solid ${accent}` }}
         >
-          <div className="mx-auto flex max-w-5xl flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mx-auto flex max-w-[1680px] flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Fluxo de Caixa · visualização pública
@@ -359,7 +359,7 @@ export function PublicCashFlowView({
 
       <Container
         className={
-          embedded ? "py-2" : "mx-auto max-w-5xl px-4 py-6 sm:px-6"
+          embedded ? "py-2" : "mx-auto max-w-[1680px] px-4 py-6 sm:px-6"
         }
       >
         <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -700,7 +700,7 @@ function Empty({
 function ReadOnlyTable({ entries }: { entries: PublicCashEntry[] }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[560px] text-sm">
+      <table className="w-full min-w-[800px] text-sm">
         <thead>
           <tr className="border-b border-border text-xs text-muted-foreground">
             <th className="px-4 py-2.5 text-left font-medium">Data</th>
@@ -729,7 +729,7 @@ function ReadOnlyTable({ entries }: { entries: PublicCashEntry[] }) {
                   <div className="text-xs text-muted-foreground">{e.subcategory}</div>
                 ) : null}
               </td>
-              <td className="max-w-[280px] truncate px-4 py-3" title={e.description}>
+              <td className="min-w-[280px] px-4 py-3 whitespace-normal break-words">
                 {e.description}
               </td>
               <td

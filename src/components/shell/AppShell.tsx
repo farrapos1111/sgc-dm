@@ -444,7 +444,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="relative flex-1 px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8 xl:px-10">
           <div
             className={`mx-auto w-full ${
-              pathname.startsWith("/tesouraria/mensalidades")
+              pathname.startsWith("/tesouraria/mensalidades") ||
+              pathname.startsWith("/tesouraria/fluxo")
                 ? "max-w-[1680px]"
                 : "max-w-6xl"
             }`}

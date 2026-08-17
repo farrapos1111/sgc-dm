@@ -1805,7 +1805,7 @@ function CashEntriesTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[640px] text-sm">
+      <table className="w-full min-w-[880px] text-sm">
         <thead>
           <tr className="border-b border-border text-xs">
             <SortHeader label="Data" column="entry_date" />
@@ -1843,7 +1843,7 @@ function CashEntriesTable({
                   </div>
                 )}
               </td>
-              <td className="max-w-[280px] truncate px-4 py-3" title={e.description}>
+              <td className="min-w-[280px] px-4 py-3 whitespace-normal break-words">
                 {e.description}
               </td>
               <td
