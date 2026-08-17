@@ -42,7 +42,14 @@ function readCookie(name: string): string | null {
 }
 
 function deleteCookie(name: string) {
-  writeCookie(name, "", 0);
+  const base = [`${name}=`, "path=/", "max-age=0", "SameSite=Lax"];
+  document.cookie = base.join("; ");
+  const domain = cookieDomain();
+  if (domain) {
+    const withDomain = [...base, `domain=${domain}`];
+    if (cookieSecure()) withDomain.push("Secure");
+    document.cookie = withDomain.join("; ");
+  }
 }
 
 export const supabaseAuthCookieStorage = {

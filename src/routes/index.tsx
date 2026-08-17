@@ -4,9 +4,17 @@ import { getClientRealm } from "@/lib/realm";
 
 export const Route = createFileRoute("/")({
   ssr: true,
-  beforeLoad: () => {
-    // No servidor o Host é lido no middleware; no cliente, pelo hostname.
-    if (typeof window !== "undefined" && getClientRealm()) {
+  beforeLoad: async () => {
+    if (typeof window === "undefined") {
+      const { getServerRequestRealm } = await import(
+        "@/lib/request-realm.server"
+      );
+      if (getServerRequestRealm()) {
+        throw redirect({ to: "/inicio" });
+      }
+      return;
+    }
+    if (getClientRealm()) {
       throw redirect({ to: "/inicio", reloadDocument: true });
     }
   },

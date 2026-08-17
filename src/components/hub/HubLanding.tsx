@@ -14,6 +14,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const CRIMSON = "#9E1B32";
+const HUB_AUTO_REALM_KEY = "tv.hub.autoRealm";
 
 type HubStatus =
   | { kind: "anon" }
@@ -21,16 +22,42 @@ type HubStatus =
   | { kind: "redirecting"; realm: Realm }
   | { kind: "choose"; realms: Realm[] };
 
+function readAutoRealmGuard(): string | null {
+  try {
+    return sessionStorage.getItem(HUB_AUTO_REALM_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeAutoRealmGuard(realm: Realm) {
+  try {
+    sessionStorage.setItem(HUB_AUTO_REALM_KEY, realm);
+  } catch {
+    // sessionStorage pode falhar em modo restrito
+  }
+}
+
+function isCurrentEntryUrl(target: string): boolean {
+  const here = window.location;
+  const abs = new URL(target, here.href);
+  const destPath = abs.pathname.replace(/\/$/, "") || "/";
+  const herePath = here.pathname.replace(/\/$/, "") || "/";
+  return abs.origin === here.origin && destPath === herePath;
+}
+
 export function HubLanding() {
+  const hostRealm = getClientRealm();
   const [status, setStatus] = useState<HubStatus>({ kind: "loading" });
 
   useEffect(() => {
-    if (getClientRealm()) {
+    if (hostRealm) {
       window.location.replace("/inicio");
     }
-  }, []);
+  }, [hostRealm]);
 
   useEffect(() => {
+    if (hostRealm) return;
     let cancelled = false;
     async function run() {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -61,8 +88,14 @@ export function HubLanding() {
       const list = REALMS.filter((r) => realms.has(r));
       if (list.length === 1) {
         const only = list[0]!;
+        const target = realmEntryUrl(only);
+        if (readAutoRealmGuard() === only || isCurrentEntryUrl(target)) {
+          setStatus({ kind: "choose", realms: list });
+          return;
+        }
+        writeAutoRealmGuard(only);
         setStatus({ kind: "redirecting", realm: only });
-        window.location.assign(realmEntryUrl(only));
+        window.location.assign(target);
         return;
       }
       setStatus({ kind: "choose", realms: list });
@@ -71,7 +104,7 @@ export function HubLanding() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hostRealm]);
 
   const highlighted = useMemo(() => {
     if (status.kind === "choose") return new Set(status.realms);

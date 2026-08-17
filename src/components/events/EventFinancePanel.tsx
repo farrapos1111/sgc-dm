@@ -42,6 +42,7 @@ import {
 } from "@/lib/event-finance-export";
 import {
   addEventBudgetExpense,
+  deleteEventBudgetExpense,
   deleteEventFinanceCategory,
   deleteEventFinanceItem,
   getEventFinanceTotals,
@@ -50,6 +51,7 @@ import {
   listEventBudgetExpenses,
   listEventFinance,
   listEventTicketItems,
+  updateEventBudgetExpense,
   upsertEventFinanceCategory,
   upsertEventFinanceItem,
   type EventFinanceCategory,
@@ -64,6 +66,25 @@ function formatDateLabel(ymd: string) {
   const [y, m, d] = ymd.split("-");
   if (!y || !m || !d) return ymd;
   return `${d}/${m}/${y}`;
+}
+
+function budgetExpenseName(
+  row: {
+    name?: string | null;
+    subcategory?: string | null;
+    description?: string | null;
+  },
+  eventName: string,
+) {
+  if (row.name?.trim()) return row.name.trim();
+  const raw = (row.subcategory ?? row.description ?? "").trim();
+  const prefix = `Evento ${eventName} - Despesa `;
+  if (raw.startsWith(prefix)) {
+    const rest = raw.slice(prefix.length);
+    const cut = rest.lastIndexOf(" - ");
+    return (cut > 0 ? rest.slice(0, cut) : rest).trim() || raw;
+  }
+  return raw;
 }
 
 export function EventFinancePanel({
@@ -127,6 +148,7 @@ export function EventFinancePanel({
 
   const eventDay = String(eventStartsAt).slice(0, 10) || todayYmd();
   const [budgetOpen, setBudgetOpen] = useState(false);
+  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
   const [budgetName, setBudgetName] = useState("");
   const [budgetAmount, setBudgetAmount] = useState("");
   const [budgetDate, setBudgetDate] = useState(eventDay);
@@ -277,29 +299,48 @@ export function EventFinancePanel({
   });
 
   const saveBudget = useMutation({
-    mutationFn: () =>
-      addEventBudgetExpense({
-        data: {
-          eventId,
-          chapterId,
-          name: budgetName.trim(),
-          amount: Number(String(budgetAmount).replace(",", ".")),
-          entry_date: budgetDate,
-        },
-      }),
+    mutationFn: () => {
+      const payload = {
+        eventId,
+        name: budgetName.trim(),
+        amount: Number(String(budgetAmount).replace(",", ".")),
+        entry_date: budgetDate,
+      };
+      if (editingBudgetId) {
+        return updateEventBudgetExpense({
+          data: { id: editingBudgetId, ...payload },
+        });
+      }
+      return addEventBudgetExpense({
+        data: { ...payload, chapterId },
+      });
+    },
     onSuccess: () => {
       toast.success(
-        budgetDate > todayYmd()
-          ? "Despesa registrada — entra no fluxo na data informada"
-          : "Despesa de orçamento lançada no caixa",
+        editingBudgetId
+          ? "Despesa atualizada"
+          : budgetDate > todayYmd()
+            ? "Despesa registrada — entra no fluxo na data informada"
+            : "Despesa de orçamento lançada no caixa",
       );
       setBudgetOpen(false);
+      setEditingBudgetId(null);
       setBudgetName("");
       setBudgetAmount("");
       setBudgetDate(eventDay);
       invalidate();
     },
-    onError: (e) => toast.error(mutationErrorMessage(e, "Erro ao lançar")),
+    onError: (e) => toast.error(mutationErrorMessage(e, "Erro ao salvar")),
+  });
+
+  const removeBudget = useMutation({
+    mutationFn: (id: string) =>
+      deleteEventBudgetExpense({ data: { id, eventId } }),
+    onSuccess: () => {
+      toast.success("Despesa excluída");
+      invalidate();
+    },
+    onError: (e) => toast.error(mutationErrorMessage(e, "Erro ao excluir")),
   });
 
   function openNewCat() {
@@ -577,6 +618,7 @@ export function EventFinancePanel({
             <Button
               size="sm"
               onClick={() => {
+                setEditingBudgetId(null);
                 setBudgetName("");
                 setBudgetAmount("");
                 setBudgetDate(eventDay);
@@ -617,7 +659,7 @@ export function EventFinancePanel({
               >
                 <div className="min-w-0">
                   <div className="truncate font-medium">
-                    {r.subcategory ?? r.description}
+                    {budgetExpenseName(r, eventName)}
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span>{formatDateLabel(r.entry_date)}</span>
@@ -626,8 +668,45 @@ export function EventFinancePanel({
                     ) : null}
                   </div>
                 </div>
-                <div className="shrink-0 font-semibold text-rose-600 dark:text-rose-400">
-                  − {formatBRL(r.amount)}
+                <div className="flex shrink-0 items-center gap-1">
+                  <div className="font-semibold text-rose-600 dark:text-rose-400">
+                    − {formatBRL(r.amount)}
+                  </div>
+                  {canEdit ? (
+                    <>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        aria-label={`Editar despesa ${budgetExpenseName(r, eventName)}`}
+                        onClick={() => {
+                          setEditingBudgetId(r.id);
+                          setBudgetName(budgetExpenseName(r, eventName));
+                          setBudgetAmount(String(r.amount));
+                          setBudgetDate(r.entry_date);
+                          setBudgetOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive"
+                        aria-label={`Excluir despesa ${budgetExpenseName(r, eventName)}`}
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: "Excluir despesa?",
+                            description: `Excluir “${budgetExpenseName(r, eventName)}” (${formatBRL(r.amount)})? O lançamento sai do fluxo de caixa.`,
+                            confirmLabel: "Excluir",
+                          });
+                          if (ok) removeBudget.mutate(r.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : null}
                 </div>
               </li>
             ))}
@@ -979,10 +1058,18 @@ export function EventFinancePanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={budgetOpen} onOpenChange={setBudgetOpen}>
+      <Dialog
+        open={budgetOpen}
+        onOpenChange={(open) => {
+          setBudgetOpen(open);
+          if (!open) setEditingBudgetId(null);
+        }}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Despesa de orçamento</DialogTitle>
+            <DialogTitle>
+              {editingBudgetId ? "Editar despesa" : "Despesa de orçamento"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
@@ -1043,7 +1130,11 @@ export function EventFinancePanel({
               }
               onClick={() => saveBudget.mutate()}
             >
-              {saveBudget.isPending ? "Salvando…" : "Registrar despesa"}
+              {saveBudget.isPending
+                ? "Salvando…"
+                : editingBudgetId
+                  ? "Salvar alterações"
+                  : "Registrar despesa"}
             </Button>
           </DialogFooter>
         </DialogContent>

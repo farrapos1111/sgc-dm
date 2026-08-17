@@ -592,6 +592,129 @@ export const deleteEventFinanceItem = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+function formatBudgetExpenseLabel(
+  eventName: string,
+  expenseName: string,
+  amount: number,
+) {
+  const amountLabel = amount.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+  return `Evento ${eventName} - Despesa ${expenseName} - ${amountLabel}`;
+}
+
+type BudgetExpenseClient = {
+  from: (table: string) => any;
+};
+
+async function ensureBudgetFinanceItem(
+  supabase: BudgetExpenseClient,
+  eventId: string,
+  chapterId: string,
+  expenseName: string,
+): Promise<{ id: string; name: string }> {
+  const budgetKey = normalizeFinanceNameKey(BUDGET_CATEGORY_NAME);
+  const { data: cat, error: catErr } = await supabase
+    .from("event_finance_categories")
+    .upsert(
+      {
+        event_id: eventId,
+        chapter_id: chapterId,
+        name: BUDGET_CATEGORY_NAME,
+        name_key: budgetKey,
+      },
+      { onConflict: "event_id,name_key" },
+    )
+    .select("id, name")
+    .single();
+  if (catErr) throw new Error(catErr.message);
+  if (!cat) throw new Error("Não foi possível resolver a categoria de Orçamento");
+
+  const name = expenseName.trim();
+  const expenseKey = normalizeFinanceNameKey(name);
+  const { data: item, error: itemErr } = await supabase
+    .from("event_finance_items")
+    .upsert(
+      {
+        event_id: eventId,
+        chapter_id: chapterId,
+        category_id: cat.id,
+        name,
+        name_key: expenseKey,
+      },
+      { onConflict: "category_id,name_key" },
+    )
+    .select("id, name")
+    .single();
+  if (itemErr) throw new Error(itemErr.message);
+  if (!item) throw new Error("Não foi possível resolver o item de Orçamento");
+  return item;
+}
+
+async function loadEventForBudget(
+  supabase: BudgetExpenseClient,
+  eventId: string,
+) {
+  const { data: event, error } = await supabase
+    .from("events")
+    .select("id, name, chapter_id, starts_at, status")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!event) throw new Error("Evento não encontrado");
+  const { assertEventFinanceOpen } = await import("@/lib/event-lifecycle");
+  assertEventFinanceOpen(event.starts_at, event.status);
+  return event as {
+    id: string;
+    name: string;
+    chapter_id: string;
+    starts_at: string;
+    status: string;
+  };
+}
+
+async function assertBudgetCashEntry(
+  supabase: BudgetExpenseClient,
+  entryId: string,
+  eventId: string,
+) {
+  const { data: entry, error } = await supabase
+    .from("cash_entries")
+    .select(
+      "id, event_id, chapter_id, kind, category, event_finance_item_id",
+    )
+    .eq("id", entryId)
+    .eq("event_id", eventId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!entry) throw new Error("Despesa não encontrada");
+  if (entry.kind !== "saida" || entry.category !== "Eventos") {
+    throw new Error("Este lançamento não é uma despesa de orçamento");
+  }
+  if (!entry.event_finance_item_id) {
+    throw new Error("Este lançamento não é uma despesa de orçamento");
+  }
+  const { data: item, error: itemErr } = await supabase
+    .from("event_finance_items")
+    .select("id, category:event_finance_categories!inner(name)")
+    .eq("id", entry.event_finance_item_id)
+    .maybeSingle();
+  if (itemErr) throw new Error(itemErr.message);
+  const cat = item?.category as { name?: string } | null;
+  if (!item || !isBudgetCategoryName(cat?.name ?? "")) {
+    throw new Error("Este lançamento não é uma despesa de orçamento");
+  }
+  return entry as {
+    id: string;
+    event_id: string;
+    chapter_id: string;
+    kind: string;
+    category: string;
+    event_finance_item_id: string;
+  };
+}
+
 /** Lança despesa de orçamento do evento no caixa (saída Eventos). */
 export const addEventBudgetExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -607,58 +730,18 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { data: event, error: eventErr } = await context.supabase
-      .from("events")
-      .select("id, name, chapter_id, starts_at, status")
-      .eq("id", data.eventId)
-      .eq("chapter_id", data.chapterId)
-      .maybeSingle();
-    if (eventErr) throw new Error(eventErr.message);
-    if (!event) throw new Error("Evento não encontrado");
-    const { assertEventFinanceOpen } = await import("@/lib/event-lifecycle");
-    assertEventFinanceOpen(event.starts_at, event.status);
+    const event = await loadEventForBudget(context.supabase, data.eventId);
+    if (event.chapter_id !== data.chapterId) {
+      throw new Error("Evento não encontrado");
+    }
 
-    const budgetKey = normalizeFinanceNameKey(BUDGET_CATEGORY_NAME);
-    const { data: cat, error: catErr } = await context.supabase
-      .from("event_finance_categories")
-      .upsert(
-        {
-          event_id: data.eventId,
-          chapter_id: data.chapterId,
-          name: BUDGET_CATEGORY_NAME,
-          name_key: budgetKey,
-        },
-        { onConflict: "event_id,name_key" },
-      )
-      .select("id, name")
-      .single();
-    if (catErr) throw new Error(catErr.message);
-    if (!cat) throw new Error("Não foi possível resolver a categoria de Orçamento");
-
-    const expenseName = data.name.trim();
-    const expenseKey = normalizeFinanceNameKey(expenseName);
-    const { data: item, error: itemErr } = await context.supabase
-      .from("event_finance_items")
-      .upsert(
-        {
-          event_id: data.eventId,
-          chapter_id: data.chapterId,
-          category_id: cat.id,
-          name: expenseName,
-          name_key: expenseKey,
-        },
-        { onConflict: "category_id,name_key" },
-      )
-      .select("id, name")
-      .single();
-    if (itemErr) throw new Error(itemErr.message);
-    if (!item) throw new Error("Não foi possível resolver o item de Orçamento");
-
-    const amountLabel = data.amount.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    });
-    const label = `Evento ${event.name} - Despesa ${expenseName} - ${amountLabel}`;
+    const item = await ensureBudgetFinanceItem(
+      context.supabase,
+      data.eventId,
+      data.chapterId,
+      data.name,
+    );
+    const label = formatBudgetExpenseLabel(event.name, item.name, data.amount);
 
     const { error: cashErr } = await context.supabase.from("cash_entries").insert({
       chapter_id: data.chapterId,
@@ -675,6 +758,74 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
     if (cashErr) throw new Error(cashErr.message);
 
     return { ok: true, label };
+  });
+
+/** Atualiza despesa de orçamento do evento. */
+export const updateEventBudgetExpense = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        eventId: z.string().uuid(),
+        name: z.string().trim().min(1).max(80),
+        amount: z.number().positive(),
+        entry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const entry = await assertBudgetCashEntry(
+      context.supabase,
+      data.id,
+      data.eventId,
+    );
+    const event = await loadEventForBudget(context.supabase, data.eventId);
+    const item = await ensureBudgetFinanceItem(
+      context.supabase,
+      data.eventId,
+      entry.chapter_id,
+      data.name,
+    );
+    const label = formatBudgetExpenseLabel(event.name, item.name, data.amount);
+
+    const { error } = await context.supabase
+      .from("cash_entries")
+      .update({
+        subcategory: label,
+        description: label,
+        amount: data.amount,
+        entry_date: data.entry_date,
+        event_finance_item_id: item.id,
+      })
+      .eq("id", data.id)
+      .eq("event_id", data.eventId);
+    if (error) throw new Error(error.message);
+    return { ok: true, label };
+  });
+
+/** Exclui despesa de orçamento do evento. */
+export const deleteEventBudgetExpense = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        eventId: z.string().uuid(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    await assertBudgetCashEntry(context.supabase, data.id, data.eventId);
+    await loadEventForBudget(context.supabase, data.eventId);
+
+    const { error } = await context.supabase
+      .from("cash_entries")
+      .delete()
+      .eq("id", data.id)
+      .eq("event_id", data.eventId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 /** Lista despesas de orçamento (saídas Eventos) do evento. */
@@ -700,7 +851,7 @@ export const listEventBudgetExpenses = createServerFn({ method: "POST" })
     const { data: rows, error } = await context.supabase
       .from("cash_entries")
       .select(
-        "id, subcategory, description, amount, entry_date, event_finance_item_id, created_at",
+        "id, subcategory, description, amount, entry_date, event_finance_item_id, created_at, item:event_finance_items(name)",
       )
       .eq("event_id", data.eventId)
       .eq("kind", "saida")
@@ -709,10 +860,20 @@ export const listEventBudgetExpenses = createServerFn({ method: "POST" })
       .order("entry_date", { ascending: false })
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (rows ?? []).map((r) => ({
-      ...r,
-      amount: Number(r.amount),
-    }));
+    return (rows ?? []).map((r) => {
+      const item = r.item as { name?: string } | { name?: string }[] | null;
+      const itemOne = Array.isArray(item) ? item[0] : item;
+      return {
+        id: r.id as string,
+        subcategory: (r.subcategory as string | null) ?? null,
+        description: (r.description as string | null) ?? null,
+        amount: Number(r.amount),
+        entry_date: r.entry_date as string,
+        event_finance_item_id: (r.event_finance_item_id as string | null) ?? null,
+        created_at: r.created_at as string,
+        name: itemOne?.name?.trim() || null,
+      };
+    });
   });
 
 /** Linhas da comanda de um ingresso (ou de todos do evento). */
