@@ -4,17 +4,8 @@ import { getClientRealm } from "@/lib/realm";
 
 export const Route = createFileRoute("/")({
   ssr: true,
-  beforeLoad: async () => {
-    if (typeof window === "undefined") {
-      const { getServerRequestRealm } = await import(
-        "@/lib/request-realm.server"
-      );
-      if (getServerRequestRealm()) {
-        throw redirect({ to: "/inicio" });
-      }
-      return;
-    }
-    if (getClientRealm()) {
+  beforeLoad: () => {
+    if (typeof window !== "undefined" && getClientRealm()) {
       throw redirect({ to: "/inicio", reloadDocument: true });
     }
   },

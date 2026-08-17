@@ -32,6 +32,14 @@ const realmHostMiddleware = createMiddleware().server(async ({ next, request }) 
     url.hostname,
     request.headers.get("x-dev-realm") || getDevRealmOverride(),
   );
+  // Host de esfera (odm/fdj/loja) não serve o hub em `/` — evita loop SSR/cliente.
+  if (realm && (url.pathname === "/" || url.pathname === "")) {
+    const location = `/inicio${url.search}`;
+    return new Response(null, {
+      status: 307,
+      headers: { Location: location },
+    });
+  }
   return next({
     context: { realm },
   });
