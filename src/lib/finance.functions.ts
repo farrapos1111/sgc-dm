@@ -1866,6 +1866,7 @@ export const getFinanceSigners = createServerFn({ method: "POST" })
       {
         role: "Presidente do Conselho Consultivo",
         name: byCode.presidente_conselho_consultivo?.memberName ?? "",
+        demolayId: byCode.presidente_conselho_consultivo?.demolayId ?? null,
         signatureDataUrl:
           byCode.presidente_conselho_consultivo?.signatureDataUrl ?? null,
         positionCode: "presidente_conselho_consultivo",
@@ -1873,18 +1874,21 @@ export const getFinanceSigners = createServerFn({ method: "POST" })
       {
         role: "Mestre Conselheiro",
         name: byCode.mestre_conselheiro?.memberName ?? "",
+        demolayId: byCode.mestre_conselheiro?.demolayId ?? null,
         signatureDataUrl: byCode.mestre_conselheiro?.signatureDataUrl ?? null,
         positionCode: "mestre_conselheiro",
       },
       {
         role: "Tesoureiro",
         name: byCode.tesoureiro?.memberName ?? "",
+        demolayId: byCode.tesoureiro?.demolayId ?? null,
         signatureDataUrl: byCode.tesoureiro?.signatureDataUrl ?? null,
         positionCode: "tesoureiro",
       },
       {
         role: "Conselheiro Consultor",
         name: byCode.conselheiro_consultor?.memberName ?? "",
+        demolayId: byCode.conselheiro_consultor?.demolayId ?? null,
         signatureDataUrl: byCode.conselheiro_consultor?.signatureDataUrl ?? null,
         positionCode: "conselheiro_consultor",
       },

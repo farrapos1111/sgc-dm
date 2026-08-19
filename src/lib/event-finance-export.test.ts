@@ -8,6 +8,11 @@ import {
   eventReportVisualSpent,
   formatPdfBRL,
   buildEventReportAnalysis,
+  formatEventCashRowTexts,
+  stripMoneyFromLabel,
+  buildSimpleEventExpenseLines,
+  buildSimpleEventIncomeLines,
+  resolveCashTableColumns,
   type ComandaReportRow,
 } from "./event-finance-export";
 
@@ -112,7 +117,68 @@ assert.equal(formatPdfBRL(1935.62), "R$ 1.935,62");
 
 const analysis = buildEventReportAnalysis(totalsForVisual);
 assert.ok(analysis.some((l) => l.includes("Cerveja")));
+assert.ok(analysis.some((l) => l.includes("receita bruta")));
+assert.ok(analysis.some((l) => l.includes("receita líquida")));
 assert.ok(analysis.some((l) => l.includes("lucro")));
 assert.ok(analysis.some((l) => l.includes("fluxo de caixa")));
+
+assert.equal(stripMoneyFromLabel("Decoração - R$ 1.200,00"), "Decoração");
+assert.deepEqual(
+  formatEventCashRowTexts(
+    {
+      subcategory: "Evento Drive Thru - Despesa Frango - R$ 764,63",
+      description: "Evento Drive Thru - Despesa Frango - R$ 764,63",
+    },
+    "Drive Thru",
+  ),
+  { item: "Drive Thru", description: "Drive Thru - Frango" },
+);
+assert.deepEqual(
+  formatEventCashRowTexts(
+    { subcategory: "Drive Thru", description: "Drive Thru - Limpeza" },
+    "Drive Thru",
+  ),
+  { item: "Drive Thru", description: "Drive Thru - Limpeza" },
+);
+
+const simpleTotals = {
+  ...totalsForVisual,
+  paid: 100,
+  open: 25,
+  entries: [
+    {
+      id: "e1",
+      kind: "saida",
+      amount: 50,
+      subcategory: "Drive Thru",
+      description: "Drive Thru - Insumos",
+      entry_date: "2026-04-15",
+      event_finance_item_id: "x",
+    },
+  ],
+  scheduledEntries: [
+    {
+      id: "e2",
+      kind: "saida",
+      amount: 20,
+      subcategory: "Drive Thru",
+      description: "Drive Thru - Insumos",
+      entry_date: "2026-05-01",
+      event_finance_item_id: "x",
+    },
+  ],
+};
+const expenseLines = buildSimpleEventExpenseLines(simpleTotals, "Drive Thru");
+assert.equal(expenseLines.length, 1);
+assert.equal(expenseLines[0]?.label, "Insumos");
+assert.equal(expenseLines[0]?.amount, 70);
+const incomeLines = buildSimpleEventIncomeLines(simpleTotals);
+assert.ok(incomeLines.some((l) => l.label === "Cerveja" && l.amount === 80));
+assert.ok(incomeLines.some((l) => l.label === "Valores em aberto" && l.amount === 25));
+
+const allOff = resolveCashTableColumns(
+  resolveCashTableColumns().map((c) => ({ ...c, enabled: false })),
+);
+assert.ok(allOff.some((c) => c.id === "amount" && c.enabled));
 
 console.log("event-finance-export.test.ts: ok");

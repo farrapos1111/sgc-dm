@@ -32,12 +32,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
+import { EventFinanceReportDialog } from "@/components/events/EventFinanceReportDialog";
 import { formatBRL } from "@/lib/format";
 import { todayYmd } from "@/lib/timezone";
 import {
   buildComandaReportRows,
   exportEventComandasPdf,
-  exportEventFinancePdf,
   exportEventTicketsXlsx,
 } from "@/lib/event-finance-export";
 import {
@@ -77,12 +77,16 @@ function budgetExpenseName(
   eventName: string,
 ) {
   if (row.name?.trim()) return row.name.trim();
-  const raw = (row.subcategory ?? row.description ?? "").trim();
+  const raw = (row.description ?? row.subcategory ?? "").trim();
   const prefix = `Evento ${eventName} - Despesa `;
   if (raw.startsWith(prefix)) {
     const rest = raw.slice(prefix.length);
     const cut = rest.lastIndexOf(" - ");
     return (cut > 0 ? rest.slice(0, cut) : rest).trim() || raw;
+  }
+  const eventPrefix = `${eventName} - `;
+  if (eventName && raw.startsWith(eventPrefix)) {
+    return raw.slice(eventPrefix.length).trim() || raw;
   }
   return raw;
 }
@@ -153,7 +157,7 @@ export function EventFinancePanel({
   const [budgetAmount, setBudgetAmount] = useState("");
   const [budgetDate, setBudgetDate] = useState(eventDay);
 
-  const [exporting, setExporting] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [exportingTickets, setExportingTickets] = useState(false);
   const [exportingComandas, setExportingComandas] = useState(false);
 
@@ -506,35 +510,10 @@ export function EventFinancePanel({
             <Button
               variant="outline"
               size="sm"
-              disabled={!totals || exporting}
-              onClick={async () => {
-                if (!totals) return;
-                setExporting(true);
-                try {
-                  const periodLabel =
-                    from || until
-                      ? `Período: ${from ? formatDateLabel(from) : "…"} a ${until ? formatDateLabel(until) : "…"}`
-                      : "Período: completo";
-                  await exportEventFinancePdf({
-                    chapterName: chapterName || "Capítulo",
-                    chapterCity: chapterCity ?? null,
-                    logoPath: logoPath ?? null,
-                    eventName,
-                    periodLabel,
-                    totals,
-                  });
-                  toast.success("PDF gerado");
-                } catch (e) {
-                  toast.error(
-                    e instanceof Error ? e.message : "Erro ao gerar PDF",
-                  );
-                } finally {
-                  setExporting(false);
-                }
-              }}
+              disabled={!totals}
+              onClick={() => setReportOpen(true)}
             >
-              <FileText className="mr-1 h-4 w-4" />{" "}
-              {exporting ? "Gerando…" : "PDF"}
+              <FileText className="mr-1 h-4 w-4" /> PDF
             </Button>
             <Button
               variant="outline"
@@ -1116,8 +1095,9 @@ export function EventFinancePanel({
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Formato no caixa: Evento {eventName} - Despesa [nome] - [valor].
-              Contabiliza no fluxo somente a partir da data abaixo.
+              No caixa, a categoria fica {eventName} e a descrição {eventName} - [nome],
+              sem o valor no texto. Contabiliza no fluxo somente a partir da data
+              abaixo.
             </p>
             <div>
               <Label htmlFor="event-budget-name" className="mb-1.5 block text-sm">
@@ -1182,6 +1162,19 @@ export function EventFinancePanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <EventFinanceReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        chapterId={chapterId}
+        chapterName={chapterName || "Capítulo"}
+        chapterCity={chapterCity}
+        logoPath={logoPath}
+        eventName={eventName}
+        eventStartsAt={eventStartsAt}
+        from={from}
+        until={until}
+        totals={totals ?? null}
+      />
       {dialog}
     </div>
   );

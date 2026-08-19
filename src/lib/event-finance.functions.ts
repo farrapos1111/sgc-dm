@@ -815,16 +815,17 @@ export const deleteEventFinanceItem = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-function formatBudgetExpenseLabel(
+/** Item no caixa = nome do evento; descrição = evento + nome da despesa (sem valor). */
+export function formatBudgetExpenseFields(
   eventName: string,
   expenseName: string,
-  amount: number,
-) {
-  const amountLabel = amount.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-  return `Evento ${eventName} - Despesa ${expenseName} - ${amountLabel}`;
+): { subcategory: string; description: string } {
+  const event = eventName.trim();
+  const expense = expenseName.trim();
+  return {
+    subcategory: event,
+    description: expense ? `${event} - ${expense}` : event,
+  };
 }
 
 type BudgetExpenseClient = {
@@ -964,14 +965,14 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
       data.chapterId,
       data.name,
     );
-    const label = formatBudgetExpenseLabel(event.name, item.name, data.amount);
+    const fields = formatBudgetExpenseFields(event.name, item.name);
 
     const { error: cashErr } = await context.supabase.from("cash_entries").insert({
       chapter_id: data.chapterId,
       kind: "saida",
       category: "Eventos",
-      subcategory: label,
-      description: label,
+      subcategory: fields.subcategory,
+      description: fields.description,
       amount: data.amount,
       entry_date: data.entry_date,
       event_id: data.eventId,
@@ -980,7 +981,7 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
     });
     if (cashErr) throw new Error(cashErr.message);
 
-    return { ok: true, label };
+    return { ok: true, label: fields.description };
   });
 
 /** Atualiza despesa de orçamento do evento. */
@@ -1010,13 +1011,13 @@ export const updateEventBudgetExpense = createServerFn({ method: "POST" })
       entry.chapter_id,
       data.name,
     );
-    const label = formatBudgetExpenseLabel(event.name, item.name, data.amount);
+    const fields = formatBudgetExpenseFields(event.name, item.name);
 
     const { error } = await context.supabase
       .from("cash_entries")
       .update({
-        subcategory: label,
-        description: label,
+        subcategory: fields.subcategory,
+        description: fields.description,
         amount: data.amount,
         entry_date: data.entry_date,
         event_finance_item_id: item.id,
@@ -1024,7 +1025,7 @@ export const updateEventBudgetExpense = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .eq("event_id", data.eventId);
     if (error) throw new Error(error.message);
-    return { ok: true, label };
+    return { ok: true, label: fields.description };
   });
 
 /** Exclui despesa de orçamento do evento. */

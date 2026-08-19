@@ -249,6 +249,7 @@ export type OfficeSignatureSlot = {
   positionLabel: string;
   memberId: string | null;
   memberName: string;
+  demolayId: string | null;
   signatureDataUrl: string | null;
 };
 
@@ -373,7 +374,7 @@ export async function getOfficeSignaturesForChapter(
   const { data: rows, error } = await supabase
     .from("member_positions")
     .select(
-      "member_id, position:positions(code, label), member:members(id, full_name)",
+      "member_id, position:positions(code, label), member:members(id, full_name, demolay_id)",
     )
     .eq("chapter_id", opts.chapterId)
     .eq("term_year", year)
@@ -388,14 +389,19 @@ export async function getOfficeSignaturesForChapter(
       | { code?: string; label?: string }[]
       | null;
     member?:
-      | { id?: string; full_name?: string | null }
-      | { id?: string; full_name?: string | null }[]
+      | { id?: string; full_name?: string | null; demolay_id?: string | null }
+      | { id?: string; full_name?: string | null; demolay_id?: string | null }[]
       | null;
   };
 
   const holderByCode = new Map<
     string,
-    { memberId: string; memberName: string; label: string }
+    {
+      memberId: string;
+      memberName: string;
+      demolayId: string | null;
+      label: string;
+    }
   >();
 
   for (const r of (rows ?? []) as PosRow[]) {
@@ -406,6 +412,7 @@ export async function getOfficeSignaturesForChapter(
     holderByCode.set(code, {
       memberId: r.member_id,
       memberName: mem?.full_name?.trim() || "",
+      demolayId: mem?.demolay_id?.trim() || null,
       label: OFFICE_SIGNATURE_LABELS[code] || pos?.label || code,
     });
   }
@@ -443,6 +450,7 @@ export async function getOfficeSignaturesForChapter(
       positionLabel: holder?.label ?? OFFICE_SIGNATURE_LABELS[code] ?? code,
       memberId: holder?.memberId ?? null,
       memberName: holder?.memberName ?? "",
+      demolayId: holder?.demolayId ?? null,
       signatureDataUrl,
     };
   });

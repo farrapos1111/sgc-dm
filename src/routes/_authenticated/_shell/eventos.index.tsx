@@ -30,10 +30,11 @@ import { matchesLooseSearch } from "@/lib/utils";
 import {
   chapterFoundedAt,
   currentTerm,
+  matchesTermSearch,
   termFromDate,
   termOptions,
+  type Term,
 } from "@/lib/terms";
-import { datePartsInAppTz } from "@/lib/timezone";
 import {
   EVENT_DISPLAY_STATUS_LABELS,
   eventDisplayStatus,
@@ -59,6 +60,10 @@ function termOfEvent(startsAt: string) {
   return termFromDate(eventStartYmd(startsAt));
 }
 
+function gestaoShort(term: Term) {
+  return `${term.year}/${term.semester}`;
+}
+
 function EventosList() {
   const { active } = useActiveChapter();
   if (!active) return null;
@@ -74,11 +79,12 @@ function EventosList() {
 
   const years = useMemo(() => {
     const founded = chapterFoundedAt(active.chapter);
-    const base = termOptions({ foundedAt: founded, fallbackSpan: 6 });
-    const fromTerms = new Set(base.map((t) => t.year));
+    const fromTerms = new Set(
+      termOptions({ foundedAt: founded, fallbackSpan: 6 }).map((t) => t.year),
+    );
     for (const e of events) {
-      const parts = datePartsInAppTz(e.starts_at);
-      if (Number.isFinite(parts.year)) fromTerms.add(parts.year);
+      const t = termOfEvent(e.starts_at);
+      if (t) fromTerms.add(t.year);
     }
     return [...fromTerms].sort((a, b) => b - a);
   }, [active.chapter, events]);
@@ -104,7 +110,8 @@ function EventosList() {
         matchesLooseSearch(e.location ?? "", q) ||
         matchesLooseSearch(e.description ?? "", q) ||
         matchesLooseSearch(statusLabel, q) ||
-        matchesLooseSearch(formatDateTimeBR(e.starts_at), q)
+        matchesLooseSearch(formatDateTimeBR(e.starts_at), q) ||
+        (term ? matchesTermSearch(term, q) : false)
       );
     });
 
@@ -184,7 +191,7 @@ function EventosList() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por nome, local ou status…"
+                placeholder="Buscar por nome, local, status ou gestão…"
                 className="h-10 pl-9 pr-9"
               />
               {search ? (
@@ -218,8 +225,8 @@ function EventosList() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="1">1º semestre</SelectItem>
-                  <SelectItem value="2">2º semestre</SelectItem>
+                  <SelectItem value="1">1</SelectItem>
+                  <SelectItem value="2">2</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -299,6 +306,7 @@ function EventCard({ event: e }: { event: EventRow }) {
   const pct = goal > 0 ? Math.min(100, (raised / goal) * 100) : 0;
   const display = eventDisplayStatus(e.starts_at, e.status);
   const label = EVENT_DISPLAY_STATUS_LABELS[display];
+  const term = termOfEvent(e.starts_at);
 
   return (
     <Link to="/eventos/$id" params={{ id: e.id }}>
@@ -312,12 +320,19 @@ function EventCard({ event: e }: { event: EventRow }) {
               {formatDateTimeBR(e.starts_at)}
             </div>
           </div>
-          <Badge
-            variant={display === "fechado" ? "outline" : "secondary"}
-            className="shrink-0 capitalize"
-          >
-            {label}
-          </Badge>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+            {term ? (
+              <Badge variant="outline" className="font-medium">
+                Gestão {gestaoShort(term)}
+              </Badge>
+            ) : null}
+            <Badge
+              variant={display === "fechado" ? "outline" : "secondary"}
+              className="capitalize"
+            >
+              {label}
+            </Badge>
+          </div>
         </div>
         <div className="mt-4 space-y-1.5">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
