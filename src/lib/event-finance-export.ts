@@ -39,6 +39,112 @@ export function formatEventFinanceHint(totals: EventFinanceTotals) {
   return `Pago ${formatBRL(paid)}  ·  Gasto ${formatBRL(spent)}  ·  Em aberto ${formatBRL(open)}`;
 }
 
+/** Valor em reais só com caracteres do Helvetica (evita aspas no PDF). */
+export function formatPdfBRL(value: number | null | undefined): string {
+  const n = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  const [intRaw, dec = "00"] = Math.abs(n).toFixed(2).split(".");
+  const int = intRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `R$ ${int},${dec}`;
+}
+
+export function eventReportVisualSpent(totals: EventFinanceTotals): number {
+  return (totals.spent ?? totals.totalExpense ?? 0) + (totals.scheduledExpense ?? 0);
+}
+
+/** Remove prefixo automático de despesa e o valor repetido no texto. */
+export function cleanEventCashLabel(raw: string | null | undefined): string {
+  let s = (raw ?? "").trim();
+  if (!s || s === "-" || s === "—") return "";
+  s = s.replace(/\s*[-–—]\s*R\$\s*[\d.\s]+,\d{2}\s*$/i, "");
+  s = s.replace(/^Evento\s+.+?\s+-\s+Despesa\s+/i, "");
+  s = s.replace(/^Evento\s+.+?\s+-\s+/i, "");
+  s = s.replace(/\s+-\s*$/g, "").trim();
+  if (/^Evento\s+/i.test(s) && !/despesa/i.test(s)) return "";
+  return s;
+}
+
+export function eventCashRowLabel(row: {
+  subcategory?: string | null;
+  description?: string | null;
+}): string {
+  const item = cleanEventCashLabel(row.subcategory);
+  const desc = cleanEventCashLabel(row.description);
+  if (item && desc) {
+    if (item === desc || desc.toLowerCase().includes(item.toLowerCase())) return item;
+    if (item.toLowerCase().includes(desc.toLowerCase())) return desc;
+    return item;
+  }
+  return item || desc || "—";
+}
+
+export function buildEventReportAnalysis(totals: EventFinanceTotals): string[] {
+  const paid = totals.paid ?? totals.totalIncome;
+  const spent = eventReportVisualSpent(totals);
+  const open = totals.open ?? 0;
+  const profit = paid - spent;
+  const projected = paid + open - spent;
+  const lines: string[] = [];
+
+  const topItem = [...(totals.byItem ?? [])]
+    .filter((i) => i.income > 0.001)
+    .sort((a, b) => b.income - a.income || (b.qty ?? 0) - (a.qty ?? 0))[0];
+  const topCat = [...(totals.byCategory ?? [])]
+    .filter((c) => c.income > 0.001)
+    .sort((a, b) => b.income - a.income)[0];
+
+  if (topItem) {
+    const qty = topItem.qty && topItem.qty > 0 ? `, com ${topItem.qty} un.` : "";
+    const cat =
+      topCat && topCat.name !== topItem.categoryName
+        ? ` (categoria ${topItem.categoryName})`
+        : "";
+    lines.push(
+      `A maior arrecadação veio de ${topItem.name}${qty}: ${formatPdfBRL(topItem.income)}${cat}.`,
+    );
+  } else if (topCat) {
+    lines.push(
+      `A categoria com mais vendas foi ${topCat.name}, com ${formatPdfBRL(topCat.income)}.`,
+    );
+  } else {
+    lines.push("Não houve arrecadação registrada neste período.");
+  }
+
+  if (profit > 0.001) {
+    lines.push(
+      `O resultado do evento (entradas menos saídas, incluindo despesas já agendadas) foi lucro de ${formatPdfBRL(profit)}.`,
+    );
+  } else if (profit < -0.001) {
+    lines.push(
+      `O resultado do evento (entradas menos saídas, incluindo despesas já agendadas) foi prejuízo de ${formatPdfBRL(Math.abs(profit))}.`,
+    );
+  } else {
+    lines.push(
+      "O resultado do evento ficou equilibrado: entradas e saídas se equivalem.",
+    );
+  }
+
+  if (open > 0.001) {
+    lines.push(
+      `Ainda há ${formatPdfBRL(open)} em aberto. Se tudo for recebido, o resultado projetado fica em ${formatPdfBRL(projected)}.`,
+    );
+  }
+
+  if (spent > 0.001 && paid > 0.001) {
+    const pct = Math.round((spent / paid) * 100);
+    lines.push(
+      `As saídas correspondem a ${pct}% das entradas já recebidas.`,
+    );
+  }
+
+  if ((totals.scheduledExpense ?? 0) > 0.001) {
+    lines.push(
+      `Despesas agendadas (${formatPdfBRL(totals.scheduledExpense)}) entram nesta visão do evento, mas no fluxo de caixa só passam a contar a partir da data informada.`,
+    );
+  }
+
+  return lines;
+}
+
 export function summarizeComandaReport(rows: ComandaReportRow[]): {
   paid: number;
   open: number;
@@ -112,8 +218,8 @@ function drawPaidSpentOpen(
   doc.rect(MARGIN, y - 4, contentW, paidHint ? 22 : 18, "F");
 
   const cols = [
-    { label: "Pago", value: paid, color: COLOR_GREEN, x: MARGIN + 3 },
-    { label: "Gasto", value: spent, color: COLOR_RED, x: MARGIN + col + 3 },
+    { label: "Entradas", value: paid, color: COLOR_GREEN, x: MARGIN + 3 },
+    { label: "Saídas", value: spent, color: COLOR_RED, x: MARGIN + col + 3 },
     {
       label: "Em aberto",
       value: open,
@@ -129,7 +235,7 @@ function drawPaidSpentOpen(
     doc.text(c.label, c.x, y + 1);
     doc.setFontSize(12);
     setRgb(doc, c.color);
-    doc.text(formatBRL(c.value), c.x, y + 8);
+    doc.text(formatPdfBRL(c.value), c.x, y + 8);
   }
 
   if (paidHint) {
@@ -253,14 +359,9 @@ export function eventReportExpenseSlices(
     .map((c) => ({ label: c.name, value: c.expense }));
   const catExpense = slices.reduce((s, x) => s + x.value, 0);
   const budgetRealized = Math.max(0, (totals.spent ?? 0) - catExpense);
-  if (budgetRealized > 0.001) {
-    slices.push({ label: "Orçamento", value: budgetRealized });
-  }
-  if ((totals.scheduledExpense ?? 0) > 0.001) {
-    slices.push({
-      label: "Despesas agendadas",
-      value: totals.scheduledExpense,
-    });
+  const orcamento = budgetRealized + (totals.scheduledExpense ?? 0);
+  if (orcamento > 0.001) {
+    slices.push({ label: "Orçamento", value: orcamento });
   }
   return slices;
 }
@@ -342,7 +443,7 @@ function drawPieLegend(
     doc.rect(x, cy - 2.6, 3.2, 3.2, "F");
     setRgb(doc, COLOR_BLACK);
     const pct = Math.round((slice.value / total) * 100);
-    const raw = `${slice.label}  ${formatBRL(slice.value)} (${pct}%)`;
+    const raw = `${slice.label}  ${formatPdfBRL(slice.value)} (${pct}%)`;
     const lines = doc.splitTextToSize(raw, width - 6) as string[];
     doc.text(lines[0] ?? raw, x + 5, cy);
     cy += 5;
@@ -353,6 +454,7 @@ function drawPieLegend(
 function drawChartsPage(
   doc: jsPDF,
   pageW: number,
+  pageH: number,
   contentW: number,
   totals: EventFinanceTotals,
 ) {
@@ -365,14 +467,12 @@ function drawChartsPage(
   y += 8;
 
   const paid = totals.paid ?? totals.totalIncome;
-  const spent = totals.spent ?? totals.totalExpense;
+  const spent = eventReportVisualSpent(totals);
   const open = totals.open ?? 0;
-  const scheduled = totals.scheduledExpense ?? 0;
   const bars = [
-    { label: "Pago", value: paid, color: COLOR_GREEN },
-    { label: "Gasto", value: spent, color: COLOR_RED },
+    { label: "Entradas", value: paid, color: COLOR_GREEN },
+    { label: "Saídas", value: spent, color: COLOR_RED },
     { label: "Em aberto", value: open, color: COLOR_AMBER },
-    { label: "Agendado", value: scheduled, color: [67, 56, 202] as Rgb },
   ];
   const maxBar = Math.max(1, ...bars.map((b) => b.value));
   const barW = contentW - 70;
@@ -396,7 +496,7 @@ function drawChartsPage(
     }
     setRgb(doc, bar.color);
     doc.setFont("helvetica", "bold");
-    doc.text(formatBRL(bar.value), MARGIN + 28 + barW + 2, y);
+    doc.text(formatPdfBRL(bar.value), MARGIN + 28 + barW + 2, y);
     setRgb(doc, COLOR_BLACK);
     y += 8;
   }
@@ -417,8 +517,40 @@ function drawChartsPage(
   drawPieChart(doc, MARGIN + colW + 32, pieY, pieR, expenseSlices);
 
   const legendY = pieY + pieR + 8;
-  drawPieLegend(doc, MARGIN, legendY, colW - 6, incomeSlices);
-  drawPieLegend(doc, MARGIN + colW, legendY, colW - 6, expenseSlices);
+  const leftEnd = drawPieLegend(doc, MARGIN, legendY, colW - 6, incomeSlices);
+  const rightEnd = drawPieLegend(
+    doc,
+    MARGIN + colW,
+    legendY,
+    colW - 6,
+    expenseSlices,
+  );
+  y = Math.max(leftEnd, rightEnd) + 8;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  setRgb(doc, COLOR_BLACK);
+  if (y > pageH - 36) {
+    doc.addPage();
+    y = MARGIN + 4;
+  }
+  doc.text("Análise do evento", MARGIN, y);
+  y += 6;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  for (const paragraph of buildEventReportAnalysis(totals)) {
+    const wrapped = doc.splitTextToSize(paragraph, contentW) as string[];
+    for (const line of wrapped) {
+      if (y > pageH - 16) {
+        doc.addPage();
+        y = MARGIN + 4;
+      }
+      setRgb(doc, COLOR_BLACK);
+      doc.text(line, MARGIN, y);
+      y += 5;
+    }
+    y += 2.5;
+  }
 }
 
 type PdfCashRow = EventFinanceTotals["entries"][number] & {
@@ -455,26 +587,23 @@ function drawCashKindTable(
   setRgb(doc, COLOR_BLACK);
   doc.text(title, MARGIN, y);
   setRgb(doc, color);
-  doc.text(formatBRL(total), pageW - MARGIN - 2, y, { align: "right" });
+  doc.text(formatPdfBRL(total), pageW - MARGIN - 2, y, { align: "right" });
   setRgb(doc, COLOR_BLACK);
   y += 6;
 
-  const cols = [
-    { x: MARGIN, w: 24 },
-    { x: MARGIN + 24, w: 22 },
-    { x: MARGIN + 46, w: 42 },
-    { x: MARGIN + 88, w: 62 },
-  ];
+  const dateX = MARGIN;
+  const typeX = MARGIN + 24;
+  const descX = MARGIN + 44;
+  const descW = contentW - 44 - 32;
 
   const drawHeader = () => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setFillColor(240, 240, 238);
     doc.rect(MARGIN, y - 4.5, contentW, 7, "F");
-    doc.text("Data", cols[0].x + 1, y);
-    doc.text("Situação", cols[1].x + 1, y);
-    doc.text("Item", cols[2].x + 1, y);
-    doc.text("Descrição", cols[3].x + 1, y);
+    doc.text("Data", dateX + 1, y);
+    doc.text("Tipo", typeX + 1, y);
+    doc.text("Descrição", descX + 1, y);
     doc.text("Valor", pageW - MARGIN - 1, y, { align: "right" });
     y += 6;
     doc.setFont("helvetica", "normal");
@@ -493,45 +622,34 @@ function drawCashKindTable(
 
   for (const e of rows) {
     const scheduled = !!e.scheduled;
-    const rowColor = scheduled ? COLOR_AMBER : color;
-    const status = scheduled
-      ? "Agendada"
-      : kind === "entrada"
-        ? "Entrada"
-        : "Saída";
-    const desc = doc.splitTextToSize(
-      e.description || e.subcategory || "—",
-      cols[3].w - 2,
-    ) as string[];
-    const rowH = desc.length > 1 ? 5 + (desc.length - 1) * 4 : 5;
+    const status = kind === "entrada" ? "Entrada" : "Saída";
+    let label = eventCashRowLabel(e);
+    if (scheduled) label = `${label} (a partir de ${formatDateBR(e.entry_date)})`;
+    const desc = doc.splitTextToSize(label, descW) as string[];
+    const rowH = 5 + Math.max(0, desc.length - 1) * 4;
     if (ensureSpace(rowH + 8)) drawHeader();
 
     doc.setFontSize(9);
     setRgb(doc, COLOR_BLACK);
-    doc.text(formatDateBR(e.entry_date), cols[0].x + 1, y);
-    setRgb(doc, rowColor);
-    doc.text(status, cols[1].x + 1, y);
+    doc.text(formatDateBR(e.entry_date), dateX + 1, y);
+    setRgb(doc, color);
+    doc.text(status, typeX + 1, y);
     setRgb(doc, COLOR_BLACK);
-    doc.text(
-      doc.splitTextToSize(e.subcategory || "—", cols[2].w - 2)[0],
-      cols[2].x + 1,
-      y,
-    );
-    doc.text(desc[0] ?? "", cols[3].x + 1, y);
-    setRgb(doc, rowColor);
-    doc.text(
-      `${kind === "entrada" ? "+" : "−"} ${formatBRL(Number(e.amount))}`,
-      pageW - MARGIN - 1,
-      y,
-      { align: "right" },
-    );
+    doc.text(desc[0] ?? "", descX + 1, y);
+    setRgb(doc, color);
+    const sign = kind === "entrada" ? "+" : "-";
+    doc.text(`${sign} ${formatPdfBRL(Number(e.amount))}`, pageW - MARGIN - 1, y, {
+      align: "right",
+    });
     setRgb(doc, COLOR_BLACK);
-    y += rowH;
+    y += 5;
     for (let i = 1; i < desc.length; i++) {
-      doc.text(desc[i], cols[3].x + 1, y - (desc.length - i) * 4);
+      doc.text(desc[i], descX + 1, y);
+      y += 4;
     }
     doc.setDrawColor(230, 230, 228);
-    doc.line(MARGIN, y - 3.2, pageW - MARGIN, y - 3.2);
+    doc.line(MARGIN, y - 2.2, pageW - MARGIN, y - 2.2);
+    y += 2;
   }
   return y + 4;
 }
@@ -607,18 +725,14 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
   setRgb(doc, COLOR_BLACK);
 
   const paid = totals.paid ?? totals.totalIncome;
-  const spent = totals.spent ?? totals.totalExpense;
+  const spent = eventReportVisualSpent(totals);
   const open = totals.open ?? 0;
   const openLines = totals.openLines ?? [];
-  const scheduled = totals.scheduledExpense ?? 0;
   const paidHint = [
-    `Ingressos ${formatBRL(totals.ticketsIncome)}`,
-    `Outros ${formatBRL(totals.otherIncome)}`,
-    `Líquido ${formatBRL(centsToMoney(moneyCents(paid) - moneyCents(spent)))}`,
-    scheduled > 0.001 ? `Agendado ${formatBRL(scheduled)}` : null,
-  ]
-    .filter(Boolean)
-    .join("  ·  ");
+    `Ingressos ${formatPdfBRL(totals.ticketsIncome)}`,
+    `Outros ${formatPdfBRL(totals.otherIncome)}`,
+    `Líquido ${formatPdfBRL(centsToMoney(moneyCents(paid) - moneyCents(spent)))}`,
+  ].join("  ·  ");
 
   y = drawPaidSpentOpen(doc, y, pageW, contentW, paid, spent, open, paidHint);
   y = drawOpenLinesSection(doc, y, pageW, pageH, contentW, openLines, open);
@@ -736,7 +850,7 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
     "saida",
   );
 
-  drawChartsPage(doc, pageW, contentW, totals);
+  drawChartsPage(doc, pageW, pageH, contentW, totals);
 
   // Rodapé
   const pages = doc.getNumberOfPages();
