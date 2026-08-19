@@ -6,8 +6,6 @@ import {
   summarizeComandaReport,
   eventReportExpenseSlices,
   eventReportVisualSpent,
-  cleanEventCashLabel,
-  eventCashRowLabel,
   formatPdfBRL,
   buildEventReportAnalysis,
   type ComandaReportRow,
@@ -110,20 +108,6 @@ const totalsForVisual = {
 };
 
 assert.equal(eventReportVisualSpent(totalsForVisual), 80);
-assert.equal(
-  cleanEventCashLabel(
-    "Evento Dia dos Pais - Despesa Alimentos e Suprimentos - R$ 2.500,00",
-  ),
-  "Alimentos e Suprimentos",
-);
-assert.equal(
-  eventCashRowLabel({
-    subcategory: "Evento Dia dos Pais -",
-    description:
-      "Evento Dia dos Pais - Despesa Impressao de Cartinhas - R$ 92,50",
-  }),
-  "Impressao de Cartinhas",
-);
 assert.equal(formatPdfBRL(1935.62), "R$ 1.935,62");
 
 const analysis = buildEventReportAnalysis(totalsForVisual);

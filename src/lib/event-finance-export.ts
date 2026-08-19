@@ -51,32 +51,6 @@ export function eventReportVisualSpent(totals: EventFinanceTotals): number {
   return (totals.spent ?? totals.totalExpense ?? 0) + (totals.scheduledExpense ?? 0);
 }
 
-/** Remove prefixo automático de despesa e o valor repetido no texto. */
-export function cleanEventCashLabel(raw: string | null | undefined): string {
-  let s = (raw ?? "").trim();
-  if (!s || s === "-" || s === "—") return "";
-  s = s.replace(/\s*[-–—]\s*R\$\s*[\d.\s]+,\d{2}\s*$/i, "");
-  s = s.replace(/^Evento\s+.+?\s+-\s+Despesa\s+/i, "");
-  s = s.replace(/^Evento\s+.+?\s+-\s+/i, "");
-  s = s.replace(/\s+-\s*$/g, "").trim();
-  if (/^Evento\s+/i.test(s) && !/despesa/i.test(s)) return "";
-  return s;
-}
-
-export function eventCashRowLabel(row: {
-  subcategory?: string | null;
-  description?: string | null;
-}): string {
-  const item = cleanEventCashLabel(row.subcategory);
-  const desc = cleanEventCashLabel(row.description);
-  if (item && desc) {
-    if (item === desc || desc.toLowerCase().includes(item.toLowerCase())) return item;
-    if (item.toLowerCase().includes(desc.toLowerCase())) return desc;
-    return item;
-  }
-  return item || desc || "—";
-}
-
 export function buildEventReportAnalysis(totals: EventFinanceTotals): string[] {
   const paid = totals.paid ?? totals.totalIncome;
   const spent = eventReportVisualSpent(totals);
@@ -591,19 +565,22 @@ function drawCashKindTable(
   setRgb(doc, COLOR_BLACK);
   y += 6;
 
-  const dateX = MARGIN;
-  const typeX = MARGIN + 24;
-  const descX = MARGIN + 44;
-  const descW = contentW - 44 - 32;
+  const cols = [
+    { x: MARGIN, w: 22 },
+    { x: MARGIN + 22, w: 20 },
+    { x: MARGIN + 42, w: 48 },
+    { x: MARGIN + 90, w: contentW - 90 - 30 },
+  ];
 
   const drawHeader = () => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setFillColor(240, 240, 238);
     doc.rect(MARGIN, y - 4.5, contentW, 7, "F");
-    doc.text("Data", dateX + 1, y);
-    doc.text("Tipo", typeX + 1, y);
-    doc.text("Descrição", descX + 1, y);
+    doc.text("Data", cols[0].x + 1, y);
+    doc.text("Tipo", cols[1].x + 1, y);
+    doc.text("Item", cols[2].x + 1, y);
+    doc.text("Descrição", cols[3].x + 1, y);
     doc.text("Valor", pageW - MARGIN - 1, y, { align: "right" });
     y += 6;
     doc.setFont("helvetica", "normal");
@@ -621,21 +598,27 @@ function drawCashKindTable(
   drawHeader();
 
   for (const e of rows) {
-    const scheduled = !!e.scheduled;
-    const status = kind === "entrada" ? "Entrada" : "Saída";
-    let label = eventCashRowLabel(e);
-    if (scheduled) label = `${label} (a partir de ${formatDateBR(e.entry_date)})`;
-    const desc = doc.splitTextToSize(label, descW) as string[];
-    const rowH = 5 + Math.max(0, desc.length - 1) * 4;
+    const itemLines = doc.splitTextToSize(
+      (e.subcategory || "—").trim() || "—",
+      cols[2].w - 2,
+    ) as string[];
+    const descLines = doc.splitTextToSize(
+      (e.description || e.subcategory || "—").trim() || "—",
+      cols[3].w - 2,
+    ) as string[];
+    const extra = Math.max(itemLines.length, descLines.length);
+    const rowH = 5 + Math.max(0, extra - 1) * 4;
     if (ensureSpace(rowH + 8)) drawHeader();
 
+    const status = kind === "entrada" ? "Entrada" : "Saída";
     doc.setFontSize(9);
     setRgb(doc, COLOR_BLACK);
-    doc.text(formatDateBR(e.entry_date), dateX + 1, y);
+    doc.text(formatDateBR(e.entry_date), cols[0].x + 1, y);
     setRgb(doc, color);
-    doc.text(status, typeX + 1, y);
+    doc.text(status, cols[1].x + 1, y);
     setRgb(doc, COLOR_BLACK);
-    doc.text(desc[0] ?? "", descX + 1, y);
+    doc.text(itemLines[0] ?? "", cols[2].x + 1, y);
+    doc.text(descLines[0] ?? "", cols[3].x + 1, y);
     setRgb(doc, color);
     const sign = kind === "entrada" ? "+" : "-";
     doc.text(`${sign} ${formatPdfBRL(Number(e.amount))}`, pageW - MARGIN - 1, y, {
@@ -643,8 +626,9 @@ function drawCashKindTable(
     });
     setRgb(doc, COLOR_BLACK);
     y += 5;
-    for (let i = 1; i < desc.length; i++) {
-      doc.text(desc[i], descX + 1, y);
+    for (let i = 1; i < extra; i++) {
+      if (itemLines[i]) doc.text(itemLines[i], cols[2].x + 1, y);
+      if (descLines[i]) doc.text(descLines[i], cols[3].x + 1, y);
       y += 4;
     }
     doc.setDrawColor(230, 230, 228);
