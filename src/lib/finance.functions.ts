@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
+  cashEntryMatchesCharge,
   chargeCashDescription,
   competenceLabel,
   duesDescription,
@@ -92,6 +93,98 @@ async function fetchAllPages<T>(
     offset += pageSize;
   }
   return all;
+}
+
+/** Janela civil em torno da data de pagamento e, se houver, do vencimento. */
+function chargeCashReuseWindow(paidAt: string, dueDate?: string | null) {
+  const dates = [paidAt, dueDate].filter((d): d is string => !!d);
+  let from = ymdPlusDays(dates[0], -180);
+  let until = ymdPlusDays(dates[0], 90);
+  for (const d of dates) {
+    const f = ymdPlusDays(d, -180);
+    const u = ymdPlusDays(d, 90);
+    if (f < from) from = f;
+    if (u > until) until = u;
+  }
+  return { from, until };
+}
+
+/**
+ * Reaproveita lançamento já existente no fluxo (importação/manual) em vez de
+ * criar outro ao baixar a cobrança — evita fantasma duplicado no caixa.
+ */
+async function findReusableChargeCashEntry(
+  supabase: { from: (t: string) => any },
+  opts: {
+    chapterId: string;
+    kind: string;
+    amount: number;
+    paidAt: string;
+    dueDate?: string | null;
+    chargeDescription: string;
+    memberName: string | null | undefined;
+  },
+): Promise<string | null> {
+  const { from, until } = chargeCashReuseWindow(opts.paidAt, opts.dueDate);
+  const candidates = await fetchAllPages<{
+    id: string;
+    description: string;
+    amount: number | string;
+  }>((offset, to) =>
+    supabase
+      .from("cash_entries")
+      .select("id, description, amount")
+      .eq("chapter_id", opts.chapterId)
+      .eq("kind", opts.kind)
+      .gte("entry_date", from)
+      .lte("entry_date", until)
+      .order("id", { ascending: true })
+      .range(offset, to),
+  );
+
+  const matches = candidates.filter((row) =>
+    cashEntryMatchesCharge({
+      cashDescription: row.description,
+      cashAmount: row.amount,
+      chargeDescription: opts.chargeDescription,
+      memberName: opts.memberName,
+      payAmount: opts.amount,
+    }),
+  );
+  if (matches.length === 0) return null;
+
+  const ids = matches.map((m) => m.id);
+  const linked = new Set<string>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200);
+    const { data, error } = await supabase
+      .from("member_charge_payments" as never)
+      .select("cash_entry_id")
+      .in("cash_entry_id", chunk);
+    if (error) throw new Error(error.message);
+    for (const row of (data as Array<{ cash_entry_id: string | null }>) ?? []) {
+      if (row.cash_entry_id) linked.add(row.cash_entry_id);
+    }
+    const { data: chargeLinked, error: chErr } = await supabase
+      .from("member_charges")
+      .select("cash_entry_id")
+      .in("cash_entry_id", chunk);
+    if (chErr) throw new Error(chErr.message);
+    for (const row of chargeLinked ?? []) {
+      if (row.cash_entry_id) linked.add(row.cash_entry_id);
+    }
+    const { data: duesLinked, error: duesErr } = await supabase
+      .from("member_dues")
+      .select("cash_entry_id")
+      .in("cash_entry_id", chunk);
+    if (duesErr) throw new Error(duesErr.message);
+    for (const row of duesLinked ?? []) {
+      if (row.cash_entry_id) linked.add(row.cash_entry_id);
+    }
+  }
+
+  const free = matches.filter((m) => !linked.has(m.id));
+  return free.length === 1 ? free[0].id : null;
 }
 
 async function loadAwayPeriodsByMember(
@@ -1905,17 +1998,19 @@ export const listMemberCharges = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    let query = context.supabase
-      .from("member_charges")
-      .select(
-        "id, member_id, kind, category, subcategory, description, amount, due_date, status, paid_at, cash_entry_id, notes, created_at, members(full_name)",
-      )
-      .eq("chapter_id", data.chapterId)
-      .order("due_date", { ascending: false })
-      .limit(500);
-    if (data.status !== "all") query = query.eq("status", data.status);
-    const { data: rows, error } = await query;
-    if (error) throw new Error(error.message);
+    const rows = await fetchAllPages<any>((from, to) => {
+      let query = context.supabase
+        .from("member_charges")
+        .select(
+          "id, member_id, kind, category, subcategory, description, amount, due_date, status, paid_at, cash_entry_id, notes, created_at, members(full_name)",
+        )
+        .eq("chapter_id", data.chapterId)
+        .order("due_date", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
+      if (data.status !== "all") query = query.eq("status", data.status);
+      return query;
+    });
 
     // Cobranças pagas há mais de 7 dias saem do registro (lista padrão).
     const cutoff = (() => {
@@ -2004,7 +2099,7 @@ export const addChargePayment = createServerFn({ method: "POST" })
     const { data: charge, error: chargeErr } = await context.supabase
       .from("member_charges")
       .select(
-        "id, chapter_id, kind, category, subcategory, description, amount, status, cash_entry_id, member_id, members(full_name)",
+        "id, chapter_id, kind, category, subcategory, description, amount, status, due_date, cash_entry_id, member_id, members(full_name)",
       )
       .eq("id", data.chargeId)
       .eq("chapter_id", data.chapterId)
@@ -2048,22 +2143,49 @@ export const addChargePayment = createServerFn({ method: "POST" })
       ? memberJoin[0]?.full_name
       : memberJoin?.full_name;
     const cashDescription = chargeCashDescription(charge.description, memberName);
+    const reusedId = await findReusableChargeCashEntry(context.supabase, {
+      chapterId: data.chapterId,
+      kind: charge.kind,
+      amount: data.amount,
+      paidAt: data.paidAt,
+      dueDate: (charge as { due_date?: string | null }).due_date,
+      chargeDescription: charge.description,
+      memberName,
+    });
 
-    const { data: entry, error: entryErr } = await context.supabase
-      .from("cash_entries")
-      .insert({
-        chapter_id: data.chapterId,
-        kind: charge.kind,
-        category: charge.category,
-        subcategory: charge.subcategory,
-        description: cashDescription,
-        amount: data.amount,
-        entry_date: data.paidAt,
-        created_by: context.userId,
-      })
-      .select("id")
-      .single();
-    if (entryErr) throw new Error(entryErr.message);
+    let entryId = reusedId;
+    let createdNew = false;
+    if (!entryId) {
+      const { data: entry, error: entryErr } = await context.supabase
+        .from("cash_entries")
+        .insert({
+          chapter_id: data.chapterId,
+          kind: charge.kind,
+          category: charge.category,
+          subcategory: charge.subcategory,
+          description: cashDescription,
+          amount: data.amount,
+          entry_date: data.paidAt,
+          created_by: context.userId,
+        })
+        .select("id")
+        .single();
+      if (entryErr) throw new Error(entryErr.message);
+      entryId = entry.id;
+      createdNew = true;
+    } else {
+      const { error: cashUpdErr } = await context.supabase
+        .from("cash_entries")
+        .update({
+          kind: charge.kind,
+          category: charge.category,
+          subcategory: charge.subcategory,
+          description: cashDescription,
+          amount: data.amount,
+        })
+        .eq("id", entryId);
+      if (cashUpdErr) throw new Error(cashUpdErr.message);
+    }
 
     const { error: payErr } = await context.supabase
       .from("member_charge_payments" as never)
@@ -2072,12 +2194,14 @@ export const addChargePayment = createServerFn({ method: "POST" })
         charge_id: data.chargeId,
         amount: data.amount,
         paid_at: data.paidAt,
-        cash_entry_id: entry.id,
+        cash_entry_id: entryId,
         notes: data.notes ?? null,
         created_by: context.userId,
       } as never);
     if (payErr) {
-      await context.supabase.from("cash_entries").delete().eq("id", entry.id);
+      if (createdNew && entryId) {
+        await context.supabase.from("cash_entries").delete().eq("id", entryId);
+      }
       throw new Error(payErr.message);
     }
 
@@ -2088,7 +2212,7 @@ export const addChargePayment = createServerFn({ method: "POST" })
       .update({
         status: fullyPaid ? "pago" : "em_aberto",
         paid_at: fullyPaid ? data.paidAt : null,
-        cash_entry_id: fullyPaid ? entry.id : charge.cash_entry_id,
+        cash_entry_id: fullyPaid ? entryId : charge.cash_entry_id,
       })
       .eq("id", data.chargeId);
     if (updErr) throw new Error(updErr.message);
@@ -2317,22 +2441,46 @@ export const upsertMemberCharge = createServerFn({ method: "POST" })
           member.full_name,
         );
         if (!cashEntryId) {
-          const { data: entry, error: entryErr } = await context.supabase
-            .from("cash_entries")
-            .insert({
-              chapter_id: data.chapterId,
-              kind: data.kind,
-              category: data.category,
-              subcategory: data.subcategory,
-              description: cashDescription,
-              amount: data.amount,
-              entry_date: paidAt,
-              created_by: context.userId,
-            })
-            .select("id")
-            .single();
-          if (entryErr) throw new Error(entryErr.message);
-          cashEntryId = entry.id;
+          const reusedId = await findReusableChargeCashEntry(context.supabase, {
+            chapterId: data.chapterId,
+            kind: data.kind,
+            amount: data.amount,
+            paidAt,
+            dueDate: data.dueDate,
+            chargeDescription: data.description,
+            memberName: member.full_name,
+          });
+          if (reusedId) {
+            cashEntryId = reusedId;
+            const { error: cashUpdErr } = await context.supabase
+              .from("cash_entries")
+              .update({
+                kind: data.kind,
+                category: data.category,
+                subcategory: data.subcategory,
+                description: cashDescription,
+                amount: data.amount,
+              })
+              .eq("id", cashEntryId);
+            if (cashUpdErr) throw new Error(cashUpdErr.message);
+          } else {
+            const { data: entry, error: entryErr } = await context.supabase
+              .from("cash_entries")
+              .insert({
+                chapter_id: data.chapterId,
+                kind: data.kind,
+                category: data.category,
+                subcategory: data.subcategory,
+                description: cashDescription,
+                amount: data.amount,
+                entry_date: paidAt,
+                created_by: context.userId,
+              })
+              .select("id")
+              .single();
+            if (entryErr) throw new Error(entryErr.message);
+            cashEntryId = entry.id;
+          }
         } else {
           const { error: cashUpdErr } = await context.supabase
             .from("cash_entries")

@@ -95,7 +95,9 @@ export const Route = createFileRoute("/_authenticated/_shell/tesouraria/fluxo")(
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const monthName = (m: number) =>
-  new Date(2000, m - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
+  m >= 1 && m <= 12
+    ? new Date(2000, m - 1, 1).toLocaleDateString("pt-BR", { month: "long" })
+    : "Sem data válida";
 
 type EntryForm = {
   id?: string;
@@ -430,10 +432,21 @@ function FluxoCaixa() {
       )
     : "";
 
-  const periodTotals = useMemo(
-    () => sumCashByKind(filteredEntries),
-    [filteredEntries],
-  );
+  const periodTotals = useMemo(() => {
+    const hasListFilter =
+      search.trim().length > 0 ||
+      selectedCategories.length > 0 ||
+      selectedSubcategories.length > 0;
+    if (hasListFilter) return sumCashByKind(filteredEntries);
+    return data?.totals ?? sumCashByKind(entries);
+  }, [
+    search,
+    selectedCategories,
+    selectedSubcategories,
+    filteredEntries,
+    data?.totals,
+    entries,
+  ]);
 
   const periodLabel = month ? `${monthName(month)} de ${year}` : `Ano de ${year}`;
 
@@ -451,8 +464,8 @@ function FluxoCaixa() {
     if (month !== null) return null;
     const groups = new Map<number, typeof filteredEntries>();
     for (const e of filteredEntries) {
-      const m = Number(String(e.entry_date).slice(5, 7));
-      if (!m) continue;
+      const parsed = Number(String(e.entry_date).slice(5, 7));
+      const m = parsed >= 1 && parsed <= 12 ? parsed : 0;
       const list = groups.get(m) ?? [];
       list.push(e);
       groups.set(m, list);
@@ -505,22 +518,16 @@ function FluxoCaixa() {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   }
 
-  // Em Geral: por padrão só o mês atual do ano presente fica aberto; demais fechados.
+  // Visão anual: abre todos os meses para a listagem bater com o Excel.
   const openMonthsPeriodRef = useRef<string>("");
   useEffect(() => {
     if (month !== null) return;
-    if (isLoading) return;
+    if (!entriesByMonth?.length) return;
     const periodKey = `${active?.chapter_id ?? ""}:${year}`;
     if (openMonthsPeriodRef.current === periodKey) return;
     openMonthsPeriodRef.current = periodKey;
-
-    const today = new Date();
-    if (year === today.getFullYear()) {
-      setOpenMonths(new Set([today.getMonth() + 1]));
-    } else {
-      setOpenMonths(new Set());
-    }
-  }, [year, month, active?.chapter_id, isLoading]);
+    setOpenMonths(new Set(entriesByMonth.map((g) => g.month)));
+  }, [year, month, active?.chapter_id, entriesByMonth]);
 
   function toggleMonth(m: number) {
     setOpenMonths((prev) => {
@@ -1136,7 +1143,9 @@ function FluxoCaixa() {
                       }`}
                     />
                     <h3 className="text-sm font-semibold capitalize">
-                      {monthName(group.month)} de {year}
+                      {group.month >= 1 && group.month <= 12
+                        ? `${monthName(group.month)} de ${year}`
+                        : monthName(group.month)}
                       <span className="ml-2 font-normal text-muted-foreground">
                         ({group.entries.length}{" "}
                         {group.entries.length === 1 ? "lançamento" : "lançamentos"})

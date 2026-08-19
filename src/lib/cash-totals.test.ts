@@ -3,7 +3,7 @@
  */
 import assert from "node:assert/strict";
 import { sumCashByKind, moneyCents, roundCashTotals } from "./cash-totals";
-import { chargeCashDescription } from "./cash-categories";
+import { cashEntryMatchesCharge, chargeCashDescription } from "./cash-categories";
 
 assert.equal(moneyCents("9.70"), 970);
 assert.equal(moneyCents(9.7), 970);
@@ -44,6 +44,37 @@ assert.equal(
     "João Alfredo da Silva Faggion",
   ),
   "Ingresso Evento Dia dos Pais - Mateus Faggion - João Alfredo da Silva Faggion",
+);
+
+assert.equal(
+  cashEntryMatchesCharge({
+    cashDescription: "Presente do Emmanuel - Arthur Toigo",
+    cashAmount: 9.7,
+    chargeDescription: "Presente do Emmanuel",
+    memberName: "Arthur Toigo de Campos",
+    payAmount: "9.70",
+  }),
+  true,
+);
+assert.equal(
+  cashEntryMatchesCharge({
+    cashDescription: "Presente do Emmanuel - Henrique Rodriguês Klipp da Anunciação",
+    cashAmount: 9.7,
+    chargeDescription: "Presente do Emmanuel",
+    memberName: "Arthur Toigo de Campos",
+    payAmount: 9.7,
+  }),
+  false,
+);
+assert.equal(
+  cashEntryMatchesCharge({
+    cashDescription: "Transporte para o CROD - Arthur Adami Gaio",
+    cashAmount: 20,
+    chargeDescription: "Transporte para o Crod",
+    memberName: "Arthur Tonet Pagliarin",
+    payAmount: 20,
+  }),
+  false,
 );
 
 console.log("cash-totals.test.ts: ok");

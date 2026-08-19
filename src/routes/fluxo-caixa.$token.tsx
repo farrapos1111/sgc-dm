@@ -55,7 +55,9 @@ export const Route = createFileRoute("/fluxo-caixa/$token")({
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const monthName = (m: number) =>
-  new Date(2000, m - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
+  m >= 1 && m <= 12
+    ? new Date(2000, m - 1, 1).toLocaleDateString("pt-BR", { month: "long" })
+    : "Sem data válida";
 
 export function PublicCashFlowView({
   token,
@@ -89,21 +91,6 @@ export function PublicCashFlowView({
   const bank = data?.bank ?? { income: 0, expense: 0, balance: 0 };
   const currentCashBalance = centsToMoney(moneyCents(bank.balance));
   const chapter = data?.chapter;
-
-  useEffect(() => {
-    if (month !== null) return;
-    if (isLoading) return;
-    const periodKey = `${token}:${year}`;
-    if (openMonthsPeriodRef.current === periodKey) return;
-    openMonthsPeriodRef.current = periodKey;
-
-    const today = new Date();
-    if (year === today.getFullYear()) {
-      setOpenMonths(new Set([today.getMonth() + 1]));
-    } else {
-      setOpenMonths(new Set());
-    }
-  }, [year, month, token, isLoading]);
 
   const availableYears = useMemo(() => {
     const currentYear = now.getFullYear();
@@ -187,8 +174,8 @@ export function PublicCashFlowView({
     if (month !== null) return null;
     const groups = new Map<number, PublicCashEntry[]>();
     for (const e of filteredEntries) {
-      const m = Number(String(e.entry_date).slice(5, 7));
-      if (!m) continue;
+      const parsed = Number(String(e.entry_date).slice(5, 7));
+      const m = parsed >= 1 && parsed <= 12 ? parsed : 0;
       const list = groups.get(m) ?? [];
       list.push(e);
       groups.set(m, list);
@@ -200,6 +187,15 @@ export function PublicCashFlowView({
         return { month: m, entries: list, income: totals.income, expense: totals.expense };
       });
   }, [filteredEntries, month, monthOrder]);
+
+  useEffect(() => {
+    if (month !== null) return;
+    if (!entriesByMonth?.length) return;
+    const periodKey = `${token}:${year}`;
+    if (openMonthsPeriodRef.current === periodKey) return;
+    openMonthsPeriodRef.current = periodKey;
+    setOpenMonths(new Set(entriesByMonth.map((g) => g.month)));
+  }, [year, month, token, entriesByMonth]);
 
   function toggleMonth(m: number) {
     setOpenMonths((prev) => {
@@ -596,7 +592,9 @@ export function PublicCashFlowView({
                               }`}
                             />
                             <h3 className="text-sm font-semibold capitalize">
-                              {monthName(group.month)} de {year}
+                              {group.month >= 1 && group.month <= 12
+                                ? `${monthName(group.month)} de ${year}`
+                                : monthName(group.month)}
                               <span className="ml-2 font-normal text-muted-foreground">
                                 ({group.entries.length}{" "}
                                 {group.entries.length === 1 ? "lançamento" : "lançamentos"})

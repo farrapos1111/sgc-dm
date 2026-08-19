@@ -410,22 +410,64 @@ export function EventFinancePanel({
   return (
     <div className="space-y-4">
       <Card className="rounded-[12px] p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4">
           <div>
-            <div className="text-sm text-muted-foreground">Total arrecadado</div>
-            <div className="text-2xl font-bold" style={{ color: primary }}>
-              {formatBRL(totals?.totalIncome ?? 0)}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <div className="text-sm text-muted-foreground">Pago</div>
+                <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatBRL(totals?.paid ?? totals?.totalIncome ?? 0)}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Gasto</div>
+                <div className="text-xl font-bold text-rose-600 dark:text-rose-400">
+                  {formatBRL(totals?.spent ?? totals?.totalExpense ?? 0)}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Em aberto</div>
+                <div className="text-xl font-bold text-amber-600 dark:text-amber-400">
+                  {formatBRL(totals?.open ?? 0)}
+                </div>
+              </div>
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
               Ingressos {formatBRL(totals?.ticketsIncome ?? 0)}
               {(totals?.otherIncome ?? 0) > 0
                 ? ` · Outros ${formatBRL(totals?.otherIncome ?? 0)}`
                 : ""}
-              {(totals?.totalExpense ?? 0) > 0
-                ? ` · Saídas ${formatBRL(totals?.totalExpense ?? 0)}`
+              {(totals?.openLines?.length ?? 0) > 0
+                ? ` · ${totals?.openLines.length} item(ns) em aberto`
                 : ""}
             </div>
           </div>
+          {(totals?.openLines?.length ?? 0) > 0 ? (
+            <div className="max-h-48 overflow-auto rounded-md border border-border">
+              <div className="sticky top-0 border-b border-border bg-muted/60 px-3 py-1.5 text-xs font-medium">
+                Ainda em aberto
+              </div>
+              <ul className="divide-y divide-border text-sm">
+                {totals!.openLines.map((line, i) => (
+                  <li
+                    key={`${line.buyerName}-${line.label}-${i}`}
+                    className="flex items-start justify-between gap-3 px-3 py-1.5"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{line.buyerName}</div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {line.label}
+                        {line.sellerName ? ` · ${line.sellerName}` : ""}
+                      </div>
+                    </div>
+                    <div className="shrink-0 font-medium text-amber-700 dark:text-amber-400">
+                      {formatBRL(line.amount)}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-end gap-2">
             <div>
               <Label className="mb-1 block text-xs text-muted-foreground">
@@ -555,6 +597,7 @@ export function EventFinancePanel({
                     logoPath: logoPath ?? null,
                     eventName,
                     rows,
+                    spent: totals?.spent ?? totals?.totalExpense ?? 0,
                   });
                   toast.success("Relatório de comandas gerado");
                 } catch (e) {

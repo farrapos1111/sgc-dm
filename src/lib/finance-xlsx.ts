@@ -161,15 +161,17 @@ export function exportCashXlsx(
   // Agrupar por mês
   const monthGroups = new Map<number, typeof entries>();
   for (const e of entries) {
-    const m = Number(String(e.entry_date).slice(5, 7));
-    if (!m) continue;
+    const parsed = Number(String(e.entry_date).slice(5, 7));
+    const m = parsed >= 1 && parsed <= 12 ? parsed : 0;
     const list = monthGroups.get(m) ?? [];
     list.push(e);
     monthGroups.set(m, list);
   }
   const months = [...monthGroups.entries()].sort((a, b) => a[0] - b[0]);
   const monthName = (m: number) =>
-    new Date(2000, m - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
+    m >= 1 && m <= 12
+      ? new Date(2000, m - 1, 1).toLocaleDateString("pt-BR", { month: "long" })
+      : "Sem data válida";
 
   if (months.length > 1) {
     for (const [m, group] of months) {
@@ -193,8 +195,11 @@ export function exportCashXlsx(
 
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
       ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 22 }, { wch: 48 }, { wch: 14 }];
-      const name = `${monthName(m).charAt(0).toUpperCase() + monthName(m).slice(1)}`;
-      XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+      const rawName =
+        m >= 1 && m <= 12
+          ? `${monthName(m).charAt(0).toUpperCase() + monthName(m).slice(1)}`
+          : monthName(m);
+      XLSX.utils.book_append_sheet(wb, ws, rawName.slice(0, 31));
     }
   } else {
     const rows = entries.map((e) => ({

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { classifyAuditSeverity, type AuditSeverity } from "@/lib/audit-log";
 import { ymdRangeIso } from "@/lib/audit.functions";
+import { centsToMoney, moneyCents } from "@/lib/cash-totals";
 import { datePartsInAppTz, todayYmd } from "@/lib/timezone";
 
 const eventIdInput = z.object({ eventId: z.string().uuid() });
@@ -63,12 +64,26 @@ export type EventTicketItemRow = {
   category_name?: string;
 };
 
+export type EventOpenLine = {
+  buyerName: string;
+  sellerName: string | null;
+  label: string;
+  amount: number;
+};
+
 export type EventFinanceTotals = {
   totalIncome: number;
   totalExpense: number;
   total: number;
   ticketsIncome: number;
   otherIncome: number;
+  /** Valores efetivamente recebidos (caixa + ingressos pagos). */
+  paid: number;
+  /** Saídas do evento. */
+  spent: number;
+  /** Ingressos e itens de comanda ainda não baixados. */
+  open: number;
+  openLines: EventOpenLine[];
   byCategory: Array<{
     categoryId: string;
     name: string;
@@ -257,28 +272,36 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
 
-    const [itemsRes, catsRes, typesRes, ticketsRes] = await Promise.all([
-      context.supabase
-        .from("event_finance_items")
-        .select("id, category_id, name")
-        .eq("event_id", data.eventId),
-      context.supabase
-        .from("event_finance_categories")
-        .select("id, name")
-        .eq("event_id", data.eventId),
-      context.supabase
-        .from("ticket_types")
-        .select("id, name")
-        .eq("event_id", data.eventId),
-      context.supabase
-        .from("tickets")
-        .select("id, ticket_type_id, price_paid, status, sold_at")
-        .eq("event_id", data.eventId),
-    ]);
+    const [itemsRes, catsRes, typesRes, ticketsRes, ticketItemsRes] =
+      await Promise.all([
+        context.supabase
+          .from("event_finance_items")
+          .select("id, category_id, name")
+          .eq("event_id", data.eventId),
+        context.supabase
+          .from("event_finance_categories")
+          .select("id, name")
+          .eq("event_id", data.eventId),
+        context.supabase
+          .from("ticket_types")
+          .select("id, name")
+          .eq("event_id", data.eventId),
+        context.supabase
+          .from("tickets")
+          .select(
+            "id, ticket_type_id, price_paid, status, sold_at, seller_charge_id, seller_member_id, buyer_name",
+          )
+          .eq("event_id", data.eventId),
+        context.supabase
+          .from("event_ticket_items")
+          .select("ticket_id, item_id, qty, amount, cash_entry_id")
+          .eq("event_id", data.eventId),
+      ]);
     if (itemsRes.error) throw new Error(itemsRes.error.message);
     if (catsRes.error) throw new Error(catsRes.error.message);
     if (typesRes.error) throw new Error(typesRes.error.message);
     if (ticketsRes.error) throw new Error(ticketsRes.error.message);
+    if (ticketItemsRes.error) throw new Error(ticketItemsRes.error.message);
 
     const itemMeta = new Map(
       (itemsRes.data ?? []).map((i) => [
@@ -289,10 +312,100 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
     const catName = new Map((catsRes.data ?? []).map((c) => [c.id, c.name]));
     const typeName = new Map((typesRes.data ?? []).map((t) => [t.id, t.name]));
 
-    let totalIncome = 0;
-    let totalExpense = 0;
-    let ticketsIncome = 0;
-    let otherIncome = 0;
+    const ticketRows = ticketsRes.data ?? [];
+    const chargeIds = [
+      ...new Set(
+        ticketRows
+          .map((t) => t.seller_charge_id)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const sellerIds = [
+      ...new Set(
+        ticketRows
+          .map((t) => t.seller_member_id)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+
+    const [chargesRes, paysRes, sellersRes] = await Promise.all([
+      chargeIds.length > 0
+        ? context.supabase
+            .from("member_charges")
+            .select("id, status, amount")
+            .in("id", chargeIds)
+        : Promise.resolve({
+            data: [] as Array<{
+              id: string;
+              status: string;
+              amount: number | string;
+            }>,
+            error: null,
+          }),
+      chargeIds.length > 0
+        ? context.supabase
+            .from("member_charge_payments" as never)
+            .select("charge_id, amount, cash_entry_id")
+            .in("charge_id", chargeIds)
+        : Promise.resolve({
+            data: [] as Array<{
+              charge_id: string;
+              amount: number | string;
+              cash_entry_id: string | null;
+            }>,
+            error: null,
+          }),
+      sellerIds.length > 0
+        ? context.supabase.from("members").select("id, full_name").in("id", sellerIds)
+        : Promise.resolve({
+            data: [] as Array<{ id: string; full_name: string }>,
+            error: null,
+          }),
+    ]);
+    if (chargesRes.error) throw new Error(chargesRes.error.message);
+    if (paysRes.error) throw new Error(paysRes.error.message);
+    if (sellersRes.error) throw new Error(sellersRes.error.message);
+
+    const paysByCharge = new Map<string, number>();
+    const chargePayCashIds = new Set<string>();
+    for (const p of (paysRes.data ?? []) as Array<{
+      charge_id: string;
+      amount: number | string;
+      cash_entry_id: string | null;
+    }>) {
+      paysByCharge.set(
+        p.charge_id,
+        (paysByCharge.get(p.charge_id) ?? 0) + (Number(p.amount) || 0),
+      );
+      if (p.cash_entry_id) chargePayCashIds.add(p.cash_entry_id);
+    }
+
+    const chargeById = new Map<
+      string,
+      { amount_paid: number; remaining: number }
+    >();
+    for (const c of chargesRes.data ?? []) {
+      const totalDue = Number(c.amount) || 0;
+      let amountPaid = paysByCharge.get(c.id) ?? 0;
+      if (amountPaid === 0 && c.status === "pago" && totalDue > 0) {
+        amountPaid = totalDue;
+      }
+      amountPaid = Math.min(amountPaid, totalDue);
+      chargeById.set(c.id, {
+        amount_paid: amountPaid,
+        remaining: Math.max(0, totalDue - amountPaid),
+      });
+    }
+    const sellerNameById = new Map(
+      (sellersRes.data ?? []).map((s) => [s.id, s.full_name]),
+    );
+
+    let paidCents = 0;
+    let spentCents = 0;
+    let ticketsPaidCents = 0;
+    let otherIncomeCents = 0;
+    let openCents = 0;
+    const openLines: EventOpenLine[] = [];
     const byItem = new Map<
       string,
       {
@@ -317,7 +430,15 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
       }
     >();
 
-    // Ingressos (tickets)
+    const ticketInPeriod = new Map<
+      string,
+      {
+        buyerName: string;
+        sellerName: string | null;
+        typeName: string;
+      }
+    >();
+
     const ingressosCat = {
       categoryId: INGRESSOS_CATEGORY_ID,
       name: INGRESSOS_CATEGORY_NAME,
@@ -325,24 +446,55 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
       expense: 0,
       isSystem: true,
     };
-    for (const t of ticketsRes.data ?? []) {
+    for (const t of ticketRows) {
       if (t.status === "cancelado") continue;
       const day = ymdFromIso(t.sold_at);
       if (data.from && day && day < data.from) continue;
       if (day && day > untilCap) continue;
-      const amount = Number(t.price_paid ?? 0);
-      ticketsIncome += amount;
-      totalIncome += amount;
-      ingressosCat.income += amount;
+
+      const price = Number(t.price_paid ?? 0);
+      const charge = t.seller_charge_id
+        ? chargeById.get(t.seller_charge_id)
+        : undefined;
+      let ticketPaid = 0;
+      let ticketOpen = 0;
+      if (charge) {
+        ticketPaid = charge.amount_paid;
+        ticketOpen = charge.remaining;
+      } else if (price > 0) {
+        ticketOpen = price;
+      }
+
+      const paidC = moneyCents(ticketPaid);
+      const openC = moneyCents(ticketOpen);
+      ticketsPaidCents += paidC;
+      paidCents += paidC;
+      openCents += openC;
+      ingressosCat.income += centsToMoney(paidC);
 
       const typeId = t.ticket_type_id;
-      const itemId = typeId ? `ticket-type:${typeId}` : "ticket-type:avulso";
-      const name = typeId
+      const typeLabel = typeId
         ? (typeName.get(typeId) ?? "Tipo removido")
         : "Avulso";
+      const sellerName = t.seller_member_id
+        ? (sellerNameById.get(t.seller_member_id) ?? null)
+        : null;
+      const buyerName = (t.buyer_name ?? "").trim() || "—";
+      ticketInPeriod.set(t.id, { buyerName, sellerName, typeName: typeLabel });
+
+      if (openC > 0) {
+        openLines.push({
+          buyerName,
+          sellerName,
+          label: `Ingresso · ${typeLabel}`,
+          amount: centsToMoney(openC),
+        });
+      }
+
+      const itemId = typeId ? `ticket-type:${typeId}` : "ticket-type:avulso";
       const itemRow = byItem.get(itemId) ?? {
         itemId,
-        name,
+        name: typeLabel,
         categoryId: INGRESSOS_CATEGORY_ID,
         categoryName: INGRESSOS_CATEGORY_NAME,
         income: 0,
@@ -350,13 +502,12 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
         qty: 0,
         isSystem: true,
       };
-      itemRow.income += amount;
+      itemRow.income += centsToMoney(paidC);
       itemRow.qty = (itemRow.qty ?? 0) + 1;
       byItem.set(itemId, itemRow);
     }
     if (ingressosCat.income > 0 || (typesRes.data ?? []).length > 0) {
       byCategory.set(INGRESSOS_CATEGORY_ID, ingressosCat);
-      // Garante linhas zeradas para tipos sem venda
       for (const tt of typesRes.data ?? []) {
         const itemId = `ticket-type:${tt.id}`;
         if (!byItem.has(itemId)) {
@@ -374,12 +525,33 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
       }
     }
 
+    for (const line of ticketItemsRes.data ?? []) {
+      const ticket = ticketInPeriod.get(line.ticket_id);
+      if (!ticket) continue;
+      const amountC = moneyCents(line.amount);
+      if (line.cash_entry_id) continue;
+      if (amountC <= 0) continue;
+      openCents += amountC;
+      const meta = itemMeta.get(line.item_id);
+      const qty = Number(line.qty) || 0;
+      const name = meta?.name?.trim() || "Item";
+      openLines.push({
+        buyerName: ticket.buyerName,
+        sellerName: ticket.sellerName,
+        label: qty > 1 ? `${name} × ${qty}` : name,
+        amount: centsToMoney(amountC),
+      });
+    }
+
     for (const e of entries ?? []) {
-      const amount = Number(e.amount) || 0;
+      if (chargePayCashIds.has(e.id)) continue;
+      const amountC = moneyCents(e.amount);
       if (e.kind === "entrada") {
-        totalIncome += amount;
-        otherIncome += amount;
-      } else totalExpense += amount;
+        paidCents += amountC;
+        otherIncomeCents += amountC;
+      } else if (e.kind === "saida") {
+        spentCents += amountC;
+      }
 
       const meta = e.event_finance_item_id
         ? itemMeta.get(e.event_finance_item_id)
@@ -387,12 +559,11 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
       const itemId = e.event_finance_item_id ?? `snap:${e.subcategory ?? "?"}`;
       const name = meta?.name ?? e.subcategory ?? "Sem item";
       const categoryId = meta?.category_id ?? "other";
-      const categoryName =
-        catName.get(categoryId) ?? "Outros";
+      const categoryName = catName.get(categoryId) ?? "Outros";
 
-      // Orçamento não entra no breakdown de categorias/itens de receita
       if (isBudgetCategoryName(categoryName)) continue;
 
+      const amount = centsToMoney(amountC);
       const itemRow = byItem.get(itemId) ?? {
         itemId,
         name,
@@ -402,7 +573,7 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
         expense: 0,
       };
       if (e.kind === "entrada") itemRow.income += amount;
-      else itemRow.expense += amount;
+      else if (e.kind === "saida") itemRow.expense += amount;
       byItem.set(itemId, itemRow);
 
       const catRow = byCategory.get(categoryId) ?? {
@@ -412,9 +583,21 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
         expense: 0,
       };
       if (e.kind === "entrada") catRow.income += amount;
-      else catRow.expense += amount;
+      else if (e.kind === "saida") catRow.expense += amount;
       byCategory.set(categoryId, catRow);
     }
+
+    openLines.sort((a, b) => {
+      const seller = (a.sellerName || "—").localeCompare(b.sellerName || "—", "pt-BR", {
+        sensitivity: "base",
+      });
+      if (seller !== 0) return seller;
+      const buyer = a.buyerName.localeCompare(b.buyerName, "pt-BR", {
+        sensitivity: "base",
+      });
+      if (buyer !== 0) return buyer;
+      return a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" });
+    });
 
     const sortedCats = [...byCategory.values()].sort((a, b) => {
       if (a.categoryId === INGRESSOS_CATEGORY_ID) return -1;
@@ -422,12 +605,22 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
       return a.name.localeCompare(b.name, "pt-BR");
     });
 
+    const paid = centsToMoney(paidCents);
+    const spent = centsToMoney(spentCents);
+    const open = centsToMoney(openCents);
+    const ticketsIncome = centsToMoney(ticketsPaidCents);
+    const otherIncome = centsToMoney(otherIncomeCents);
+
     return {
-      totalIncome,
-      totalExpense,
-      total: totalIncome - totalExpense,
+      totalIncome: paid,
+      totalExpense: spent,
+      total: centsToMoney(paidCents - spentCents),
       ticketsIncome,
       otherIncome,
+      paid,
+      spent,
+      open,
+      openLines,
       byCategory: sortedCats,
       byItem: [...byItem.values()].sort((a, b) =>
         a.name.localeCompare(b.name, "pt-BR"),

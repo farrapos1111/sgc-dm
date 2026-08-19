@@ -80,3 +80,41 @@ export function chargeCashDescription(
   }
   return `${desc} - ${name}`;
 }
+
+function foldPt(s: string) {
+  return s.trim().toLocaleLowerCase("pt-BR");
+}
+
+/**
+ * Um lançamento avulso/importado é o mesmo pagamento da cobrança
+ * (evita duplicar no caixa ao baixar a cobrança).
+ */
+export function cashEntryMatchesCharge(opts: {
+  cashDescription: string;
+  cashAmount: number | string;
+  chargeDescription: string;
+  memberName: string | null | undefined;
+  payAmount: number | string;
+}): boolean {
+  const cashCents = Math.round(Number(opts.cashAmount) * 100);
+  const payCents = Math.round(Number(opts.payAmount) * 100);
+  if (!Number.isFinite(cashCents) || cashCents !== payCents) return false;
+
+  const cashFold = foldPt(opts.cashDescription);
+  const descFold = foldPt(opts.chargeDescription);
+  if (!cashFold || !descFold) return false;
+  if (!cashFold.includes(descFold)) return false;
+
+  const parts = (opts.memberName ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return true;
+  const first = foldPt(parts[0]);
+  if (first && !cashFold.includes(first)) return false;
+  if (parts.length >= 2) {
+    const last = foldPt(parts[parts.length - 1]);
+    const second = foldPt(parts[1]);
+    const lastOk = last.length >= 3 && cashFold.includes(last);
+    const secondOk = second.length >= 3 && cashFold.includes(second);
+    if (!lastOk && !secondOk) return false;
+  }
+  return true;
+}

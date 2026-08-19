@@ -1,10 +1,12 @@
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { loadLogoDataUrl } from "@/lib/chapter-logo";
+import { centsToMoney, moneyCents } from "@/lib/cash-totals";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import {
   INGRESSOS_CATEGORY_ID,
   type EventFinanceTotals,
+  type EventOpenLine,
 } from "@/lib/event-finance.functions";
 
 const MARGIN = 15;
@@ -31,14 +33,195 @@ function fileSafe(text: string) {
 }
 
 export function formatEventFinanceHint(totals: EventFinanceTotals) {
-  const parts: string[] = [];
-  if (totals.ticketsIncome > 0) {
-    parts.push(`Ingressos ${formatBRL(totals.ticketsIncome)}`);
+  const paid = totals.paid ?? totals.totalIncome;
+  const spent = totals.spent ?? totals.totalExpense;
+  const open = totals.open ?? 0;
+  return `Pago ${formatBRL(paid)}  ·  Gasto ${formatBRL(spent)}  ·  Em aberto ${formatBRL(open)}`;
+}
+
+export function summarizeComandaReport(rows: ComandaReportRow[]): {
+  paid: number;
+  open: number;
+  openLines: EventOpenLine[];
+} {
+  let paidCents = 0;
+  let openCents = 0;
+  const openLines: EventOpenLine[] = [];
+  for (const r of rows) {
+    const ticketPaidC = moneyCents(r.ticket_paid_amount);
+    const ticketOpenC = Math.max(
+      0,
+      moneyCents(r.ticket_amount) - ticketPaidC,
+    );
+    paidCents += ticketPaidC;
+    openCents += ticketOpenC;
+    if (ticketOpenC > 0) {
+      openLines.push({
+        buyerName: r.buyer_name,
+        sellerName: r.seller_name,
+        label: `Ingresso · ${r.ticket_type_name}`,
+        amount: centsToMoney(ticketOpenC),
+      });
+    }
+    for (const i of r.items) {
+      const amountC = moneyCents(i.amount);
+      if (i.paid) {
+        paidCents += amountC;
+        continue;
+      }
+      if (amountC <= 0) continue;
+      openCents += amountC;
+      openLines.push({
+        buyerName: r.buyer_name,
+        sellerName: r.seller_name,
+        label: i.qty > 1 ? `${i.name} × ${i.qty}` : i.name,
+        amount: centsToMoney(amountC),
+      });
+    }
   }
-  if (totals.otherIncome > 0) {
-    parts.push(`Outros ${formatBRL(totals.otherIncome)}`);
+  openLines.sort((a, b) => {
+    const seller = (a.sellerName || "—").localeCompare(b.sellerName || "—", "pt-BR", {
+      sensitivity: "base",
+    });
+    if (seller !== 0) return seller;
+    const buyer = a.buyerName.localeCompare(b.buyerName, "pt-BR", {
+      sensitivity: "base",
+    });
+    if (buyer !== 0) return buyer;
+    return a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" });
+  });
+  return {
+    paid: centsToMoney(paidCents),
+    open: centsToMoney(openCents),
+    openLines,
+  };
+}
+
+function drawPaidSpentOpen(
+  doc: jsPDF,
+  y: number,
+  pageW: number,
+  contentW: number,
+  paid: number,
+  spent: number,
+  open: number,
+  paidHint?: string,
+) {
+  const col = contentW / 3;
+  doc.setFillColor(245, 245, 242);
+  doc.rect(MARGIN, y - 4, contentW, paidHint ? 22 : 18, "F");
+
+  const cols = [
+    { label: "Pago", value: paid, color: COLOR_GREEN, x: MARGIN + 3 },
+    { label: "Gasto", value: spent, color: COLOR_RED, x: MARGIN + col + 3 },
+    {
+      label: "Em aberto",
+      value: open,
+      color: COLOR_AMBER,
+      x: MARGIN + col * 2 + 3,
+    },
+  ] as const;
+
+  for (const c of cols) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    setRgb(doc, COLOR_BLACK);
+    doc.text(c.label, c.x, y + 1);
+    doc.setFontSize(12);
+    setRgb(doc, c.color);
+    doc.text(formatBRL(c.value), c.x, y + 8);
   }
-  return parts.join(" · ") || null;
+
+  if (paidHint) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    setRgb(doc, COLOR_GRAY);
+    doc.text(paidHint, MARGIN + 3, y + 14);
+    setRgb(doc, COLOR_BLACK);
+    return y + 26;
+  }
+  setRgb(doc, COLOR_BLACK);
+  return y + 22;
+}
+
+function drawOpenLinesSection(
+  doc: jsPDF,
+  y: number,
+  pageW: number,
+  pageH: number,
+  contentW: number,
+  openLines: EventOpenLine[],
+  openTotal: number,
+) {
+  const ensureSpace = (need: number) => {
+    if (y > pageH - need) {
+      doc.addPage();
+      y = MARGIN + 4;
+      return true;
+    }
+    return false;
+  };
+
+  ensureSpace(28);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  setRgb(doc, COLOR_BLACK);
+  doc.text("Ainda em aberto", MARGIN, y);
+  setRgb(doc, COLOR_AMBER);
+  doc.text(formatBRL(openTotal), pageW - MARGIN - 2, y, { align: "right" });
+  setRgb(doc, COLOR_BLACK);
+  y += 6;
+
+  if (openLines.length === 0) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    setRgb(doc, COLOR_GRAY);
+    doc.text("Nada em aberto.", MARGIN + 2, y);
+    setRgb(doc, COLOR_BLACK);
+    return y + 8;
+  }
+
+  const drawHeader = () => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setFillColor(240, 240, 238);
+    doc.rect(MARGIN, y - 4.5, contentW, 7, "F");
+    doc.text("Pessoa", MARGIN + 1, y);
+    doc.text("Item", MARGIN + 62, y);
+    doc.text("Valor", pageW - MARGIN - 1, y, { align: "right" });
+    y += 6;
+    doc.setFont("helvetica", "normal");
+  };
+  drawHeader();
+
+  for (const line of openLines) {
+    const person = line.sellerName
+      ? `${line.buyerName} · ${line.sellerName}`
+      : line.buyerName;
+    const personLines = doc.splitTextToSize(person, 58) as string[];
+    const itemLines = doc.splitTextToSize(line.label, contentW - 90) as string[];
+    const rowH = 4.5 + Math.max(0, Math.max(personLines.length, itemLines.length) - 1) * 4;
+    if (ensureSpace(rowH + 8)) drawHeader();
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    setRgb(doc, COLOR_BLACK);
+    doc.text(personLines[0] ?? "", MARGIN + 1, y);
+    doc.text(itemLines[0] ?? "", MARGIN + 62, y);
+    setRgb(doc, COLOR_AMBER);
+    doc.text(formatBRL(line.amount), pageW - MARGIN - 1, y, { align: "right" });
+    setRgb(doc, COLOR_BLACK);
+    y += 4.5;
+    const extra = Math.max(personLines.length, itemLines.length);
+    for (let i = 1; i < extra; i++) {
+      if (personLines[i]) doc.text(personLines[i], MARGIN + 1, y);
+      if (itemLines[i]) doc.text(itemLines[i], MARGIN + 62, y);
+      y += 4;
+    }
+    doc.setDrawColor(230, 230, 228);
+    doc.line(MARGIN, y - 1.5, pageW - MARGIN, y - 1.5);
+    y += 2;
+  }
+  return y + 4;
 }
 
 export type EventFinancePdfInput = {
@@ -111,38 +294,14 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
   y += 8;
   setRgb(doc, COLOR_BLACK);
 
-  // Cards de totais
-  doc.setFillColor(245, 245, 242);
-  doc.rect(MARGIN, y - 4, contentW, 22, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("Total arrecadado", MARGIN + 3, y + 1);
-  doc.setFontSize(12);
-  setRgb(doc, COLOR_GREEN);
-  doc.text(formatBRL(totals.totalIncome), MARGIN + 3, y + 8);
+  const paid = totals.paid ?? totals.totalIncome;
+  const spent = totals.spent ?? totals.totalExpense;
+  const open = totals.open ?? 0;
+  const openLines = totals.openLines ?? [];
+  const paidHint = `Ingressos ${formatBRL(totals.ticketsIncome)}  ·  Outros ${formatBRL(totals.otherIncome)}  ·  Líquido ${formatBRL(centsToMoney(moneyCents(paid) - moneyCents(spent)))}`;
 
-  doc.setFontSize(8);
-  setRgb(doc, COLOR_GRAY);
-  doc.text(
-    `Ingressos ${formatBRL(totals.ticketsIncome)}  ·  Outros ${formatBRL(totals.otherIncome)}`,
-    MARGIN + 3,
-    y + 14,
-  );
-
-  const midX = pageW / 2 + 2;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  setRgb(doc, COLOR_BLACK);
-  doc.text("Saídas", midX, y + 1);
-  doc.setFontSize(12);
-  setRgb(doc, COLOR_RED);
-  doc.text(formatBRL(totals.totalExpense), midX, y + 8);
-
-  doc.setFontSize(8);
-  setRgb(doc, COLOR_GRAY);
-  doc.text(`Líquido ${formatBRL(totals.total)}`, midX, y + 14);
-  setRgb(doc, COLOR_BLACK);
-  y += 26;
+  y = drawPaidSpentOpen(doc, y, pageW, contentW, paid, spent, open, paidHint);
+  y = drawOpenLinesSection(doc, y, pageW, pageH, contentW, openLines, open);
 
   // Por categoria / item
   doc.setFont("helvetica", "bold");
@@ -479,6 +638,7 @@ export async function exportEventComandasPdf(input: {
   logoPath?: string | null;
   eventName: string;
   rows: ComandaReportRow[];
+  spent?: number;
 }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -531,33 +691,38 @@ export async function exportEventComandasPdf(input: {
   });
   y += 8;
 
-  let grandOpen = 0;
-  let grandPaid = 0;
-  for (const r of input.rows) {
-    grandPaid += r.ticket_paid_amount;
-    grandOpen += Math.max(0, r.ticket_amount - r.ticket_paid_amount);
-    for (const i of r.items) {
-      if (i.paid) grandPaid += i.amount;
-      else grandOpen += i.amount;
-    }
-  }
+  const summary = summarizeComandaReport(input.rows);
+  const spent = input.spent ?? 0;
+  y = drawPaidSpentOpen(
+    doc,
+    y,
+    pageW,
+    contentW,
+    summary.paid,
+    spent,
+    summary.open,
+  );
+  y = drawOpenLinesSection(
+    doc,
+    y,
+    pageW,
+    pageH,
+    contentW,
+    summary.openLines,
+    summary.open,
+  );
 
-  doc.setFillColor(245, 245, 242);
-  doc.rect(MARGIN, y - 4, contentW, 12, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(11);
   setRgb(doc, COLOR_BLACK);
-  doc.text(`${input.rows.length} comanda(s)`, MARGIN + 3, y + 3);
-  setRgb(doc, COLOR_GRAY);
-  doc.text(`Em aberto ${formatBRL(grandOpen)}`, pageW / 2, y + 3, {
-    align: "center",
-  });
-  setRgb(doc, COLOR_GREEN);
-  doc.text(`Pago ${formatBRL(grandPaid)}`, rightX - 2, y + 3, {
-    align: "right",
-  });
-  setRgb(doc, COLOR_BLACK);
-  y += 14;
+  doc.text(
+    input.rows.length === 1
+      ? "1 comanda"
+      : `${input.rows.length} comandas`,
+    MARGIN,
+    y,
+  );
+  y += 6;
 
   const ensureSpace = (need: number) => {
     if (y > pageH - need) {

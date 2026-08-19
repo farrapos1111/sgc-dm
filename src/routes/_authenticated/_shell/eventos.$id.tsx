@@ -154,7 +154,10 @@ function EventoDetalhe() {
         .reduce((s, t) => s + Number(t.price_paid ?? 0), 0),
     [data.tickets],
   );
-  const raised = financeTotalsQ.data?.totalIncome ?? ticketsRaised;
+  const raised =
+    financeTotalsQ.data?.paid ??
+    financeTotalsQ.data?.totalIncome ??
+    ticketsRaised;
   const raisedHint =
     financeTotalsQ.data != null
       ? formatEventFinanceHint(financeTotalsQ.data)
@@ -1066,6 +1069,10 @@ function TicketsList({
                     logoPath: logoPath ?? null,
                     eventName: event.name,
                     rows,
+                    spent:
+                      financeTotalsQ.data?.spent ??
+                      financeTotalsQ.data?.totalExpense ??
+                      0,
                   });
                   toast.success("Relatório de comandas gerado");
                 } catch (e) {
