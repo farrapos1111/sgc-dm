@@ -2053,5 +2053,3 @@ function MetricCard({
     </Card>
   );
 }
-
-}
