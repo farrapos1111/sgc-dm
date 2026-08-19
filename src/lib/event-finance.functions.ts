@@ -110,6 +110,17 @@ export type EventFinanceTotals = {
     entry_date: string;
     event_finance_item_id: string | null;
   }>;
+  /** Saídas com data futura (ainda não entram no caixa). */
+  scheduledEntries: Array<{
+    id: string;
+    kind: string;
+    amount: number | string;
+    subcategory: string | null;
+    description?: string | null;
+    entry_date: string;
+    event_finance_item_id: string | null;
+  }>;
+  scheduledExpense: number;
 };
 
 function ymdFromIso(iso: string | null | undefined): string | null {
@@ -272,8 +283,20 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
 
-    const [itemsRes, catsRes, typesRes, ticketsRes, ticketItemsRes] =
+    const scheduledQ = context.supabase
+      .from("cash_entries")
+      .select(
+        "id, kind, amount, subcategory, description, entry_date, event_finance_item_id",
+      )
+      .eq("event_id", data.eventId)
+      .eq("category", "Eventos")
+      .eq("kind", "saida")
+      .gt("entry_date", today)
+      .order("entry_date", { ascending: true });
+
+    const [scheduledRes, itemsRes, catsRes, typesRes, ticketsRes, ticketItemsRes] =
       await Promise.all([
+        scheduledQ,
         context.supabase
           .from("event_finance_items")
           .select("id, category_id, name")
@@ -297,6 +320,7 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
           .select("ticket_id, item_id, qty, amount, cash_entry_id")
           .eq("event_id", data.eventId),
       ]);
+    if (scheduledRes.error) throw new Error(scheduledRes.error.message);
     if (itemsRes.error) throw new Error(itemsRes.error.message);
     if (catsRes.error) throw new Error(catsRes.error.message);
     if (typesRes.error) throw new Error(typesRes.error.message);
@@ -610,6 +634,10 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
     const open = centsToMoney(openCents);
     const ticketsIncome = centsToMoney(ticketsPaidCents);
     const otherIncome = centsToMoney(otherIncomeCents);
+    const scheduledEntries = scheduledRes.data ?? [];
+    const scheduledExpense = centsToMoney(
+      scheduledEntries.reduce((s, e) => s + moneyCents(e.amount), 0),
+    );
 
     return {
       totalIncome: paid,
@@ -626,6 +654,8 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
         a.name.localeCompare(b.name, "pt-BR"),
       ),
       entries: entries ?? [],
+      scheduledEntries,
+      scheduledExpense,
     };
   });
 

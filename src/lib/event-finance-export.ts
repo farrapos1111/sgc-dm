@@ -224,6 +224,318 @@ function drawOpenLinesSection(
   return y + 4;
 }
 
+const PIE_COLORS: Rgb[] = [
+  [4, 120, 87],
+  [29, 78, 216],
+  [180, 83, 9],
+  [126, 34, 206],
+  [185, 28, 28],
+  [13, 148, 136],
+  [67, 56, 202],
+  [161, 98, 7],
+];
+
+export type EventReportSlice = { label: string; value: number };
+
+export function eventReportIncomeSlices(
+  totals: EventFinanceTotals,
+): EventReportSlice[] {
+  return totals.byCategory
+    .filter((c) => c.income > 0.001)
+    .map((c) => ({ label: c.name, value: c.income }));
+}
+
+export function eventReportExpenseSlices(
+  totals: EventFinanceTotals,
+): EventReportSlice[] {
+  const slices: EventReportSlice[] = totals.byCategory
+    .filter((c) => c.expense > 0.001)
+    .map((c) => ({ label: c.name, value: c.expense }));
+  const catExpense = slices.reduce((s, x) => s + x.value, 0);
+  const budgetRealized = Math.max(0, (totals.spent ?? 0) - catExpense);
+  if (budgetRealized > 0.001) {
+    slices.push({ label: "Orçamento", value: budgetRealized });
+  }
+  if ((totals.scheduledExpense ?? 0) > 0.001) {
+    slices.push({
+      label: "Despesas agendadas",
+      value: totals.scheduledExpense,
+    });
+  }
+  return slices;
+}
+
+function fillPieSlice(
+  doc: jsPDF,
+  cx: number,
+  cy: number,
+  r: number,
+  a0: number,
+  a1: number,
+  color: Rgb,
+) {
+  const span = a1 - a0;
+  if (span <= 0) return;
+  const steps = Math.max(8, Math.round(Math.abs(span) / 0.1));
+  doc.setFillColor(color[0], color[1], color[2]);
+  doc.setDrawColor(color[0], color[1], color[2]);
+  for (let i = 0; i < steps; i++) {
+    const t0 = a0 + (span * i) / steps;
+    const t1 = a0 + (span * (i + 1)) / steps;
+    doc.triangle(
+      cx,
+      cy,
+      cx + r * Math.cos(t0),
+      cy + r * Math.sin(t0),
+      cx + r * Math.cos(t1),
+      cy + r * Math.sin(t1),
+      "F",
+    );
+  }
+}
+
+function drawPieChart(
+  doc: jsPDF,
+  cx: number,
+  cy: number,
+  r: number,
+  slices: EventReportSlice[],
+) {
+  const total = slices.reduce((s, x) => s + x.value, 0);
+  if (total <= 0) {
+    doc.setDrawColor(210, 210, 208);
+    doc.setFillColor(245, 245, 242);
+    doc.circle(cx, cy, r, "FD");
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    setRgb(doc, COLOR_GRAY);
+    doc.text("Sem dados", cx, cy + 1, { align: "center" });
+    setRgb(doc, COLOR_BLACK);
+    return;
+  }
+  let angle = -Math.PI / 2;
+  slices.forEach((slice, i) => {
+    const next = angle + (slice.value / total) * Math.PI * 2;
+    fillPieSlice(doc, cx, cy, r, angle, next, PIE_COLORS[i % PIE_COLORS.length]);
+    angle = next;
+  });
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(0.4);
+  doc.circle(cx, cy, r, "S");
+  doc.setLineWidth(0.2);
+}
+
+function drawPieLegend(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  width: number,
+  slices: EventReportSlice[],
+) {
+  const total = slices.reduce((s, x) => s + x.value, 0) || 1;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  let cy = y;
+  slices.forEach((slice, i) => {
+    const color = PIE_COLORS[i % PIE_COLORS.length];
+    doc.setFillColor(color[0], color[1], color[2]);
+    doc.rect(x, cy - 2.6, 3.2, 3.2, "F");
+    setRgb(doc, COLOR_BLACK);
+    const pct = Math.round((slice.value / total) * 100);
+    const raw = `${slice.label}  ${formatBRL(slice.value)} (${pct}%)`;
+    const lines = doc.splitTextToSize(raw, width - 6) as string[];
+    doc.text(lines[0] ?? raw, x + 5, cy);
+    cy += 5;
+  });
+  return cy;
+}
+
+function drawChartsPage(
+  doc: jsPDF,
+  pageW: number,
+  contentW: number,
+  totals: EventFinanceTotals,
+) {
+  doc.addPage();
+  let y = MARGIN + 4;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  setRgb(doc, COLOR_BLACK);
+  doc.text("Gráficos", pageW / 2, y, { align: "center" });
+  y += 8;
+
+  const paid = totals.paid ?? totals.totalIncome;
+  const spent = totals.spent ?? totals.totalExpense;
+  const open = totals.open ?? 0;
+  const scheduled = totals.scheduledExpense ?? 0;
+  const bars = [
+    { label: "Pago", value: paid, color: COLOR_GREEN },
+    { label: "Gasto", value: spent, color: COLOR_RED },
+    { label: "Em aberto", value: open, color: COLOR_AMBER },
+    { label: "Agendado", value: scheduled, color: [67, 56, 202] as Rgb },
+  ];
+  const maxBar = Math.max(1, ...bars.map((b) => b.value));
+  const barW = contentW - 70;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("Comparativo", MARGIN, y);
+  y += 8;
+
+  for (const bar of bars) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    setRgb(doc, COLOR_BLACK);
+    doc.text(bar.label, MARGIN, y);
+    doc.setFillColor(240, 240, 238);
+    doc.rect(MARGIN + 28, y - 3.4, barW, 5.5, "F");
+    const w = barW * (bar.value / maxBar);
+    if (w > 0.3) {
+      doc.setFillColor(bar.color[0], bar.color[1], bar.color[2]);
+      doc.rect(MARGIN + 28, y - 3.4, w, 5.5, "F");
+    }
+    setRgb(doc, bar.color);
+    doc.setFont("helvetica", "bold");
+    doc.text(formatBRL(bar.value), MARGIN + 28 + barW + 2, y);
+    setRgb(doc, COLOR_BLACK);
+    y += 8;
+  }
+
+  y += 6;
+  const incomeSlices = eventReportIncomeSlices(totals);
+  const expenseSlices = eventReportExpenseSlices(totals);
+  const pieR = 28;
+  const colW = contentW / 2;
+  const pieY = y + pieR + 6;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("Entradas", MARGIN, y);
+  doc.text("Saídas", MARGIN + colW, y);
+
+  drawPieChart(doc, MARGIN + 32, pieY, pieR, incomeSlices);
+  drawPieChart(doc, MARGIN + colW + 32, pieY, pieR, expenseSlices);
+
+  const legendY = pieY + pieR + 8;
+  drawPieLegend(doc, MARGIN, legendY, colW - 6, incomeSlices);
+  drawPieLegend(doc, MARGIN + colW, legendY, colW - 6, expenseSlices);
+}
+
+type PdfCashRow = EventFinanceTotals["entries"][number] & {
+  scheduled?: boolean;
+};
+
+function drawCashKindTable(
+  doc: jsPDF,
+  startY: number,
+  pageW: number,
+  pageH: number,
+  contentW: number,
+  title: string,
+  rows: PdfCashRow[],
+  kind: "entrada" | "saida",
+) {
+  let y = startY;
+  const color = kind === "entrada" ? COLOR_GREEN : COLOR_RED;
+  const total = rows.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+  const ensureSpace = (need: number) => {
+    if (y > pageH - need) {
+      doc.addPage();
+      y = MARGIN + 4;
+      return true;
+    }
+    return false;
+  };
+
+  ensureSpace(30);
+  y += 2;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  setRgb(doc, COLOR_BLACK);
+  doc.text(title, MARGIN, y);
+  setRgb(doc, color);
+  doc.text(formatBRL(total), pageW - MARGIN - 2, y, { align: "right" });
+  setRgb(doc, COLOR_BLACK);
+  y += 6;
+
+  const cols = [
+    { x: MARGIN, w: 24 },
+    { x: MARGIN + 24, w: 22 },
+    { x: MARGIN + 46, w: 42 },
+    { x: MARGIN + 88, w: 62 },
+  ];
+
+  const drawHeader = () => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setFillColor(240, 240, 238);
+    doc.rect(MARGIN, y - 4.5, contentW, 7, "F");
+    doc.text("Data", cols[0].x + 1, y);
+    doc.text("Situação", cols[1].x + 1, y);
+    doc.text("Item", cols[2].x + 1, y);
+    doc.text("Descrição", cols[3].x + 1, y);
+    doc.text("Valor", pageW - MARGIN - 1, y, { align: "right" });
+    y += 6;
+    doc.setFont("helvetica", "normal");
+  };
+
+  if (rows.length === 0) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    setRgb(doc, COLOR_GRAY);
+    doc.text("Nenhum lançamento.", MARGIN + 2, y);
+    setRgb(doc, COLOR_BLACK);
+    return y + 8;
+  }
+
+  drawHeader();
+
+  for (const e of rows) {
+    const scheduled = !!e.scheduled;
+    const rowColor = scheduled ? COLOR_AMBER : color;
+    const status = scheduled
+      ? "Agendada"
+      : kind === "entrada"
+        ? "Entrada"
+        : "Saída";
+    const desc = doc.splitTextToSize(
+      e.description || e.subcategory || "—",
+      cols[3].w - 2,
+    ) as string[];
+    const rowH = desc.length > 1 ? 5 + (desc.length - 1) * 4 : 5;
+    if (ensureSpace(rowH + 8)) drawHeader();
+
+    doc.setFontSize(9);
+    setRgb(doc, COLOR_BLACK);
+    doc.text(formatDateBR(e.entry_date), cols[0].x + 1, y);
+    setRgb(doc, rowColor);
+    doc.text(status, cols[1].x + 1, y);
+    setRgb(doc, COLOR_BLACK);
+    doc.text(
+      doc.splitTextToSize(e.subcategory || "—", cols[2].w - 2)[0],
+      cols[2].x + 1,
+      y,
+    );
+    doc.text(desc[0] ?? "", cols[3].x + 1, y);
+    setRgb(doc, rowColor);
+    doc.text(
+      `${kind === "entrada" ? "+" : "−"} ${formatBRL(Number(e.amount))}`,
+      pageW - MARGIN - 1,
+      y,
+      { align: "right" },
+    );
+    setRgb(doc, COLOR_BLACK);
+    y += rowH;
+    for (let i = 1; i < desc.length; i++) {
+      doc.text(desc[i], cols[3].x + 1, y - (desc.length - i) * 4);
+    }
+    doc.setDrawColor(230, 230, 228);
+    doc.line(MARGIN, y - 3.2, pageW - MARGIN, y - 3.2);
+  }
+  return y + 4;
+}
+
 export type EventFinancePdfInput = {
   chapterName: string;
   chapterCity?: string | null;
@@ -298,7 +610,15 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
   const spent = totals.spent ?? totals.totalExpense;
   const open = totals.open ?? 0;
   const openLines = totals.openLines ?? [];
-  const paidHint = `Ingressos ${formatBRL(totals.ticketsIncome)}  ·  Outros ${formatBRL(totals.otherIncome)}  ·  Líquido ${formatBRL(centsToMoney(moneyCents(paid) - moneyCents(spent)))}`;
+  const scheduled = totals.scheduledExpense ?? 0;
+  const paidHint = [
+    `Ingressos ${formatBRL(totals.ticketsIncome)}`,
+    `Outros ${formatBRL(totals.otherIncome)}`,
+    `Líquido ${formatBRL(centsToMoney(moneyCents(paid) - moneyCents(spent)))}`,
+    scheduled > 0.001 ? `Agendado ${formatBRL(scheduled)}` : null,
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
 
   y = drawPaidSpentOpen(doc, y, pageW, contentW, paid, spent, open, paidHint);
   y = drawOpenLinesSection(doc, y, pageW, pageH, contentW, openLines, open);
@@ -389,79 +709,34 @@ export async function exportEventFinancePdf(input: EventFinancePdfInput) {
     y += 3;
   }
 
-  // Lançamentos de caixa (outros itens)
-  if (totals.entries.length > 0) {
-    ensureSpace(30);
-    y += 2;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    setRgb(doc, COLOR_BLACK);
-    doc.text("Lançamentos no caixa (Eventos)", MARGIN, y);
-    y += 6;
+  const incomeRows = totals.entries.filter((e) => e.kind === "entrada");
+  const expenseRows: PdfCashRow[] = [
+    ...totals.entries.filter((e) => e.kind === "saida"),
+    ...(totals.scheduledEntries ?? []).map((e) => ({ ...e, scheduled: true })),
+  ];
 
-    const cols = [
-      { x: MARGIN, w: 22 },
-      { x: MARGIN + 22, w: 18 },
-      { x: MARGIN + 40, w: 40 },
-      { x: MARGIN + 80, w: 70 },
-    ];
+  y = drawCashKindTable(
+    doc,
+    y,
+    pageW,
+    pageH,
+    contentW,
+    "Entradas",
+    incomeRows,
+    "entrada",
+  );
+  y = drawCashKindTable(
+    doc,
+    y,
+    pageW,
+    pageH,
+    contentW,
+    "Saídas",
+    expenseRows,
+    "saida",
+  );
 
-    const drawHeader = () => {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setFillColor(240, 240, 238);
-      doc.rect(MARGIN, y - 4.5, contentW, 7, "F");
-      doc.text("Data", cols[0].x + 1, y);
-      doc.text("Tipo", cols[1].x + 1, y);
-      doc.text("Item", cols[2].x + 1, y);
-      doc.text("Descrição", cols[3].x + 1, y);
-      doc.text("Valor", pageW - MARGIN - 1, y, { align: "right" });
-      y += 6;
-      doc.setFont("helvetica", "normal");
-    };
-
-    drawHeader();
-
-    for (const e of totals.entries) {
-      const isEntrada = e.kind === "entrada";
-      const color = isEntrada ? COLOR_GREEN : COLOR_RED;
-      const desc = doc.splitTextToSize(
-        e.description || e.subcategory || "—",
-        cols[3].w - 2,
-      ) as string[];
-      const rowH = desc.length > 1 ? 5 + (desc.length - 1) * 4 : 5;
-      if (ensureSpace(rowH + 8)) {
-        drawHeader();
-      }
-
-      doc.setFontSize(9);
-      setRgb(doc, COLOR_BLACK);
-      doc.text(formatDateBR(e.entry_date), cols[0].x + 1, y);
-      setRgb(doc, color);
-      doc.text(isEntrada ? "Entrada" : "Saída", cols[1].x + 1, y);
-      setRgb(doc, COLOR_BLACK);
-      doc.text(
-        doc.splitTextToSize(e.subcategory || "—", cols[2].w - 2)[0],
-        cols[2].x + 1,
-        y,
-      );
-      doc.text(desc[0] ?? "", cols[3].x + 1, y);
-      setRgb(doc, color);
-      doc.text(
-        `${isEntrada ? "+" : "-"} ${formatBRL(Number(e.amount))}`,
-        pageW - MARGIN - 1,
-        y,
-        { align: "right" },
-      );
-      setRgb(doc, COLOR_BLACK);
-      y += rowH;
-      for (let i = 1; i < desc.length; i++) {
-        doc.text(desc[i], cols[3].x + 1, y - (desc.length - i) * 4);
-      }
-      doc.setDrawColor(230, 230, 228);
-      doc.line(MARGIN, y - 3.2, pageW - MARGIN, y - 3.2);
-    }
-  }
+  drawChartsPage(doc, pageW, contentW, totals);
 
   // Rodapé
   const pages = doc.getNumberOfPages();
