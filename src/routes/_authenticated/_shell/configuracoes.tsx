@@ -28,7 +28,7 @@ import {
   resolveChapterTheme,
   type ChapterTheme,
 } from "@/lib/chapter-theme";
-import { ImagePlus, Loader2, Trash2, Building2, Landmark, PlusCircle, Save, Sun, Moon, MonitorSmartphone, Palette, RotateCcw, Check, Receipt, Link2, Copy } from "lucide-react";
+import { ImagePlus, Loader2, Trash2, Building2, Landmark, PlusCircle, Save, Pencil, X, Sun, Moon, MonitorSmartphone, Palette, RotateCcw, Check, Receipt, Link2, Copy } from "lucide-react";
 import { useTheme, type ThemeMode } from "@/context/ThemeContext";
 import { ChaveTemplateCard } from "@/components/settings/ChaveTemplateCard";
 import { PixKeyCard } from "@/components/settings/PixKeyCard";
@@ -1037,9 +1037,10 @@ function LodgesCard() {
   const { active } = useActiveChapter();
   const { can } = useChapterAccess();
   const chapterId = active?.chapter_id ?? "";
-  const isAdmin = can("admin");
+  const canManage = can("admin") || can("secretaria");
   const qc = useQueryClient();
 
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [isPrimary, setIsPrimary] = useState(false);
@@ -1052,10 +1053,30 @@ function LodgesCard() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["chapter-lodges", chapterId] });
 
-  const add = useMutation({
+  function resetForm() {
+    setEditingId(null);
+    setName("");
+    setAddress("");
+    setIsPrimary(false);
+  }
+
+  function startEdit(l: {
+    id: string;
+    name: string;
+    address: string | null;
+    is_primary: boolean;
+  }) {
+    setEditingId(l.id);
+    setName(l.name);
+    setAddress(l.address ?? "");
+    setIsPrimary(!!l.is_primary);
+  }
+
+  const save = useMutation({
     mutationFn: () =>
       saveLodge({
         data: {
+          id: editingId ?? undefined,
           chapter_id: chapterId,
           name: name.trim(),
           address: address.trim() || null,
@@ -1063,10 +1084,10 @@ function LodgesCard() {
         },
       }),
     onSuccess: () => {
-      toast.success("Loja patrocinadora adicionada");
-      setName("");
-      setAddress("");
-      setIsPrimary(false);
+      toast.success(
+        editingId ? "Loja patrocinadora atualizada" : "Loja patrocinadora adicionada",
+      );
+      resetForm();
       invalidate();
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar loja"),
@@ -1083,8 +1104,9 @@ function LodgesCard() {
 
   const remove = useMutation({
     mutationFn: (id: string) => deleteLodge({ data: { id } }),
-    onSuccess: () => {
+    onSuccess: (_data, removedId) => {
       toast.success("Loja removida");
+      if (editingId === removedId) resetForm();
       invalidate();
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao remover"),
@@ -1120,7 +1142,7 @@ function LodgesCard() {
                 </div>
                 <div className="text-xs text-muted-foreground">{l.address || "Sem endereço informado"}</div>
               </div>
-              {isAdmin && (
+              {canManage && (
                 <div className="flex items-center gap-1">
                   {!l.is_primary && (
                     <Button size="sm" variant="outline" onClick={() => setPrimary.mutate(l)}>
@@ -1130,7 +1152,16 @@ function LodgesCard() {
                   <Button
                     size="icon"
                     variant="ghost"
+                    aria-label="Editar loja"
+                    onClick={() => startEdit(l)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
                     className="text-destructive"
+                    aria-label="Remover loja"
                     onClick={() => remove.mutate(l.id)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -1142,8 +1173,11 @@ function LodgesCard() {
         </ul>
       )}
 
-      {isAdmin ? (
+      {canManage ? (
         <div className="mt-4 space-y-3 rounded-[8px] border border-dashed border-border p-3">
+          <div className="text-xs font-medium text-muted-foreground">
+            {editingId ? "Editar loja patrocinadora" : "Nova loja patrocinadora"}
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <Label className="mb-1 block text-xs">Nome da loja</Label>
@@ -1162,19 +1196,35 @@ function LodgesCard() {
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <Switch checked={isPrimary} onCheckedChange={setIsPrimary} /> Definir como loja principal
             </label>
-            <Button
-              style={{ backgroundColor: "var(--chapter-primary)" }}
-              disabled={add.isPending || !name.trim()}
-              onClick={() => add.mutate()}
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              {add.isPending ? "Salvando…" : "Adicionar loja patrocinadora"}
-            </Button>
+            <div className="flex items-center gap-2">
+              {editingId && (
+                <Button type="button" variant="outline" onClick={resetForm}>
+                  <X className="mr-2 h-4 w-4" />
+                  Cancelar
+                </Button>
+              )}
+              <Button
+                style={{ backgroundColor: "var(--chapter-primary)" }}
+                disabled={save.isPending || !name.trim()}
+                onClick={() => save.mutate()}
+              >
+                {editingId ? (
+                  <Save className="mr-2 h-4 w-4" />
+                ) : (
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                )}
+                {save.isPending
+                  ? "Salvando…"
+                  : editingId
+                    ? "Salvar alterações"
+                    : "Adicionar loja patrocinadora"}
+              </Button>
+            </div>
           </div>
         </div>
       ) : (
         <p className="mt-4 text-xs text-muted-foreground">
-          Somente administradores podem gerenciar as lojas patrocinadoras.
+          Somente administração e secretaria podem gerenciar as lojas patrocinadoras.
         </p>
       )}
     </Card>

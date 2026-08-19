@@ -1,7 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { competenceLabel, duesDescription, scopeOfCategory } from "@/lib/cash-categories";
+import {
+  chargeCashDescription,
+  competenceLabel,
+  duesDescription,
+  scopeOfCategory,
+} from "@/lib/cash-categories";
+import { sumCashByKind } from "@/lib/cash-totals";
 import {
   autoDueStatus,
   getChapterDefaultDuesAmount,
@@ -64,15 +70,7 @@ async function aggregateCashAmounts(
     return q;
   });
 
-  let income = 0;
-  let expense = 0;
-  for (const r of rows) {
-    const amount = Number(r.amount) || 0;
-    if (r.kind === "entrada") income += amount;
-    else expense += amount;
-  }
-
-  return { income, expense, balance: income - expense };
+  return sumCashByKind(rows);
 }
 
 /** Busca todas as páginas de uma consulta PostgREST (range), até esgotar. */
@@ -2006,7 +2004,7 @@ export const addChargePayment = createServerFn({ method: "POST" })
     const { data: charge, error: chargeErr } = await context.supabase
       .from("member_charges")
       .select(
-        "id, chapter_id, kind, category, subcategory, description, amount, status, cash_entry_id, member_id",
+        "id, chapter_id, kind, category, subcategory, description, amount, status, cash_entry_id, member_id, members(full_name)",
       )
       .eq("id", data.chargeId)
       .eq("chapter_id", data.chapterId)
@@ -2041,7 +2039,15 @@ export const addChargePayment = createServerFn({ method: "POST" })
       );
     }
 
-    const cashDescription = charge.description;
+    const memberJoin = (
+      charge as {
+        members?: { full_name?: string } | { full_name?: string }[] | null;
+      }
+    ).members;
+    const memberName = Array.isArray(memberJoin)
+      ? memberJoin[0]?.full_name
+      : memberJoin?.full_name;
+    const cashDescription = chargeCashDescription(charge.description, memberName);
 
     const { data: entry, error: entryErr } = await context.supabase
       .from("cash_entries")
@@ -2128,7 +2134,7 @@ export const updateChargePayment = createServerFn({ method: "POST" })
     const { data: charge, error: chErr } = await context.supabase
       .from("member_charges")
       .select(
-        "id, amount, status, kind, category, subcategory, description",
+        "id, amount, status, kind, category, subcategory, description, members(full_name)",
       )
       .eq("id", pay.charge_id)
       .single();
@@ -2164,7 +2170,15 @@ export const updateChargePayment = createServerFn({ method: "POST" })
       .eq("id", pay.id);
     if (updPayErr) throw new Error(updPayErr.message);
 
-    const cashDescription = charge.description;
+    const memberJoin = (
+      charge as {
+        members?: { full_name?: string } | { full_name?: string }[] | null;
+      }
+    ).members;
+    const memberName = Array.isArray(memberJoin)
+      ? memberJoin[0]?.full_name
+      : memberJoin?.full_name;
+    const cashDescription = chargeCashDescription(charge.description, memberName);
 
     if (pay.cash_entry_id) {
       const { error: cashErr } = await context.supabase
@@ -2297,24 +2311,42 @@ export const upsertMemberCharge = createServerFn({ method: "POST" })
         cashEntryId = null;
       }
 
-      if (data.status === "pago" && !cashEntryId && data.amount > 0) {
-        const cashDescription = data.description;
-        const { data: entry, error: entryErr } = await context.supabase
-          .from("cash_entries")
-          .insert({
-            chapter_id: data.chapterId,
-            kind: data.kind,
-            category: data.category,
-            subcategory: data.subcategory,
-            description: cashDescription,
-            amount: data.amount,
-            entry_date: paidAt,
-            created_by: context.userId,
-          })
-          .select("id")
-          .single();
-        if (entryErr) throw new Error(entryErr.message);
-        cashEntryId = entry.id;
+      if (data.status === "pago" && data.amount > 0) {
+        const cashDescription = chargeCashDescription(
+          data.description,
+          member.full_name,
+        );
+        if (!cashEntryId) {
+          const { data: entry, error: entryErr } = await context.supabase
+            .from("cash_entries")
+            .insert({
+              chapter_id: data.chapterId,
+              kind: data.kind,
+              category: data.category,
+              subcategory: data.subcategory,
+              description: cashDescription,
+              amount: data.amount,
+              entry_date: paidAt,
+              created_by: context.userId,
+            })
+            .select("id")
+            .single();
+          if (entryErr) throw new Error(entryErr.message);
+          cashEntryId = entry.id;
+        } else {
+          const { error: cashUpdErr } = await context.supabase
+            .from("cash_entries")
+            .update({
+              kind: data.kind,
+              category: data.category,
+              subcategory: data.subcategory,
+              description: cashDescription,
+              amount: data.amount,
+              entry_date: paidAt,
+            })
+            .eq("id", cashEntryId);
+          if (cashUpdErr) throw new Error(cashUpdErr.message);
+        }
       }
     }
 

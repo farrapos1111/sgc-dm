@@ -53,3 +53,30 @@ export function duesDescription(
     .join(", ");
   return `Mensalidade - ${memberName} - ${labels}`;
 }
+
+/**
+ * Lançamento no fluxo gerado por cobrança paga: "Descrição - Nome do membro",
+ * sem repetir o nome se a descrição já o contém (ingressos, texto legado).
+ */
+export function chargeCashDescription(
+  description: string,
+  memberName: string | null | undefined,
+): string {
+  const desc = description.trim();
+  const name = (memberName ?? "").trim();
+  if (!desc) return name;
+  if (!name) return desc;
+  const descFold = desc.toLocaleLowerCase("pt-BR");
+  const nameFold = name.toLocaleLowerCase("pt-BR");
+  if (descFold.includes(nameFold)) return desc;
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const firstLast = `${parts[0]} ${parts[parts.length - 1]}`.toLocaleLowerCase("pt-BR");
+    if (descFold.includes(firstLast)) return desc;
+    const firstTwo = `${parts[0]} ${parts[1]}`.toLocaleLowerCase("pt-BR");
+    if (descFold.includes(firstTwo)) return desc;
+  } else if (descFold.includes(nameFold)) {
+    return desc;
+  }
+  return `${desc} - ${name}`;
+}

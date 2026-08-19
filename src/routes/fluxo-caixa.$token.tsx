@@ -18,6 +18,7 @@ import { formatBRL, formatDateBR } from "@/lib/format";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { centsToMoney, moneyCents, roundCashTotals, sumCashByKind } from "@/lib/cash-totals";
 import {
   Select,
   SelectContent,
@@ -84,9 +85,9 @@ export function PublicCashFlowView({
 
   const entries = data?.entries ?? [];
   const opening = data?.opening ?? { balance: 0, previousYear: year - 1 };
-  const openingBalance = Number(opening.balance) || 0;
+  const openingBalance = centsToMoney(moneyCents(opening.balance));
   const bank = data?.bank ?? { income: 0, expense: 0, balance: 0 };
-  const currentCashBalance = Number(bank.balance) || 0;
+  const currentCashBalance = centsToMoney(moneyCents(bank.balance));
   const chapter = data?.chapter;
 
   useEffect(() => {
@@ -157,34 +158,28 @@ export function PublicCashFlowView({
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   }
 
+  const hasClientFilters =
+    selectedCategories.length > 0 || selectedSubcategories.length > 0;
+  const usingServerPeriodTotals =
+    !hasClientFilters && Boolean(data?.entries_truncated) && Boolean(data?.totals);
+
   const periodTotals = useMemo(() => {
-    const hasClientFilters =
-      selectedCategories.length > 0 || selectedSubcategories.length > 0;
-    if (!hasClientFilters && data?.totals) {
-      return {
+    if (usingServerPeriodTotals && data?.totals) {
+      return roundCashTotals({
         income: Number(data.totals.income) || 0,
         expense: Number(data.totals.expense) || 0,
-        balance: Number(data.totals.balance) || 0,
-      };
+        balance: 0,
+      });
     }
-    let income = 0;
-    let expense = 0;
-    for (const e of filteredEntries) {
-      if (e.kind === "entrada") income += Number(e.amount);
-      else expense += Number(e.amount);
-    }
-    return { income, expense, balance: income - expense };
-  }, [filteredEntries, selectedCategories.length, selectedSubcategories.length, data?.totals]);
-
-  const usingServerPeriodTotals =
-    selectedCategories.length === 0 &&
-    selectedSubcategories.length === 0 &&
-    Boolean(data?.totals);
+    return sumCashByKind(filteredEntries);
+  }, [filteredEntries, usingServerPeriodTotals, data?.totals]);
 
   const periodLabel = month ? `${monthName(month)} de ${year}` : `Ano de ${year}`;
 
   const isPastYear = year < now.getFullYear();
-  const periodClosingBalance = openingBalance + periodTotals.balance;
+  const periodClosingBalance = centsToMoney(
+    moneyCents(openingBalance) + moneyCents(periodTotals.balance),
+  );
   const cashBalanceValue = isPastYear ? periodClosingBalance : currentCashBalance;
   const cashBalanceLabel = isPastYear ? "Saldo final do caixa" : "Saldo Atual do Caixa";
 
@@ -201,13 +196,8 @@ export function PublicCashFlowView({
     return [...groups.entries()]
       .sort((a, b) => (monthOrder === "newest" ? b[0] - a[0] : a[0] - b[0]))
       .map(([m, list]) => {
-        let income = 0;
-        let expense = 0;
-        for (const e of list) {
-          if (e.kind === "entrada") income += Number(e.amount);
-          else expense += Number(e.amount);
-        }
-        return { month: m, entries: list, income, expense };
+        const totals = sumCashByKind(list);
+        return { month: m, entries: list, income: totals.income, expense: totals.expense };
       });
   }, [filteredEntries, month, monthOrder]);
 

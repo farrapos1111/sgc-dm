@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { sumCashByKind } from "@/lib/cash-totals";
 
 export type SheetRow = {
   kind: "entrada" | "saida";
@@ -172,12 +173,7 @@ export function exportCashXlsx(
 
   if (months.length > 1) {
     for (const [m, group] of months) {
-      let income = 0;
-      let expense = 0;
-      for (const e of group) {
-        if (e.kind === "entrada") income += Number(e.amount);
-        else expense += Number(e.amount);
-      }
+      const totals = sumCashByKind(group);
       const sheetData: Array<Array<string | number>> = [
         ["Data", "Tipo", "Categoria", "Descrição", "Valor"],
       ];
@@ -191,9 +187,9 @@ export function exportCashXlsx(
         ]);
       }
       sheetData.push([]);
-      sheetData.push(["Entradas", income]);
-      sheetData.push(["Saídas", expense]);
-      sheetData.push(["Resultado", income - expense]);
+      sheetData.push(["Entradas", totals.income]);
+      sheetData.push(["Saídas", totals.expense]);
+      sheetData.push(["Resultado", totals.balance]);
 
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
       ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 22 }, { wch: 48 }, { wch: 14 }];

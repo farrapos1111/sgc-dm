@@ -51,6 +51,7 @@ import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { todayYmd } from "@/lib/timezone";
 import { chapterFoundedAt } from "@/lib/terms";
+import { sumCashByKind, cashTotalsFromCents, centsToMoney, moneyCents } from "@/lib/cash-totals";
 import {
   createCashEntry,
   createManualDuesEntry,
@@ -220,9 +221,9 @@ function FluxoCaixa() {
 
   const entries = data?.entries ?? [];
   const opening = data?.opening ?? { balance: 0, previousYear: year - 1 };
-  const openingBalance = Number(opening.balance) || 0;
+  const openingBalance = centsToMoney(moneyCents(opening.balance));
   const bank = data?.bank ?? { income: 0, expense: 0, balance: 0 };
-  const currentCashBalance = Number(bank.balance) || 0;
+  const currentCashBalance = centsToMoney(moneyCents(bank.balance));
 
   const { data: catData } = useQuery({
     queryKey: ["cash-categories", active?.chapter_id],
@@ -429,41 +430,17 @@ function FluxoCaixa() {
       )
     : "";
 
-
-
-  const periodTotals = useMemo(() => {
-    const hasClientFilters =
-      selectedCategories.length > 0 ||
-      selectedSubcategories.length > 0 ||
-      search.trim().length > 0;
-    // Sem filtro de categoria/busca: usar agregação completa do servidor
-    // (evita totais incompletos quando a lista de lançamentos é limitada).
-    if (!hasClientFilters && data?.totals) {
-      return {
-        income: Number(data.totals.income) || 0,
-        expense: Number(data.totals.expense) || 0,
-        balance: Number(data.totals.balance) || 0,
-      };
-    }
-    let income = 0;
-    let expense = 0;
-    for (const e of filteredEntries) {
-      if (e.kind === "entrada") income += Number(e.amount);
-      else expense += Number(e.amount);
-    }
-    return { income, expense, balance: income - expense };
-  }, [
-    filteredEntries,
-    selectedCategories.length,
-    selectedSubcategories.length,
-    search,
-    data?.totals,
-  ]);
+  const periodTotals = useMemo(
+    () => sumCashByKind(filteredEntries),
+    [filteredEntries],
+  );
 
   const periodLabel = month ? `${monthName(month)} de ${year}` : `Ano de ${year}`;
 
   const isPastYear = year < now.getFullYear();
-  const periodClosingBalance = openingBalance + periodTotals.balance;
+  const periodClosingBalance = centsToMoney(
+    moneyCents(openingBalance) + moneyCents(periodTotals.balance),
+  );
   const cashBalanceValue = isPastYear ? periodClosingBalance : currentCashBalance;
   const cashBalanceLabel = isPastYear ? "Saldo final do caixa" : "Saldo Atual do Caixa";
   const cashBalanceHint = isPastYear
@@ -483,17 +460,12 @@ function FluxoCaixa() {
     return [...groups.entries()]
       .sort((a, b) => (monthOrder === "newest" ? b[0] - a[0] : a[0] - b[0]))
       .map(([m, list]) => {
-        let income = 0;
-        let expense = 0;
-        for (const e of list) {
-          if (e.kind === "entrada") income += Number(e.amount);
-          else expense += Number(e.amount);
-        }
+        const totals = sumCashByKind(list);
         return {
           month: m,
           entries: sortCashEntries(list, sortKey, sortDir),
-          income,
-          expense,
+          income: totals.income,
+          expense: totals.expense,
         };
       });
   }, [filteredEntries, month, monthOrder, sortKey, sortDir]);
@@ -640,18 +612,20 @@ function FluxoCaixa() {
         let nextBank = previous.bank;
         let nextTotals = previous.totals;
         if (removed) {
-          const amt = Number(removed.amount) || 0;
+          const cents = moneyCents(removed.amount);
           const isIn = removed.kind === "entrada";
           const isOut = removed.kind === "saida";
           if (previous.bank) {
-            const income = Number(previous.bank.income) - (isIn ? amt : 0);
-            const expense = Number(previous.bank.expense) - (isOut ? amt : 0);
-            nextBank = { income, expense, balance: income - expense };
+            nextBank = cashTotalsFromCents(
+              moneyCents(previous.bank.income) - (isIn ? cents : 0),
+              moneyCents(previous.bank.expense) - (isOut ? cents : 0),
+            );
           }
           if (previous.totals) {
-            const income = Number(previous.totals.income) - (isIn ? amt : 0);
-            const expense = Number(previous.totals.expense) - (isOut ? amt : 0);
-            nextTotals = { income, expense, balance: income - expense };
+            nextTotals = cashTotalsFromCents(
+              moneyCents(previous.totals.income) - (isIn ? cents : 0),
+              moneyCents(previous.totals.expense) - (isOut ? cents : 0),
+            );
           }
         }
         qc.setQueryData(key, {
@@ -2078,4 +2052,6 @@ function MetricCard({
       {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
     </Card>
   );
+}
+
 }

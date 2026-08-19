@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { ensurePdfLogoDataUrl, loadLogoDataUrl } from "@/lib/chapter-logo";
 import { formatBRL, formatDateBR } from "@/lib/format";
+import { sumCashByKind } from "@/lib/cash-totals";
 
 type Entry = {
   entry_date: string;
@@ -73,13 +74,14 @@ function groupByMonth(entries: Entry[]) {
   return [...groups.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([m, list]) => {
-      let income = 0;
-      let expense = 0;
-      for (const e of list) {
-        if (e.kind === "entrada") income += Number(e.amount);
-        else expense += Number(e.amount);
-      }
-      return { month: m, entries: list, income, expense, balance: income - expense };
+      const totals = sumCashByKind(list);
+      return {
+        month: m,
+        entries: list,
+        income: totals.income,
+        expense: totals.expense,
+        balance: totals.balance,
+      };
     });
 }
 
