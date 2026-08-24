@@ -11,11 +11,26 @@ export const Route = createFileRoute("/")({
   },
   head: () => ({
     meta: [
-      { title: "Templo Virtual" },
+      {
+        title:
+          "Templo Virtual · Gestão de ordens paramaçônicas e lojas maçônicas",
+      },
       {
         name: "description",
         content:
-          "A plataforma de gestão para Ordens Paramaçônicas e Lojas Maçônicas.",
+          "Gestão e gerenciamento de ordens paramaçônicas e lojas maçônicas, em um só lugar. Gratuito para paramaçônicas, código aberto e feito para o celular.",
+      },
+    ],
+    links: [
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Questrial&display=swap",
       },
     ],
   }),
