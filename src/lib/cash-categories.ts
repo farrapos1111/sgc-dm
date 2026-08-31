@@ -55,7 +55,7 @@ export function duesDescription(
 }
 
 /**
- * Lançamento no fluxo gerado por cobrança paga: "Descrição - Nome do membro",
+ * Lançamento no fluxo gerado por cobrança paga: "Nome do pagante - nome da cobrança",
  * sem repetir o nome se a descrição já o contém (ingressos, texto legado).
  */
 export function chargeCashDescription(
@@ -78,7 +78,7 @@ export function chargeCashDescription(
   } else if (descFold.includes(nameFold)) {
     return desc;
   }
-  return `${desc} - ${name}`;
+  return `${name} - ${desc}`;
 }
 
 function foldPt(s: string) {

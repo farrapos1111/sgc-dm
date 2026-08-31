@@ -6,31 +6,31 @@ Documento para quem vai desenvolver, revisar ou operar o sistema. Para a visão 
 
 ## 1. Visão geral
 
-O **Templo Virtual** (hub de gerenciamento das ordens paramaçônicas; repositório histórico `sgc-dm` / SG-CDM) é uma aplicação full-stack **TanStack Start** (React + SSR) com **Supabase** (Postgres, Auth, Storage) como backend. Não existe servidor de API separado: a camada de servidor são *server functions* do TanStack Start, e a autorização real mora em políticas RLS no Postgres.
+O **Templo Virtual** (hub de gerenciamento das ordens paramaçônicas; repositório histórico `sgc-dm` / SG-CDM) é uma aplicação full-stack **TanStack Start** (React + SSR) com **Supabase** (Postgres, Auth, Storage) como backend. Não existe servidor de API separado: a camada de servidor são _server functions_ do TanStack Start, e a autorização real mora em políticas RLS no Postgres.
 
 A aplicação é **multi-inquilino por capítulo**: quase toda tabela carrega `chapter_id`, e a associação usuário↔capítulo↔cargo vive em `chapter_members`. Acima disso há um escopo **regional/estadual** para lideranças (`org_leaderships`) — acompanhamento em leitura, com escrita de instituições/regiões/lideranças para o **GME** do estado. **MCR** e **OE** gerenciam instituições e membros da própria região e o calendário unificado; nomeação ritualística única por região via `transfer_region_office`. Cadastro de **estados** fica fora do produto (SQL/painel Supabase).
 
 ### Stack
 
-| Camada | Tecnologia | Versão |
-| --- | --- | --- |
-| Framework | TanStack Start | `^1.168.26` |
-| Roteamento | TanStack Router (file-based) | `^1.170.16` |
-| UI | React / React DOM | `^19.2.0` |
-| Build | Vite | `^8.0.16` |
-| Preset de build | `@lovable.dev/vite-tanstack-config` | `^2.7.7` |
-| Servidor | Nitro (preset `cloudflare-module`) | `3.0.260603-beta` |
-| Linguagem | TypeScript (`strict`, ES2022) | `^5.8.3` |
-| Estilo | Tailwind CSS v4 + shadcn/ui (new-york) + Radix | `^4.2.1` |
-| Estado de servidor | TanStack Query | `^5.101.1` |
-| Banco / Auth / Storage | `@supabase/supabase-js` | `^2.110.8` |
-| Validação | Zod | `^3.24.2` |
-| Formulários | react-hook-form + `@hookform/resolvers` | `^7.71.2` |
-| IA | Vercel AI SDK (`ai`) via Lovable AI Gateway | `^7.0.37` |
-| Documentos | jspdf, xlsx, qrcode, html5-qrcode | — |
-| Markdown (docs no app) | react-markdown + remark-gfm | — |
-| Gráficos | recharts | `^2.15.4` |
-| Lint/format | ESLint 9 (flat config) + Prettier | — |
+| Camada                 | Tecnologia                                     | Versão            |
+| ---------------------- | ---------------------------------------------- | ----------------- |
+| Framework              | TanStack Start                                 | `^1.168.26`       |
+| Roteamento             | TanStack Router (file-based)                   | `^1.170.16`       |
+| UI                     | React / React DOM                              | `^19.2.0`         |
+| Build                  | Vite                                           | `^8.0.16`         |
+| Preset de build        | `@lovable.dev/vite-tanstack-config`            | `^2.7.7`          |
+| Servidor               | Nitro (preset `cloudflare-module`)             | `3.0.260603-beta` |
+| Linguagem              | TypeScript (`strict`, ES2022)                  | `^5.8.3`          |
+| Estilo                 | Tailwind CSS v4 + shadcn/ui (new-york) + Radix | `^4.2.1`          |
+| Estado de servidor     | TanStack Query                                 | `^5.101.1`        |
+| Banco / Auth / Storage | `@supabase/supabase-js`                        | `^2.110.8`        |
+| Validação              | Zod                                            | `^3.24.2`         |
+| Formulários            | react-hook-form + `@hookform/resolvers`        | `^7.71.2`         |
+| IA                     | Vercel AI SDK (`ai`) via Lovable AI Gateway    | `^7.0.37`         |
+| Documentos             | jspdf, xlsx, qrcode, html5-qrcode              | —                 |
+| Markdown (docs no app) | react-markdown + remark-gfm                    | —                 |
+| Gráficos               | recharts                                       | `^2.15.4`         |
+| Lint/format            | ESLint 9 (flat config) + Prettier              | —                 |
 
 Gerenciador de pacotes: **Bun** (`bun.lock`, `bunfig.toml`). Existe um `package-lock.json` como alternativa com npm.
 
@@ -84,12 +84,12 @@ src/
 
 ### Pontos de entrada
 
-| Arquivo | Papel |
-| --- | --- |
-| [src/server.ts](../src/server.ts) | Envolve o `server-entry` do TanStack Start e converte erros 500 engolidos pelo h3 em uma página de erro legível |
-| [src/start.ts](../src/start.ts) | `createStart()` — registra `functionMiddleware: [attachSupabaseAuth]` e `requestMiddleware: [errorMiddleware, csrfMiddleware]` |
-| [src/router.tsx](../src/router.tsx) | Cria o router e o `QueryClient` (`staleTime` 60s, sem refetch ao focar a janela), passado como contexto do router |
-| [src/routes/\_\_root.tsx](../src/routes/__root.tsx) | Shell HTML, `<head>`, script inline anti-flash de tema, providers, toaster, boundaries de 404 e erro |
+| Arquivo                                             | Papel                                                                                                                          |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| [src/server.ts](../src/server.ts)                   | Envolve o `server-entry` do TanStack Start e converte erros 500 engolidos pelo h3 em uma página de erro legível                |
+| [src/start.ts](../src/start.ts)                     | `createStart()` — registra `functionMiddleware: [attachSupabaseAuth]` e `requestMiddleware: [errorMiddleware, csrfMiddleware]` |
+| [src/router.tsx](../src/router.tsx)                 | Cria o router e o `QueryClient` (`staleTime` 60s, sem refetch ao focar a janela), passado como contexto do router              |
+| [src/routes/\_\_root.tsx](../src/routes/__root.tsx) | Shell HTML, `<head>`, script inline anti-flash de tema, providers, toaster, boundaries de 404 e erro                           |
 
 ### Camadas
 
@@ -117,7 +117,7 @@ onSuccess da mutation → qc.invalidateQueries([...]) → refetch
 
 ### Exceções ao caminho acima
 
-- **Leituras diretas do browser para o Supabase**, sem passar por *server function* — por exemplo o `ActiveChapterContext` consultando `chapter_members`/`profiles`, e todas as chamadas de `supabase.auth`. Nesses casos **a RLS é a única barreira**; não existe validação intermediária.
+- **Leituras diretas do browser para o Supabase**, sem passar por _server function_ — por exemplo o `ActiveChapterContext` consultando `chapter_members`/`profiles`, e todas as chamadas de `supabase.auth`. Nesses casos **a RLS é a única barreira**; não existe validação intermediária.
 - **Escritas sensíveis passam por RPC do Postgres**, não por escrita direta em tabela: `create_member_with_pii`, `update_member_with_pii`, `add_member_guardian`, `reveal_member_pii`.
 
 ---
@@ -126,10 +126,10 @@ onSuccess da mutation → qc.invalidateQueries([...]) → refetch
 
 O sufixo do arquivo carrega significado semântico e há lint reforçando isso.
 
-| Sufixo | Significado | Como importar |
-| --- | --- | --- |
-| `*.functions.ts` | *Server functions*. O corpo roda no servidor, mas o módulo é importável do cliente — o bundler substitui pela chamada RPC. | `import { listCashEntries } from "@/lib/finance.functions"` — normal, no topo |
-| `*.server.ts` | Código **exclusivo de servidor**. Nunca pode entrar no bundle do cliente. | `await import("@/lib/cash-validation.server")` — **dinâmico, dentro do handler** |
+| Sufixo           | Significado                                                                                                                | Como importar                                                                    |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `*.functions.ts` | _Server functions_. O corpo roda no servidor, mas o módulo é importável do cliente — o bundler substitui pela chamada RPC. | `import { listCashEntries } from "@/lib/finance.functions"` — normal, no topo    |
+| `*.server.ts`    | Código **exclusivo de servidor**. Nunca pode entrar no bundle do cliente.                                                  | `await import("@/lib/cash-validation.server")` — **dinâmico, dentro do handler** |
 
 Exemplos reais de `*.server.ts`: [src/lib/cash-validation.server.ts](../src/lib/cash-validation.server.ts), [src/lib/ai-gateway.server.ts](../src/lib/ai-gateway.server.ts), [src/integrations/supabase/client.server.ts](../src/integrations/supabase/client.server.ts).
 
@@ -148,24 +148,24 @@ Outras convenções:
 
 Os arquivos em `src/lib/*.functions.ts`:
 
-| Arquivo | Cobre |
-| --- | --- |
-| `accounts.functions.ts` | Provisão/vínculo de contas, login por ID DeMolay, reset de senha, flag `must_change_password` |
-| `ai.functions.ts` | `improveText`, `composeEventDescription` (via Lovable AI Gateway) |
-| `attendance.functions.ts` | Chamada e registros de presença por evento de calendário |
-| `calendar.functions.ts` | CRUD de `calendar_events`, sessões em andamento |
-| `cash-subcategories.functions.ts` | Configuração de subcategorias de caixa por comissão |
-| `chapter.functions.ts` | Dados, configurações e identidade do capítulo |
-| `commissions.functions.ts` | Comissões e seus membros por termo |
-| `events.functions.ts` | Eventos de arrecadação: ingressos, mesas, assentos, check-ins |
-| `finance.functions.ts` | Fluxo de caixa, categorias, mensalidades, assinantes do relatório |
-| `hospitality.functions.ts` | Cardápios e escala de serviço |
-| `investigations.functions.ts` | Fichas e processos de sindicância |
-| `members.functions.ts` | Membros, responsáveis, PII (`revealMemberPii`), histórico |
-| `minutes.functions.ts` | Atas, modelos e aprovações/assinaturas |
-| `minutes-share.functions.ts` | Link público da ata (senha), leitura e votos por e-mail |
-| `org.functions.ts` | Escopo regional/estadual, GME/MCR/OE: panorama, regiões, capítulos, membros, transferência MCR/OE |
-| `organization.functions.ts` | Cargos e comissões **do capítulo** (não confundir com gestão estadual) |
+| Arquivo                           | Cobre                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `accounts.functions.ts`           | Provisão/vínculo de contas, login por ID DeMolay, reset de senha, flag `must_change_password`     |
+| `ai.functions.ts`                 | `improveText`, `composeEventDescription` (via Lovable AI Gateway)                                 |
+| `attendance.functions.ts`         | Chamada e registros de presença por evento de calendário                                          |
+| `calendar.functions.ts`           | CRUD de `calendar_events`, sessões em andamento                                                   |
+| `cash-subcategories.functions.ts` | Configuração de subcategorias de caixa por comissão                                               |
+| `chapter.functions.ts`            | Dados, configurações e identidade do capítulo                                                     |
+| `commissions.functions.ts`        | Comissões e seus membros por termo                                                                |
+| `events.functions.ts`             | Eventos de arrecadação: ingressos, mesas, assentos, check-ins                                     |
+| `finance.functions.ts`            | Fluxo de caixa, categorias, mensalidades, assinantes do relatório                                 |
+| `hospitality.functions.ts`        | Cardápios e escala de serviço                                                                     |
+| `investigations.functions.ts`     | Fichas e processos de sindicância                                                                 |
+| `members.functions.ts`            | Membros, responsáveis, PII (`revealMemberPii`), histórico                                         |
+| `minutes.functions.ts`            | Atas, modelos e aprovações/assinaturas                                                            |
+| `minutes-share.functions.ts`      | Link público da ata (senha), leitura e votos por e-mail                                           |
+| `org.functions.ts`                | Escopo regional/estadual, GME/MCR/OE: panorama, regiões, capítulos, membros, transferência MCR/OE |
+| `organization.functions.ts`       | Cargos e comissões **do capítulo** (não confundir com gestão estadual)                            |
 
 Helpers puros relevantes em `src/lib/`: `permissions.ts` (matriz de acesso), `nav.ts` (árvores de navegação — `NAV_GROUPS`/`ORG_NAV_GROUPS` para o sidebar; `MOBILE_TABS`/`ORG_MOBILE_TABS` como atalhos da barra inferior; `visibleMobileTabs` filtra a aba Eventos por comissão; `/mais` reutiliza `visibleGroups`/`visibleOrgGroups` via `mobileOverflowGroups`), `terms.ts` (ano/semestre), `format.ts` (BRL, datas, máscaras de PII), `cash-categories.ts`, `chave-do-dia.ts`, `minute-vars.ts` (interpolação de variáveis em modelos de ata), `ics.ts`, `finance-pdf.ts`, `finance-xlsx.ts`, `minute-pdf.ts`, `chapter-logo.ts` (URLs assinadas do bucket privado), `query-keys.ts`, `error-capture.ts`, `error-page.ts`.
 
@@ -176,6 +176,7 @@ Helpers puros relevantes em `src/lib/`: `permissions.ts` (matriz de acesso), `na
 Schema definido pelas migrations em [supabase/migrations/](../supabase/migrations/); tipos gerados em [src/integrations/supabase/types.ts](../src/integrations/supabase/types.ts).
 
 ### Identidade e multi-inquilino
+
 `states` → `regions` → `chapters` (nome, número, cidade, `primary_color`, `logo_url`, `settings` JSONB, campos do encarregado LGPD) · `profiles` (1:1 com `auth.users`, guarda `active_chapter_id` e `must_change_password`; criado pelo trigger `handle_new_user`) · `roles` (catálogo) · **`chapter_members`** (usuário + capítulo + cargo + ativo — é o que concede todo o acesso ao capítulo) · `org_leaderships` (usuário + `org_role` + estado **ou** região + termo) · `audit_logs`.
 
 **Gestão estadual (GME):** o Grande Mestre Estadual gerencia regiões, instituições e lideranças GME/MCE do próprio estado (`is_gme`). Telas em `/regional/regioes`, `/regional/capitulos`, `/regional/liderancas`. **Estados** não são criados/editados pelo app — apenas via SQL ou painel Supabase (operacional).
@@ -183,26 +184,33 @@ Schema definido pelas migrations em [supabase/migrations/](../supabase/migration
 **MCR / OE:** papéis regionais (`org_leaderships` + cargos ritualísticos `mestre_conselheiro_regional` / `oficial_executivo` em `member_positions`). Podem criar/inativar instituições e membros da região e usar o calendário unificado. Nomeação: GME nomeia ambos; MCR nomeia MCR; OE nomeia OE e MCR — via RPC `transfer_region_office` (um titular ativo por região).
 
 ### Pessoas
+
 `members` (escopo de capítulo; `user_id` opcional → `profiles` — vínculo duro com a conta de login; `status`/`kind`; `cpf_encrypted`/`cpf_last2`, `rg_encrypted`/`rg_last2`, endereço JSONB, datas de graus e exames, `demolay_id` / `masonic_id`) · `guardians` (até 2 por membro, um principal via índice único parcial) · `lgpd_consents`.
 
 ### Governança
+
 `positions` (25 cargos semeados, de Mestre Conselheiro a Sentinela, mais cargos consultivos) ↔ `member_positions` (membro + cargo + `term_year`/`term_semester`) · `commissions` (9 semeadas: midia, novos_membros, manutencao, eventos, entretenimento, hospitalaria, auditoria, financas, sindicancias) ↔ `commission_members` (+ `commission_role` + termo) · `chapter_lodges`.
 
 ### Calendário, presenças e atas
+
 `calendar_events` (5 tipos, obrigatoriedade, aberto ao público, traje, local, `lodge_id` e `related_event_id` opcionais) · `attendance_records` (único por evento+membro; presente|ausente + justificativa) · `session_minutes` (1:1 com o evento de calendário; rascunho|em_revisao|aprovada; `public_share_token` opcional) · `minute_approvals` (por papel signatário) · `minute_public_votes` (feedback público por e-mail: aprovada|reprovada + justificativa; único por ata+e-mail) · `minute_templates`.
 
 RPCs públicas da ata (`anon`): `get_public_minute(token, password)`, `submit_public_minute_vote(...)`. Gestão autenticada: `ensure_minute_public_share_token`, `revoke_minute_public_share_token`, `get_minute_public_share_token`. Senha fixa temporária: `senha`. Rota pública: `/ata/$token` ([src/routes/ata.$token.tsx](../src/routes/ata.$token.tsx)).
 
 ### Finanças
-`cash_entries` (kind, `category` texto, `subcategory` texto — *snapshot*, `calendar_event_id`, valor, data, comprovante) · `cash_categories` (por capítulo, `is_system`, único por capítulo+nome) · `cash_subcategories` (por capítulo, escopo eventos|hospitalaria, `calendar_event_id` opcional, ativo; índice único em capítulo+escopo+coalesce(evento)+lower(nome)) · `member_dues` (único por capítulo+membro+`competence_year`+`competence_month`; status em_aberto|pago|isento; `cash_entry_id` apontando de volta para `cash_entries`).
+
+`cash_entries` (kind, `category` texto, `subcategory` texto — _snapshot_, `calendar_event_id`, valor, data, comprovante) · `cash_categories` (por capítulo, `is_system`, único por capítulo+nome) · `cash_subcategories` (por capítulo, escopo eventos|hospitalaria, `calendar_event_id` opcional, ativo; índice único em capítulo+escopo+coalesce(evento)+lower(nome)) · `member_dues` (único por capítulo+membro+`competence_year`+`competence_month`; status em_aberto|pago|isento; `cash_entry_id` apontando de volta para `cash_entries`).
 
 ### Eventos de arrecadação (distintos de `calendar_events`)
+
 `events` (`ticket_artwork_url`) → `ticket_types` → `tickets` (com `qr_code`; valido|cancelado|usado) → `checkins` (qr|nome) · `event_tables` (capacidade, `pos_x`/`pos_y` para o mapa) → `seats`. Arte em Storage `event-artwork`.
 
 ### Comissões
+
 `investigation_files` → `investigation_processes` (aberta|em_andamento|aprovada|reprovada|arquivada) · `hospitality_menus` (opcionalmente ligado a um evento de calendário, com custo estimado) · `hospitality_duties`.
 
 ### Convenções do schema
+
 Quase toda tabela de conteúdo carrega `chapter_id` (a chave de inquilino), `created_by`, `created_at` e `updated_at` — este último mantido pelo trigger `tg_set_updated_at()`.
 
 **Enums** (`types.ts`): `attendance_status`, `calendar_event_type`, `cash_entry_kind`, `checkin_method`, `commission_role`, `due_status`, `event_status`, `investigation_status`, `member_status`, `minute_public_vote_decision`, `minute_signer_role`, `minute_status`, `org_role` (`gme`/`mce`/`mcr`/`oe`), `ticket_status`.
@@ -224,10 +232,10 @@ Quase toda tabela de conteúdo carrega `chapter_id` (a chave de inquilino), `cre
 6. `_authenticated/index.tsx` redireciona `/` → `/inicio`.
 7. `_shell/route.tsx` resolve o escopo de trabalho:
    - 0 vínculos de capítulo + ≥1 liderança → entra direto no escopo regional
-   - >1 vínculo e nenhum escolhido → `/selecionar-capitulo`
+   - > 1 vínculo e nenhum escolhido → `/selecionar-capitulo`
    - 0 de ambos → mensagem de conta não vinculada
 8. O capítulo ativo é persistido em `localStorage` (`sgcdm.activeChapterId`) **e** espelhado em `profiles.active_chapter_id` para continuidade entre dispositivos. O escopo org fica em `sgcdm.activeOrgScope`.
-9. Toda chamada de *server function* leva `Authorization: Bearer <access_token>` e é verificada no servidor com `supabase.auth.getClaims(token)`. Um middleware de CSRF protege essas requisições.
+9. Toda chamada de _server function_ leva `Authorization: Bearer <access_token>` e é verificada no servidor com `supabase.auth.getClaims(token)`. Um middleware de CSRF protege essas requisições.
 10. O logout limpa o `localStorage`, chama `supabase.auth.signOut()` e navega com recarga completa para `/auth`.
 
 ### Provisão de contas (MC / Admin Total)
@@ -244,16 +252,16 @@ Não há signup público. O fluxo é **ficha primeiro, conta depois**:
 
 **Camada 1 — UI/cliente:** matriz em [src/lib/permissions.ts](../src/lib/permissions.ts), 8 cargos × 6 permissões.
 
-| Cargo (`RoleName`) | Rótulo | Permissões |
-| --- | --- | --- |
-| `admin_total` | Administrador Total | admin, secretaria, tesouraria, comissoes, conselho, visualizar |
-| `mestre_conselheiro` | Mestre Conselheiro | admin, secretaria, tesouraria, comissoes, conselho, visualizar |
-| `consultor` | Consultor | conselho, visualizar |
-| `presidente_conselho` | Presidente do Conselho | conselho, visualizar |
-| `escrivao` | Escrivão | secretaria, comissoes, visualizar |
-| `tesoureiro` | Tesoureiro | tesouraria, visualizar |
-| `presidente_comissao` | Presidente de Comissão | comissoes, visualizar |
-| `membro` | Membro | visualizar |
+| Cargo (`RoleName`)    | Rótulo                 | Permissões                                                     |
+| --------------------- | ---------------------- | -------------------------------------------------------------- |
+| `admin_total`         | Administrador Total    | admin, secretaria, tesouraria, comissoes, conselho, visualizar |
+| `mestre_conselheiro`  | Mestre Conselheiro     | admin, secretaria, tesouraria, comissoes, conselho, visualizar |
+| `consultor`           | Consultor              | conselho, visualizar                                           |
+| `presidente_conselho` | Presidente do Conselho | conselho, visualizar                                           |
+| `escrivao`            | Escrivão               | secretaria, comissoes, visualizar                              |
+| `tesoureiro`          | Tesoureiro             | tesouraria, visualizar                                         |
+| `presidente_comissao` | Presidente de Comissão | comissoes, visualizar                                          |
+| `membro`              | Membro                 | visualizar                                                     |
 
 `can(roleName, perm)` é o predicado usado na UI; `canManageAttendance()` é um atalho para secretaria ∪ conselho ∪ admin. Cargo desconhecido cai em `["visualizar"]`.
 
@@ -325,47 +333,53 @@ Esta é a parte que quebra se mexida sem cuidado ([src/lib/finance.functions.ts]
 
 ### Variáveis de ambiente
 
-| Variável | Consumidor | Obrigatória | Observação |
-| --- | --- | --- | --- |
-| `VITE_SUPABASE_URL` | [client.ts](../src/integrations/supabase/client.ts) | sim | cliente do browser; embutida no build |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | [client.ts](../src/integrations/supabase/client.ts) | sim | chave anônima, pública por design |
-| `SUPABASE_URL` | [auth-middleware.ts](../src/integrations/supabase/auth-middleware.ts) | sim | cliente por requisição no SSR |
-| `SUPABASE_PUBLISHABLE_KEY` | [auth-middleware.ts](../src/integrations/supabase/auth-middleware.ts) | sim | idem |
-| `VITE_SUPABASE_PROJECT_ID` / `SUPABASE_PROJECT_ID` | `.env`, `supabase/config.toml` | sim | referência do projeto |
-| `SUPABASE_SERVICE_ROLE_KEY` | [client.server.ts](../src/integrations/supabase/client.server.ts) | **não está no `.env`** | **ignora RLS** — injetar apenas no ambiente de deploy, jamais no cliente ou no repositório; usada em `accounts.functions.ts` para criar/vincular usuários |
-| `LOVABLE_API_KEY` | [ai.functions.ts](../src/lib/ai.functions.ts) | **não está no `.env`** | sem ela, as funções de IA lançam `"IA indisponível: LOVABLE_API_KEY não configurada."` |
-| `VITE_APP_URL` / `APP_URL` | [accounts.functions.ts](../src/lib/accounts.functions.ts) (`requestPasswordReset`) | recomendada em produção | origem usada no `redirectTo` de recuperação de senha (`/auth/nova-senha`); fallback `http://localhost:8080` |
+| Variável                                           | Consumidor                                                                         | Obrigatória                       | Observação                                                                                                                                                |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`                                | [client.ts](../src/integrations/supabase/client.ts)                                | sim                               | cliente do browser; embutida no build                                                                                                                     |
+| `VITE_SUPABASE_PUBLISHABLE_KEY`                    | [client.ts](../src/integrations/supabase/client.ts)                                | sim                               | chave anônima, pública por design                                                                                                                         |
+| `SUPABASE_URL`                                     | [auth-middleware.ts](../src/integrations/supabase/auth-middleware.ts)              | sim                               | cliente por requisição no SSR                                                                                                                             |
+| `SUPABASE_PUBLISHABLE_KEY`                         | [auth-middleware.ts](../src/integrations/supabase/auth-middleware.ts)              | sim                               | idem                                                                                                                                                      |
+| `VITE_SUPABASE_PROJECT_ID` / `SUPABASE_PROJECT_ID` | `.env`, `supabase/config.toml`                                                     | sim                               | referência do projeto                                                                                                                                     |
+| `SUPABASE_SERVICE_ROLE_KEY`                        | [client.server.ts](../src/integrations/supabase/client.server.ts)                  | **não está no `.env`**            | **ignora RLS** — injetar apenas no ambiente de deploy, jamais no cliente ou no repositório; usada em `accounts.functions.ts` para criar/vincular usuários |
+| `LOVABLE_API_KEY`                                  | [ai.functions.ts](../src/lib/ai.functions.ts)                                      | **não está no `.env`**            | sem ela, as funções de IA lançam `"IA indisponível: LOVABLE_API_KEY não configurada."`                                                                    |
+| `VITE_APP_URL` / `APP_URL`                         | [accounts.functions.ts](../src/lib/accounts.functions.ts) (`requestPasswordReset`) | recomendada em produção           | origem usada no `redirectTo` de recuperação de senha (`/auth/nova-senha`); fallback `http://localhost:8080`                                               |
+| `RESEND_API_KEY`                                   | [email.ts](../src/lib/email.ts)                                                    | não (sem ela o envio é _skipped_) | API key do Resend; **só servidor**; nunca no cliente                                                                                                      |
+| `EMAIL_FROM`                                       | [email.ts](../src/lib/email.ts)                                                    | junto com `RESEND_API_KEY`        | remetente no formato `Nome <email@dominio-verificado>`; domínio precisa estar Verified no Resend                                                          |
+| `TECH_COMMISSION_EMAILS`                           | [tech-commission.ts](../src/lib/tech-commission.ts)                                | não                               | CSV de e-mails que recebem notificações (ex.: solicitação de organização)                                                                                 |
+| `TECH_COMMISSION_CONTACTS_JSON`                    | [tech-commission.ts](../src/lib/tech-commission.ts)                                | não                               | alternativa/complemento em JSON; se `TECH_COMMISSION_EMAILS` existir, ela tem prioridade                                                                  |
 
-> ⚠️ O arquivo `.env` **está versionado no git** e não consta no `.gitignore`. Ele contém apenas a URL e a chave publicável (públicas por design), mas versionar `.env` é uma prática que convida ao vazamento na primeira vez que alguém colocar um segredo real ali. A correção pendente é adicionar `.env` ao `.gitignore` e publicar um `.env.example` — ver [OPEN-SOURCE.md](./OPEN-SOURCE.md#roadmap--onde-ajudar).
+Modelo versionado: [`.env.example`](../.env.example). Os `.env` / `.env.*` locais estão no `.gitignore`.
+
+**Auth vs app:** `RESEND_API_KEY` cobre o envio transacional do app (`sendTransactionalEmail`). Reset de senha / magic link do Supabase Auth usam o SMTP configurado em **Authentication → SMTP** no dashboard (pode ser o mesmo Resend via SMTP).
 
 ### Arquivos de configuração
 
-| Arquivo | Papel |
-| --- | --- |
-| [vite.config.ts](../vite.config.ts) | Invólucro fino sobre `@lovable.dev/vite-tanstack-config`. O preset **já injeta** devtools, tanstackStart, viteReact, tailwind, tsconfigPaths, nitro, injeção de `VITE_*` e o alias `@`. Adicionar esses plugins manualmente quebra a aplicação. |
-| `tsconfig.json` | strict, ES2022, `@/*` → `./src/*`, `noEmit` |
-| `components.json` | configuração do shadcn/ui (estilo new-york, base slate) |
-| [eslint.config.js](../eslint.config.js) | flat config; proíbe `server-only`; Prettier como regra |
-| `.prettierrc` | `printWidth: 100`, aspas duplas, vírgula final |
-| `bunfig.toml` | `minimumReleaseAge` de 24h com exceções para `@lovable.dev/*` |
-| `supabase/config.toml` | referência do projeto Supabase |
+| Arquivo                                 | Papel                                                                                                                                                                                                                                           |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [vite.config.ts](../vite.config.ts)     | Invólucro fino sobre `@lovable.dev/vite-tanstack-config`. O preset **já injeta** devtools, tanstackStart, viteReact, tailwind, tsconfigPaths, nitro, injeção de `VITE_*` e o alias `@`. Adicionar esses plugins manualmente quebra a aplicação. |
+| `tsconfig.json`                         | strict, ES2022, `@/*` → `./src/*`, `noEmit`                                                                                                                                                                                                     |
+| `components.json`                       | configuração do shadcn/ui (estilo new-york, base slate)                                                                                                                                                                                         |
+| [eslint.config.js](../eslint.config.js) | flat config; proíbe `server-only`; Prettier como regra                                                                                                                                                                                          |
+| `.prettierrc`                           | `printWidth: 100`, aspas duplas, vírgula final                                                                                                                                                                                                  |
+| `bunfig.toml`                           | `minimumReleaseAge` de 24h com exceções para `@lovable.dev/*`                                                                                                                                                                                   |
+| `supabase/config.toml`                  | referência do projeto Supabase                                                                                                                                                                                                                  |
 
 ---
 
 ## 11. Scripts, build e deploy
 
-| Script | Comando | Uso |
-| --- | --- | --- |
-| `dev` | `vite dev` | desenvolvimento local |
-| `build` | `vite build` | build de produção |
+| Script      | Comando                         | Uso                           |
+| ----------- | ------------------------------- | ----------------------------- |
+| `dev`       | `vite dev`                      | desenvolvimento local         |
+| `build`     | `vite build`                    | build de produção             |
 | `build:dev` | `vite build --mode development` | build com sourcemaps/modo dev |
-| `preview` | `vite preview` | serve o build local |
-| `lint` | `eslint .` | lint + Prettier |
-| `format` | `prettier --write .` | formata |
+| `preview`   | `vite preview`                  | serve o build local           |
+| `lint`      | `eslint .`                      | lint + Prettier               |
+| `format`    | `prettier --write .`            | formata                       |
 
 **Build:** gera um bundle Nitro com preset `cloudflare-module` (`nodeCompat: true`) em `.output/`.
 
-**Deploy:** Cloudflare Workers, via `npx wrangler deploy` (e `npx wrangler dev` para preview). Não há `wrangler.toml` versionado — ele é gerado em `.output/server/wrangler.json` durante o build. Lembre de configurar `SUPABASE_SERVICE_ROLE_KEY` e `LOVABLE_API_KEY` como *secrets* do Worker, não em arquivo.
+**Deploy:** Cloudflare Workers, via `npx wrangler deploy` (e `npx wrangler dev` para preview). Não há `wrangler.toml` versionado — ele é gerado em `.output/server/wrangler.json` durante o build. Lembre de configurar `SUPABASE_SERVICE_ROLE_KEY` e `LOVABLE_API_KEY` como _secrets_ do Worker, não em arquivo.
 
 **Banco:** mudanças de schema sempre por migration em `supabase/migrations/`, aplicadas via Supabase CLI ou Lovable Cloud. Depois de aplicar, regenere `src/integrations/supabase/types.ts`.
 
@@ -380,19 +394,20 @@ Registrado aqui de propósito, para ninguém descobrir do jeito difícil:
 - **Não há script de `typecheck`.** Com `noEmit` no tsconfig e sem script dedicado, erros de tipo só aparecem no editor ou no build.
 - **O lint não passa hoje.** `eslint .` reporta ~2.535 erros em 70 arquivos:
 
-  | Regra | Ocorrências | Natureza |
-  | --- | --- | --- |
-  | `prettier/prettier` | 2.377 | só formatação — o Prettier nunca foi aplicado ao código gerado |
-  | `@typescript-eslint/no-explicit-any` | 149 | tipagem frouxa |
-  | `react-hooks/exhaustive-deps` | 12 | possíveis bugs de dependência de efeito |
-  | `react-refresh/only-export-components` | 12 | atrapalha o hot reload |
-  | `react-hooks/rules-of-hooks` | 9 | **bug real em potencial** — hook chamado condicionalmente |
+  | Regra                                  | Ocorrências | Natureza                                                       |
+  | -------------------------------------- | ----------- | -------------------------------------------------------------- |
+  | `prettier/prettier`                    | 2.377       | só formatação — o Prettier nunca foi aplicado ao código gerado |
+  | `@typescript-eslint/no-explicit-any`   | 149         | tipagem frouxa                                                 |
+  | `react-hooks/exhaustive-deps`          | 12          | possíveis bugs de dependência de efeito                        |
+  | `react-refresh/only-export-components` | 12          | atrapalha o hot reload                                         |
+  | `react-hooks/rules-of-hooks`           | 9           | **bug real em potencial** — hook chamado condicionalmente      |
 
   Consequência prática: **o lint não funciona como barreira de qualidade**, já que ninguém consegue distinguir o erro novo do ruído de fundo. E rodar `prettier --write .` de uma vez reformataria 70 arquivos — ver o aviso em [OPEN-SOURCE.md](./OPEN-SOURCE.md#padrões-de-código) antes de fazer isso. Os 9 `rules-of-hooks` merecem investigação individual: são os únicos que apontam para defeito de execução, não de estilo.
+
 - `improveText` em [src/lib/ai.functions.ts](../src/lib/ai.functions.ts) está exportada mas nenhuma tela a chama.
 - `supabaseAdmin` em [src/integrations/supabase/client.server.ts](../src/integrations/supabase/client.server.ts) está definida mas nunca importada — daí `SUPABASE_SERVICE_ROLE_KEY` ainda não ser necessária na prática.
 - **A tela de login exibe credenciais de teste** ([src/routes/auth.tsx](../src/routes/auth.tsx)). Precisa sair antes de qualquer uso real.
-- `.env` versionado (ver seção 10).
+- Revisar histórico do git por `.env` legado com segredos (ver seção 10).
 - `package.json.name` ainda é `tanstack_start_ts`, herdado do template.
 - O histórico de commits não serve como documentação: a maioria são commits automáticos com a mensagem "Changes", vindos da sincronização com o editor Lovable.
 
@@ -404,13 +419,13 @@ Registrado aqui de propósito, para ninguém descobrir do jeito difícil:
 
 Checklist específico deste documento:
 
-| Se você… | Atualize |
-| --- | --- |
-| Adicionou uma rota | seção 2 (estrutura) e a lista de telas do [Guia do Usuário](./GUIA-DO-USUARIO.md) |
-| Criou um `*.functions.ts` | a tabela da seção 5 |
-| Escreveu uma migration | seção 6 (modelo de dados); regenere `types.ts` |
-| Mudou cargo ou permissão | seção 7 — **nas duas pontas, TS e SQL** — e o Guia do Usuário |
-| Adicionou variável de ambiente | a tabela da seção 10 **e** o bloco `.env.example` em [OPEN-SOURCE.md](./OPEN-SOURCE.md) |
-| Adicionou dependência relevante | a tabela de stack da seção 1 |
-| Mudou build ou deploy | seção 11 |
-| Fechou uma das lacunas da seção 12 | remova o item de lá e do roadmap em [OPEN-SOURCE.md](./OPEN-SOURCE.md) |
+| Se você…                           | Atualize                                                                                |
+| ---------------------------------- | --------------------------------------------------------------------------------------- |
+| Adicionou uma rota                 | seção 2 (estrutura) e a lista de telas do [Guia do Usuário](./GUIA-DO-USUARIO.md)       |
+| Criou um `*.functions.ts`          | a tabela da seção 5                                                                     |
+| Escreveu uma migration             | seção 6 (modelo de dados); regenere `types.ts`                                          |
+| Mudou cargo ou permissão           | seção 7 — **nas duas pontas, TS e SQL** — e o Guia do Usuário                           |
+| Adicionou variável de ambiente     | a tabela da seção 10 **e** o bloco `.env.example` em [OPEN-SOURCE.md](./OPEN-SOURCE.md) |
+| Adicionou dependência relevante    | a tabela de stack da seção 1                                                            |
+| Mudou build ou deploy              | seção 11                                                                                |
+| Fechou uma das lacunas da seção 12 | remova o item de lá e do roadmap em [OPEN-SOURCE.md](./OPEN-SOURCE.md)                  |

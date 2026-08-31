@@ -115,11 +115,13 @@ export function OficioDraftPanel({
 
   function varContext() {
     return {
-      chapterName: minuteCtx.data?.chapter?.name,
-      chapterNumber: minuteCtx.data?.chapter?.number,
-      chapterCity: minuteCtx.data?.chapter?.city,
+      chapterName: minuteCtx.data?.chapter?.name ?? active?.chapter.name,
+      chapterNumber:
+        minuteCtx.data?.chapter?.number ?? active?.chapter.number,
+      chapterCity: minuteCtx.data?.chapter?.city ?? active?.chapter.city,
       date: new Date().toISOString(),
-      location: minuteCtx.data?.chapter?.city ?? null,
+      location:
+        minuteCtx.data?.chapter?.city ?? active?.chapter.city ?? null,
       address: null as string | null,
       officers: minuteCtx.data?.officers,
     };

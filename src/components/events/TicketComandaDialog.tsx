@@ -191,11 +191,11 @@ function TenderPayFields({
                 </div>
               ) : null}
               {pixQrUrl ? (
-                <div className="flex justify-center pt-2">
+                <div className="flex justify-center overflow-hidden pt-2">
                   <img
                     src={pixQrUrl}
                     alt="QR Code Pix"
-                    className="h-48 w-48 rounded-md border border-border bg-white object-contain p-2"
+                    className="h-auto w-full max-w-48 rounded-md border border-border bg-white object-contain p-2"
                   />
                 </div>
               ) : null}
@@ -220,7 +220,7 @@ function TenderPayFields({
               }
             />
             {remainder > 0 ? (
-              <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+              <p className="break-words text-sm font-medium text-amber-600 dark:text-amber-400">
                 O saldo de {formatBRL(remainder)} será alocado no perfil
                 {sellerName ? ` de ${sellerName}` : " do vendedor"}.
               </p>
@@ -248,7 +248,7 @@ function TenderPayFields({
             </p>
           ) : null}
           {remainder > 0 ? (
-            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+            <p className="break-words text-sm font-medium text-amber-600 dark:text-amber-400">
               O saldo de {formatBRL(remainder)} será alocado no perfil
               {sellerName ? ` de ${sellerName}` : " do vendedor"}.
             </p>
@@ -291,7 +291,7 @@ function ComandaReceiptBody({
         <div className="mt-1 text-center font-sans text-base font-semibold">
           {data.event.name}
         </div>
-        <div className="mt-1 text-center text-xs text-muted-foreground">
+        <div className="mt-1 break-words text-center text-xs text-muted-foreground">
           Comprador: {data.ticket.buyer_name}
           {data.ticket.seller_name
             ? ` · Vendedor: ${data.ticket.seller_name}`
@@ -776,6 +776,9 @@ export function TicketComandaDialog({
   const hasPending =
     (hasTicketCharge && !ticketFullyPaid) || unpaidLines.length > 0;
 
+  const dialogShell =
+    "w-[calc(100vw-1.5rem)] overflow-x-hidden p-4 sm:p-6";
+
   return (
     <>
       <Dialog
@@ -785,11 +788,13 @@ export function TicketComandaDialog({
           onOpenChange(o);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogContent
+          className={cn("max-h-[90vh] max-w-lg overflow-y-auto", dialogShell)}
+        >
           {checkoutQ.isLoading ? (
             <>
               <DialogHeader>
-                <DialogTitle>
+                <DialogTitle className="break-words pr-8">
                   {paidHint ? "Extrato" : "Comanda"} · {buyerName}
                 </DialogTitle>
               </DialogHeader>
@@ -798,7 +803,9 @@ export function TicketComandaDialog({
           ) : checkoutQ.error ? (
             <>
               <DialogHeader>
-                <DialogTitle>Comanda · {buyerName}</DialogTitle>
+                <DialogTitle className="break-words pr-8">
+                  Comanda · {buyerName}
+                </DialogTitle>
               </DialogHeader>
               <p className="text-sm text-destructive">
                 {mutationErrorMessage(
@@ -810,7 +817,7 @@ export function TicketComandaDialog({
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>
+                <DialogTitle className="break-words pr-8">
                   {unpaidLines.length === 0 &&
                   ticketFullyPaid &&
                   lines.length > 0
@@ -819,18 +826,20 @@ export function TicketComandaDialog({
                   · {buyerName}
                 </DialogTitle>
                 {eventName ? (
-                  <p className="text-sm text-muted-foreground">{eventName}</p>
+                  <p className="break-words text-sm text-muted-foreground">
+                    {eventName}
+                  </p>
                 ) : null}
               </DialogHeader>
 
-              <div className="space-y-4">
+              <div className="min-w-0 space-y-4">
                 <div className="rounded-md border border-border px-3 py-2.5">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium">
                         {checkout?.ticket.ticket_type_name ?? "Ingresso"}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="break-words text-xs text-muted-foreground">
                         {!hasTicketCharge
                           ? "Sem cobrança vinculada"
                           : ticketFullyPaid
@@ -846,7 +855,7 @@ export function TicketComandaDialog({
                                 : "Cobrança vinculada ao vendedor"}
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
                       <span className="text-sm font-medium">
                         {formatBRL(chargeAmount)}
                       </span>
@@ -867,10 +876,10 @@ export function TicketComandaDialog({
                   </div>
                 </div>
 
-                <div>
-                  <div className="mb-2 flex items-center justify-between text-sm font-medium">
+                <div className="min-w-0">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-sm font-medium">
                     <span>Consumo</span>
-                    <span>
+                    <span className="tabular-nums">
                       {unpaidComandaTotal > 0 &&
                       unpaidComandaTotal < comandaTotal
                         ? `${formatBRL(unpaidComandaTotal)} em aberto · ${formatBRL(comandaTotal)}`
@@ -886,11 +895,11 @@ export function TicketComandaDialog({
                       {lines.map((l) => (
                         <li
                           key={l.id}
-                          className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+                          className="flex min-w-0 flex-col gap-2 rounded-md border border-border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
                         >
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 truncate font-medium">
-                              <span className="truncate">
+                            <div className="flex min-w-0 items-center gap-2 font-medium">
+                              <span className="min-w-0 truncate">
                                 {l.item_name ?? "Item"}
                               </span>
                               {l.paid ? (
@@ -909,60 +918,62 @@ export function TicketComandaDialog({
                                 </Badge>
                               )}
                             </div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="truncate text-xs text-muted-foreground">
                               {l.qty} × {formatBRL(Number(l.unit_price))}
                               {l.category_name ? ` · ${l.category_name}` : ""}
                             </div>
                           </div>
-                          <div className="flex shrink-0 items-center gap-1">
-                            <span className="mr-1 font-medium">
+                          <div className="flex shrink-0 items-center justify-between gap-1 sm:justify-end">
+                            <span className="mr-1 font-medium tabular-nums">
                               {formatBRL(Number(l.amount))}
                             </span>
-                            {!l.paid ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 px-2"
-                                disabled={payLine.isPending}
-                                onClick={() => {
-                                  setPayingLine(l);
-                                  setItemPayMethod("pix");
-                                  setItemPayInput("");
-                                }}
-                              >
-                                Baixar
-                              </Button>
-                            ) : null}
-                            {!l.paid ? (
+                            <div className="flex items-center gap-1">
+                              {!l.paid ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 px-2"
+                                  disabled={payLine.isPending}
+                                  onClick={() => {
+                                    setPayingLine(l);
+                                    setItemPayMethod("pix");
+                                    setItemPayInput("");
+                                  }}
+                                >
+                                  Baixar
+                                </Button>
+                              ) : null}
+                              {!l.paid ? (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8"
+                                  onClick={() => openEdit(l)}
+                                  aria-label={`Editar ${l.item_name ?? "item"} da comanda`}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              ) : null}
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                className="h-8 w-8"
-                                onClick={() => openEdit(l)}
-                                aria-label={`Editar ${l.item_name ?? "item"} da comanda`}
+                                className="h-8 w-8 text-destructive"
+                                disabled={removeLine.isPending}
+                                aria-label={`Excluir ${l.item_name ?? "item"} da comanda`}
+                                onClick={async () => {
+                                  const ok = await confirm({
+                                    title: "Remover item da comanda?",
+                                    description: l.paid
+                                      ? `Remover “${l.item_name ?? "item"}”? O lançamento no caixa também será excluído e o estoque (se houver) será devolvido.`
+                                      : `Remover “${l.item_name ?? "item"}” da comanda? O estoque (se houver) será devolvido.`,
+                                    confirmLabel: "Remover",
+                                  });
+                                  if (ok) removeLine.mutate(l.id);
+                                }}
                               >
-                                <Pencil className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
-                            ) : null}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-destructive"
-                              disabled={removeLine.isPending}
-                              aria-label={`Excluir ${l.item_name ?? "item"} da comanda`}
-                              onClick={async () => {
-                                const ok = await confirm({
-                                  title: "Remover item da comanda?",
-                                  description: l.paid
-                                    ? `Remover “${l.item_name ?? "item"}”? O lançamento no caixa também será excluído e o estoque (se houver) será devolvido.`
-                                    : `Remover “${l.item_name ?? "item"}” da comanda? O estoque (se houver) será devolvido.`,
-                                  confirmLabel: "Remover",
-                                });
-                                if (ok) removeLine.mutate(l.id);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            </div>
                           </div>
                         </li>
                       ))}
@@ -970,7 +981,7 @@ export function TicketComandaDialog({
                   )}
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <div className="mb-2 text-sm font-medium">Adicionar item</div>
                   {itemOptions.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
@@ -979,7 +990,7 @@ export function TicketComandaDialog({
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      <div className="flex items-end gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                         <div className="min-w-0 flex-1">
                           <SearchableSelect
                             value={itemId}
@@ -990,39 +1001,42 @@ export function TicketComandaDialog({
                             emptyText="Nenhum item encontrado."
                           />
                         </div>
-                        <div className="w-16 shrink-0">
-                          <Label className="mb-1 block text-xs">Qtd</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            step={1}
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={qty}
-                            onChange={(e) =>
-                              setQty(sanitizeIntegerQty(e.target.value))
+                        <div className="flex items-end gap-2">
+                          <div className="w-20 shrink-0">
+                            <Label className="mb-1 block text-xs">Qtd</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              step={1}
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={qty}
+                              onChange={(e) =>
+                                setQty(sanitizeIntegerQty(e.target.value))
+                              }
+                            />
+                          </div>
+                          <Button
+                            size="icon"
+                            className="shrink-0"
+                            disabled={
+                              !itemId ||
+                              add.isPending ||
+                              !(Number.isInteger(parsedQty) && parsedQty >= 1) ||
+                              !(
+                                (price.trim() === "" &&
+                                  selected?.unit_price != null) ||
+                                (Number.isFinite(parsedPrice) &&
+                                  parsedPrice >= 0)
+                              )
                             }
-                          />
+                            onClick={() => add.mutate()}
+                            style={{ backgroundColor: primary }}
+                            aria-label="Adicionar item"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button
-                          size="icon"
-                          className="shrink-0"
-                          disabled={
-                            !itemId ||
-                            add.isPending ||
-                            !(Number.isInteger(parsedQty) && parsedQty >= 1) ||
-                            !(
-                              (price.trim() === "" &&
-                                selected?.unit_price != null) ||
-                              (Number.isFinite(parsedPrice) && parsedPrice >= 0)
-                            )
-                          }
-                          onClick={() => add.mutate()}
-                          style={{ backgroundColor: primary }}
-                          aria-label="Adicionar item"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
                       </div>
                       {itemId && selected?.unit_price == null ? (
                         <div>
@@ -1050,9 +1064,10 @@ export function TicketComandaDialog({
                 </div>
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="gap-2 sm:gap-0">
                 <Button
                   variant="outline"
+                  className="w-full sm:w-auto"
                   onClick={() => {
                     setReceiptPayMethod("pix");
                     setReceiptCashPaid("");
@@ -1077,7 +1092,9 @@ export function TicketComandaDialog({
           }
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
+        <DialogContent
+          className={cn("max-h-[90vh] max-w-md overflow-y-auto", dialogShell)}
+        >
           <DialogHeader>
             <DialogTitle>Recibo · Pix</DialogTitle>
           </DialogHeader>
@@ -1099,8 +1116,9 @@ export function TicketComandaDialog({
             />
           ) : null}
           {hasPending ? (
-            <DialogFooter>
+            <DialogFooter className="gap-2 sm:gap-0">
               <Button
+                className="w-full sm:w-auto"
                 style={{ backgroundColor: primary }}
                 disabled={
                   registerReceiptPayment.isPending ||
@@ -1127,12 +1145,14 @@ export function TicketComandaDialog({
           }
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
+        <DialogContent
+          className={cn("max-h-[90vh] max-w-md overflow-y-auto", dialogShell)}
+        >
           <DialogHeader>
             <DialogTitle>Baixar item</DialogTitle>
           </DialogHeader>
           {payingLine ? (
-            <div className="space-y-3">
+            <div className="min-w-0 space-y-3">
               <div className="rounded-md border border-border px-3 py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
@@ -1140,10 +1160,11 @@ export function TicketComandaDialog({
                       {payingLine.item_name ?? "Item"}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {payingLine.qty} × {formatBRL(Number(payingLine.unit_price))}
+                      {payingLine.qty} ×{" "}
+                      {formatBRL(Number(payingLine.unit_price))}
                     </div>
                   </div>
-                  <span className="shrink-0 text-sm font-semibold">
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">
                     {formatBRL(Number(payingLine.amount))}
                   </span>
                 </div>
@@ -1161,9 +1182,10 @@ export function TicketComandaDialog({
               />
             </div>
           ) : null}
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="ghost"
+              className="w-full sm:w-auto"
               onClick={() => {
                 setPayingLine(null);
                 setItemPayInput("");
@@ -1173,6 +1195,7 @@ export function TicketComandaDialog({
               Cancelar
             </Button>
             <Button
+              className="w-full sm:w-auto"
               style={{ backgroundColor: primary }}
               disabled={
                 payLine.isPending ||
@@ -1192,7 +1215,7 @@ export function TicketComandaDialog({
           if (!o) setEditing(null);
         }}
       >
-        <DialogContent className="max-w-sm">
+        <DialogContent className={cn("max-w-sm", dialogShell)}>
           <DialogHeader>
             <DialogTitle>Editar item</DialogTitle>
           </DialogHeader>

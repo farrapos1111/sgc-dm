@@ -17,10 +17,12 @@ import {
   deleteTicketType,
   sellTicket,
   createTable,
+  updateTable,
   deleteTable,
   deleteEvent,
   updateEvent,
   updateEventArtwork,
+  assignSeat,
 } from "@/lib/events.functions";
 import {
   deleteEventTicket,
@@ -53,6 +55,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -97,6 +100,7 @@ import {
 import { TicketPass } from "@/components/events/TicketPass";
 import { EventFinancePanel } from "@/components/events/EventFinancePanel";
 import { EventComandaAuditPanel } from "@/components/events/EventComandaAuditPanel";
+import { TicketSellerRanking } from "@/components/events/TicketSellerRanking";
 import { TicketComandaButton } from "@/components/events/TicketComandaDialog";
 import { EditSoldTicketDialog } from "@/components/events/EditSoldTicketDialog";
 import {
@@ -134,8 +138,13 @@ function EventoDetalhe() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { active } = useActiveChapter();
-  const { can: canPerm, canDo, canScreen, isAdminTotal, realCtx } =
-    useChapterAccess();
+  const {
+    can: canPerm,
+    canDo,
+    canScreen,
+    isAdminTotal,
+    realCtx,
+  } = useChapterAccess();
   const { data } = useSuspenseQuery(eventQO(id));
   const artworkUrl = useEventArtwork(data.event.ticket_artwork_url);
 
@@ -147,17 +156,8 @@ function EventoDetalhe() {
       }),
   });
 
-  const ticketsRaised = useMemo(
-    () =>
-      data.tickets
-        .filter((t) => t.status !== "cancelado")
-        .reduce((s, t) => s + Number(t.price_paid ?? 0), 0),
-    [data.tickets],
-  );
-  const raised =
-    financeTotalsQ.data?.paid ??
-    financeTotalsQ.data?.totalIncome ??
-    ticketsRaised;
+  // Barra/resumo: só valores pagos (sem fallback para preço vendido em aberto).
+  const raised = financeTotalsQ.data?.paid ?? 0;
   const raisedHint =
     financeTotalsQ.data != null
       ? formatEventFinanceHint(financeTotalsQ.data)
@@ -262,6 +262,10 @@ function EventoDetalhe() {
           <TabsTrigger value="mesas" className="shrink-0">
             <span className="sm:hidden">Mesas</span>
             <span className="hidden sm:inline">Mapa de mesas</span>
+          </TabsTrigger>
+          <TabsTrigger value="ranking" className="shrink-0">
+            <span className="sm:hidden">Ranking</span>
+            <span className="hidden sm:inline">Ranking vendedores</span>
           </TabsTrigger>
           <TabsTrigger value="financeiro" className="shrink-0">
             Financeiro
@@ -447,8 +451,19 @@ function EventoDetalhe() {
             eventId={id}
             tables={data.tables}
             seats={data.seats}
+            tickets={data.tickets}
             primary={active?.chapter.primary_color}
             onChanged={() => qc.invalidateQueries({ queryKey: ["event", id] })}
+          />
+        </TabsContent>
+
+        <TabsContent value="ranking">
+          <TicketSellerRanking
+            tickets={data.tickets}
+            ticketTypes={data.ticketTypes}
+            eventName={data.event.name}
+            eventStartsAt={data.event.starts_at}
+            primary={active?.chapter.primary_color}
           />
         </TabsContent>
       </Tabs>
@@ -1579,6 +1594,8 @@ function SellTicketCard({
   const [sellerId, setSellerId] = useState("");
   const [typeId, setTypeId] = useState<string>("");
   const [price, setPrice] = useState(0);
+  const [priceOverride, setPriceOverride] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [sellOpen, setSellOpen] = useState(true);
   const [soldPasses, setSoldPasses] = useState<
@@ -1599,16 +1616,23 @@ function SellTicketCard({
   );
 
   useEffect(() => {
-    if (typeId) {
-      const t = types.find((x) => x.id === typeId);
-      if (t) setPrice(Number(t.price));
-    }
-  }, [typeId, types]);
+    if (!typeId || priceOverride) return;
+    const t = types.find((x) => x.id === typeId);
+    if (t) setPrice(Number(t.price));
+  }, [typeId, types, priceOverride]);
 
   const total = Number(price) * Number(quantity || 0);
-  const typeName = typeId
-    ? (types.find((t) => t.id === typeId)?.name ?? "Avulso")
-    : "Avulso";
+  const selectedType = typeId ? types.find((t) => t.id === typeId) : undefined;
+  const typeName = selectedType?.name ?? "Avulso";
+  const catalogUnit = selectedType ? Number(selectedType.price) : null;
+
+  function handleTypeChange(v: string) {
+    setTypeId(v);
+    setPriceOverride(false);
+    setAdvancedOpen(false);
+    const t = types.find((x) => x.id === v);
+    if (t) setPrice(Number(t.price));
+  }
 
   const m = useMutation({
     mutationFn: () =>
@@ -1716,43 +1740,79 @@ function SellTicketCard({
               </div>
               <div>
                 <Label className="mb-1 block text-xs">Tipo</Label>
-                <Select value={typeId} onValueChange={setTypeId}>
+                <Select value={typeId} onValueChange={handleTypeChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Avulso" />
                   </SelectTrigger>
                   <SelectContent>
                     {types.map((t) => (
                       <SelectItem key={t.id} value={t.id}>
-                        {t.name}
+                        {t.name} · {formatBRL(Number(t.price))}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Valor unitário:{" "}
+                  <span className="font-medium text-foreground">
+                    {formatBRL(Number(price))}
+                  </span>
+                  {priceOverride ? " (personalizado)" : " (preço do tipo)"}
+                </p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label className="mb-1 block text-xs">Valor unitário</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={price}
-                    onChange={(e) => setPrice(Number(e.target.value))}
-                  />
-                </div>
-                <div>
-                  <Label className="mb-1 block text-xs">Quantidade</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={50}
-                    value={quantity}
-                    onChange={(e) =>
-                      setQuantity(Math.max(1, Number(e.target.value)))
-                    }
-                  />
-                </div>
+              <div>
+                <Label className="mb-1 block text-xs">Quantidade</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={quantity}
+                  onChange={(e) =>
+                    setQuantity(Math.max(1, Number(e.target.value)))
+                  }
+                />
               </div>
+              <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/40"
+                  >
+                    <span>Detalhes avançados</span>
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform ${
+                        advancedOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-2 space-y-2 rounded-md border border-border bg-muted/20 p-3">
+                    <div>
+                      <Label className="mb-1 block text-xs">
+                        Valor unitário
+                      </Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={price}
+                        onChange={(e) => {
+                          setPriceOverride(true);
+                          setPrice(Number(e.target.value));
+                        }}
+                      />
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Por padrão usa o preço do tipo
+                        {catalogUnit != null
+                          ? ` (${formatBRL(catalogUnit)})`
+                          : ""}
+                        . Altere só se a venda for diferente.
+                      </p>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
               {quantity > 1 && (
                 <div className="text-xs text-muted-foreground">
                   Total: {formatBRL(total)} ({quantity} ×{" "}
@@ -1816,18 +1876,25 @@ function TablesMap({
   eventId,
   tables,
   seats,
+  tickets,
   primary,
   onChanged,
 }: {
   eventId: string;
   tables: EventTable[];
   seats: EventSeat[];
+  tickets: EventDetail["tickets"];
   primary?: string;
   onChanged: () => void;
 }) {
   const { confirm, dialog } = useConfirmDialog();
   const [label, setLabel] = useState("");
   const [cap, setCap] = useState(8);
+  const [editing, setEditing] = useState<EventTable | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editCap, setEditCap] = useState(8);
+  const [assigning, setAssigning] = useState<EventSeat | null>(null);
+  const [pickedTicketId, setPickedTicketId] = useState<string>("");
 
   const createM = useMutation({
     mutationFn: () =>
@@ -1837,6 +1904,25 @@ function TablesMap({
     onSuccess: () => {
       toast.success("Mesa criada");
       setLabel("");
+      onChanged();
+    },
+    onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
+  });
+
+  const updateM = useMutation({
+    mutationFn: () => {
+      if (!editing) throw new Error("Mesa não selecionada");
+      return updateTable({
+        data: {
+          table_id: editing.id,
+          label: editLabel.trim(),
+          capacity: Number(editCap),
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Mesa atualizada");
+      setEditing(null);
       onChanged();
     },
     onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
@@ -1852,11 +1938,80 @@ function TablesMap({
     onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
   });
 
+  const assignM = useMutation({
+    mutationFn: (payload: { seatId: string; ticketId: string | null }) =>
+      assignSeat({
+        data: { seat_id: payload.seatId, ticket_id: payload.ticketId },
+      }),
+    onSuccess: () => {
+      toast.success(
+        pickedTicketId ? "Convidado alocado no assento" : "Assento liberado",
+      );
+      setAssigning(null);
+      setPickedTicketId("");
+      onChanged();
+    },
+    onError: (e: unknown) =>
+      toast.error(mutationErrorMessage(e, "Erro ao alocar assento")),
+  });
+
+  const ticketById = useMemo(() => {
+    const map = new Map<string, EventDetail["tickets"][number]>();
+    for (const t of tickets) {
+      if (t.status === "cancelado") continue;
+      map.set(t.id, t);
+    }
+    return map;
+  }, [tickets]);
+
+  const seatByTicketId = useMemo(() => {
+    const map = new Map<string, EventSeat>();
+    for (const s of seats) {
+      if (s.ticket_id) map.set(s.ticket_id, s);
+    }
+    return map;
+  }, [seats]);
+
+  const ticketOptions = useMemo(() => {
+    return [...ticketById.values()]
+      .filter((t) => t.checked_in)
+      .map((t) => {
+        const occupied = seatByTicketId.get(t.id);
+        const sameSeat = assigning && occupied?.id === assigning.id;
+        const suffix =
+          occupied && !sameSeat ? ` (mesa/assento já alocado)` : "";
+        return {
+          value: t.id,
+          label: `${t.buyer_name}${suffix}`,
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [ticketById, seatByTicketId, assigning]);
+
   const seatsByTable = new Map<string, EventSeat[]>();
   for (const s of seats) {
     const arr = seatsByTable.get(s.table_id) ?? [];
     arr.push(s);
     seatsByTable.set(s.table_id, arr);
+  }
+
+  const assigningTable = assigning
+    ? tables.find((t) => t.id === assigning.table_id)
+    : null;
+  const assigningGuest = assigning?.ticket_id
+    ? ticketById.get(assigning.ticket_id)
+    : null;
+
+  function openAssign(seat: EventSeat) {
+    setAssigning(seat);
+    const guest = seat.ticket_id ? ticketById.get(seat.ticket_id) : null;
+    setPickedTicketId(guest?.checked_in ? (seat.ticket_id ?? "") : "");
+  }
+
+  function openEdit(t: EventTable) {
+    setEditing(t);
+    setEditLabel(t.label);
+    setEditCap(t.capacity);
   }
 
   return (
@@ -1868,19 +2023,46 @@ function TablesMap({
               Nenhuma mesa criada. Adicione a primeira ao lado.
             </Card>
           )}
+          {tables.length > 0 &&
+          tickets.filter((t) => t.status !== "cancelado").length === 0 ? (
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Ainda não há ingressos vendidos. Venda ingressos na aba Ingressos
+              para alocar convidados nos assentos.
+            </p>
+          ) : tables.length > 0 &&
+            tickets.some((t) => t.status !== "cancelado") &&
+            !tickets.some((t) => t.status !== "cancelado" && t.checked_in) ? (
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Só dá para alocar quem já fez check-in. Libere a entrada na tela
+              de Check-ins e volte aqui.
+            </p>
+          ) : null}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {tables.map((t) => {
               const ts = (seatsByTable.get(t.id) ?? []).sort(
                 (a, b) => a.seat_number - b.seat_number,
               );
+              const occupiedCount = ts.filter((s) => s.ticket_id).length;
               return (
                 <Card key={t.id} className="rounded-[12px] p-5">
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <div className="font-semibold">{t.label}</div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        {t.capacity} lugares
-                      </span>
+                    <div className="min-w-0">
+                      <div className="font-semibold">{t.label}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {occupiedCount}/{t.capacity} ocupados
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                        aria-label={`Editar mesa ${t.label}`}
+                        onClick={() => openEdit(t)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button
                         type="button"
                         size="sm"
@@ -1902,25 +2084,52 @@ function TablesMap({
                     </div>
                   </div>
                   <div className="grid grid-cols-4 gap-2">
-                    {ts.map((s) => (
-                      <div
-                        key={s.id}
-                        className="flex flex-col items-center gap-1"
-                      >
-                        <div
-                          className="grid h-10 w-10 place-items-center rounded-full text-xs font-semibold"
-                          style={{
-                            backgroundColor: "var(--muted)",
-                            color: "var(--muted-foreground)",
-                          }}
+                    {ts.map((s) => {
+                      const guest = s.ticket_id
+                        ? ticketById.get(s.ticket_id)
+                        : null;
+                      const taken = Boolean(guest);
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => openAssign(s)}
+                          className="flex flex-col items-center gap-1 rounded-[10px] p-1 text-left transition-colors hover:bg-muted/50"
+                          title={
+                            guest
+                              ? `${guest.buyer_name} — toque para alterar`
+                              : "Toque para alocar convidado"
+                          }
                         >
-                          {s.seat_number}
-                        </div>
-                        <div className="w-full text-center text-[10px] text-muted-foreground">
-                          Assento
-                        </div>
-                      </div>
-                    ))}
+                          <div
+                            className="grid h-10 w-10 place-items-center rounded-full text-xs font-semibold"
+                            style={
+                              taken
+                                ? {
+                                    backgroundColor:
+                                      primary || "var(--chapter-primary)",
+                                    color: "#fff",
+                                  }
+                                : {
+                                    backgroundColor: "var(--muted)",
+                                    color: "var(--muted-foreground)",
+                                  }
+                            }
+                          >
+                            {s.seat_number}
+                          </div>
+                          <div
+                            className={`w-full truncate text-center text-[10px] ${
+                              taken
+                                ? "font-medium text-foreground"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {guest?.buyer_name?.trim() || "Livre"}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </Card>
               );
@@ -1960,8 +2169,164 @@ function TablesMap({
           >
             <PlusCircle className="mr-2 h-4 w-4" /> Criar mesa
           </Button>
+          <p className="text-[11px] text-muted-foreground">
+            Toque em um assento para alocar quem já fez check-in, ou liberar o
+            lugar.
+          </p>
         </Card>
       </div>
+
+      <Dialog
+        open={!!editing}
+        onOpenChange={(o) => {
+          if (!o) setEditing(null);
+        }}
+      >
+        <DialogContent className="w-[calc(100vw-1.5rem)] max-w-md overflow-x-hidden p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Editar mesa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="mb-1 block text-xs">Nome</Label>
+              <Input
+                value={editLabel}
+                onChange={(e) => setEditLabel(e.target.value)}
+                placeholder="Ex: Mesa 1"
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Capacidade (lugares)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={30}
+                value={editCap}
+                onChange={(e) => setEditCap(Number(e.target.value))}
+              />
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                Ao reduzir, só remove assentos livres no final. Libere
+                convidados dos assentos extras antes de diminuir.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditing(null)}
+              disabled={updateM.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              style={{ backgroundColor: primary }}
+              disabled={updateM.isPending}
+              onClick={() => {
+                if (!editLabel.trim()) {
+                  toast.error("Informe o nome");
+                  return;
+                }
+                const n = Number(editCap);
+                if (!Number.isFinite(n) || n < 1 || n > 30) {
+                  toast.error("Capacidade entre 1 e 30");
+                  return;
+                }
+                updateM.mutate();
+              }}
+            >
+              {updateM.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!assigning}
+        onOpenChange={(o) => {
+          if (!o) {
+            setAssigning(null);
+            setPickedTicketId("");
+          }
+        }}
+      >
+        <DialogContent className="w-[calc(100vw-1.5rem)] max-w-md overflow-x-hidden p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>
+              Assento {assigning?.seat_number}
+              {assigningTable ? ` · ${assigningTable.label}` : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {assigningGuest ? (
+              <p className="text-sm text-muted-foreground">
+                Atual:{" "}
+                <span className="font-medium text-foreground">
+                  {assigningGuest.buyer_name}
+                </span>
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Assento livre.</p>
+            )}
+            {ticketOptions.length === 0 ? (
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                Nenhum convidado com check-in disponível para alocar.
+              </p>
+            ) : (
+              <div>
+                <Label className="mb-1.5 block text-xs text-muted-foreground">
+                  Convidado com check-in
+                </Label>
+                <SearchableSelect
+                  value={pickedTicketId}
+                  options={ticketOptions}
+                  onChange={setPickedTicketId}
+                  placeholder="Buscar por nome…"
+                  searchPlaceholder="Nome do convidado…"
+                  emptyText="Nenhum convidado encontrado."
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+            {assigning?.ticket_id ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled={assignM.isPending}
+                onClick={() => {
+                  if (!assigning) return;
+                  setPickedTicketId("");
+                  assignM.mutate({ seatId: assigning.id, ticketId: null });
+                }}
+              >
+                Liberar assento
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              style={{ backgroundColor: primary }}
+              disabled={
+                assignM.isPending ||
+                !pickedTicketId ||
+                pickedTicketId === (assigning?.ticket_id ?? "")
+              }
+              onClick={() => {
+                if (!assigning || !pickedTicketId) return;
+                assignM.mutate({
+                  seatId: assigning.id,
+                  ticketId: pickedTicketId,
+                });
+              }}
+            >
+              {assignM.isPending ? "Salvando…" : "Alocar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {dialog}
     </>
   );

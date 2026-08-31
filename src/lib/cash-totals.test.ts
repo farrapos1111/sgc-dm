@@ -25,7 +25,7 @@ assert.equal(rounded.balance, -899.1);
 
 assert.equal(
   chargeCashDescription("Taxa de Iniciação", "Vinícius Menegol Cardoso"),
-  "Taxa de Iniciação - Vinícius Menegol Cardoso",
+  "Vinícius Menegol Cardoso - Taxa de Iniciação",
 );
 assert.equal(
   chargeCashDescription(
@@ -43,7 +43,7 @@ assert.equal(
     "Ingresso Evento Dia dos Pais - Mateus Faggion",
     "João Alfredo da Silva Faggion",
   ),
-  "Ingresso Evento Dia dos Pais - Mateus Faggion - João Alfredo da Silva Faggion",
+  "João Alfredo da Silva Faggion - Ingresso Evento Dia dos Pais - Mateus Faggion",
 );
 
 assert.equal(

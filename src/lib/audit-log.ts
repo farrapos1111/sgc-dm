@@ -45,6 +45,18 @@ const EVENTOS_ACTIONS = new Set([
   "comanda_item_update",
   "comanda_item_delete",
   "comanda_item_pay",
+  "ticket_type_insert",
+  "ticket_type_update",
+  "ticket_type_delete",
+  "ticket_sell",
+  "ticket_update",
+  "ticket_delete",
+  "event_table_insert",
+  "event_table_update",
+  "event_table_delete",
+  "seat_assign",
+  "seat_unassign",
+  "ticket_checkin",
 ]);
 
 const TESOURARIA_SETTINGS = new Set([
@@ -91,6 +103,9 @@ const GRAVE_ACTIONS = new Set([
   "cash_entry_delete",
   "charge_delete",
   "comanda_item_delete",
+  "ticket_type_delete",
+  "ticket_delete",
+  "event_table_delete",
   "pii_reveal",
 ]);
 
@@ -100,6 +115,12 @@ const LEVE_ACTIONS = new Set([
   "cash_entry_insert",
   "charge_insert",
   "member_cadastro_self_update",
+  "ticket_type_insert",
+  "ticket_sell",
+  "event_table_insert",
+  "seat_assign",
+  "seat_unassign",
+  "ticket_checkin",
 ]);
 
 const GRAVE_SETTINGS = new Set([
@@ -162,6 +183,30 @@ export function auditActionLabel(action: string): string {
       return "Item removido da comanda";
     case "comanda_item_pay":
       return "Item baixado na comanda";
+    case "ticket_type_insert":
+      return "Tipo de ingresso criado";
+    case "ticket_type_update":
+      return "Tipo de ingresso alterado";
+    case "ticket_type_delete":
+      return "Tipo de ingresso excluído";
+    case "ticket_sell":
+      return "Ingresso vendido";
+    case "ticket_update":
+      return "Ingresso alterado";
+    case "ticket_delete":
+      return "Ingresso excluído";
+    case "event_table_insert":
+      return "Mesa criada";
+    case "event_table_update":
+      return "Mesa alterada";
+    case "event_table_delete":
+      return "Mesa excluída";
+    case "seat_assign":
+      return "Assento alocado";
+    case "seat_unassign":
+      return "Assento liberado";
+    case "ticket_checkin":
+      return "Check-in realizado";
     case "cash_entry_insert":
       return "Lançamento no caixa";
     case "cash_entry_update":
@@ -300,6 +345,9 @@ export function formatComandaAuditDetail(row: {
   oldAmount?: number | null;
   newQty?: number | null;
   newAmount?: number | null;
+  capacity?: number | null;
+  oldCapacity?: number | null;
+  method?: string | null;
 }): string | null {
   const parts: string[] = [];
   if (row.action === "comanda_item_update") {
@@ -310,6 +358,20 @@ export function formatComandaAuditDetail(row: {
       parts.push(`${formatBRL(row.oldAmount)} → ${formatBRL(row.newAmount)}`);
     }
     return parts.length ? parts.join(" · ") : null;
+  }
+  if (
+    row.action === "event_table_insert" ||
+    row.action === "event_table_update"
+  ) {
+    if (row.oldCapacity != null && row.capacity != null) {
+      parts.push(`${row.oldCapacity} → ${row.capacity} lugares`);
+    } else if (row.capacity != null) {
+      parts.push(`${row.capacity} lugares`);
+    }
+    return parts.length ? parts.join(" · ") : null;
+  }
+  if (row.action === "ticket_checkin" && row.method) {
+    parts.push(row.method === "qr" ? "QR" : "Nome");
   }
   if (row.qty != null) parts.push(`${row.qty} un.`);
   if (row.amount != null) parts.push(formatBRL(row.amount));
@@ -390,6 +452,25 @@ export function formatChapterAuditDetail(
     return key ? `Chave: ${key}` : null;
   }
 
+  if (
+    action.startsWith("ticket_") ||
+    action.startsWith("event_table_") ||
+    action.startsWith("seat_")
+  ) {
+    return formatComandaAuditDetail({
+      action,
+      amount:
+        asNumber(nv?.amount) ??
+        asNumber(nv?.price_paid) ??
+        asNumber(nv?.price) ??
+        asNumber(ov?.amount) ??
+        asNumber(ov?.price_paid),
+      capacity: asNumber(nv?.capacity) ?? asNumber(nv?.quantity_total),
+      oldCapacity: asNumber(ov?.capacity) ?? asNumber(ov?.quantity_total),
+      method: asString(nv?.method),
+    });
+  }
+
   if (action === "member_update" || action === "member_cadastro_self_update") {
     const keys = Object.keys(nv ?? {}).filter(
       (k) => !["demolay_id", "full_name", "source"].includes(k),
@@ -424,7 +505,11 @@ export function formatChapterAuditTitle(
   subjectName?: string | null,
 ): string {
   const nv = asRecord(newValue);
-  const item = asString(nv?.item_name);
+  const item =
+    asString(nv?.item_name) ??
+    asString(nv?.name) ??
+    asString(nv?.label) ??
+    asString(nv?.ticket_type_name);
   const buyer = asString(nv?.buyer_name);
   const extra = [item, buyer, subjectName].filter(Boolean).join(" · ");
   const label = auditActionLabel(action);

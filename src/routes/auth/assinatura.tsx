@@ -66,7 +66,7 @@ function AssinaturaPage() {
     e.preventDefault();
     setError(null);
     if (!signature?.trim()) {
-      setError("Assine na área acima antes de continuar.");
+      setError("Desenhe ou envie um PNG da assinatura antes de continuar.");
       return;
     }
     setSubmitting(true);
@@ -124,7 +124,8 @@ function AssinaturaPage() {
             <span className="font-medium text-foreground">
               {requirement.chapterName}
             </span>
-            , registre sua assinatura para continuar.
+            , registre sua assinatura para continuar (desenhe ou envie um PNG
+            transparente).
           </p>
           <form onSubmit={handleSave} className="space-y-4">
             <SignaturePad

@@ -242,6 +242,143 @@ export const saveOfficeSignature = createServerFn({ method: "POST" })
     };
   });
 
+export type MyOfficeSignatureRow = {
+  memberId: string;
+  memberName: string;
+  chapterId: string;
+  chapterName: string;
+  positionCode: string;
+  positionLabel: string;
+  signatureDataUrl: string | null;
+  updatedAt: string | null;
+};
+
+/** Assinaturas oficiais do usuário (cargos que exigem tinta), para o Perfil. */
+export const listMyOfficeSignatures = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        memberId: z.string().uuid().optional(),
+      })
+      .parse(raw ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    const term = currentTerm();
+
+    let membersQuery = context.supabase
+      .from("members")
+      .select("id, chapter_id, full_name, chapter:chapters!members_chapter_id_fkey(id, name)")
+      .eq("user_id", context.userId);
+    if (data.memberId) {
+      membersQuery = membersQuery.eq("id", data.memberId);
+    }
+    const { data: members, error: memErr } = await membersQuery;
+    if (memErr) throw new Error(memErr.message);
+    if (!members?.length) return [] as MyOfficeSignatureRow[];
+
+    const memberIds = members.map((m: { id: string }) => m.id);
+
+    const { data: positions, error: posErr } = await context.supabase
+      .from("member_positions")
+      .select(
+        "member_id, chapter_id, position:positions(code, label), chapter:chapters(id, name)",
+      )
+      .in("member_id", memberIds)
+      .eq("term_year", term.year)
+      .eq("term_semester", term.semester)
+      .is("ended_at", null);
+    if (posErr) throw new Error(posErr.message);
+
+    const slots: Array<{
+      memberId: string;
+      memberName: string;
+      chapterId: string;
+      chapterName: string;
+      positionCode: string;
+      positionLabel: string;
+    }> = [];
+    const seen = new Set<string>();
+
+    for (const row of positions ?? []) {
+      const pos = Array.isArray(row.position) ? row.position[0] : row.position;
+      const code = pos?.code as string | undefined;
+      if (!code || !isOfficeSignatureRequiredCode(code)) continue;
+      const canonical = canonicalOfficeSignatureCode(code);
+      const chapterId = row.chapter_id as string;
+      const memberId = row.member_id as string;
+      const key = `${memberId}:${chapterId}:${canonical}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const chapter = Array.isArray(row.chapter) ? row.chapter[0] : row.chapter;
+      const memberRow = members.find((m: { id: string }) => m.id === memberId);
+      const memberChapter = memberRow
+        ? Array.isArray(memberRow.chapter)
+          ? memberRow.chapter[0]
+          : memberRow.chapter
+        : null;
+
+      slots.push({
+        memberId,
+        memberName:
+          (memberRow as { full_name?: string } | undefined)?.full_name?.trim() ||
+          "",
+        chapterId,
+        chapterName:
+          (chapter?.name as string | undefined) ||
+          (memberChapter?.name as string | undefined) ||
+          "Capítulo",
+        positionCode: canonical,
+        positionLabel:
+          OFFICE_SIGNATURE_LABELS[canonical] ||
+          (pos?.label as string | undefined) ||
+          canonical,
+      });
+    }
+
+    if (slots.length === 0) return [] as MyOfficeSignatureRow[];
+
+    const { data: existing, error: sigErr } = await context.supabase
+      .from("member_office_signatures")
+      .select(
+        "member_id, chapter_id, position_code, signature_data_url, updated_at",
+      )
+      .in(
+        "member_id",
+        slots.map((s) => s.memberId),
+      );
+    if (sigErr) throw new Error(sigErr.message);
+
+    const byKey = new Map<
+      string,
+      { signatureDataUrl: string | null; updatedAt: string | null }
+    >();
+    for (const s of existing ?? []) {
+      const code = canonicalOfficeSignatureCode(
+        (s as { position_code: string }).position_code,
+      );
+      const key = `${(s as { member_id: string }).member_id}:${(s as { chapter_id: string }).chapter_id}:${code}`;
+      byKey.set(key, {
+        signatureDataUrl:
+          (s as { signature_data_url?: string | null }).signature_data_url?.trim() ||
+          null,
+        updatedAt: (s as { updated_at?: string | null }).updated_at ?? null,
+      });
+    }
+
+    return slots.map((slot) => {
+      const hit = byKey.get(
+        `${slot.memberId}:${slot.chapterId}:${slot.positionCode}`,
+      );
+      return {
+        ...slot,
+        signatureDataUrl: hit?.signatureDataUrl ?? null,
+        updatedAt: hit?.updatedAt ?? null,
+      };
+    });
+  });
+
 /* ---------------------- Consumo em documentos oficiais ---------------------- */
 
 export type OfficeSignatureSlot = {

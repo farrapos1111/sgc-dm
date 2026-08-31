@@ -148,7 +148,8 @@ export function EventComandaAuditPanel({
               ) : null}
             </div>
             <p className="text-xs text-muted-foreground">
-              Alterações nas comandas deste evento, com data e quem fez.
+              Ingressos, mesas, check-ins e comandas deste evento, com data e
+              quem fez.
             </p>
           </div>
         </div>
@@ -167,7 +168,7 @@ export function EventComandaAuditPanel({
 
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Nenhuma alteração de comanda nesta visão.
+          Nenhuma alteração registrada nesta visão.
         </p>
       ) : (
         <ul className="space-y-3">

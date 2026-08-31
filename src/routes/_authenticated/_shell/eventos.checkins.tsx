@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowDownAZ,
   ArrowUpAZ,
+  CalendarDays,
   MapPin,
   QrCode,
   Search,
@@ -62,11 +63,32 @@ type CheckinTicketsResult = Awaited<
   ReturnType<typeof listChapterTicketsForCheckin>
 >;
 type TicketRow = CheckinTicketsResult["tickets"][number];
+type EventRow = CheckinTicketsResult["events"][number];
 type PreviewPayload = Awaited<ReturnType<typeof previewTicketByQr>>;
-type SortKey = "nome" | "evento" | "valor" | "vendedor";
+type SortKey = "nome" | "valor" | "vendedor";
 
 function mutationErrorMessage(e: unknown, fallback: string) {
   return e instanceof Error ? e.message : fallback;
+}
+
+/** Evento com starts_at mais próximo de agora (empate: o futuro primeiro). */
+function pickClosestEventId(
+  events: Array<{ id: string; starts_at: string }>,
+  nowMs: number = Date.now(),
+): string | null {
+  if (events.length === 0) return null;
+  let best = events[0]!;
+  let bestDist = Math.abs(new Date(best.starts_at).getTime() - nowMs);
+  for (let i = 1; i < events.length; i++) {
+    const ev = events[i]!;
+    const t = new Date(ev.starts_at).getTime();
+    const dist = Math.abs(t - nowMs);
+    if (dist < bestDist || (dist === bestDist && t >= nowMs)) {
+      best = ev;
+      bestDist = dist;
+    }
+  }
+  return best.id;
 }
 
 function rowToPreview(row: TicketRow): PreviewPayload {
@@ -97,6 +119,7 @@ function Checkins() {
   const primary = active?.chapter.primary_color ?? undefined;
   useEventCheckinRealtime({ enabled: !!active?.chapter_id });
 
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [checkinFilter, setCheckinFilter] = useState<
     "all" | "presente" | "ausente"
@@ -127,22 +150,51 @@ function Checkins() {
       listChapterTicketsForCheckin({ data: { chapterId: active!.chapter_id } }),
   });
 
+  const events = ticketsQ.data?.events ?? [];
   const tickets = ticketsQ.data?.tickets ?? [];
   const ticketsTruncated = Boolean(ticketsQ.data?.truncated);
+
+  // Default: evento mais próximo da data atual; mantém seleção se ainda existir.
+  const eventsKey = events.map((e) => e.id).join(",");
+  useEffect(() => {
+    if (events.length === 0) {
+      setSelectedEventId(null);
+      return;
+    }
+    setSelectedEventId((prev) => {
+      if (prev && events.some((e) => e.id === prev)) return prev;
+      return pickClosestEventId(events);
+    });
+    // eventsKey cobre mudanças de lista sem reagir a nova referência do array.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- events derivado de eventsKey
+  }, [eventsKey]);
+
+  const selectedEvent: EventRow | null = useMemo(() => {
+    if (!selectedEventId) return null;
+    return events.find((e) => e.id === selectedEventId) ?? null;
+  }, [events, selectedEventId]);
+
+  const eventTickets = useMemo(
+    () =>
+      selectedEventId
+        ? tickets.filter((t) => t.event_id === selectedEventId)
+        : [],
+    [tickets, selectedEventId],
+  );
 
   const checkinCounts = useMemo(() => {
     let presente = 0;
     let ausente = 0;
-    for (const t of tickets) {
+    for (const t of eventTickets) {
       if (t.already_checked_in) presente += 1;
       else ausente += 1;
     }
     return { presente, ausente };
-  }, [tickets]);
+  }, [eventTickets]);
 
   const visible = useMemo(() => {
     const q = search.trim();
-    let rows = tickets;
+    let rows = eventTickets;
     if (checkinFilter === "presente") {
       rows = rows.filter((t) => t.already_checked_in);
     } else if (checkinFilter === "ausente") {
@@ -150,10 +202,10 @@ function Checkins() {
     }
     if (q) {
       const qNum = Number(q.replace(",", "."));
-      const hasNum = q.replace(",", ".").match(/^\d+(\.\d+)?$/) && !Number.isNaN(qNum);
+      const hasNum =
+        q.replace(",", ".").match(/^\d+(\.\d+)?$/) && !Number.isNaN(qNum);
       rows = rows.filter((t) => {
         if (matchesLooseSearch(t.buyer_name, q)) return true;
-        if (matchesLooseSearch(t.event_name, q)) return true;
         if (t.seller_name && matchesLooseSearch(t.seller_name, q)) return true;
         if (matchesLooseSearch(t.qr_code, q)) return true;
         if (hasNum && Math.abs(t.price_paid - qNum) < 0.005) return true;
@@ -166,25 +218,25 @@ function Checkins() {
     return [...rows].sort((a, b) => {
       if (sortKey === "valor") return (a.price_paid - b.price_paid) * dir;
       const av =
-        sortKey === "nome"
-          ? a.buyer_name
-          : sortKey === "evento"
-            ? a.event_name
-            : (a.seller_name ?? "");
+        sortKey === "nome" ? a.buyer_name : (a.seller_name ?? "");
       const bv =
-        sortKey === "nome"
-          ? b.buyer_name
-          : sortKey === "evento"
-            ? b.event_name
-            : (b.seller_name ?? "");
+        sortKey === "nome" ? b.buyer_name : (b.seller_name ?? "");
       return av.localeCompare(bv, "pt-BR", { sensitivity: "base" }) * dir;
     });
-  }, [tickets, search, sortKey, sortDir, checkinFilter]);
+  }, [eventTickets, search, sortKey, sortDir, checkinFilter]);
 
   const lookup = useMutation({
     mutationFn: (qr: string) =>
       previewTicketByQr({ data: { chapterId: active!.chapter_id, qr } }),
     onSuccess: (data) => {
+      if (
+        selectedEventId &&
+        data.event.id !== selectedEventId &&
+        events.some((e) => e.id === data.event.id)
+      ) {
+        setSelectedEventId(data.event.id);
+        toast.message(`Trocado para o evento «${data.event.name}»`);
+      }
       setPreviewMethod("qr");
       setPreview(data);
       setPreviewOpen(true);
@@ -273,13 +325,13 @@ function Checkins() {
     <div>
       <PageHeader
         title="Check-ins"
-        subtitle="Leia o QR ou libere o acesso manualmente pela lista. Ao confirmar, a comanda virtual é aberta."
+        subtitle="Por evento (rascunho ou publicado). Por padrão, o mais próximo da data atual."
       />
 
       {ticketsTruncated ? (
         <p className="mb-3 text-sm text-amber-700 dark:text-amber-400">
-          Lista limitada aos 2000 ingressos mais recentes. Refine a busca ou
-          filtre por evento se o ingresso esperado não aparecer.
+          Lista limitada aos 2000 ingressos mais recentes. Refine a busca se o
+          ingresso esperado não aparecer.
         </p>
       ) : null}
 
@@ -318,192 +370,256 @@ function Checkins() {
         )}
       </Card>
 
-      <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
-        <div className="relative min-w-0">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder="Nome, valor…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <Select
-          value={sortKey}
-          onValueChange={(v) => setSortKey(v as SortKey)}
-        >
-          <SelectTrigger className="w-[7.5rem] sm:w-40">
-            <SelectValue placeholder="Ordenar" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="nome">Nome</SelectItem>
-            <SelectItem value="evento">Evento</SelectItem>
-            <SelectItem value="valor">Valor</SelectItem>
-            <SelectItem value="vendedor">Vendedor</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Inverter ordenação"
-          onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-        >
-          {sortDir === "asc" ? (
-            <ArrowUpAZ className="h-4 w-4" />
-          ) : (
-            <ArrowDownAZ className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
-
-      <div className="mb-3 flex flex-wrap items-center gap-1.5">
-        {(
-          [
-            ["all", "Todos"],
-            ["presente", `Presentes (${checkinCounts.presente})`],
-            ["ausente", `Ausentes (${checkinCounts.ausente})`],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setCheckinFilter(key)}
-            className="cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-medium"
-            style={
-              checkinFilter === key
-                ? {
-                    backgroundColor: primary || "var(--chapter-primary)",
-                    borderColor: primary || "var(--chapter-primary)",
-                    color: "#fff",
-                  }
-                : undefined
-            }
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
       {ticketsQ.isLoading ? (
-        <div className="text-sm text-muted-foreground">Carregando ingressos…</div>
-      ) : visible.length === 0 ? (
+        <div className="text-sm text-muted-foreground">Carregando eventos…</div>
+      ) : events.length === 0 ? (
         <EmptyState
-          icon={<QrCode className="h-7 w-7" />}
-          title={search ? "Nenhum ingresso encontrado" : "Nenhum ingresso"}
-          description={
-            search
-              ? "Ajuste a busca por nome, valor ou vendedor."
-              : "Venda ingressos em Eventos para liberar acessos aqui."
-          }
+          icon={<CalendarDays className="h-7 w-7" />}
+          title="Nenhum evento ativo"
+          description="Só aparecem eventos em rascunho ou publicados. Eventos fechados ficam de fora."
         />
       ) : (
-        <Card className="overflow-hidden rounded-[12px]">
-          <div className="hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_7rem_auto] gap-3 border-b border-border bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground sm:grid">
-            <button type="button" className="text-left" onClick={() => toggleSort("nome")}>
-              Nome
-            </button>
-            <button type="button" className="text-left" onClick={() => toggleSort("evento")}>
+        <>
+          <div className="mb-3 space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">
               Evento
-            </button>
-            <button type="button" className="text-right" onClick={() => toggleSort("valor")}>
-              Valor
-            </button>
-            <span className="text-right">Ações</span>
+            </label>
+            <Select
+              value={selectedEventId ?? undefined}
+              onValueChange={setSelectedEventId}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione o evento" />
+              </SelectTrigger>
+              <SelectContent>
+                {events.map((ev) => (
+                  <SelectItem key={ev.id} value={ev.id}>
+                    {ev.name} · {formatDateTimeBR(ev.starts_at)}
+                    {ev.status === "rascunho" ? " (rascunho)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <ul className="divide-y divide-border">
-            {visible.map((row) => (
-              <li
-                key={row.id}
-                className="px-3 py-2.5 sm:grid sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_7rem_auto] sm:items-center sm:gap-3 sm:px-4 sm:py-3"
-              >
-                {/* Mobile: nome completo + meta; ações abaixo */}
-                <div className="flex flex-col gap-2 sm:hidden">
-                  <div className="min-w-0">
-                    <div className="break-words text-sm font-medium leading-snug">
-                      {row.buyer_name}
-                    </div>
-                    <div className="mt-0.5 break-words text-xs text-muted-foreground">
-                      {row.ticket_type_name}
-                      {" · "}
-                      {row.event_name}
-                    </div>
-                    <div className="break-words text-[11px] text-muted-foreground">
-                      {formatDateTimeBR(row.event_starts_at)}
-                      {row.seller_name ? ` · ${row.seller_name}` : ""}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm font-semibold tabular-nums">
-                        {formatBRL(row.price_paid)}
-                      </div>
-                      {row.already_checked_in ? (
-                        <Badge variant="secondary" className="text-[10px]">
-                          Presente
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px]">
-                          Em aberto
-                        </Badge>
-                      )}
-                    </div>
-                    <Button
-                      size="sm"
-                      className="h-8 px-2.5"
-                      variant={row.already_checked_in ? "outline" : "default"}
-                      style={
-                        row.already_checked_in
-                          ? undefined
-                          : { backgroundColor: primary }
-                      }
-                      onClick={() => openManual(row)}
-                    >
-                      <ShieldCheck className="mr-1 h-3.5 w-3.5" />
-                      {row.already_checked_in ? "Comanda" : "Liberar"}
-                    </Button>
-                  </div>
-                </div>
 
-                {/* Desktop: grid */}
-                <div className="hidden min-w-0 sm:block">
-                  <div className="break-words text-sm font-medium">{row.buyer_name}</div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {row.ticket_type_name}
-                    {row.seller_name ? ` · Vend. ${row.seller_name}` : ""}
+          {selectedEvent ? (
+            <Card className="mb-3 rounded-[12px] border-border/80 bg-muted/30 p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold leading-snug">
+                    {selectedEvent.name}
                   </div>
-                </div>
-                <div className="hidden min-w-0 sm:block">
-                  <div className="break-words text-sm">{row.event_name}</div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {formatDateTimeBR(row.event_starts_at)}
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {formatDateTimeBR(selectedEvent.starts_at)}
                   </div>
+                  {selectedEvent.location ? (
+                    <div className="mt-1 flex items-start gap-1.5 text-xs text-muted-foreground">
+                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>{selectedEvent.location}</span>
+                    </div>
+                  ) : null}
                 </div>
-                <div className="hidden text-sm font-medium sm:block sm:text-right">
-                  {formatBRL(row.price_paid)}
-                </div>
-                <div className="hidden flex-wrap items-center gap-2 sm:flex sm:justify-end">
-                  {row.already_checked_in ? (
-                    <Badge variant="secondary">Presente</Badge>
-                  ) : (
-                    <Badge variant="outline">Em aberto</Badge>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => openManual(row)}
-                  >
-                    <ShieldCheck className="mr-1 h-4 w-4" />
-                    {row.already_checked_in ? "Comanda" : "Liberar"}
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <div className="border-t border-border px-3 py-2 text-xs text-muted-foreground sm:px-4">
-            {visible.length} ingresso{visible.length === 1 ? "" : "s"}
-            {search ? " (filtrados)" : ""}
+                <Badge variant="secondary" className="shrink-0 capitalize">
+                  {selectedEvent.status === "rascunho"
+                    ? "Rascunho"
+                    : "Publicado"}
+                </Badge>
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                {checkinCounts.presente} presente
+                {checkinCounts.presente === 1 ? "" : "s"} ·{" "}
+                {checkinCounts.ausente} ausente
+                {checkinCounts.ausente === 1 ? "" : "s"} · {eventTickets.length}{" "}
+                ingresso{eventTickets.length === 1 ? "" : "s"}
+              </div>
+            </Card>
+          ) : null}
+
+          <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
+            <div className="relative min-w-0">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Nome, valor…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <Select
+              value={sortKey}
+              onValueChange={(v) => setSortKey(v as SortKey)}
+            >
+              <SelectTrigger className="w-[7.5rem] sm:w-40">
+                <SelectValue placeholder="Ordenar" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nome">Nome</SelectItem>
+                <SelectItem value="valor">Valor</SelectItem>
+                <SelectItem value="vendedor">Vendedor</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Inverter ordenação"
+              onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+            >
+              {sortDir === "asc" ? (
+                <ArrowUpAZ className="h-4 w-4" />
+              ) : (
+                <ArrowDownAZ className="h-4 w-4" />
+              )}
+            </Button>
           </div>
-        </Card>
+
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            {(
+              [
+                ["all", "Todos"],
+                ["presente", `Presentes (${checkinCounts.presente})`],
+                ["ausente", `Ausentes (${checkinCounts.ausente})`],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setCheckinFilter(key)}
+                className="cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-medium"
+                style={
+                  checkinFilter === key
+                    ? {
+                        backgroundColor: primary || "var(--chapter-primary)",
+                        borderColor: primary || "var(--chapter-primary)",
+                        color: "#fff",
+                      }
+                    : undefined
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {visible.length === 0 ? (
+            <EmptyState
+              icon={<QrCode className="h-7 w-7" />}
+              title={
+                search || checkinFilter !== "all"
+                  ? "Nenhum ingresso encontrado"
+                  : "Nenhum ingresso neste evento"
+              }
+              description={
+                search || checkinFilter !== "all"
+                  ? "Ajuste a busca ou o filtro de presença."
+                  : "Venda ingressos neste evento para liberar acessos aqui."
+              }
+            />
+          ) : (
+            <Card className="overflow-hidden rounded-[12px]">
+              <div className="hidden grid-cols-[minmax(0,1.4fr)_7rem_auto] gap-3 border-b border-border bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground sm:grid">
+                <button
+                  type="button"
+                  className="text-left"
+                  onClick={() => toggleSort("nome")}
+                >
+                  Nome
+                </button>
+                <button
+                  type="button"
+                  className="text-right"
+                  onClick={() => toggleSort("valor")}
+                >
+                  Valor
+                </button>
+                <span className="text-right">Ações</span>
+              </div>
+              <ul className="divide-y divide-border">
+                {visible.map((row) => (
+                  <li
+                    key={row.id}
+                    className="px-3 py-2.5 sm:grid sm:grid-cols-[minmax(0,1.4fr)_7rem_auto] sm:items-center sm:gap-3 sm:px-4 sm:py-3"
+                  >
+                    <div className="flex flex-col gap-2 sm:hidden">
+                      <div className="min-w-0">
+                        <div className="break-words text-sm font-medium leading-snug">
+                          {row.buyer_name}
+                        </div>
+                        <div className="mt-0.5 break-words text-xs text-muted-foreground">
+                          {row.ticket_type_name}
+                          {row.seller_name ? ` · ${row.seller_name}` : ""}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-semibold tabular-nums">
+                            {formatBRL(row.price_paid)}
+                          </div>
+                          {row.already_checked_in ? (
+                            <Badge variant="secondary" className="text-[10px]">
+                              Presente
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px]">
+                              Em aberto
+                            </Badge>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          className="h-8 px-2.5"
+                          variant={
+                            row.already_checked_in ? "outline" : "default"
+                          }
+                          style={
+                            row.already_checked_in
+                              ? undefined
+                              : { backgroundColor: primary }
+                          }
+                          onClick={() => openManual(row)}
+                        >
+                          <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                          {row.already_checked_in ? "Comanda" : "Liberar"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="hidden min-w-0 sm:block">
+                      <div className="break-words text-sm font-medium">
+                        {row.buyer_name}
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {row.ticket_type_name}
+                        {row.seller_name ? ` · Vend. ${row.seller_name}` : ""}
+                      </div>
+                    </div>
+                    <div className="hidden text-sm font-medium sm:block sm:text-right">
+                      {formatBRL(row.price_paid)}
+                    </div>
+                    <div className="hidden flex-wrap items-center gap-2 sm:flex sm:justify-end">
+                      {row.already_checked_in ? (
+                        <Badge variant="secondary">Presente</Badge>
+                      ) : (
+                        <Badge variant="outline">Em aberto</Badge>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openManual(row)}
+                      >
+                        <ShieldCheck className="mr-1 h-4 w-4" />
+                        {row.already_checked_in ? "Comanda" : "Liberar"}
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="border-t border-border px-3 py-2 text-xs text-muted-foreground sm:px-4">
+                {visible.length} ingresso{visible.length === 1 ? "" : "s"}
+                {search || checkinFilter !== "all" ? " (filtrados)" : ""}
+              </div>
+            </Card>
+          )}
+        </>
       )}
 
       <Dialog
@@ -565,7 +681,9 @@ function Checkins() {
                 <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <div className="text-muted-foreground">Tipo</div>
-                    <div className="font-medium">{preview.ticket.ticket_type_name}</div>
+                    <div className="font-medium">
+                      {preview.ticket.ticket_type_name}
+                    </div>
                   </div>
                   <div>
                     <div className="text-muted-foreground">Valor</div>
@@ -575,7 +693,9 @@ function Checkins() {
                   </div>
                   <div className="col-span-2">
                     <div className="text-muted-foreground">Ingresso</div>
-                    <div className="font-mono text-sm">{preview.ticket.qr_code}</div>
+                    <div className="font-mono text-sm">
+                      {preview.ticket.qr_code}
+                    </div>
                   </div>
                 </div>
                 {preview.alreadyCheckedIn && preview.checkedInAt && (
@@ -589,7 +709,11 @@ function Checkins() {
           )}
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={closePreview} disabled={liberar.isPending}>
+            <Button
+              variant="outline"
+              onClick={closePreview}
+              disabled={liberar.isPending}
+            >
               Cancelar
             </Button>
             <Button
