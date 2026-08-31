@@ -393,7 +393,23 @@ function InicioContent({ active }: { active: Membership }) {
             icon={<Calendar className="h-5 w-5" />}
             label="Próximo evento"
             value={upcoming?.name ?? "Nenhum"}
-            hint={upcoming ? formatDateBR(upcoming.starts_at) : "—"}
+            hint={
+              upcoming ? (
+                <>
+                  <div>{formatDateBR(upcoming.starts_at)}</div>
+                  <div className="mt-0.5">
+                    {upcoming.tickets_sold}{" "}
+                    {upcoming.tickets_sold === 1 ? "convidado" : "convidados"}
+                    {" · "}
+                    {formatBRL(upcoming.raised)} arrecadado
+                    {" · "}
+                    {formatBRL(upcoming.spent)} gasto
+                  </div>
+                </>
+              ) : (
+                "—"
+              )
+            }
           />
           <Card className="rounded-[12px] p-5">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -472,7 +488,7 @@ function MetricCard({
   icon: React.ReactNode;
   label: string;
   value: string;
-  hint?: string;
+  hint?: React.ReactNode;
   tone?: string;
   fadeKey?: string;
 }) {
@@ -483,7 +499,7 @@ function MetricCard({
           {icon} {label}
         </div>
         <div className={`mt-2 text-2xl font-bold ${tone ?? ""}`}>{value}</div>
-        {hint && (
+        {hint != null && hint !== "" && (
           <div className="mt-1 text-xs text-muted-foreground">{hint}</div>
         )}
       </div>

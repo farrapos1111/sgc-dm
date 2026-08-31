@@ -1673,6 +1673,18 @@ const COMANDA_AUDIT_ACTIONS = [
   "comanda_item_update",
   "comanda_item_delete",
   "comanda_item_pay",
+  "ticket_type_insert",
+  "ticket_type_update",
+  "ticket_type_delete",
+  "ticket_sell",
+  "ticket_update",
+  "ticket_delete",
+  "event_table_insert",
+  "event_table_update",
+  "event_table_delete",
+  "seat_assign",
+  "seat_unassign",
+  "ticket_checkin",
 ] as const;
 
 export type EventComandaAuditRow = {
@@ -1692,6 +1704,9 @@ export type EventComandaAuditRow = {
   oldAmount: number | null;
   newQty: number | null;
   newAmount: number | null;
+  capacity: number | null;
+  oldCapacity: number | null;
+  method: string | null;
 };
 
 function jsonObject(value: unknown): Record<string, unknown> | null {
@@ -1714,7 +1729,7 @@ function jsonNumber(value: unknown): number | null {
   return null;
 }
 
-/** Audit log de comandas do evento — só MC / Admin Total. */
+/** Audit log do evento (comandas, ingressos, mesas, check-ins) — só MC / Admin Total. */
 export const listEventComandaAudit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
@@ -1754,7 +1769,7 @@ export const listEventComandaAudit = createServerFn({ method: "POST" })
     const { start, endExclusive } = ymdRangeIso(data.from, data.until);
     let logsQuery = context.supabase
       .from("audit_logs")
-      .select("id, action, new_value, user_id, created_at, record_id")
+      .select("id, action, new_value, old_value, user_id, created_at, record_id")
       .eq("chapter_id", event.chapter_id)
       .in("action", [...COMANDA_AUDIT_ACTIONS])
       .order("created_at", { ascending: false })
@@ -1847,7 +1862,7 @@ export const listEventComandaAudit = createServerFn({ method: "POST" })
 
     return matched.map((row) => {
       const nv = jsonObject(row.new_value);
-      const oldV = jsonObject(nv?.old);
+      const oldV = jsonObject(nv?.old) ?? jsonObject(row.old_value);
       const newV = jsonObject(nv?.new);
       const ticketId = jsonString(nv?.ticket_id);
       const itemId =
@@ -1864,15 +1879,28 @@ export const listEventComandaAudit = createServerFn({ method: "POST" })
         buyerName:
           jsonString(nv?.buyer_name) ??
           (ticketId ? buyerByTicket.get(ticketId) ?? null : null),
-        itemName: jsonString(nv?.item_name) ?? (itemId ? itemNameById.get(itemId) ?? null : null),
+        itemName:
+          jsonString(nv?.item_name) ??
+          jsonString(nv?.name) ??
+          jsonString(nv?.label) ??
+          jsonString(nv?.ticket_type_name) ??
+          (itemId ? itemNameById.get(itemId) ?? null : null),
         qty: jsonNumber(nv?.qty) ?? jsonNumber(newV?.qty),
-        amount: jsonNumber(nv?.amount) ?? jsonNumber(newV?.amount),
+        amount:
+          jsonNumber(nv?.amount) ??
+          jsonNumber(nv?.price_paid) ??
+          jsonNumber(nv?.price) ??
+          jsonNumber(newV?.amount),
         tender: jsonString(nv?.tender),
         remaining: jsonNumber(nv?.remaining),
         oldQty: jsonNumber(oldV?.qty),
-        oldAmount: jsonNumber(oldV?.amount),
+        oldAmount: jsonNumber(oldV?.amount) ?? jsonNumber(oldV?.price_paid),
         newQty: jsonNumber(newV?.qty),
         newAmount: jsonNumber(newV?.amount),
+        capacity: jsonNumber(nv?.capacity) ?? jsonNumber(nv?.quantity_total),
+        oldCapacity:
+          jsonNumber(oldV?.capacity) ?? jsonNumber(oldV?.quantity_total),
+        method: jsonString(nv?.method),
       };
     });
   });

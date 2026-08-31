@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { listChargeMembers } from "@/lib/finance.functions";
 import { updateSoldTicket } from "@/lib/events.functions";
@@ -37,6 +43,12 @@ type EditableTicket = {
 
 function mutationErrorMessage(e: unknown, fallback: string) {
   return e instanceof Error ? e.message : fallback;
+}
+
+function typePrice(types: TicketType[], typeId: string): number | null {
+  if (typeId === "__avulso__") return null;
+  const t = types.find((x) => x.id === typeId);
+  return t ? Number(t.price) || 0 : null;
 }
 
 export function EditSoldTicketDialog({
@@ -61,7 +73,7 @@ export function EditSoldTicketDialog({
   const [sellerId, setSellerId] = useState("");
   const [typeId, setTypeId] = useState("__avulso__");
   const [price, setPrice] = useState("");
-  const [typeTouched, setTypeTouched] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const sellersQ = useQuery({
     queryKey: ["charge-members", chapterId],
@@ -83,25 +95,35 @@ export function EditSoldTicketDialog({
     if (!open || !ticket) return;
     setBuyer(ticket.buyer_name);
     setSellerId(ticket.seller_member_id ?? "");
-    setTypeId(ticket.ticket_type_id ?? "__avulso__");
+    const tid = ticket.ticket_type_id ?? "__avulso__";
+    setTypeId(tid);
     setPrice(String(Number(ticket.price_paid) || 0));
-    setTypeTouched(false);
-  }, [open, ticket]);
-
-  useEffect(() => {
-    if (!open || !typeTouched) return;
-    if (typeId === "__avulso__") return;
-    const t = types.find((x) => x.id === typeId);
-    if (t) setPrice(String(Number(t.price) || 0));
-  }, [typeId, types, open, typeTouched]);
+    const catalog = typePrice(types, tid);
+    const paid = Number(ticket.price_paid) || 0;
+    setAdvancedOpen(
+      catalog != null ? Math.abs(catalog - paid) > 0.001 : paid > 0,
+    );
+  }, [open, ticket, types]);
 
   const parsedPrice = Number(String(price).replace(",", "."));
+  const catalogPrice = typePrice(types, typeId);
+  const usingCatalogPrice =
+    catalogPrice != null && Math.abs(catalogPrice - parsedPrice) < 0.001;
   const typeChanged =
     !!ticket &&
     (ticket.ticket_type_id ?? null) !==
       (typeId === "__avulso__" ? null : typeId);
   const priceChanged =
     !!ticket && Math.abs(Number(ticket.price_paid) - parsedPrice) > 0.001;
+
+  function handleTypeChange(v: string) {
+    setTypeId(v);
+    const next = typePrice(types, v);
+    if (next != null) {
+      setPrice(String(next));
+      setAdvancedOpen(false);
+    }
+  }
 
   const save = useMutation({
     mutationFn: () => {
@@ -160,13 +182,7 @@ export function EditSoldTicketDialog({
           </div>
           <div>
             <Label className="mb-1 block text-xs">Tipo</Label>
-            <Select
-              value={typeId}
-              onValueChange={(v) => {
-                setTypeTouched(true);
-                setTypeId(v);
-              }}
-            >
+            <Select value={typeId} onValueChange={handleTypeChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Avulso" />
               </SelectTrigger>
@@ -179,17 +195,53 @@ export function EditSoldTicketDialog({
                 ))}
               </SelectContent>
             </Select>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Valor:{" "}
+              <span className="font-medium text-foreground">
+                {formatBRL(Number.isFinite(parsedPrice) ? parsedPrice : 0)}
+              </span>
+              {usingCatalogPrice
+                ? " (preço do tipo)"
+                : catalogPrice != null
+                  ? " (personalizado)"
+                  : null}
+            </p>
           </div>
-          <div>
-            <Label className="mb-1 block text-xs">Valor</Label>
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-            />
-          </div>
+
+          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/40"
+              >
+                <span>Detalhes avançados</span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 shrink-0 transition-transform ${
+                    advancedOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="mt-2 space-y-2 rounded-md border border-border bg-muted/20 p-3">
+                <div>
+                  <Label className="mb-1 block text-xs">Valor</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Por padrão usa o preço do tipo. Altere só se a venda for
+                    diferente.
+                  </p>
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
           {typeChanged || priceChanged ? (
             <p className="text-[11px] text-muted-foreground">
               A cobrança do vendedor será sincronizada com o novo valor (

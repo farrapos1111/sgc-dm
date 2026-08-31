@@ -424,9 +424,9 @@ export function MinutesPanel({
       return;
     }
     const filled = applyVars(tpl.body, {
-      chapterName: ctx.data.chapter?.name,
-      chapterNumber: ctx.data.chapter?.number,
-      chapterCity: ctx.data.chapter?.city,
+      chapterName: ctx.data.chapter?.name ?? active?.chapter.name,
+      chapterNumber: ctx.data.chapter?.number ?? active?.chapter.number,
+      chapterCity: ctx.data.chapter?.city ?? active?.chapter.city,
       date: item.start_at,
       location: item.location,
       address: item.address,

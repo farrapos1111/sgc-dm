@@ -9,8 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SupademoEmbed } from "@/components/hub/SupademoEmbed";
 import {
-  useHighlightedRealms,
-  useHubSession,
+  useHubHostGuard,
 } from "@/components/hub/useHubSession";
 import "./hub-landing.css";
 
@@ -154,8 +153,7 @@ function useReveal(root: RefObject<HTMLElement | null>) {
 }
 
 export function HubLanding() {
-  const status = useHubSession();
-  const highlighted = useHighlightedRealms(status);
+  useHubHostGuard();
   const rootRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [faqOpen, setFaqOpen] = useState(0);
@@ -185,25 +183,6 @@ export function HubLanding() {
     }
     setPixCopied(true);
     window.setTimeout(() => setPixCopied(false), 2200);
-  }
-
-  if (status.kind === "redirecting") {
-    return (
-      <div className="tv-hub tv-spin">
-        <div style={{ textAlign: "center" }}>
-          <img
-            src="/favicon-white.svg"
-            alt="Templo Virtual"
-            width={56}
-            height={56}
-            style={{ margin: "0 auto 16px" }}
-          />
-          <p style={{ opacity: 0.7, margin: 0 }}>
-            Abrindo {REALM_LABELS[status.realm]}…
-          </p>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -293,27 +272,6 @@ export function HubLanding() {
         <div className="tv-scrolldot" aria-hidden />
       </section>
 
-      {status.kind === "choose" && status.realms.length > 0 ? (
-        <div className="tv-session-bar" role="status">
-          <p>
-            {status.realms.length === 1
-              ? "Sua conta já tem acesso. Continue na sua esfera:"
-              : "Sua conta tem acesso a mais de uma esfera. Escolha onde entrar:"}
-          </p>
-          <div className="tv-session-links">
-            {status.realms.map((realm) => (
-              <a
-                key={realm}
-                className="tv-btn tv-btn-gold"
-                href={realmEntryUrl(realm)}
-              >
-                {REALM_LABELS[realm]}
-              </a>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
       <section className="tv-section tv-paper" id="quem">
         <div className="tv-shell">
           <PageHead num="02" />
@@ -375,34 +333,17 @@ export function HubLanding() {
             Escolha o ambiente da sua instituição
           </h3>
           <div className="tv-realms">
-            {REALMS.map((realm, i) => {
-              const active = highlighted.has(realm);
-              return (
-                <a
-                  key={realm}
-                  href={realmEntryUrl(realm)}
-                  className={cn("tv-realm", "tv-rv", `tv-rv-d${i + 1}`)}
-                  style={
-                    active ? { borderColor: "var(--gold-brand)" } : undefined
-                  }
-                >
-                  <div className="host">{realm}.templovirtual.app</div>
-                  <h3>{REALM_LABELS[realm]}</h3>
-                  <p>{REALM_CARD_BLURB[realm]}</p>
-                  {active ? (
-                    <p
-                      style={{
-                        marginTop: 10,
-                        color: "var(--gold-brand)",
-                        fontSize: "0.8rem",
-                      }}
-                    >
-                      Você já tem vínculo aqui
-                    </p>
-                  ) : null}
-                </a>
-              );
-            })}
+            {REALMS.map((realm, i) => (
+              <a
+                key={realm}
+                href={realmEntryUrl(realm)}
+                className={cn("tv-realm", "tv-rv", `tv-rv-d${i + 1}`)}
+              >
+                <div className="host">{realm}.templovirtual.app</div>
+                <h3>{REALM_LABELS[realm]}</h3>
+                <p>{REALM_CARD_BLURB[realm]}</p>
+              </a>
+            ))}
           </div>
         </div>
       </section>

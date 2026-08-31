@@ -1,5 +1,6 @@
 /** Resolução das variáveis dinâmicas entre colchetes nos modelos de ata/ofício. */
 
+import { formatChapterIdentity } from "@/lib/chapter-label";
 import { datePartsInAppTz, formatTimeInAppTz, APP_TIMEZONE } from "@/lib/timezone";
 import { matchesLooseSearch, normalizeSearch } from "@/lib/utils";
 
@@ -141,13 +142,13 @@ export function buildVarMap(ctx: MinuteVarContext): Record<string, string> {
   const start = ctx.date ? new Date(ctx.date) : new Date();
   const parts = datePartsInAppTz(start);
   const officers = ctx.officers ?? {};
-  const capitulo = [
-    ctx.chapterName,
-    ctx.chapterNumber ? `Nº ${ctx.chapterNumber}` : null,
-    ctx.chapterCity ? `— ${ctx.chapterCity}` : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  /** Ex.: "Farrapos Nº 1111" (sem cidade). */
+  const capitulo = ctx.chapterName?.trim()
+    ? formatChapterIdentity({
+        name: ctx.chapterName,
+        number: ctx.chapterNumber,
+      })
+    : "";
   const dataBr = `${pad2(parts.day)}/${pad2(parts.month)}/${parts.year}`;
   const mesNome = MESES[parts.month - 1] ?? "";
   const horaInicio = new Date(start.getTime() + 30 * 60 * 1000);

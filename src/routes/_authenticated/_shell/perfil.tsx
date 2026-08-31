@@ -28,6 +28,7 @@ import { MyCadastroPanel } from "@/components/profile/MyCadastroPanel";
 import { MyAttendancePanel } from "@/components/profile/MyAttendancePanel";
 import { MyFinancePanel } from "@/components/profile/MyFinancePanel";
 import { MyHistoryPanel } from "@/components/profile/MyHistoryPanel";
+import { MyOfficeSignaturesPanel } from "@/components/profile/MyOfficeSignaturesPanel";
 import {
   getMyDemolayProfile,
   type LinkedMemberSummary,
@@ -189,8 +190,9 @@ function PerfilPage() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="cadastro" className="mt-0">
+              <TabsContent value="cadastro" className="mt-0 space-y-4">
                 <MyCadastroPanel memberId={selected.id} />
+                <MyOfficeSignaturesPanel memberId={selected.id} />
               </TabsContent>
 
               <TabsContent value="frequencia" className="mt-0">

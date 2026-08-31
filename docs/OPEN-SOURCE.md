@@ -33,7 +33,7 @@ Nada disso impede contribuição — mas explica por que a seção de [roadmap](
 
 Este repositório está sob a **[GNU Affero General Public License v3.0 (AGPL-3.0)](../LICENSE)**.
 
-A AGPL é um *copyleft* forte: você pode usar, modificar e redistribuir o código; se hospedar uma versão modificada como serviço na rede, precisa oferecer o código-fonte dessa versão sob a mesma licença. O objetivo é garantir que melhorias voltem para a comunidade — coerente com um sistema de gestão oferecido pela web.
+A AGPL é um _copyleft_ forte: você pode usar, modificar e redistribuir o código; se hospedar uma versão modificada como serviço na rede, precisa oferecer o código-fonte dessa versão sob a mesma licença. O objetivo é garantir que melhorias voltem para a comunidade — coerente com um sistema de gestão oferecido pela web.
 
 Contribuições são aceitas sob os mesmos termos. O campo `license` no `package.json` e o arquivo `LICENSE` na raiz são a referência formal.
 
@@ -50,7 +50,7 @@ Contribuições são aceitas sob os mesmos termos. O campo `license` no `package
 
 ### Modelo de `.env`
 
-Ainda não há um arquivo `.env.example` versionado (é um dos itens do roadmap). Use este bloco como modelo:
+Há um [`.env.example`](../.env.example) na raiz. Copie para o mode que for usar (ex.: `.env.odm` com `bun run dev:odm`) e preencha:
 
 ```bash
 # ---- Supabase: obrigatórias ----
@@ -71,9 +71,15 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-anonima
 # Sem esta chave, os recursos de IA lançam "IA indisponível".
 # O restante do sistema funciona normalmente.
 # LOVABLE_API_KEY=
+
+# ---- E-mail transacional (Resend) — server-only ----
+# RESEND_API_KEY=re_xxxxxxxx
+# EMAIL_FROM="Templo Virtual <noreply@seudominio.com.br>"
 ```
 
-A chave publicável (anônima) é pública por design — ela é embutida no bundle do navegador e a proteção real vem das políticas RLS do Postgres. Já `SUPABASE_SERVICE_ROLE_KEY` **ignora todas essas políticas**: ela nunca vai para o cliente, nunca para o repositório, só para os *secrets* do ambiente de deploy.
+A chave publicável (anônima) é pública por design — ela é embutida no bundle do navegador e a proteção real vem das políticas RLS do Postgres. Já `SUPABASE_SERVICE_ROLE_KEY` e `RESEND_API_KEY` **nunca** vão para o cliente nem para o repositório — só nos `.env` locais (gitignored) e nos _secrets_ do deploy.
+
+**Resend (manual):** em [resend.com/domains](https://resend.com/domains) adicione o domínio, copie SPF/DKIM (e DMARC se pedido) para o DNS, aguarde **Verified**, depois preencha `RESEND_API_KEY` + `EMAIL_FROM` com um endereço desse domínio. E-mails de Auth do Supabase (reset de senha) usam SMTP separado no painel Supabase — ver [Send with Supabase SMTP](https://resend.com/docs/send-with-supabase-smtp).
 
 ### Banco de dados
 
@@ -83,7 +89,7 @@ O schema vive em `supabase/migrations/` (26 arquivos `.sql`). Aplique-os no seu 
 
 ## Tutorial: sua primeira contribuição
 
-Este passo a passo segue o fluxo clássico *fork → clone → branch → commit → pull request*, no espírito do projeto [First Contributions](https://github.com/firstcontributions/first-contributions). Se você nunca abriu um PR, comece por aqui.
+Este passo a passo segue o fluxo clássico _fork → clone → branch → commit → pull request_, no espírito do projeto [First Contributions](https://github.com/firstcontributions/first-contributions). Se você nunca abriu um PR, comece por aqui.
 
 Repositório: [https://github.com/farrapos1111/sgc-dm](https://github.com/farrapos1111/sgc-dm)
 
@@ -120,11 +126,11 @@ git switch -c feat/nome-curto
 
 Prefixos aceitos:
 
-| Prefixo | Quando usar |
-| --- | --- |
+| Prefixo | Quando usar         |
+| ------- | ------------------- |
 | `feat/` | nova funcionalidade |
-| `fix/` | correção de bug |
-| `docs/` | só documentação |
+| `fix/`  | correção de bug     |
+| `docs/` | só documentação     |
 
 Exemplo: `git switch -c docs/corrigir-typo-guia`
 
@@ -226,12 +232,13 @@ Detalhamento completo de camadas, fluxo de dados e modelo de dados em [TECNICO.m
 
 **Imports.** Use o alias `@/` para `src/`. Nada de `../../../`.
 
-**Validação.** Toda *server function* valida a entrada com Zod, e as mensagens de erro são em português, porque chegam direto ao usuário via toast.
+**Validação.** Toda _server function_ valida a entrada com Zod, e as mensagens de erro são em português, porque chegam direto ao usuário via toast.
 
 **`src/components/ui/` não se edita.** São primitivos do shadcn/ui. Precisa de comportamento diferente? Componha por cima, em um componente de feature.
 
 **Sufixos de arquivo têm significado:**
-- `*.functions.ts` — *server functions*, importáveis normalmente do cliente
+
+- `*.functions.ts` — _server functions_, importáveis normalmente do cliente
 - `*.server.ts` — exclusivo de servidor, importado **dinamicamente** (`await import()`) de dentro do handler
 
 O ESLint bloqueia o pacote `server-only` do Next.js com uma mensagem explicando essa convenção.
@@ -287,19 +294,19 @@ Um `CODE_OF_CONDUCT.md` formal (provavelmente baseado no Contributor Covenant) a
 
 As lacunas conhecidas do projeto, que são também as melhores primeiras contribuições:
 
-| Prioridade | Item | Por quê |
-| --- | --- | --- |
-| 🔴 Alta | Remover as credenciais de teste da tela de login ([src/routes/auth/index.tsx](../src/routes/auth/index.tsx)) | Bloqueia qualquer uso real |
-| 🔴 Alta | Adicionar `.env` ao `.gitignore` e versionar um `.env.example` | Hoje o `.env` está no repositório; é questão de tempo até alguém colocar um segredo ali |
-| 🟠 Média | Investigar os 9 erros de `react-hooks/rules-of-hooks` | São os únicos erros de lint que apontam bug de execução, não estilo |
-| 🟠 Média | Testes automatizados (Vitest para os helpers, Playwright para os fluxos) | Não existe nenhum; comece por `permissions.ts`, `format.ts`, `terms.ts`, `finance-xlsx.ts` |
-| 🟠 Média | Zerar a dívida de formatação (`prettier --write .` em um PR isolado, sem nenhuma outra mudança) | Enquanto houver 2.377 erros de estilo, o lint não serve de barreira. Precisa ser um PR só disso, combinado antes com o mantenedor |
-| 🟠 Média | CI no GitHub Actions rodando lint + build | Nenhuma verificação automática hoje — só faz sentido depois de zerar a dívida acima |
-| 🟠 Média | Script de `typecheck` no `package.json` | Erros de tipo só aparecem no editor ou no build |
-| 🟡 Baixa | Revisão de acessibilidade (navegação por teclado, leitores de tela, contraste) | Nunca foi auditada |
-| 🟡 Baixa | Corrigir `package.json.name` (ainda `tanstack_start_ts`) | Herança do template |
-| 🟡 Baixa | `CODE_OF_CONDUCT.md` e `SECURITY.md` formais | Hoje só existem em resumo, aqui |
-| 🟡 Baixa | Decidir o destino de `improveText` e de `supabaseAdmin` | Ambos existem no código e não são usados por ninguém |
+| Prioridade | Item                                                                                                         | Por quê                                                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 Alta    | Remover as credenciais de teste da tela de login ([src/routes/auth/index.tsx](../src/routes/auth/index.tsx)) | Bloqueia qualquer uso real                                                                                                        |
+| 🟡 Média   | Revisar se algum `.env` legado ainda está no histórico do git                                                | `.gitignore` e `.env.example` já existem; confirme que nenhum segredo foi commitado no passado                                    |
+| 🟠 Média   | Investigar os 9 erros de `react-hooks/rules-of-hooks`                                                        | São os únicos erros de lint que apontam bug de execução, não estilo                                                               |
+| 🟠 Média   | Testes automatizados (Vitest para os helpers, Playwright para os fluxos)                                     | Não existe nenhum; comece por `permissions.ts`, `format.ts`, `terms.ts`, `finance-xlsx.ts`                                        |
+| 🟠 Média   | Zerar a dívida de formatação (`prettier --write .` em um PR isolado, sem nenhuma outra mudança)              | Enquanto houver 2.377 erros de estilo, o lint não serve de barreira. Precisa ser um PR só disso, combinado antes com o mantenedor |
+| 🟠 Média   | CI no GitHub Actions rodando lint + build                                                                    | Nenhuma verificação automática hoje — só faz sentido depois de zerar a dívida acima                                               |
+| 🟠 Média   | Script de `typecheck` no `package.json`                                                                      | Erros de tipo só aparecem no editor ou no build                                                                                   |
+| 🟡 Baixa   | Revisão de acessibilidade (navegação por teclado, leitores de tela, contraste)                               | Nunca foi auditada                                                                                                                |
+| 🟡 Baixa   | Corrigir `package.json.name` (ainda `tanstack_start_ts`)                                                     | Herança do template                                                                                                               |
+| 🟡 Baixa   | `CODE_OF_CONDUCT.md` e `SECURITY.md` formais                                                                 | Hoje só existem em resumo, aqui                                                                                                   |
+| 🟡 Baixa   | Decidir o destino de `improveText` e de `supabaseAdmin`                                                      | Ambos existem no código e não são usados por ninguém                                                                              |
 
 Quer ajudar mas não sabe por onde começar? Abra uma issue perguntando — é uma contribuição legítima.
 
@@ -311,13 +318,13 @@ Quer ajudar mas não sabe por onde começar? Abra uma issue perguntando — é u
 
 Não é burocracia. Documentação adiada é documentação nunca escrita, e documentação errada é pior do que documentação nenhuma — as pessoas confiam nela e tomam decisões erradas. O custo de atualizar um parágrafo no PR em que a mudança está fresca é minúsculo perto do custo de descobrir seis meses depois que a doc mente.
 
-| Tipo de mudança | Atualizar |
-| --- | --- |
-| Nova rota, nova *server function*, nova tabela/migration, nova variável de ambiente, nova dependência | [TECNICO.md](./TECNICO.md) |
-| Nova tela, novo campo, ou qualquer fluxo visível para quem usa o sistema | [GUIA-DO-USUARIO.md](./GUIA-DO-USUARIO.md) |
-| Mudança em setup, scripts, convenções ou processo de PR | **este documento** |
-| Mudança em cargo, permissão ou regra de acesso | **os três** |
-| Mudança apenas de estilo, refatoração sem efeito visível | nenhum |
+| Tipo de mudança                                                                                       | Atualizar                                  |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Nova rota, nova _server function_, nova tabela/migration, nova variável de ambiente, nova dependência | [TECNICO.md](./TECNICO.md)                 |
+| Nova tela, novo campo, ou qualquer fluxo visível para quem usa o sistema                              | [GUIA-DO-USUARIO.md](./GUIA-DO-USUARIO.md) |
+| Mudança em setup, scripts, convenções ou processo de PR                                               | **este documento**                         |
+| Mudança em cargo, permissão ou regra de acesso                                                        | **os três**                                |
+| Mudança apenas de estilo, refatoração sem efeito visível                                              | nenhum                                     |
 
 Antes de marcar o PR como pronto:
 
