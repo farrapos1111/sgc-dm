@@ -24,6 +24,7 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
   const drawing = useRef(false);
   const stroked = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const revision = useRef(0);
   const [mode, setMode] = useState<Mode>(() =>
     value?.startsWith("data:image/") ? "upload" : "draw",
   );
@@ -48,9 +49,11 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
     ctx.strokeStyle = "#111";
     ctx.clearRect(0, 0, w, h);
 
+    let cancelled = false;
     if (value?.startsWith("data:image/")) {
       const img = new Image();
       img.onload = () => {
+        if (cancelled) return;
         // Centraliza mantendo proporção (útil para PNG transparente).
         const scale = Math.min(w / img.width, h / img.height, 1);
         const dw = img.width * scale;
@@ -67,6 +70,9 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
       stroked.current = false;
       setHasStroke(false);
     }
+    return () => {
+      cancelled = true;
+    };
   }, [mode, value]);
 
   function pos(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -81,6 +87,7 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
   }
 
   function clear() {
+    revision.current += 1;
     setUploadError(null);
     stroked.current = false;
     setHasStroke(false);
@@ -97,6 +104,7 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
 
   function switchMode(next: Mode) {
     if (disabled || next === mode) return;
+    revision.current += 1;
     setUploadError(null);
     setMode(next);
     // Trocar de modo limpa a assinatura atual para evitar mistura.
@@ -117,18 +125,22 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
       setUploadError("Arquivo muito grande (máx. ~1,5 MB).");
       return;
     }
+    const rev = ++revision.current;
     try {
       const dataUrl = await readFileAsDataUrl(file);
+      if (rev !== revision.current) return;
       if (!isPngDataUrl(dataUrl)) {
         setUploadError("Arquivo PNG inválido.");
         return;
       }
       // Valida se carrega como imagem
       await loadImage(dataUrl);
+      if (rev !== revision.current) return;
       stroked.current = true;
       setHasStroke(true);
       onChange(dataUrl);
     } catch {
+      if (rev !== revision.current) return;
       setUploadError("Não foi possível ler o PNG.");
     }
   }
@@ -228,9 +240,7 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
             accept="image/png,.png"
             className="sr-only"
             disabled={disabled}
-            onChange={(e) =>
-              void onFilePicked(e.target.files?.[0] ?? null)
-            }
+            onChange={(e) => void onFilePicked(e.target.files?.[0] ?? null)}
           />
           {value?.startsWith("data:image/") ? (
             <div
@@ -290,7 +300,8 @@ function readFileAsDataUrl(file: File): Promise<string> {
       if (typeof reader.result === "string") resolve(reader.result);
       else reject(new Error("Leitura inválida"));
     };
-    reader.onerror = () => reject(reader.error ?? new Error("Falha na leitura"));
+    reader.onerror = () =>
+      reject(reader.error ?? new Error("Falha na leitura"));
     reader.readAsDataURL(file);
   });
 }

@@ -763,7 +763,9 @@ export function TicketComandaDialog({
     setItemId(id);
     const it = items.find((i) => i.id === id);
     setPrice(
-      it?.unit_price == null ? "" : formatMoneyFromNumber(Number(it.unit_price)),
+      it?.unit_price == null
+        ? ""
+        : formatMoneyFromNumber(Number(it.unit_price)),
     );
   }
 
@@ -776,8 +778,7 @@ export function TicketComandaDialog({
   const hasPending =
     (hasTicketCharge && !ticketFullyPaid) || unpaidLines.length > 0;
 
-  const dialogShell =
-    "w-[calc(100vw-1.5rem)] overflow-x-hidden p-4 sm:p-6";
+  const dialogShell = "w-[calc(100vw-1.5rem)] overflow-x-hidden p-4 sm:p-6";
 
   return (
     <>
@@ -1022,7 +1023,9 @@ export function TicketComandaDialog({
                             disabled={
                               !itemId ||
                               add.isPending ||
-                              !(Number.isInteger(parsedQty) && parsedQty >= 1) ||
+                              !(
+                                Number.isInteger(parsedQty) && parsedQty >= 1
+                              ) ||
                               !(
                                 (price.trim() === "" &&
                                   selected?.unit_price != null) ||

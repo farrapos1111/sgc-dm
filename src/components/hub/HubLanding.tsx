@@ -8,9 +8,7 @@ import {
 } from "@/lib/realm";
 import { cn } from "@/lib/utils";
 import { SupademoEmbed } from "@/components/hub/SupademoEmbed";
-import {
-  useHubHostGuard,
-} from "@/components/hub/useHubSession";
+import { useHubHostGuard } from "@/components/hub/useHubSession";
 import "./hub-landing.css";
 
 const PIX_KEY = "pix@templovirtual.com.br";

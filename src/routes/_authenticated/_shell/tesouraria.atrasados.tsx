@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Copy,
@@ -116,6 +116,10 @@ function Atrasados() {
   const [reportText, setReportText] = useState("");
 
   const chapterId = active?.chapter_id;
+
+  useEffect(() => {
+    setObservations({});
+  }, [year, chapterId]);
   const duesEnabled = isChapterDuesEnabled(active?.chapter);
   const defaultFromSettings = getChapterDefaultDuesAmount(active?.chapter);
   const pixKey =
@@ -143,12 +147,12 @@ function Atrasados() {
   });
 
   const { data: charges = [] } = useQuery({
-    queryKey: ["member-charges", chapterId, "atrasados"],
+    queryKey: ["member-charges", chapterId, "atrasados", year],
     enabled: !!chapterId && duesEnabled,
     staleTime: DUES_STALE_MS,
     queryFn: () =>
       listMemberCharges({
-        data: { chapterId: chapterId!, status: "em_aberto" },
+        data: { chapterId: chapterId!, status: "em_aberto", year },
       }),
   });
 
@@ -156,8 +160,7 @@ function Atrasados() {
     queryKey: ["finance-signers", chapterId],
     enabled: !!chapterId && duesEnabled,
     staleTime: 5 * 60_000,
-    queryFn: () =>
-      getFinanceSigners({ data: { chapterId: chapterId! } }),
+    queryFn: () => getFinanceSigners({ data: { chapterId: chapterId! } }),
   });
 
   const treasurerName =
@@ -238,9 +241,7 @@ function Atrasados() {
     const q = search.trim().toLowerCase();
     let list = rows;
     if (q) {
-      list = list.filter((r) =>
-        r.member.full_name.toLowerCase().includes(q),
-      );
+      list = list.filter((r) => r.member.full_name.toLowerCase().includes(q));
     }
     if (onlyOverdue) {
       list = list.filter(
@@ -284,9 +285,7 @@ function Atrasados() {
 
   function reportMembersFrom(list: MemberRow[]) {
     return list
-      .filter(
-        (r) => r.summary.months.length > 0 || r.openCharges.length > 0,
-      )
+      .filter((r) => r.summary.months.length > 0 || r.openCharges.length > 0)
       .map((r) => ({
         fullName: r.member.full_name,
         months: r.summary.months,
@@ -462,8 +461,7 @@ function Atrasados() {
           variant="outline"
           onClick={openReport}
           disabled={displayed.every(
-            (r) =>
-              r.summary.months.length === 0 && r.openCharges.length === 0,
+            (r) => r.summary.months.length === 0 && r.openCharges.length === 0,
           )}
         >
           <FileText className="mr-1.5 h-4 w-4" />
@@ -523,21 +521,17 @@ function Atrasados() {
             const openOnlyCharges = openCharges.filter(
               (c) => c.kind === "em_aberto",
             );
-            const hasOpen =
-              summary.months.length > 0 || openCharges.length > 0;
+            const hasOpen = summary.months.length > 0 || openCharges.length > 0;
             const hasPhone = Boolean(normalizeWhatsAppDigits(member.phone));
             const highlighted =
               summary.overdueCount > 0 || overdueCharges.length > 0;
-            const overdueItems =
-              summary.overdueCount + overdueCharges.length;
+            const overdueItems = summary.overdueCount + overdueCharges.length;
 
             return (
               <li key={member.id}>
                 <Card
                   className={`rounded-[12px] p-3 ${
-                    highlighted
-                      ? "border-rose-200 dark:border-rose-900/60"
-                      : ""
+                    highlighted ? "border-rose-200 dark:border-rose-900/60" : ""
                   }`}
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

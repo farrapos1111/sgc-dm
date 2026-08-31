@@ -51,49 +51,58 @@ export const listEvents = createServerFn({ method: "POST" })
       .map((r) => r.id)
       .filter((id): id is string => !!id);
 
-    const [chargesRes, paysRes, chargeCashRes] = await Promise.all([
-      chargeIds.length > 0
-        ? context.supabase
-            .from("member_charges")
-            .select("id, status, amount")
-            .in("id", chargeIds)
-        : Promise.resolve({
-            data: [] as Array<{
-              id: string;
-              status: string;
-              amount: number | string;
-            }>,
-            error: null,
-          }),
-      chargeIds.length > 0
-        ? context.supabase
-            .from("member_charge_payments")
-            .select("charge_id, amount, cash_entry_id")
-            .in("charge_id", chargeIds)
-        : Promise.resolve({
-            data: [] as Array<{
-              charge_id: string;
-              amount: number | string;
-              cash_entry_id: string | null;
-            }>,
-            error: null,
-          }),
-      cashEntradaIds.length > 0
-        ? context.supabase
-            .from("member_charge_payments")
-            .select("cash_entry_id")
-            .in("cash_entry_id", cashEntradaIds)
-        : Promise.resolve({
-            data: [] as Array<{ cash_entry_id: string | null }>,
-            error: null,
-          }),
-    ]);
-    if (chargesRes.error) throw new Error(chargesRes.error.message);
-    if (paysRes.error) throw new Error(paysRes.error.message);
-    if (chargeCashRes.error) throw new Error(chargeCashRes.error.message);
+    // PostgREST limita URLs; consulta cobranças/pagamentos em lotes.
+    const chunkSize = 200;
+    type ChargeRow = {
+      id: string;
+      status: string;
+      amount: number | string;
+      cash_entry_id: string | null;
+    };
+    type PayRow = {
+      charge_id: string;
+      amount: number | string;
+      cash_entry_id: string | null;
+    };
+    type ChargeCashRow = { cash_entry_id: string | null };
+
+    const chargesData: ChargeRow[] = [];
+    const paysData: PayRow[] = [];
+    const chargeCashData: ChargeCashRow[] = [];
+
+    for (let i = 0; i < chargeIds.length; i += chunkSize) {
+      const chunk = chargeIds.slice(i, i + chunkSize);
+      const [chargesRes, paysRes] = await Promise.all([
+        context.supabase
+          .from("member_charges")
+          .select("id, status, amount, cash_entry_id")
+          .in("id", chunk),
+        context.supabase
+          .from("member_charge_payments")
+          .select("charge_id, amount, cash_entry_id")
+          .in("charge_id", chunk),
+      ]);
+      if (chargesRes.error) throw new Error(chargesRes.error.message);
+      if (paysRes.error) throw new Error(paysRes.error.message);
+      for (const row of chargesRes.data ?? [])
+        chargesData.push(row as ChargeRow);
+      for (const row of paysRes.data ?? []) paysData.push(row as PayRow);
+    }
+
+    for (let i = 0; i < cashEntradaIds.length; i += chunkSize) {
+      const chunk = cashEntradaIds.slice(i, i + chunkSize);
+      const chargeCashRes = await context.supabase
+        .from("member_charge_payments")
+        .select("cash_entry_id")
+        .in("cash_entry_id", chunk);
+      if (chargeCashRes.error) throw new Error(chargeCashRes.error.message);
+      for (const row of chargeCashRes.data ?? []) {
+        chargeCashData.push(row as ChargeCashRow);
+      }
+    }
 
     const paysByCharge = new Map<string, number>();
-    for (const p of paysRes.data ?? []) {
+    for (const p of paysData) {
       paysByCharge.set(
         p.charge_id,
         (paysByCharge.get(p.charge_id) ?? 0) + (Number(p.amount) || 0),
@@ -101,7 +110,7 @@ export const listEvents = createServerFn({ method: "POST" })
     }
 
     const paidByCharge = new Map<string, number>();
-    for (const c of chargesRes.data ?? []) {
+    for (const c of chargesData) {
       const totalDue = Number(c.amount) || 0;
       let amountPaid = paysByCharge.get(c.id) ?? 0;
       if (amountPaid === 0 && c.status === "pago" && totalDue > 0) {
@@ -111,8 +120,12 @@ export const listEvents = createServerFn({ method: "POST" })
     }
 
     const chargeCashIds = new Set<string>();
-    for (const p of chargeCashRes.data ?? []) {
+    for (const p of chargeCashData) {
       if (p.cash_entry_id) chargeCashIds.add(p.cash_entry_id);
+    }
+    // Cobranças legadas quitadas direto por entrada de caixa (sem linha em payments).
+    for (const c of chargesData) {
+      if (c.cash_entry_id) chargeCashIds.add(c.cash_entry_id);
     }
 
     // raised = só valores pagos; spent = saídas do evento até hoje.

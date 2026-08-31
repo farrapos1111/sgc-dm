@@ -1222,9 +1222,7 @@ async function fetchYearDues(
 
   let dues = duesRes.data ?? [];
   const duesMemberIds = [
-    ...new Set(
-      dues.map((d: { member_id: string }) => d.member_id as string),
-    ),
+    ...new Set(dues.map((d: { member_id: string }) => d.member_id as string)),
   ] as string[];
 
   let members = await resolveMembers(
@@ -1845,9 +1843,8 @@ export const getFinanceSigners = createServerFn({ method: "POST" })
     const { year, month } = currentYearMonthInAppTz();
     const semester = (month <= 6 ? 1 : 2) as 1 | 2;
 
-    const { getOfficeSignaturesForChapter } = await import(
-      "@/lib/office-signatures.functions"
-    );
+    const { getOfficeSignaturesForChapter } =
+      await import("@/lib/office-signatures.functions");
     const slots = await getOfficeSignaturesForChapter(context.supabase, {
       chapterId: data.chapterId,
       positionCodes: [
@@ -1889,7 +1886,8 @@ export const getFinanceSigners = createServerFn({ method: "POST" })
         role: "Conselheiro Consultor",
         name: byCode.conselheiro_consultor?.memberName ?? "",
         demolayId: byCode.conselheiro_consultor?.demolayId ?? null,
-        signatureDataUrl: byCode.conselheiro_consultor?.signatureDataUrl ?? null,
+        signatureDataUrl:
+          byCode.conselheiro_consultor?.signatureDataUrl ?? null,
         positionCode: "conselheiro_consultor",
       },
     ];
@@ -1998,6 +1996,7 @@ export const listMemberCharges = createServerFn({ method: "POST" })
           .enum(["all", "em_aberto", "pago", "isento"])
           .optional()
           .default("all"),
+        year: z.number().int().optional(),
       })
       .parse(raw),
   )
@@ -2013,6 +2012,11 @@ export const listMemberCharges = createServerFn({ method: "POST" })
         .order("id", { ascending: false })
         .range(from, to);
       if (data.status !== "all") query = query.eq("status", data.status);
+      if (data.year != null) {
+        query = query
+          .gte("due_date", `${data.year}-01-01`)
+          .lte("due_date", `${data.year}-12-31`);
+      }
       return query;
     });
 
@@ -2029,7 +2033,8 @@ export const listMemberCharges = createServerFn({ method: "POST" })
       // Cobranças de R$ 0 (ex.: ingresso gratuito) não entram na lista.
       if ((Number(r.amount) || 0) < 0.01) return false;
       if (r.status !== "pago") return true;
-      const paidAt = typeof r.paid_at === "string" ? r.paid_at.slice(0, 10) : "";
+      const paidAt =
+        typeof r.paid_at === "string" ? r.paid_at.slice(0, 10) : "";
       if (!paidAt) return true;
       return paidAt >= cutoff;
     });
@@ -2146,7 +2151,10 @@ export const addChargePayment = createServerFn({ method: "POST" })
     const memberName = Array.isArray(memberJoin)
       ? memberJoin[0]?.full_name
       : memberJoin?.full_name;
-    const cashDescription = chargeCashDescription(charge.description, memberName);
+    const cashDescription = chargeCashDescription(
+      charge.description,
+      memberName,
+    );
     const reusedId = await findReusableChargeCashEntry(context.supabase, {
       chapterId: data.chapterId,
       kind: charge.kind,
@@ -2306,7 +2314,10 @@ export const updateChargePayment = createServerFn({ method: "POST" })
     const memberName = Array.isArray(memberJoin)
       ? memberJoin[0]?.full_name
       : memberJoin?.full_name;
-    const cashDescription = chargeCashDescription(charge.description, memberName);
+    const cashDescription = chargeCashDescription(
+      charge.description,
+      memberName,
+    );
 
     if (pay.cash_entry_id) {
       const { error: cashErr } = await context.supabase

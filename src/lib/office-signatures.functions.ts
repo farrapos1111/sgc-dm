@@ -36,7 +36,9 @@ async function findMissingOfficeSignatures(
 
   const { data: members, error: memErr } = await supabase
     .from("members")
-    .select("id, chapter_id, chapter:chapters!members_chapter_id_fkey(id, name)")
+    .select(
+      "id, chapter_id, chapter:chapters!members_chapter_id_fkey(id, name)",
+    )
     .eq("user_id", userId);
   if (memErr) throw new Error(memErr.message);
   if (!members?.length) return [];
@@ -105,16 +107,11 @@ async function findMissingOfficeSignatures(
 
   const valid = new Set(
     (existing ?? [])
-      .filter(
-        (s: { signature_data_url?: string | null }) =>
-          Boolean(s.signature_data_url?.trim()),
+      .filter((s: { signature_data_url?: string | null }) =>
+        Boolean(s.signature_data_url?.trim()),
       )
       .map(
-        (s: {
-          member_id: string;
-          chapter_id: string;
-          position_code: string;
-        }) =>
+        (s: { member_id: string; chapter_id: string; position_code: string }) =>
           `${s.member_id}:${s.chapter_id}:${canonicalOfficeSignatureCode(s.position_code)}`,
       ),
   );
@@ -268,7 +265,9 @@ export const listMyOfficeSignatures = createServerFn({ method: "POST" })
 
     let membersQuery = context.supabase
       .from("members")
-      .select("id, chapter_id, full_name, chapter:chapters!members_chapter_id_fkey(id, name)")
+      .select(
+        "id, chapter_id, full_name, chapter:chapters!members_chapter_id_fkey(id, name)",
+      )
       .eq("user_id", context.userId);
     if (data.memberId) {
       membersQuery = membersQuery.eq("id", data.memberId);
@@ -322,8 +321,9 @@ export const listMyOfficeSignatures = createServerFn({ method: "POST" })
       slots.push({
         memberId,
         memberName:
-          (memberRow as { full_name?: string } | undefined)?.full_name?.trim() ||
-          "",
+          (
+            memberRow as { full_name?: string } | undefined
+          )?.full_name?.trim() || "",
         chapterId,
         chapterName:
           (chapter?.name as string | undefined) ||
@@ -361,8 +361,9 @@ export const listMyOfficeSignatures = createServerFn({ method: "POST" })
       const key = `${(s as { member_id: string }).member_id}:${(s as { chapter_id: string }).chapter_id}:${code}`;
       byKey.set(key, {
         signatureDataUrl:
-          (s as { signature_data_url?: string | null }).signature_data_url?.trim() ||
-          null,
+          (
+            s as { signature_data_url?: string | null }
+          ).signature_data_url?.trim() || null,
         updatedAt: (s as { updated_at?: string | null }).updated_at ?? null,
       });
     }
@@ -429,10 +430,12 @@ export async function userHoldsOfficeInChapter(
     .eq("active", true);
   if (mErr) throw new Error(mErr.message);
 
-  const roleNames = (memberships ?? []).map((m: { role?: { name?: string } | { name?: string }[] | null }) => {
-    const r = Array.isArray(m.role) ? m.role[0] : m.role;
-    return r?.name as string | undefined;
-  }).filter(Boolean) as string[];
+  const roleNames = (memberships ?? [])
+    .map((m: { role?: { name?: string } | { name?: string }[] | null }) => {
+      const r = Array.isArray(m.role) ? m.role[0] : m.role;
+      return r?.name as string | undefined;
+    })
+    .filter(Boolean) as string[];
 
   if (roleNames.includes("admin_total")) return true;
 
@@ -441,9 +444,8 @@ export async function userHoldsOfficeInChapter(
     return true;
   }
 
-  const { resolveLinkedMemberIdsForChapter } = await import(
-    "@/lib/resolve-linked-members"
-  );
+  const { resolveLinkedMemberIdsForChapter } =
+    await import("@/lib/resolve-linked-members");
   const memberIds = await resolveLinkedMemberIdsForChapter(supabase, {
     userId: opts.userId,
     chapterId: opts.chapterId,
@@ -480,8 +482,9 @@ export async function assertCanSignAsOffice(
   const ok = await userHoldsOfficeInChapter(supabase, opts);
   if (!ok) {
     const label =
-      OFFICE_SIGNATURE_LABELS[canonicalOfficeSignatureCode(opts.positionCode)] ??
-      opts.positionCode;
+      OFFICE_SIGNATURE_LABELS[
+        canonicalOfficeSignatureCode(opts.positionCode)
+      ] ?? opts.positionCode;
     throw new Error(
       `Você não ocupa o cargo de ${label} neste capítulo para assinar.`,
     );
@@ -554,7 +557,9 @@ export async function getOfficeSignaturesForChapter(
     });
   }
 
-  const memberIds = [...new Set([...holderByCode.values()].map((h) => h.memberId))];
+  const memberIds = [
+    ...new Set([...holderByCode.values()].map((h) => h.memberId)),
+  ];
   const sigByKey = new Map<string, string>();
 
   if (memberIds.length > 0) {
@@ -567,7 +572,9 @@ export async function getOfficeSignaturesForChapter(
     if (sigErr) throw new Error(sigErr.message);
 
     for (const s of sigs ?? []) {
-      const url = (s as { signature_data_url?: string }).signature_data_url?.trim();
+      const url = (
+        s as { signature_data_url?: string }
+      ).signature_data_url?.trim();
       if (!url) continue;
       const code = canonicalOfficeSignatureCode(
         (s as { position_code: string }).position_code,
@@ -580,7 +587,7 @@ export async function getOfficeSignaturesForChapter(
   return codes.map((code) => {
     const holder = holderByCode.get(code);
     const signatureDataUrl = holder
-      ? sigByKey.get(`${holder.memberId}:${code}`) ?? null
+      ? (sigByKey.get(`${holder.memberId}:${code}`) ?? null)
       : null;
     return {
       positionCode: code,

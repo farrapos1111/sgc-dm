@@ -63,9 +63,7 @@ export function MyOfficeSignaturesPanel({ memberId }: { memberId: string }) {
   if (listQ.isLoading) {
     return (
       <Card className="rounded-[12px] p-5">
-        <p className="text-sm text-muted-foreground">
-          Carregando assinaturas…
-        </p>
+        <p className="text-sm text-muted-foreground">Carregando assinaturas…</p>
       </Card>
     );
   }

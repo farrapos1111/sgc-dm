@@ -6,7 +6,7 @@ import {
   isDueOverdue,
   isFutureMonth,
   MONTH_LONG,
-  type DueMemberLite,
+  type DueMemberAutoInput,
 } from "@/lib/dues-rules";
 
 export type ReminderMonthKind = "atrasado" | "vencimento_hoje";
@@ -42,6 +42,7 @@ type DueLike = {
   competence_year: number;
   competence_month: number;
   status: string;
+  amount?: number | string | null;
 };
 
 type ChargeLike = {
@@ -127,7 +128,7 @@ export function classifyOpenMonthsForMember(
   dues: DueLike[],
   defaultAmount: number,
   today: Date = new Date(),
-  member?: Pick<DueMemberLite, "kind" | "birth_date" | "iniciacao_ordem" | "exam_grau_iniciatico" | "status" | "awayPeriods"> | null,
+  member?: DueMemberAutoInput | null,
 ): ReminderMemberSummary {
   const months: ReminderMonthLine[] = [];
   for (let month = 1; month <= 12; month++) {
@@ -142,7 +143,7 @@ export function classifyOpenMonthsForMember(
     if (!due) continue;
     if (due.status !== "em_aberto") continue;
     // Senior / iniciação / janeiro etc.: não cobrar mesmo se a linha estiver desatualizada.
-    if (member && autoDueStatus(member as DueMemberLite, year, month) !== "em_aberto") {
+    if (member && autoDueStatus(member, year, month) !== "em_aberto") {
       continue;
     }
 
@@ -158,7 +159,9 @@ export function classifyOpenMonthsForMember(
   }
 
   const overdueCount = months.filter((m) => m.kind === "atrasado").length;
-  const currentCount = months.filter((m) => m.kind === "vencimento_hoje").length;
+  const currentCount = months.filter(
+    (m) => m.kind === "vencimento_hoje",
+  ).length;
   const total = months.reduce((s, m) => s + m.amount, 0);
   return { months, overdueCount, currentCount, total };
 }
@@ -169,7 +172,9 @@ export function firstNameFromFullName(fullName: string): string {
 }
 
 /** Digits for wa.me; BR 10/11 → prefix 55. */
-export function normalizeWhatsAppDigits(phone: string | null | undefined): string | null {
+export function normalizeWhatsAppDigits(
+  phone: string | null | undefined,
+): string | null {
   if (!phone) return null;
   let digits = phone.replace(/\D/g, "");
   if (!digits) return null;
@@ -227,12 +232,7 @@ export function buildReminderMessage(opts: {
 
   const pix = opts.pixKey?.trim();
   if (pix) {
-    parts.push(
-      "",
-      "Para facilitar sua vida, você pode pagar no pix:",
-      "",
-      pix,
-    );
+    parts.push("", "Para facilitar sua vida, você pode pagar no pix:", "", pix);
   }
 
   parts.push("", "Estou à disposição para qualquer dúvida. Um abraço!");
@@ -263,10 +263,7 @@ export function buildOverdueReportMessage(opts: {
   generatedAt?: Date;
 }): string {
   const withDebt = opts.members.filter(
-    (m) =>
-      m.grandTotal > 0 ||
-      m.months.length > 0 ||
-      m.charges.length > 0,
+    (m) => m.grandTotal > 0 || m.months.length > 0 || m.charges.length > 0,
   );
   const when = opts.generatedAt ?? new Date();
   const dateLabel = formatDateBR(
@@ -294,11 +291,8 @@ export function buildOverdueReportMessage(opts: {
     if (m.months.length) {
       parts.push("Mensalidades:");
       for (const month of m.months) {
-        const tag =
-          month.kind === "atrasado" ? "atrasado" : "vencimento hoje";
-        parts.push(
-          `- ${month.label} - ${formatBRL(month.amount)} (${tag})`,
-        );
+        const tag = month.kind === "atrasado" ? "atrasado" : "vencimento hoje";
+        parts.push(`- ${month.label} - ${formatBRL(month.amount)} (${tag})`);
       }
       parts.push("");
     }

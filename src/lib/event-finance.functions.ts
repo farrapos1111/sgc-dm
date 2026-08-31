@@ -21,7 +21,10 @@ export function normalizeFinanceNameKey(name: string) {
 }
 
 export function isBudgetCategoryName(name: string) {
-  return normalizeFinanceNameKey(name) === normalizeFinanceNameKey(BUDGET_CATEGORY_NAME);
+  return (
+    normalizeFinanceNameKey(name) ===
+    normalizeFinanceNameKey(BUDGET_CATEGORY_NAME)
+  );
 }
 
 export type EventFinanceCategory = {
@@ -176,7 +179,10 @@ export const listEventFinance = createServerFn({ method: "POST" })
     if (!event.data) throw new Error("Evento não encontrado");
     const eventRow = event.data;
 
-    const soldByType = new Map<string | null, { count: number; raised: number }>();
+    const soldByType = new Map<
+      string | null,
+      { count: number; raised: number }
+    >();
     for (const t of tickets.data ?? []) {
       if (t.status === "cancelado") continue;
       const key = t.ticket_type_id;
@@ -274,8 +280,7 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
     if (data.from) q = q.gte("entry_date", data.from);
     // Lançamentos futuros (após hoje) ainda não contabilizam.
     const today = todayYmd();
-    const untilCap =
-      data.until && data.until < today ? data.until : today;
+    const untilCap = data.until && data.until < today ? data.until : today;
     q = q.lte("entry_date", untilCap);
 
     const { data: entries, error } = await q.order("entry_date", {
@@ -294,32 +299,38 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
       .gt("entry_date", today)
       .order("entry_date", { ascending: true });
 
-    const [scheduledRes, itemsRes, catsRes, typesRes, ticketsRes, ticketItemsRes] =
-      await Promise.all([
-        scheduledQ,
-        context.supabase
-          .from("event_finance_items")
-          .select("id, category_id, name")
-          .eq("event_id", data.eventId),
-        context.supabase
-          .from("event_finance_categories")
-          .select("id, name")
-          .eq("event_id", data.eventId),
-        context.supabase
-          .from("ticket_types")
-          .select("id, name")
-          .eq("event_id", data.eventId),
-        context.supabase
-          .from("tickets")
-          .select(
-            "id, ticket_type_id, price_paid, status, sold_at, seller_charge_id, seller_member_id, buyer_name",
-          )
-          .eq("event_id", data.eventId),
-        context.supabase
-          .from("event_ticket_items")
-          .select("ticket_id, item_id, qty, amount, cash_entry_id")
-          .eq("event_id", data.eventId),
-      ]);
+    const [
+      scheduledRes,
+      itemsRes,
+      catsRes,
+      typesRes,
+      ticketsRes,
+      ticketItemsRes,
+    ] = await Promise.all([
+      scheduledQ,
+      context.supabase
+        .from("event_finance_items")
+        .select("id, category_id, name")
+        .eq("event_id", data.eventId),
+      context.supabase
+        .from("event_finance_categories")
+        .select("id, name")
+        .eq("event_id", data.eventId),
+      context.supabase
+        .from("ticket_types")
+        .select("id, name")
+        .eq("event_id", data.eventId),
+      context.supabase
+        .from("tickets")
+        .select(
+          "id, ticket_type_id, price_paid, status, sold_at, seller_charge_id, seller_member_id, buyer_name",
+        )
+        .eq("event_id", data.eventId),
+      context.supabase
+        .from("event_ticket_items")
+        .select("ticket_id, item_id, qty, amount, cash_entry_id")
+        .eq("event_id", data.eventId),
+    ]);
     if (scheduledRes.error) throw new Error(scheduledRes.error.message);
     if (itemsRes.error) throw new Error(itemsRes.error.message);
     if (catsRes.error) throw new Error(catsRes.error.message);
@@ -380,7 +391,10 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
             error: null,
           }),
       sellerIds.length > 0
-        ? context.supabase.from("members").select("id, full_name").in("id", sellerIds)
+        ? context.supabase
+            .from("members")
+            .select("id, full_name")
+            .in("id", sellerIds)
         : Promise.resolve({
             data: [] as Array<{ id: string; full_name: string }>,
             error: null,
@@ -612,9 +626,13 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
     }
 
     openLines.sort((a, b) => {
-      const seller = (a.sellerName || "—").localeCompare(b.sellerName || "—", "pt-BR", {
-        sensitivity: "base",
-      });
+      const seller = (a.sellerName || "—").localeCompare(
+        b.sellerName || "—",
+        "pt-BR",
+        {
+          sensitivity: "base",
+        },
+      );
       if (seller !== 0) return seller;
       const buyer = a.buyerName.localeCompare(b.buyerName, "pt-BR", {
         sensitivity: "base",
@@ -783,11 +801,13 @@ export const upsertEventFinanceItem = createServerFn({ method: "POST" })
         .eq("event_id", data.eventId);
       if (error) throw new Error(error.message);
     } else {
-      const { error } = await context.supabase.from("event_finance_items").insert({
-        ...payload,
-        event_id: data.eventId,
-        chapter_id: data.chapterId,
-      });
+      const { error } = await context.supabase
+        .from("event_finance_items")
+        .insert({
+          ...payload,
+          event_id: data.eventId,
+          chapter_id: data.chapterId,
+        });
       if (error) throw new Error(error.message);
     }
     return { ok: true };
@@ -853,7 +873,8 @@ async function ensureBudgetFinanceItem(
     .select("id, name")
     .single();
   if (catErr) throw new Error(catErr.message);
-  if (!cat) throw new Error("Não foi possível resolver a categoria de Orçamento");
+  if (!cat)
+    throw new Error("Não foi possível resolver a categoria de Orçamento");
 
   const name = expenseName.trim();
   const expenseKey = normalizeFinanceNameKey(name);
@@ -905,9 +926,7 @@ async function assertBudgetCashEntry(
 ) {
   const { data: entry, error } = await supabase
     .from("cash_entries")
-    .select(
-      "id, event_id, chapter_id, kind, category, event_finance_item_id",
-    )
+    .select("id, event_id, chapter_id, kind, category, event_finance_item_id")
     .eq("id", entryId)
     .eq("event_id", eventId)
     .maybeSingle();
@@ -967,18 +986,20 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
     );
     const fields = formatBudgetExpenseFields(event.name, item.name);
 
-    const { error: cashErr } = await context.supabase.from("cash_entries").insert({
-      chapter_id: data.chapterId,
-      kind: "saida",
-      category: "Eventos",
-      subcategory: fields.subcategory,
-      description: fields.description,
-      amount: data.amount,
-      entry_date: data.entry_date,
-      event_id: data.eventId,
-      event_finance_item_id: item.id,
-      created_by: context.userId,
-    });
+    const { error: cashErr } = await context.supabase
+      .from("cash_entries")
+      .insert({
+        chapter_id: data.chapterId,
+        kind: "saida",
+        category: "Eventos",
+        subcategory: fields.subcategory,
+        description: fields.description,
+        amount: data.amount,
+        entry_date: data.entry_date,
+        event_id: data.eventId,
+        event_finance_item_id: item.id,
+        created_by: context.userId,
+      });
     if (cashErr) throw new Error(cashErr.message);
 
     return { ok: true, label: fields.description };
@@ -1093,7 +1114,8 @@ export const listEventBudgetExpenses = createServerFn({ method: "POST" })
         description: (r.description as string | null) ?? null,
         amount: Number(r.amount),
         entry_date: r.entry_date as string,
-        event_finance_item_id: (r.event_finance_item_id as string | null) ?? null,
+        event_finance_item_id:
+          (r.event_finance_item_id as string | null) ?? null,
         created_at: r.created_at as string,
         name: itemOne?.name?.trim() || null,
       };
@@ -1334,9 +1356,7 @@ async function assertComandaEditable(
     .maybeSingle();
   if (cinErr) throw new Error(cinErr.message);
   if (!checkin) {
-    throw new Error(
-      "Comanda disponível somente após o check-in no evento",
-    );
+    throw new Error("Comanda disponível somente após o check-in no evento");
   }
 }
 
@@ -1500,9 +1520,7 @@ export const getComandaCheckout = createServerFn({ method: "POST" })
         location: event.location,
         chapter_id: event.chapter_id,
       },
-      chapterName: chapter
-        ? `${chapter.name} nº ${chapter.number}`
-        : null,
+      chapterName: chapter ? `${chapter.name} nº ${chapter.number}` : null,
       pixKey: pixKey || null,
       pixQrPath: pixQrPath || null,
       ticket: {
@@ -1544,7 +1562,10 @@ export const payEventTicketItem = createServerFn({ method: "POST" })
     z
       .object({
         lineId: z.string().uuid(),
-        paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        paidAt: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
         tender: z.enum(["pix", "dinheiro"]).optional(),
         amount: z.number().positive().optional(),
       })
@@ -1735,8 +1756,16 @@ export const listEventComandaAudit = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
     eventIdInput
       .extend({
-        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
-        until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+        from: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional()
+          .nullable(),
+        until: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional()
+          .nullable(),
       })
       .parse(raw),
   )
@@ -1749,11 +1778,9 @@ export const listEventComandaAudit = createServerFn({ method: "POST" })
     if (evErr) throw new Error(evErr.message);
     if (!event) throw new Error("Evento não encontrado");
 
-    const email =
-      (context.claims as { email?: string } | null)?.email ?? null;
-    const { userHoldsOfficeInChapter } = await import(
-      "@/lib/office-signatures.functions"
-    );
+    const email = (context.claims as { email?: string } | null)?.email ?? null;
+    const { userHoldsOfficeInChapter } =
+      await import("@/lib/office-signatures.functions");
     const canView = await userHoldsOfficeInChapter(context.supabase, {
       userId: context.userId,
       chapterId: event.chapter_id,
@@ -1767,17 +1794,8 @@ export const listEventComandaAudit = createServerFn({ method: "POST" })
     }
 
     const { start, endExclusive } = ymdRangeIso(data.from, data.until);
-    let logsQuery = context.supabase
-      .from("audit_logs")
-      .select("id, action, new_value, old_value, user_id, created_at, record_id")
-      .eq("chapter_id", event.chapter_id)
-      .in("action", [...COMANDA_AUDIT_ACTIONS])
-      .order("created_at", { ascending: false })
-      .limit(2000);
-    if (start) logsQuery = logsQuery.gte("created_at", start);
-    if (endExclusive) logsQuery = logsQuery.lt("created_at", endExclusive);
 
-    const [ticketsRes, linesRes, logsRes] = await Promise.all([
+    const [ticketsRes, linesRes] = await Promise.all([
       context.supabase
         .from("tickets")
         .select("id, buyer_name")
@@ -1786,25 +1804,88 @@ export const listEventComandaAudit = createServerFn({ method: "POST" })
         .from("event_ticket_items")
         .select("id, item_id, ticket_id")
         .eq("event_id", data.eventId),
-      logsQuery,
     ]);
     if (ticketsRes.error) throw new Error(ticketsRes.error.message);
     if (linesRes.error) throw new Error(linesRes.error.message);
-    if (logsRes.error) throw new Error(logsRes.error.message);
 
     const ticketIds = new Set((ticketsRes.data ?? []).map((t) => t.id));
     const buyerByTicket = new Map(
-      (ticketsRes.data ?? []).map((t) => [
-        t.id,
-        jsonString(t.buyer_name),
-      ]),
+      (ticketsRes.data ?? []).map((t) => [t.id, jsonString(t.buyer_name)]),
     );
     const lineIds = new Set((linesRes.data ?? []).map((l) => l.id));
     const itemIdByLine = new Map(
       (linesRes.data ?? []).map((l) => [l.id, l.item_id as string]),
     );
 
-    const matched = (logsRes.data ?? []).filter((row) => {
+    type AuditLogRow = {
+      id: string;
+      action: string;
+      new_value: unknown;
+      old_value: unknown;
+      user_id: string | null;
+      created_at: string;
+      record_id: string | null;
+    };
+
+    const byId = new Map<string, AuditLogRow>();
+    const pushRows = (rows: AuditLogRow[] | null | undefined) => {
+      for (const row of rows ?? []) byId.set(row.id, row);
+    };
+
+    const baseLogs = () => {
+      let q = context.supabase
+        .from("audit_logs")
+        .select(
+          "id, action, new_value, old_value, user_id, created_at, record_id",
+        )
+        .eq("chapter_id", event.chapter_id)
+        .in("action", [...COMANDA_AUDIT_ACTIONS])
+        .order("created_at", { ascending: false })
+        .limit(2000);
+      if (start) q = q.gte("created_at", start);
+      if (endExclusive) q = q.lt("created_at", endExclusive);
+      return q;
+    };
+
+    // Caminho normal: event_id no payload (filtra antes do limit).
+    const byEventRes = await baseLogs().filter(
+      "new_value->>event_id",
+      "eq",
+      data.eventId,
+    );
+    if (byEventRes.error) throw new Error(byEventRes.error.message);
+    pushRows(byEventRes.data as AuditLogRow[] | null);
+
+    // Legado (comanda): record_id = linha do evento, sem depender do event_id no JSON.
+    const lineIdList = [...lineIds];
+    const chunkSize = 200;
+    for (let i = 0; i < lineIdList.length; i += chunkSize) {
+      const chunk = lineIdList.slice(i, i + chunkSize);
+      const legacyRes = await baseLogs().in("record_id", chunk);
+      if (legacyRes.error) throw new Error(legacyRes.error.message);
+      pushRows(legacyRes.data as AuditLogRow[] | null);
+    }
+
+    // Legado (ticket): ticket_id no JSON pertencente a este evento.
+    const ticketIdList = [...ticketIds];
+    for (let i = 0; i < ticketIdList.length; i += chunkSize) {
+      const chunk = ticketIdList.slice(i, i + chunkSize);
+      const legacyTicketRes = await baseLogs().filter(
+        "new_value->>ticket_id",
+        "in",
+        `(${chunk.map((id) => `"${id}"`).join(",")})`,
+      );
+      if (legacyTicketRes.error) throw new Error(legacyTicketRes.error.message);
+      pushRows(legacyTicketRes.data as AuditLogRow[] | null);
+    }
+
+    const logsResData = [...byId.values()]
+      .sort((a, b) =>
+        a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0,
+      )
+      .slice(0, 2000);
+
+    const matched = logsResData.filter((row) => {
       const nv = jsonObject(row.new_value);
       const eventId = jsonString(nv?.event_id);
       if (eventId === data.eventId) return true;
@@ -1836,7 +1917,10 @@ export const listEventComandaAudit = createServerFn({ method: "POST" })
             .from("event_finance_items")
             .select("id, name")
             .in("id", [...itemIds])
-        : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+        : Promise.resolve({
+            data: [] as { id: string; name: string }[],
+            error: null,
+          }),
       userIds.length > 0
         ? context.supabase
             .from("profiles")
@@ -1867,7 +1951,7 @@ export const listEventComandaAudit = createServerFn({ method: "POST" })
       const ticketId = jsonString(nv?.ticket_id);
       const itemId =
         jsonString(nv?.item_id) ??
-        (row.record_id ? itemIdByLine.get(row.record_id) ?? null : null);
+        (row.record_id ? (itemIdByLine.get(row.record_id) ?? null) : null);
       return {
         id: row.id,
         action: row.action,
@@ -1878,13 +1962,13 @@ export const listEventComandaAudit = createServerFn({ method: "POST" })
         severity: classifyAuditSeverity(row.action, nv),
         buyerName:
           jsonString(nv?.buyer_name) ??
-          (ticketId ? buyerByTicket.get(ticketId) ?? null : null),
+          (ticketId ? (buyerByTicket.get(ticketId) ?? null) : null),
         itemName:
           jsonString(nv?.item_name) ??
           jsonString(nv?.name) ??
           jsonString(nv?.label) ??
           jsonString(nv?.ticket_type_name) ??
-          (itemId ? itemNameById.get(itemId) ?? null : null),
+          (itemId ? (itemNameById.get(itemId) ?? null) : null),
         qty: jsonNumber(nv?.qty) ?? jsonNumber(newV?.qty),
         amount:
           jsonNumber(nv?.amount) ??
@@ -1894,9 +1978,15 @@ export const listEventComandaAudit = createServerFn({ method: "POST" })
         tender: jsonString(nv?.tender),
         remaining: jsonNumber(nv?.remaining),
         oldQty: jsonNumber(oldV?.qty),
-        oldAmount: jsonNumber(oldV?.amount) ?? jsonNumber(oldV?.price_paid),
+        oldAmount:
+          jsonNumber(oldV?.amount) ??
+          jsonNumber(oldV?.price_paid) ??
+          jsonNumber(oldV?.price),
         newQty: jsonNumber(newV?.qty),
-        newAmount: jsonNumber(newV?.amount),
+        newAmount:
+          jsonNumber(newV?.amount) ??
+          jsonNumber(newV?.price_paid) ??
+          jsonNumber(newV?.price),
         capacity: jsonNumber(nv?.capacity) ?? jsonNumber(nv?.quantity_total),
         oldCapacity:
           jsonNumber(oldV?.capacity) ?? jsonNumber(oldV?.quantity_total),
