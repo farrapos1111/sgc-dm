@@ -1,7 +1,11 @@
 /** Resolução das variáveis dinâmicas entre colchetes nos modelos de ata/ofício. */
 
 import { formatChapterIdentity } from "@/lib/chapter-label";
-import { datePartsInAppTz, formatTimeInAppTz, APP_TIMEZONE } from "@/lib/timezone";
+import {
+  datePartsInAppTz,
+  formatTimeInAppTz,
+  APP_TIMEZONE,
+} from "@/lib/timezone";
 import { matchesLooseSearch, normalizeSearch } from "@/lib/utils";
 
 export type MinuteVarContext = {
@@ -142,11 +146,12 @@ export function buildVarMap(ctx: MinuteVarContext): Record<string, string> {
   const start = ctx.date ? new Date(ctx.date) : new Date();
   const parts = datePartsInAppTz(start);
   const officers = ctx.officers ?? {};
-  /** Ex.: "Farrapos Nº 1111" (sem cidade). */
+  /** Ex.: "Farrapos Nº 1111 — Cidade". */
   const capitulo = ctx.chapterName?.trim()
     ? formatChapterIdentity({
         name: ctx.chapterName,
         number: ctx.chapterNumber,
+        city: ctx.chapterCity,
       })
     : "";
   const dataBr = `${pad2(parts.day)}/${pad2(parts.month)}/${parts.year}`;
@@ -179,10 +184,7 @@ export function buildVarMap(ctx: MinuteVarContext): Record<string, string> {
     ["Local", ctx.location || "[Local]"],
     ["endereco", ctx.address || "[endereco]"],
     ["endereço", ctx.address || "[endereço]"],
-    [
-      "endereço completo",
-      ctx.address || ctx.location || "[endereço completo]",
-    ],
+    ["endereço completo", ctx.address || ctx.location || "[endereço completo]"],
     ["endereco completo", ctx.address || ctx.location || "[endereco completo]"],
     ["Membro_MC", mc || "[Membro_MC]"],
     ["membro_mc", mc || "[membro_mc]"],
@@ -246,7 +248,9 @@ export type MinuteVarMatch = {
 };
 
 /** Detecta variável dinâmica incompleta `[…` imediatamente antes do cursor. */
-export function detectMinuteVar(textBeforeCursor: string): MinuteVarMatch | null {
+export function detectMinuteVar(
+  textBeforeCursor: string,
+): MinuteVarMatch | null {
   const open = textBeforeCursor.lastIndexOf("[");
   if (open < 0) return null;
   const after = textBeforeCursor.slice(open + 1);
@@ -263,9 +267,7 @@ export function filterMinuteVars(
   if (!q) return [...tokens];
   return tokens.filter((token) => {
     const inner = token.slice(1, -1);
-    return (
-      matchesLooseSearch(inner, query) || matchesLooseSearch(token, query)
-    );
+    return matchesLooseSearch(inner, query) || matchesLooseSearch(token, query);
   });
 }
 

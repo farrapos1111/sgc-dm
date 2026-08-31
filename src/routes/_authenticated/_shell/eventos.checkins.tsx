@@ -45,19 +45,21 @@ import {
 import { matchesLooseSearch } from "@/lib/utils";
 import { useEventCheckinRealtime } from "@/hooks/useEventCheckinRealtime";
 
-export const Route = createFileRoute("/_authenticated/_shell/eventos/checkins")({
-  head: () => ({
-    meta: [
-      { title: "Check-ins — Templo Virtual" },
-      {
-        name: "description",
-        content:
-          "Leitura de QR, check-in manual e comanda virtual dos ingressos.",
-      },
-    ],
-  }),
-  component: Checkins,
-});
+export const Route = createFileRoute("/_authenticated/_shell/eventos/checkins")(
+  {
+    head: () => ({
+      meta: [
+        { title: "Check-ins — Templo Virtual" },
+        {
+          name: "description",
+          content:
+            "Leitura de QR, check-in manual e comanda virtual dos ingressos.",
+        },
+      ],
+    }),
+    component: Checkins,
+  },
+);
 
 type CheckinTicketsResult = Awaited<
   ReturnType<typeof listChapterTicketsForCheckin>
@@ -217,10 +219,8 @@ function Checkins() {
     const dir = sortDir === "asc" ? 1 : -1;
     return [...rows].sort((a, b) => {
       if (sortKey === "valor") return (a.price_paid - b.price_paid) * dir;
-      const av =
-        sortKey === "nome" ? a.buyer_name : (a.seller_name ?? "");
-      const bv =
-        sortKey === "nome" ? b.buyer_name : (b.seller_name ?? "");
+      const av = sortKey === "nome" ? a.buyer_name : (a.seller_name ?? "");
+      const bv = sortKey === "nome" ? b.buyer_name : (b.seller_name ?? "");
       return av.localeCompare(bv, "pt-BR", { sensitivity: "base" }) * dir;
     });
   }, [eventTickets, search, sortKey, sortDir, checkinFilter]);
@@ -330,8 +330,9 @@ function Checkins() {
 
       {ticketsTruncated ? (
         <p className="mb-3 text-sm text-amber-700 dark:text-amber-400">
-          Lista limitada aos 2000 ingressos mais recentes. Refine a busca se o
-          ingresso esperado não aparecer.
+          A busca filtra só os 2000 ingressos já carregados (mais recentes) —
+          não recupera ingressos fora desse limite. Use o leitor de QR ou reduza
+          o intervalo de dados no servidor se o ingresso esperado não aparecer.
         </p>
       ) : null}
 
@@ -381,14 +382,17 @@ function Checkins() {
       ) : (
         <>
           <div className="mb-3 space-y-2">
-            <label className="text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor="checkin-event-select"
+              className="text-xs font-medium text-muted-foreground"
+            >
               Evento
             </label>
             <Select
               value={selectedEventId ?? undefined}
               onValueChange={setSelectedEventId}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="checkin-event-select" className="w-full">
                 <SelectValue placeholder="Selecione o evento" />
               </SelectTrigger>
               <SelectContent>
@@ -645,7 +649,9 @@ function Checkins() {
             <div className="space-y-3">
               <div className="rounded-[10px] border border-border bg-muted/40 p-3">
                 <div className="text-xs text-muted-foreground">Evento</div>
-                <div className="text-sm font-semibold">{preview.event.name}</div>
+                <div className="text-sm font-semibold">
+                  {preview.event.name}
+                </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {formatDateTimeBR(preview.event.starts_at)}
                 </div>
@@ -660,7 +666,9 @@ function Checkins() {
               <div className="rounded-[10px] border border-border p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-xs text-muted-foreground">Convidado</div>
+                    <div className="text-xs text-muted-foreground">
+                      Convidado
+                    </div>
                     <div className="truncate text-sm font-semibold">
                       {preview.ticket.buyer_name}
                     </div>
@@ -700,8 +708,8 @@ function Checkins() {
                 </div>
                 {preview.alreadyCheckedIn && preview.checkedInAt && (
                   <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-                    Check-in anterior em {formatDateTimeBR(preview.checkedInAt)}.
-                    Você ainda pode abrir a comanda.
+                    Check-in anterior em {formatDateTimeBR(preview.checkedInAt)}
+                    . Você ainda pode abrir a comanda.
                   </p>
                 )}
               </div>

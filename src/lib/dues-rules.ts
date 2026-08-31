@@ -25,6 +25,17 @@ export type DueMemberLite = {
   manualInclude?: boolean;
 };
 
+/** Campos usados por `autoDueStatus` / isenções automáticas. */
+export type DueMemberAutoInput = Pick<
+  DueMemberLite,
+  | "kind"
+  | "birth_date"
+  | "iniciacao_ordem"
+  | "exam_grau_iniciatico"
+  | "status"
+  | "awayPeriods"
+>;
+
 export type MonthAutoStatus = "em_aberto" | "isento" | "desligado";
 
 function parseYmd(
@@ -90,7 +101,7 @@ export function monthInAwayPeriod(
 
 /** Data de iniciação: iniciacao_ordem, ou exame do grau iniciático como fallback. */
 export function initiationOn(
-  m: DueMemberLite,
+  m: Pick<DueMemberLite, "iniciacao_ordem" | "exam_grau_iniciatico">,
 ): { y: number; m: number; d: number } | null {
   return (
     parseYmd(m.iniciacao_ordem) ?? parseYmd(m.exam_grau_iniciatico ?? null)
@@ -164,7 +175,7 @@ export function memberEligibleForAttendance(
  * - Demais → em_aberto
  */
 export function autoDueStatus(
-  m: DueMemberLite,
+  m: DueMemberAutoInput,
   year: number,
   month: number,
 ): MonthAutoStatus {
@@ -289,7 +300,8 @@ export function isChapterDuesEnabled(
   chapter?: { settings?: Record<string, unknown> | null } | null,
 ): boolean {
   const raw = chapter?.settings?.dues_enabled;
-  if (raw === false || raw === "false" || raw === 0 || raw === "0") return false;
+  if (raw === false || raw === "false" || raw === 0 || raw === "0")
+    return false;
   return true;
 }
 

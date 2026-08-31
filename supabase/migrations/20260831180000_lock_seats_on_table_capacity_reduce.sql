@@ -1,5 +1,4 @@
--- Atualiza rótulo e capacidade da mesa; cria/remove assentos conforme a capacidade.
--- Só remove assentos livres (sem ticket_id) a partir do final.
+-- Trava assentos (FOR UPDATE) ao reduzir capacidade; DELETE só assentos livres.
 
 CREATE OR REPLACE FUNCTION public.update_event_table_with_seats(
   _table_id uuid,

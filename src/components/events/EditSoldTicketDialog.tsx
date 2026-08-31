@@ -122,6 +122,8 @@ export function EditSoldTicketDialog({
     if (next != null) {
       setPrice(String(next));
       setAdvancedOpen(false);
+    } else if (v === "__avulso__") {
+      setAdvancedOpen(true);
     }
   }
 

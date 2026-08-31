@@ -67,10 +67,7 @@ const TESOURARIA_SETTINGS = new Set([
   "dues_share_token",
   "cash_share_token",
 ]);
-const SECRETARIA_SETTINGS = new Set([
-  "minute_passwords",
-  "chave_template",
-]);
+const SECRETARIA_SETTINGS = new Set(["minute_passwords", "chave_template"]);
 
 const MARGIN = 15;
 const LOGO_MAX = 24;
@@ -123,11 +120,7 @@ const LEVE_ACTIONS = new Set([
   "ticket_checkin",
 ]);
 
-const GRAVE_SETTINGS = new Set([
-  "minute_passwords",
-  "pix_key",
-  "pix_qr_path",
-]);
+const GRAVE_SETTINGS = new Set(["minute_passwords", "pix_key", "pix_qr_path"]);
 
 export function auditSeverityLabel(severity: AuditSeverity): string {
   switch (severity) {
@@ -359,6 +352,12 @@ export function formatComandaAuditDetail(row: {
     }
     return parts.length ? parts.join(" · ") : null;
   }
+  if (row.action === "ticket_update") {
+    if (row.oldAmount != null || row.newAmount != null) {
+      parts.push(`${formatBRL(row.oldAmount)} → ${formatBRL(row.newAmount)}`);
+    }
+    return parts.length ? parts.join(" · ") : null;
+  }
   if (
     row.action === "event_table_insert" ||
     row.action === "event_table_update"
@@ -468,6 +467,10 @@ export function formatChapterAuditDetail(
       capacity: asNumber(nv?.capacity) ?? asNumber(nv?.quantity_total),
       oldCapacity: asNumber(ov?.capacity) ?? asNumber(ov?.quantity_total),
       method: asString(nv?.method),
+      oldAmount:
+        asNumber(ov?.amount) ?? asNumber(ov?.price_paid) ?? asNumber(ov?.price),
+      newAmount:
+        asNumber(nv?.amount) ?? asNumber(nv?.price_paid) ?? asNumber(nv?.price),
     });
   }
 
@@ -483,7 +486,8 @@ export function formatChapterAuditDetail(
   const src = nv ?? ov;
   if (!src) return null;
   const parts: string[] = [];
-  const name = asString(src.name) ?? asString(src.description) ?? asString(src.notes);
+  const name =
+    asString(src.name) ?? asString(src.description) ?? asString(src.notes);
   if (name) parts.push(name);
   const amount = asNumber(src.amount);
   if (amount != null) parts.push(formatBRL(amount));

@@ -389,7 +389,7 @@ Modelo versionado: [`.env.example`](../.env.example). Os `.env` / `.env.*` locai
 
 Registrado aqui de propósito, para ninguém descobrir do jeito difícil:
 
-- **Não há testes.** Nenhum framework instalado (sem vitest, jest ou playwright), nenhum arquivo `*.test.*` ou `*.spec.*`.
+- **Não há framework de testes dedicado.** Sem Vitest, Jest ou Playwright instalados; há alguns `*.test.ts` de helpers puros (ex.: `src/lib/cash-totals.test.ts`) rodados pontualmente, sem suíte/CI.
 - **Não há CI.** Não existe `.github/`, Makefile nem Dockerfile.
 - **Não há script de `typecheck`.** Com `noEmit` no tsconfig e sem script dedicado, erros de tipo só aparecem no editor ou no build.
 - **O lint não passa hoje.** `eslint .` reporta ~2.535 erros em 70 arquivos:

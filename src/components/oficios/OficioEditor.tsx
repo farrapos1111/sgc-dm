@@ -116,12 +116,10 @@ export function OficioDraftPanel({
   function varContext() {
     return {
       chapterName: minuteCtx.data?.chapter?.name ?? active?.chapter.name,
-      chapterNumber:
-        minuteCtx.data?.chapter?.number ?? active?.chapter.number,
+      chapterNumber: minuteCtx.data?.chapter?.number ?? active?.chapter.number,
       chapterCity: minuteCtx.data?.chapter?.city ?? active?.chapter.city,
       date: new Date().toISOString(),
-      location:
-        minuteCtx.data?.chapter?.city ?? active?.chapter.city ?? null,
+      location: minuteCtx.data?.chapter?.city ?? active?.chapter.city ?? null,
       address: null as string | null,
       officers: minuteCtx.data?.officers,
     };
@@ -132,7 +130,9 @@ export function OficioDraftPanel({
     const tpl = (templates.data ?? []).find((t) => t.id === id);
     if (!tpl) return;
     if (!minuteCtx.data) {
-      toast.message("Carregando dados do capítulo… tente de novo em instantes.");
+      toast.message(
+        "Carregando dados do capítulo… tente de novo em instantes.",
+      );
       return;
     }
     setBody(applyVars(tpl.body, varContext()));
@@ -154,7 +154,9 @@ export function OficioDraftPanel({
     onSuccess: async (res) => {
       toast.success(`Ofício ${res.label} expedido`);
       void qc.invalidateQueries({ queryKey: ["oficios", chapterId] });
-      void qc.invalidateQueries({ queryKey: ["oficio-issue-context", chapterId] });
+      void qc.invalidateQueries({
+        queryKey: ["oficio-issue-context", chapterId],
+      });
       const row = await getOficio({ data: { id: res.id } });
       onIssued(row);
     },
@@ -274,10 +276,7 @@ export function OficioDraftPanel({
         <Button
           style={{ backgroundColor: "var(--chapter-primary)" }}
           disabled={
-            !canIssue ||
-            !title.trim() ||
-            !preview?.canIssue ||
-            issue.isPending
+            !canIssue || !title.trim() || !preview?.canIssue || issue.isPending
           }
           onClick={() => issue.mutate()}
         >
@@ -322,7 +321,9 @@ function OficioDocumentHeader({
       <p className="text-[11px] font-bold tracking-wide text-foreground">
         SUPREMO CONSELHO DEMOLAY BRASIL
       </p>
-      <p className="mt-1 text-sm font-semibold text-foreground">{chapterName}</p>
+      <p className="mt-1 text-sm font-semibold text-foreground">
+        {chapterName}
+      </p>
       <div className="mx-3 my-3 border-t-2 border-black" />
       <p className="text-base font-bold text-foreground">
         Ofício {formatOficioNumber(number, year)}
@@ -371,9 +372,8 @@ export function OficioViewPanel({ oficio }: ViewProps) {
           onClick={async () => {
             setExporting(true);
             try {
-              const { loadOficioSignatureMap } = await import(
-                "@/lib/oficio-signatures"
-              );
+              const { loadOficioSignatureMap } =
+                await import("@/lib/oficio-signatures");
               const byCode = await loadOficioSignatureMap(active?.chapter_id);
               const { exportOficioPdf } = await import("@/lib/oficio-pdf");
               await exportOficioPdf({

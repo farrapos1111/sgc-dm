@@ -50,7 +50,7 @@ Contribuições são aceitas sob os mesmos termos. O campo `license` no `package
 
 ### Modelo de `.env`
 
-Há um [`.env.example`](../.env.example) na raiz. Copie para o mode que for usar (ex.: `.env.odm` com `bun run dev:odm`) e preencha:
+Há um [`.env.example`](../.env.example) na raiz. Copie para o modo que for usar (ex.: `.env.odm` com `bun run dev:odm`) e preencha:
 
 ```bash
 # ---- Supabase: obrigatórias ----

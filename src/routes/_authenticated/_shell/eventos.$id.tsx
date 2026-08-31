@@ -365,6 +365,11 @@ function EventoDetalhe() {
                 (active?.chapter as { logo_url?: string | null } | undefined)
                   ?.logo_url ?? null
               }
+              spent={
+                financeTotalsQ.data?.spent ??
+                financeTotalsQ.data?.totalExpense ??
+                0
+              }
             />
             <div className="space-y-4">
               <TicketTypesCard
@@ -893,6 +898,7 @@ function TicketsList({
   chapterName,
   chapterCity,
   logoPath,
+  spent = 0,
 }: {
   eventId: string;
   chapterId: string;
@@ -907,6 +913,7 @@ function TicketsList({
   chapterName?: string;
   chapterCity?: string | null;
   logoPath?: string | null;
+  spent?: number;
 }) {
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
@@ -1084,10 +1091,7 @@ function TicketsList({
                     logoPath: logoPath ?? null,
                     eventName: event.name,
                     rows,
-                    spent:
-                      financeTotalsQ.data?.spent ??
-                      financeTotalsQ.data?.totalExpense ??
-                      0,
+                    spent,
                   });
                   toast.success("Relatório de comandas gerado");
                 } catch (e) {
