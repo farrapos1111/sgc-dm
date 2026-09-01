@@ -76,7 +76,7 @@ O painel de abertura. Cumprimenta pelo **primeiro nome** do perfil e mostra, de 
 
 **Membros.** O cadastro completo do capítulo. O formulário é um passo a passo — se o candidato for menor de idade, ele ganha uma etapa a mais para os dados dos responsáveis (até dois, com um definido como principal) e a coleta do consentimento de dados. Cada membro tem sua ficha com histórico de cargos, presenças e graus. O **Mestre Conselheiro** (ou Administrador Total) pode **emitir, ver e revogar** a carteirinha de proficiência CR80 na ficha do membro; o titular a encontra também em **Perfil**.
 
-Na mesma ficha, o MC/Admin Total vê o painel **Acesso ao sistema**: com o e-mail já preenchido na ficha, ele **cria a conta** (senha temporária) ou **vincula** uma conta existente, escolhe o cargo de acesso e pode gerar nova senha temporária ou desativar o acesso ao capítulo. O jovem entra depois com e-mail **ou ID DeMolay** e, no primeiro acesso, redefine a senha.
+Na mesma ficha, o MC/Admin Total vê o painel **Acesso ao sistema**: com o e-mail já preenchido na ficha, ele **cria a conta** ou **vincula** uma conta existente. Na criação, o membro recebe um **e-mail com link para definir a senha** (a senha não vai no e-mail). A senha temporária ainda aparece uma vez na tela, caso o MC precise repassar por outro canal. O jovem entra depois com e-mail **ou ID DeMolay** e, no primeiro acesso com senha temporária, redefine a senha.
 
 **Atas.** Em **Secretaria → Atas**, a aba **Atual** lista cards das atas em andamento (rascunho ou em revisão): nome da sessão, data, situação, assinaturas, PDF e **Acessar ata**. A redação e a aprovação acontecem **só na sessão** (não no hub). Use **Criar nova ata** para escolher uma sessão recente sem registro e ir direto à aba Ata. As atas seguem **rascunho → em revisão → aprovada**. Ainda no rascunho, dá para **compartilhar uma visão pública** (link + senha) para os membros lerem e registrarem *aprovada* ou *reprovada* — reprovação **exige justificativa**. Esse feedback **não substitui** as três assinaturas oficiais (Presidente do Conselho, Mestre Conselheiro e Escrivão). Há modelos editáveis por capítulo e exportação em PDF.
 
@@ -107,7 +107,7 @@ O ponto mais prático: **mensalidade paga vira lançamento no caixa sozinha.** A
 
 ### Comissão de Eventos
 
-Para os eventos de arrecadação. Cria-se o evento, define-se a **arte de fundo do ingresso**, os **tipos de ingresso** com preço e quantidade (editáveis depois), e a venda registra um ou vários ingressos de uma vez. Cada ingresso ganha um **cartão com QR Code** (nome do evento, data, local e número). Há um **mapa de mesas e lugares** para organizar quem senta onde, e o **check-in na portaria é feito pela câmera do celular**, validando número + nome — ou pela busca, se a pessoa esqueceu o ingresso. O envio do ingresso por e-mail está em preparação.
+Para os eventos de arrecadação. Cria-se o evento, define-se a **arte de fundo do ingresso**, os **tipos de ingresso** com preço e quantidade (editáveis depois), e a venda registra um ou vários ingressos de uma vez. Cada ingresso ganha um **cartão com QR Code** (nome do evento, data, local e número). Se a venda tiver e-mail do comprador, o ingresso é **enviado por e-mail** (também dá para reenviar no cartão). Há um **mapa de mesas e lugares** para organizar quem senta onde, e o **check-in na portaria é feito pela câmera do celular**, validando número + nome — ou pela busca, se a pessoa esqueceu o ingresso.
 
 ### Comissão de Sindicâncias
 
@@ -162,7 +162,7 @@ Ao entrar, o sistema pergunta em qual capítulo você quer trabalhar. A escolha 
 Quem tem permissão de Tesouraria pode editar ou excluir o lançamento. Se ele veio de uma mensalidade paga, basta desfazer o pagamento que o lançamento sai junto.
 
 **Perdi o acesso / esqueci a senha.**
-Use **Esqueci a senha** na tela de login (`/auth/recuperar-senha`) com o e-mail da conta. Se ainda não tiver conta, fale com o Administrador Total ou o Mestre Conselheiro — eles criam o acesso na ficha do membro e passam a senha temporária. No primeiro acesso o sistema pede para redefinir a senha.
+Use **Esqueci a senha** na tela de login (`/auth/recuperar-senha`) com o e-mail da conta. Se ainda não tiver conta, fale com o Administrador Total ou o Mestre Conselheiro — eles criam o acesso na ficha do membro; você recebe um e-mail para definir a senha (e o MC ainda pode te passar a senha temporária). No primeiro acesso com senha temporária o sistema pede para redefinir a senha.
 
 **Meu menu não tem a área da comissão que eu presido.**
 As áreas de comissão só aparecem para quem está registrado como membro daquela comissão no semestre corrente. Peça para o Administrador incluir você em **Gestão → Cargos e Comissões**.

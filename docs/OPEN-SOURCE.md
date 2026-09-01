@@ -75,11 +75,12 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-anonima
 # ---- E-mail transacional (Resend) — server-only ----
 # RESEND_API_KEY=re_xxxxxxxx
 # EMAIL_FROM="Templo Virtual <noreply@seudominio.com.br>"
+# Auth hook: supabase/functions/send-email (colar no dashboard; JWT off)
 ```
 
 A chave publicável (anônima) é pública por design — ela é embutida no bundle do navegador e a proteção real vem das políticas RLS do Postgres. Já `SUPABASE_SERVICE_ROLE_KEY` e `RESEND_API_KEY` **nunca** vão para o cliente nem para o repositório — só nos `.env` locais (gitignored) e nos _secrets_ do deploy.
 
-**Resend (manual):** em [resend.com/domains](https://resend.com/domains) adicione o domínio, copie SPF/DKIM (e DMARC se pedido) para o DNS, aguarde **Verified**, depois preencha `RESEND_API_KEY` + `EMAIL_FROM` com um endereço desse domínio. E-mails de Auth do Supabase (reset de senha) usam SMTP separado no painel Supabase — ver [Send with Supabase SMTP](https://resend.com/docs/send-with-supabase-smtp).
+**Resend (manual):** em [resend.com/domains](https://resend.com/domains) adicione o domínio, copie SPF/DKIM (e DMARC se pedido) para o DNS, aguarde **Verified**, depois preencha `RESEND_API_KEY` + `EMAIL_FROM` no Worker (e-mails do app: conta, ingresso, solicitação de organização). E-mails de Auth (reset de senha) usam a Edge Function `send-email` + Send Email Hook — cole o código em [`supabase/functions/send-email`](../supabase/functions/send-email/) no dashboard do **seu** projeto; não faça deploy pelo MCP se ele estiver autenticado em outra org. Passo a passo: [README da function](../supabase/functions/send-email/README.md).
 
 ### Banco de dados
 

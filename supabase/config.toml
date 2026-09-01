@@ -1,1 +1,6 @@
 project_id = "erjficqzodpfqqdurwgt"
+
+# Auth Send Email Hook — JWT off: a Auth assina com SEND_EMAIL_HOOK_SECRET.
+# Deploy desta function é manual no dashboard (não usar MCP/CLI deste workspace).
+[functions.send-email]
+verify_jwt = false

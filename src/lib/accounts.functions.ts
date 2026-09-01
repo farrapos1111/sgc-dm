@@ -9,6 +9,13 @@ import { normalizeDemolayId } from "@/lib/member-identity";
 import { currentTerm } from "@/lib/terms";
 import { isMissingAuthLoginThrottleTable } from "@/lib/auth-throttle-errors";
 import { resolveTrustedClientIp } from "@/lib/trusted-client-ip";
+import {
+  appPublicOrigin,
+  sendTransactionalEmail,
+  summarizeEmailResult,
+  type EmailDeliveryStatus,
+} from "@/lib/email";
+import { accountCreatedEmail } from "@/lib/email-templates";
 
 const passwordSchema = z
   .string()
@@ -461,6 +468,45 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
       member.chapter_id,
     );
 
+    let emailStatus: EmailDeliveryStatus | null = null;
+    let emailError: string | null = null;
+    if (status === "created") {
+      const origin = appPublicOrigin();
+      const { data: linkData, error: linkErr } =
+        await supabaseAdmin.auth.admin.generateLink({
+          type: "recovery",
+          email,
+          options: { redirectTo: `${origin}/auth/nova-senha` },
+        });
+      const setPasswordUrl = linkData?.properties?.action_link;
+      if (linkErr || !setPasswordUrl) {
+        emailStatus = "failed";
+        emailError =
+          linkErr?.message ?? "Não foi possível gerar o link de senha";
+      } else {
+        const { loadChapterEmailAssets } = await import(
+          "@/lib/email-brand.server"
+        );
+        const assets = await loadChapterEmailAssets(member.chapter_id);
+        const copy = accountCreatedEmail({
+          fullName: member.full_name ?? "",
+          loginUrl: `${origin}/auth`,
+          setPasswordUrl,
+          brand: assets.brand,
+        });
+        const mail = await sendTransactionalEmail({
+          to: [email],
+          subject: copy.subject,
+          text: copy.text,
+          html: copy.html,
+          attachments: assets.attachments,
+        });
+        const summary = summarizeEmailResult(mail);
+        emailStatus = summary.status;
+        emailError = summary.error;
+      }
+    }
+
     return {
       status,
       userId,
@@ -469,6 +515,8 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
       temporaryPassword,
       mustChangePassword: mustChange,
       accessSummary: access.accessSummary,
+      emailStatus,
+      emailError,
     };
   });
 
@@ -972,11 +1020,7 @@ export const requestPasswordReset = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const anon = getAnonAuthClient();
-    const origin =
-      process.env.VITE_APP_URL ||
-      process.env.APP_URL ||
-      "http://localhost:8080";
-    const redirectTo = `${origin.replace(/\/$/, "")}/auth/nova-senha`;
+    const redirectTo = `${appPublicOrigin()}/auth/nova-senha`;
     const { error } = await anon.auth.resetPasswordForEmail(
       data.email.trim().toLowerCase(),
       { redirectTo },

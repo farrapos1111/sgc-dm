@@ -4,17 +4,46 @@
  * Sem configuração, retorna skipped (não falha o fluxo chamador).
  */
 
+export type SendEmailAttachment = {
+  filename: string;
+  /** Conteúdo em base64 (sem prefixo data:). */
+  content: string;
+  contentType?: string;
+  /** Para <img src="cid:…"> no HTML. */
+  contentId?: string;
+};
+
 export type SendEmailInput = {
   to: string[];
   subject: string;
   text: string;
   html?: string;
+  attachments?: SendEmailAttachment[];
 };
 
 export type SendEmailResult =
   | { ok: true; id?: string }
   | { ok: false; skipped: true; reason: string }
   | { ok: false; skipped: false; error: string };
+
+export type EmailDeliveryStatus = "sent" | "skipped" | "failed";
+
+export function appPublicOrigin() {
+  return (
+    process.env.VITE_APP_URL ||
+    process.env.APP_URL ||
+    "http://localhost:8080"
+  ).replace(/\/$/, "");
+}
+
+export function summarizeEmailResult(result: SendEmailResult): {
+  status: EmailDeliveryStatus;
+  error: string | null;
+} {
+  if (result.ok) return { status: "sent", error: null };
+  if (result.skipped) return { status: "skipped", error: result.reason };
+  return { status: "failed", error: result.error };
+}
 
 export async function sendTransactionalEmail(
   input: SendEmailInput,
@@ -48,6 +77,16 @@ export async function sendTransactionalEmail(
         subject: input.subject,
         text: input.text,
         ...(input.html ? { html: input.html } : {}),
+        ...(input.attachments?.length
+          ? {
+              attachments: input.attachments.map((a) => ({
+                filename: a.filename,
+                content: a.content,
+                ...(a.contentType ? { content_type: a.contentType } : {}),
+                ...(a.contentId ? { content_id: a.contentId } : {}),
+              })),
+            }
+          : {}),
       }),
     });
     const body = (await res.json().catch(() => ({}))) as {

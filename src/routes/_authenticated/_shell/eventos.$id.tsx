@@ -16,6 +16,7 @@ import {
   updateTicketType,
   deleteTicketType,
   sellTicket,
+  sendTicketEmail,
   createTable,
   updateTable,
   deleteTable,
@@ -105,7 +106,6 @@ import { TicketComandaButton } from "@/components/events/TicketComandaDialog";
 import { EditSoldTicketDialog } from "@/components/events/EditSoldTicketDialog";
 import {
   EVENT_ARTWORK_BUCKET,
-  buildTicketEmailPayload,
   buildTicketPassData,
   ticketQrDataUrl,
   useEventArtwork,
@@ -876,13 +876,14 @@ function TicketArtworkCard({
   );
 }
 
-function notifyTicketEmailSoon(pass: TicketPassData) {
-  const payload = buildTicketEmailPayload(pass);
-  if (!payload) {
-    toast.error("Este ingresso não tem e-mail do comprador");
-    return;
+function toastTicketEmailResult(status: "sent" | "skipped" | "failed" | "none", error?: string | null) {
+  if (status === "sent") {
+    toast.success("Ingresso enviado por e-mail");
+  } else if (status === "skipped") {
+    toast.message(error || "E-mail não enviado (Resend não configurado).");
+  } else if (status === "failed") {
+    toast.error(error || "Não foi possível enviar o ingresso por e-mail");
   }
-  toast.info(`Envio por e-mail em breve — destino: ${payload.to}`);
 }
 
 function TicketsList({
@@ -927,9 +928,11 @@ function TicketsList({
     "all" | "presente" | "ausente" | "pago" | "parcial" | "aberto"
   >("all");
   const [preview, setPreview] = useState<{
+    ticketId: string;
     pass: TicketPassData;
     qrDataUrl: string;
   } | null>(null);
+  const [sendingTicketId, setSendingTicketId] = useState<string | null>(null);
   const [editingTicket, setEditingTicket] = useState<EventTicket | null>(null);
 
   const statusCounts = useMemo(() => {
@@ -1001,6 +1004,15 @@ function TicketsList({
       toast.error(mutationErrorMessage(e, "Erro ao excluir ingresso")),
   });
 
+  const sendEmailMut = useMutation({
+    mutationFn: (ticketId: string) => sendTicketEmail({ data: { ticketId } }),
+    onMutate: (ticketId) => setSendingTicketId(ticketId),
+    onSettled: () => setSendingTicketId(null),
+    onSuccess: (res) => toastTicketEmailResult(res.status, res.error),
+    onError: (e: unknown) =>
+      toast.error(mutationErrorMessage(e, "Falha ao enviar o ingresso")),
+  });
+
   async function showQr(ticket: EventTicket) {
     if (!ticket.qr_code) {
       toast.error("Ingresso sem QR code");
@@ -1017,7 +1029,7 @@ function TicketsList({
       primaryColor: primary,
     });
     const url = await ticketQrDataUrl(ticket.qr_code, ticket.buyer_name);
-    setPreview({ pass, qrDataUrl: url });
+    setPreview({ ticketId: ticket.id, pass, qrDataUrl: url });
   }
 
   return (
@@ -1241,8 +1253,13 @@ function TicketsList({
                 pass={preview.pass}
                 qrDataUrl={preview.qrDataUrl}
                 className="rounded-none border-0 shadow-none"
-                onSendEmail={() => notifyTicketEmailSoon(preview.pass)}
-                sendEmailLabel="Enviar por e-mail (em breve)"
+                onSendEmail={() => sendEmailMut.mutate(preview.ticketId)}
+                sendEmailPending={sendingTicketId === preview.ticketId}
+                sendEmailLabel={
+                  sendingTicketId === preview.ticketId
+                    ? "Enviando…"
+                    : "Enviar por e-mail"
+                }
               />
             )}
           </DialogContent>
@@ -1605,6 +1622,7 @@ function SellTicketCard({
   const [soldPasses, setSoldPasses] = useState<
     Array<{ id: string; pass: TicketPassData; qrDataUrl: string }>
   >([]);
+  const [sendingTicketId, setSendingTicketId] = useState<string | null>(null);
 
   const sellersQ = useQuery({
     queryKey: ["charge-members", chapterId],
@@ -1651,12 +1669,14 @@ function SellTicketCard({
           quantity: Number(quantity),
         },
       }),
-    onSuccess: async (rows) => {
+    onSuccess: async (res) => {
+      const rows = res.tickets;
       toast.success(
         rows.length === 1
           ? "Ingresso vendido · cobrança criada no vendedor"
           : `${rows.length} ingressos vendidos · cobranças criadas no vendedor`,
       );
+      toastTicketEmailResult(res.emailStatus, res.emailError);
       const buyerEmail = email.trim() || null;
       const buyerName = buyer;
       const unitPrice = Number(price);
@@ -1688,6 +1708,15 @@ function SellTicketCard({
       setSoldPasses(passes);
     },
     onError: (e: unknown) => toast.error(mutationErrorMessage(e, "Erro")),
+  });
+
+  const sendEmailMut = useMutation({
+    mutationFn: (ticketId: string) => sendTicketEmail({ data: { ticketId } }),
+    onMutate: (ticketId) => setSendingTicketId(ticketId),
+    onSettled: () => setSendingTicketId(null),
+    onSuccess: (res) => toastTicketEmailResult(res.status, res.error),
+    onError: (e: unknown) =>
+      toast.error(mutationErrorMessage(e, "Falha ao enviar o ingresso")),
   });
 
   return (
@@ -1727,7 +1756,7 @@ function SellTicketCard({
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Para enviar o ingresso depois"
+                  placeholder="Envia o QR automaticamente na venda"
                 />
               </div>
               <div>
@@ -1865,8 +1894,13 @@ function SellTicketCard({
                 key={t.id}
                 pass={t.pass}
                 qrDataUrl={t.qrDataUrl}
-                onSendEmail={() => notifyTicketEmailSoon(t.pass)}
-                sendEmailLabel="Enviar por e-mail (em breve)"
+                onSendEmail={() => sendEmailMut.mutate(t.id)}
+                sendEmailPending={sendingTicketId === t.id}
+                sendEmailLabel={
+                  sendingTicketId === t.id
+                    ? "Enviando…"
+                    : "Enviar por e-mail"
+                }
               />
             ))}
           </div>

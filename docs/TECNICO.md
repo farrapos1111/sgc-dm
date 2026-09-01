@@ -44,8 +44,10 @@ Gerenciador de pacotes: **Bun** (`bun.lock`, `bunfig.toml`). Existe um `package-
 .lovable/            metadados do template + plan.md (spec da camada regional, pt-BR)
 public/              favicon, robots.txt
 supabase/
-  config.toml        project ref
-  migrations/        26 arquivos .sql — a única fonte de verdade do schema
+  config.toml        project ref + [functions.send-email] (verify_jwt = false)
+  functions/         Edge Functions versionadas no repo; deploy manual no dashboard
+    send-email/      Auth Send Email Hook (Resend) — ver README da pasta
+  migrations/        arquivos .sql — a única fonte de verdade do schema
 src/
   server.ts          handler de fetch do SSR (normaliza erros 500 engolidos pelo h3)
   start.ts           createStart(): middlewares globais de auth, CSRF e erro
@@ -150,14 +152,14 @@ Os arquivos em `src/lib/*.functions.ts`:
 
 | Arquivo                           | Cobre                                                                                             |
 | --------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `accounts.functions.ts`           | Provisão/vínculo de contas, login por ID DeMolay, reset de senha, flag `must_change_password`     |
+| `accounts.functions.ts`           | Provisão/vínculo de contas, e-mail de criação (link para senha), login por ID DeMolay, reset de senha |
 | `ai.functions.ts`                 | `improveText`, `composeEventDescription` (via Lovable AI Gateway)                                 |
 | `attendance.functions.ts`         | Chamada e registros de presença por evento de calendário                                          |
 | `calendar.functions.ts`           | CRUD de `calendar_events`, sessões em andamento                                                   |
 | `cash-subcategories.functions.ts` | Configuração de subcategorias de caixa por comissão                                               |
 | `chapter.functions.ts`            | Dados, configurações e identidade do capítulo                                                     |
 | `commissions.functions.ts`        | Comissões e seus membros por termo                                                                |
-| `events.functions.ts`             | Eventos de arrecadação: ingressos, mesas, assentos, check-ins                                     |
+| `events.functions.ts`             | Eventos de arrecadação: ingressos, e-mail do QR, mesas, assentos, check-ins                       |
 | `finance.functions.ts`            | Fluxo de caixa, categorias, mensalidades, assinantes do relatório                                 |
 | `hospitality.functions.ts`        | Cardápios e escala de serviço                                                                     |
 | `investigations.functions.ts`     | Fichas e processos de sindicância                                                                 |
@@ -245,7 +247,7 @@ Não há signup público. O fluxo é **ficha primeiro, conta depois**:
 1. Secretaria/admin cadastra o membro com e-mail válido.
 2. Na ficha (`/membros/$id`), o painel **Acesso ao sistema** ([MemberAccountPanel](../src/components/members/MemberAccountPanel.tsx)) — visível só com permissão `admin` — chama `provisionMemberAccount`.
 3. A server function usa `supabaseAdmin` (`auth.admin.createUser` com senha aleatória, ou vincula conta já existente pelo e-mail), grava `chapter_members`, seta `members.user_id` e `profiles.must_change_password = true`.
-4. A senha temporária é mostrada **uma vez** na UI para o MC repassar; no primeiro login o usuário é forçado a `/auth/redefinir-senha`.
+4. Se a conta é **nova**, gera um link de recuperação (`auth.admin.generateLink`) e envia e-mail de boas-vindas via Resend (definir senha — **sem senha no e-mail**). A senha temporária ainda aparece **uma vez** na UI para o MC repassar se precisar. Falha do e-mail não aborta a provisão. No primeiro login com senha temporária o usuário é forçado a `/auth/redefinir-senha`.
 5. Também há `resetMemberTemporaryPassword` e `revokeMemberChapterAccess` (desativa `chapter_members.active` no capítulo; não apaga `auth.users`).
 
 ### Autorização em duas camadas
@@ -342,15 +344,25 @@ Esta é a parte que quebra se mexida sem cuidado ([src/lib/finance.functions.ts]
 | `VITE_SUPABASE_PROJECT_ID` / `SUPABASE_PROJECT_ID` | `.env`, `supabase/config.toml`                                                     | sim                               | referência do projeto                                                                                                                                     |
 | `SUPABASE_SERVICE_ROLE_KEY`                        | [client.server.ts](../src/integrations/supabase/client.server.ts)                  | **não está no `.env`**            | **ignora RLS** — injetar apenas no ambiente de deploy, jamais no cliente ou no repositório; usada em `accounts.functions.ts` para criar/vincular usuários |
 | `LOVABLE_API_KEY`                                  | [ai.functions.ts](../src/lib/ai.functions.ts)                                      | **não está no `.env`**            | sem ela, as funções de IA lançam `"IA indisponível: LOVABLE_API_KEY não configurada."`                                                                    |
-| `VITE_APP_URL` / `APP_URL`                         | [accounts.functions.ts](../src/lib/accounts.functions.ts) (`requestPasswordReset`) | recomendada em produção           | origem usada no `redirectTo` de recuperação de senha (`/auth/nova-senha`); fallback `http://localhost:8080`                                               |
-| `RESEND_API_KEY`                                   | [email.ts](../src/lib/email.ts)                                                    | não (sem ela o envio é _skipped_) | API key do Resend; **só servidor**; nunca no cliente                                                                                                      |
-| `EMAIL_FROM`                                       | [email.ts](../src/lib/email.ts)                                                    | junto com `RESEND_API_KEY`        | remetente no formato `Nome <email@dominio-verificado>`; domínio precisa estar Verified no Resend                                                          |
+| `VITE_APP_URL` / `APP_URL`                         | [accounts.functions.ts](../src/lib/accounts.functions.ts) (`requestPasswordReset`, `generateLink`) | recomendada em produção           | origem do login e do `redirectTo` de recuperação (`/auth/nova-senha`); fallback `http://localhost:8080`                                                   |
+| `RESEND_API_KEY`                                   | [email.ts](../src/lib/email.ts) e Edge Function `send-email`                       | não (sem ela o envio do app é _skipped_) | API key do Resend; **só servidor**; nunca no cliente. No app: Worker/Cloudflare. Na hook: secret da Edge Function. |
+| `EMAIL_FROM`                                       | [email.ts](../src/lib/email.ts) e Edge Function `send-email`                       | junto com `RESEND_API_KEY`        | remetente no formato `Nome <email@dominio-verificado>`; domínio precisa estar Verified no Resend                                                          |
+| `SEND_EMAIL_HOOK_SECRET`                           | Edge Function `send-email`                                                         | se a hook estiver ligada          | gerado em Authentication → Hooks → Send Email (`v1,whsec_…`); **não** vai no Worker do app                                                                |
 | `TECH_COMMISSION_EMAILS`                           | [tech-commission.ts](../src/lib/tech-commission.ts)                                | não                               | CSV de e-mails que recebem notificações (ex.: solicitação de organização)                                                                                 |
 | `TECH_COMMISSION_CONTACTS_JSON`                    | [tech-commission.ts](../src/lib/tech-commission.ts)                                | não                               | alternativa/complemento em JSON; se `TECH_COMMISSION_EMAILS` existir, ela tem prioridade                                                                  |
 
 Modelo versionado: [`.env.example`](../.env.example). Os `.env` / `.env.*` locais estão no `.gitignore`.
 
-**Auth vs app:** `RESEND_API_KEY` cobre o envio transacional do app (`sendTransactionalEmail`). Reset de senha / magic link do Supabase Auth usam o SMTP configurado em **Authentication → SMTP** no dashboard (pode ser o mesmo Resend via SMTP).
+**Auth vs app:** o app envia transacional (criação de conta, ingresso, solicitação de organização) com `sendTransactionalEmail` ([email.ts](../src/lib/email.ts)) usando `RESEND_API_KEY` + `EMAIL_FROM` no Worker. E-mails do **Supabase Auth** (reset de senha, etc.) passam pela Edge Function [`supabase/functions/send-email`](../supabase/functions/send-email/) quando a **Send Email Hook** está ligada no dashboard — não usam mais o SMTP interno.
+
+Checklist da hook (manual no projeto `erjficqzodpfqqdurwgt`; **não** deployar pelo MCP/CLI deste workspace):
+
+1. Criar a function `send-email` no dashboard, colar [`index.ts`](../supabase/functions/send-email/index.ts), **Verify JWT = off**.
+2. Secrets da function: `RESEND_API_KEY`, `EMAIL_FROM`, `SEND_EMAIL_HOOK_SECRET`, `APP_URL` (origem pública do app, para o logo).
+3. Authentication → Hooks → Send Email → HTTPS → `https://erjficqzodpfqqdurwgt.supabase.co/functions/v1/send-email` → Generate Secret.
+4. Testar `/auth/recuperar-senha`. Só então desligar o SMTP interno, se quiser.
+
+Detalhe passo a passo: [`supabase/functions/send-email/README.md`](../supabase/functions/send-email/README.md).
 
 ### Arquivos de configuração
 
@@ -362,7 +374,7 @@ Modelo versionado: [`.env.example`](../.env.example). Os `.env` / `.env.*` locai
 | [eslint.config.js](../eslint.config.js) | flat config; proíbe `server-only`; Prettier como regra                                                                                                                                                                                          |
 | `.prettierrc`                           | `printWidth: 100`, aspas duplas, vírgula final                                                                                                                                                                                                  |
 | `bunfig.toml`                           | `minimumReleaseAge` de 24h com exceções para `@lovable.dev/*`                                                                                                                                                                                   |
-| `supabase/config.toml`                  | referência do projeto Supabase                                                                                                                                                                                                                  |
+| `supabase/config.toml`                  | project ref + `[functions.send-email] verify_jwt = false` (deploy da function é manual no dashboard)                                                                               |
 
 ---
 

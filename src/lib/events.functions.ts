@@ -2,6 +2,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { todayYmd } from "@/lib/timezone";
+import {
+  sendTransactionalEmail,
+  summarizeEmailResult,
+  type EmailDeliveryStatus,
+  type SendEmailResult,
+} from "@/lib/email";
+import { ticketPassEmail } from "@/lib/email-templates";
+import {
+  buildTicketPassData,
+  ticketQrPngBase64,
+} from "@/lib/ticket-pass-data";
 
 export const listEvents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -558,6 +569,112 @@ export const deleteTicketType = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+type SoldTicketRow = {
+  id: string;
+  qr_code: string;
+  buyer_name: string;
+  seller_charge_id: string;
+};
+
+async function deliverTicketEmail(
+  supabase: { from: (table: string) => any },
+  ticketId: string,
+): Promise<SendEmailResult> {
+  const { data: row, error } = await supabase
+    .from("tickets")
+    .select(
+      "id, buyer_name, buyer_email, qr_code, price_paid, status, ticket_type:ticket_types(name), event:events(id, name, starts_at, location, chapter_id)",
+    )
+    .eq("id", ticketId)
+    .maybeSingle();
+  if (error) {
+    return { ok: false, skipped: false, error: error.message };
+  }
+  if (!row) {
+    return { ok: false, skipped: false, error: "Ingresso não encontrado" };
+  }
+  if (row.status === "cancelado") {
+    return { ok: false, skipped: false, error: "Ingresso cancelado" };
+  }
+
+  const event = (
+    Array.isArray(row.event) ? row.event[0] : row.event
+  ) as {
+    name: string;
+    starts_at: string;
+    location: string | null;
+    chapter_id: string;
+  } | null;
+  if (!event) {
+    return {
+      ok: false,
+      skipped: false,
+      error: "Evento do ingresso não encontrado",
+    };
+  }
+  const ticketType = (
+    Array.isArray(row.ticket_type) ? row.ticket_type[0] : row.ticket_type
+  ) as { name?: string } | null;
+
+  const pass = buildTicketPassData({
+    event,
+    ticket: {
+      buyer_name: String(row.buyer_name ?? ""),
+      buyer_email: (row.buyer_email as string | null) ?? null,
+      qr_code: String(row.qr_code ?? ""),
+      price_paid: row.price_paid as number | string | null,
+    },
+    ticketTypeName: ticketType?.name,
+  });
+  if (!pass.buyerEmail) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: "Ingresso sem e-mail do comprador",
+    };
+  }
+
+  const { loadChapterEmailAssets } = await import("@/lib/email-brand.server");
+  const assets = await loadChapterEmailAssets(event.chapter_id);
+  const qrBase64 = await ticketQrPngBase64(pass.qrCode, pass.buyerName);
+  const copy = ticketPassEmail(pass, assets.brand);
+  return sendTransactionalEmail({
+    to: [pass.buyerEmail],
+    subject: copy.subject,
+    text: copy.text,
+    html: copy.html,
+    attachments: [
+      ...assets.attachments,
+      {
+        filename: `ingresso-${pass.qrCode}.png`,
+        content: qrBase64,
+        contentType: "image/png",
+        contentId: "ticket-qr",
+      },
+    ],
+  });
+}
+
+function mergeEmailStatuses(
+  results: SendEmailResult[],
+): { emailStatus: EmailDeliveryStatus; emailError: string | null } {
+  if (results.length === 0) {
+    return { emailStatus: "skipped", emailError: "Nenhum e-mail a enviar" };
+  }
+  const summaries = results.map(summarizeEmailResult);
+  if (summaries.every((s) => s.status === "sent")) {
+    return { emailStatus: "sent", emailError: null };
+  }
+  const failed = summaries.find((s) => s.status === "failed");
+  if (failed) {
+    return { emailStatus: "failed", emailError: failed.error };
+  }
+  return {
+    emailStatus: "skipped",
+    emailError: summaries[0]?.error ?? null,
+  };
+}
+
 export const sellTicket = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
@@ -592,13 +709,34 @@ export const sellTicket = createServerFn({ method: "POST" })
       } as never,
     );
     if (error) throw new Error(error.message);
-    const rows = (result ?? []) as Array<{
-      id: string;
-      qr_code: string;
-      buyer_name: string;
-      seller_charge_id: string;
-    }>;
-    return rows;
+    const rows = (result ?? []) as SoldTicketRow[];
+
+    let emailStatus: EmailDeliveryStatus | "none" = "none";
+    let emailError: string | null = null;
+    if (data.buyer_email?.trim() && rows.length > 0) {
+      const mails = await Promise.all(
+        rows.map((r) => deliverTicketEmail(context.supabase, r.id)),
+      );
+      const merged = mergeEmailStatuses(mails);
+      emailStatus = merged.emailStatus;
+      emailError = merged.emailError;
+    }
+
+    return { tickets: rows, emailStatus, emailError };
+  });
+
+export const sendTicketEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z.object({ ticketId: z.string().uuid() }).parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const mail = await deliverTicketEmail(context.supabase, data.ticketId);
+    const summary = summarizeEmailResult(mail);
+    if (summary.status === "failed") {
+      throw new Error(summary.error || "Falha ao enviar o ingresso");
+    }
+    return summary;
   });
 
 /** Altera comprador, vendedor e tipo de um ingresso já vendido. */

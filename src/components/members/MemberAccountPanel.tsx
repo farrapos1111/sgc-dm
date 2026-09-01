@@ -174,11 +174,28 @@ export function MemberAccountPanel({ memberId, memberEmail }: Props) {
       if (res.temporaryPassword) setShownPassword(res.temporaryPassword);
       passwordRef.current?.clear();
       invalidate();
-      toast.success(
-        res.status === "created"
-          ? "Conta criada e acesso liberado"
-          : "Conta existente vinculada ao membro",
-      );
+      if (res.status === "linked") {
+        toast.success("Conta existente vinculada ao membro");
+        return;
+      }
+      if (res.emailStatus === "sent") {
+        toast.success(
+          "Conta criada. E-mail com link para definir senha enviado.",
+        );
+      } else if (res.emailStatus === "skipped") {
+        toast.success("Conta criada e acesso liberado");
+        toast.message(
+          res.emailError ||
+            "E-mail não enviado (RESEND_API_KEY / EMAIL_FROM).",
+        );
+      } else if (res.emailStatus === "failed") {
+        toast.success("Conta criada e acesso liberado");
+        toast.error(
+          res.emailError || "Não foi possível enviar o e-mail de acesso",
+        );
+      } else {
+        toast.success("Conta criada e acesso liberado");
+      }
     },
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Falha ao criar acesso"),
@@ -262,9 +279,11 @@ export function MemberAccountPanel({ memberId, memberEmail }: Props) {
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Crie a conta de login. As permissões no capítulo vêm dos cargos
-                ritualísticos e comissões do semestre — não é necessário escolher
-                cargo de acesso.
+                Crie a conta de login. O membro recebe um e-mail com link para
+                definir a senha (a senha temporária continua aparecendo aqui
+                para você repassar se precisar). As permissões no capítulo vêm
+                dos cargos ritualísticos e comissões do semestre — não é
+                necessário escolher cargo de acesso.
               </p>
               <AccessPreview
                 summary={data.accessSummary ?? []}
