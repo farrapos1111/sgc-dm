@@ -27,6 +27,8 @@ export type ScreenId =
   | "sindicancias_fichas"
   | "sindicancias"
   | "sindicancias_config"
+  | "hospitalaria_cardapios"
+  | "hospitalaria_escala"
   | "permissoes";
 
 export type PlatformAccessGrant = {
@@ -44,7 +46,12 @@ export type PlatformAccessRole = {
   key: string;
   label: string;
   is_system: boolean;
-  match_kind: "position" | "role_fallback" | "commission_president" | "account_role";
+  match_kind:
+    | "position"
+    | "role_fallback"
+    | "commission_president"
+    | "commission_member"
+    | "account_role";
   match_code: string | null;
   sort_order: number;
 };
@@ -102,6 +109,8 @@ export const PATH_TO_SCREEN: Record<string, ScreenId> = {
   "/sindicancias/fichas": "sindicancias_fichas",
   "/sindicancias/sindicarias": "sindicancias",
   "/sindicancias/config": "sindicancias_config",
+  "/hospitalaria/cardapios": "hospitalaria_cardapios",
+  "/hospitalaria/escala": "hospitalaria_escala",
 };
 
 export function emptyGrantFlags(): ScreenGrantFlags {
@@ -151,6 +160,10 @@ export function matchingRoleKeys(
     keys.add("presidente_comissao");
   }
 
+  if ((ctx.commissionRoles ?? []).length > 0) {
+    keys.add("commission_member");
+  }
+
   for (const r of roles ?? []) {
     if (r.match_kind === "position" && r.match_code) {
       if ((ctx.currentPositions ?? []).includes(r.match_code)) keys.add(r.key);
@@ -158,6 +171,10 @@ export function matchingRoleKeys(
       if (ctx.roleName === r.match_code) keys.add(r.key);
     } else if (r.match_kind === "commission_president") {
       if ((ctx.commissionRoles ?? []).some((c) => c.role === "presidente")) {
+        keys.add(r.key);
+      }
+    } else if (r.match_kind === "commission_member") {
+      if ((ctx.commissionRoles ?? []).length > 0) {
         keys.add(r.key);
       }
     } else if (r.match_kind === "role_fallback" && r.match_code === "membro") {
@@ -285,6 +302,8 @@ const ALL_CHAPTER_SCREENS: ScreenId[] = [
   "sindicancias_fichas",
   "sindicancias",
   "sindicancias_config",
+  "hospitalaria_cardapios",
+  "hospitalaria_escala",
 ];
 
 const SECRETARIA = ["membros", "atas", "oficios", "presencas"] as const;
@@ -292,6 +311,14 @@ const TESOURARIA = ["caixa", "mensalidades", "cobrancas"] as const;
 const GESTAO_MENU = ["calendario", "gestao", "configuracoes"] as const;
 const EVENTOS = ["eventos", "eventos_checkins"] as const;
 const SIND = ["sindicancias_fichas", "sindicancias", "sindicancias_config"] as const;
+const HOSP = ["hospitalaria_cardapios", "hospitalaria_escala"] as const;
+
+function commissionScreensForCode(code: string): readonly string[] | null {
+  if (code === "eventos") return EVENTOS;
+  if (code === "sindicancias") return SIND;
+  if (code === "hospitalaria") return HOSP;
+  return null;
+}
 
 function viewOnly(): ScreenGrantFlags {
   return { can_view: true, can_edit: false, can_create: false, can_delete: false };
@@ -401,19 +428,14 @@ export function resolveHardcodedScreenAccess(
 
   // Participação em comissão (sobreposta)
   for (const entry of ctx.commissionRoles ?? []) {
-    const screens =
-      entry.code === "eventos"
-        ? EVENTOS
-        : entry.code === "sindicancias"
-          ? SIND
-          : null;
+    const screens = commissionScreensForCode(entry.code);
     if (!screens) continue;
     if (entry.role === "presidente") {
       grantMany(map, screens, crud());
     } else if (entry.role === "vice") {
       grantMany(map, screens, cru());
     } else {
-      // membro / auxiliar_senior
+      // membro / auxiliar_senior (e demais papéis de participação)
       grantMany(map, screens, viewOnly());
     }
   }

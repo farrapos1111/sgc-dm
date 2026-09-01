@@ -131,6 +131,7 @@ export const upsertPlatformAccessRole = createServerFn({ method: "POST" })
           "position",
           "role_fallback",
           "commission_president",
+          "commission_member",
         ]),
         match_code: z.string().trim().max(80).nullable().optional(),
         /** Contexto da aba ao criar. */

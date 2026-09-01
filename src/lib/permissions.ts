@@ -135,6 +135,25 @@ function commissionEntry(ctx: AccessContext, code: string): CommissionRoleCtx | 
   return (ctx.commissionRoles ?? []).find((c) => c.code === code);
 }
 
+/** Papéis de participação na comissão (visualização e operações conforme a matriz). */
+export const COMMISSION_PARTICIPANT_ROLES = [
+  "presidente",
+  "vice",
+  "membro",
+  "auxiliar_senior",
+] as const;
+
+export function isCommissionParticipant(
+  ctx: AccessContext,
+  commissionCode: string,
+): boolean {
+  const entry = commissionEntry(ctx, commissionCode);
+  if (!entry) return false;
+  return (COMMISSION_PARTICIPANT_ROLES as readonly string[]).includes(
+    entry.role,
+  );
+}
+
 function hasPos(ctx: AccessContext, code: string): boolean {
   return (ctx.currentPositions ?? []).includes(code);
 }
@@ -204,7 +223,7 @@ export function canAction(
         return true;
       }
     }
-    return Boolean(commissionEntry(ctx, commissionCode));
+    return isCommissionParticipant(ctx, commissionCode);
   }
 
   if (action === "comissao.edit") {

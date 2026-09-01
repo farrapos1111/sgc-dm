@@ -170,6 +170,7 @@ function GestaoContent({ active }: { active: Membership }) {
   function invalidateMembers() {
     qc.invalidateQueries({ queryKey: ["chapter-positions"] });
     qc.invalidateQueries({ queryKey: ["commission-members"] });
+    qc.invalidateQueries({ queryKey: ["my-commissions"] });
     qc.invalidateQueries({ queryKey: ["member-org"] });
   }
 

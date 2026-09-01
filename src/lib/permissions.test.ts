@@ -193,6 +193,13 @@ for (const role of ["membro", "auxiliar_senior"] as const) {
   assert.ok(!screen(c, "sindicancias", "edit"));
 }
 assert.ok(
+  screen(
+    ctx("membro", [], [{ code: "hospitalaria", role: "auxiliar_senior" }]),
+    "hospitalaria_cardapios",
+    "view",
+  ),
+);
+assert.ok(
   !canAction(
     ctx("membro", [], [{ code: "eventos", role: "membro" }]),
     "comissao.edit",
@@ -210,6 +217,8 @@ for (const role of ["membro", "vice", "auxiliar_senior"] as const) {
   assert.ok(canAction(c, "comissao.view", "eventos"));
   assert.ok(canAction(c, "comissao.vote", "eventos"));
   assert.ok(!canAction(c, "eventos.manage"));
+  assert.ok(screen(c, "eventos", "view"));
+  assert.ok(screen(c, "eventos_checkins", "view"));
 }
 
 // Excluir evento/ingresso / trocar tipo: só MC ou presidente da Com. Eventos

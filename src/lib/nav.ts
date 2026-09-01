@@ -284,7 +284,6 @@ export function visibleGroups(
     isAdminTotal?: boolean;
   },
 ): NavGroup[] {
-  const HIDDEN_NAV_GROUP_IDS = new Set(["hospitalaria"]);
   const browseAll = accessCtx ? canBrowseAllScreens(accessCtx) : false;
   const ctx: AccessContext = accessCtx ?? {
     roleName: null,
@@ -293,12 +292,24 @@ export function visibleGroups(
   const canScreen = opts?.canScreen;
   const isAdminTotal = opts?.isAdminTotal === true;
 
+  function commissionCodeForPath(to: string): string | undefined {
+    for (const g of NAV_GROUPS) {
+      if (g.commission && g.to === to) return g.commission;
+      if (g.commission && g.items?.some((i) => i.to === to)) return g.commission;
+    }
+    return undefined;
+  }
+
   function pathVisible(to: string): boolean {
     if (
       to === "/configuracoes-globais/cargos" ||
       to === "/configuracoes-globais/inbox"
     ) {
       return isAdminTotal;
+    }
+    const commissionCode = commissionCodeForPath(to);
+    if (commissionCode && canViewCommission(commissionCode)) {
+      return true;
     }
     if (canScreen) {
       const screenId = PATH_TO_SCREEN[to];
@@ -323,8 +334,7 @@ export function visibleGroups(
     return true;
   }
 
-  return NAV_GROUPS.filter((g) => !HIDDEN_NAV_GROUP_IDS.has(g.id))
-    .filter(groupVisible)
+  return NAV_GROUPS.filter(groupVisible)
     .map((g) => {
       if (g.to) {
         if (canScreen) {
