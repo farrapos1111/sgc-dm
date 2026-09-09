@@ -58,6 +58,22 @@ export const ORG_LEADER_POSITION_CODES = [
   "loja_veneravel_mestre",
 ] as const;
 
+/** Cargos do Conselho Consultivo (Capítulo DeMolay). */
+export const ADVISORY_COUNCIL_POSITION_CODES = [
+  "presidente_conselho_consultivo",
+  "conselheiro_consultor",
+] as const;
+
+/** Roles de conta equivalentes ao Conselho Consultivo. */
+export const ADVISORY_COUNCIL_ACCOUNT_ROLES = [
+  "consultor",
+  "presidente_conselho",
+] as const;
+
+export function isAdvisoryCouncilPositionCode(code: string): boolean {
+  return (ADVISORY_COUNCIL_POSITION_CODES as readonly string[]).includes(code);
+}
+
 /** Cargos ritualísticos (positions.code) que concedem permissões no termo vigente. */
 const POSITION_PERMS: Record<string, Permission[]> = {
   mestre_conselheiro: FULL_PERMS,
@@ -88,7 +104,15 @@ const POSITION_PERMS: Record<string, Permission[]> = {
 
 export type CommissionRoleCtx = {
   code: string;
-  role: "presidente" | "vice" | "membro" | "auxiliar_senior" | string;
+  role:
+    | "presidente"
+    | "vice"
+    | "membro"
+    | "auxiliar_senior"
+    | "conselho"
+    | string;
+  /** Módulo vinculado (obrigatória ou comissão custom ligada). */
+  moduleKey?: string | null;
 };
 
 export type AccessContext = {
@@ -98,6 +122,17 @@ export type AccessContext = {
   /** Papéis em comissões do semestre vigente. */
   commissionRoles?: CommissionRoleCtx[];
 };
+
+/** PCC / Conselheiro Consultor (cargo ou role de conta). */
+export function isAdvisoryCouncilMember(ctx: AccessContext): boolean {
+  if (
+    ctx.roleName &&
+    (ADVISORY_COUNCIL_ACCOUNT_ROLES as readonly string[]).includes(ctx.roleName)
+  ) {
+    return true;
+  }
+  return (ctx.currentPositions ?? []).some(isAdvisoryCouncilPositionCode);
+}
 
 function uniquePerms(list: Permission[]): Permission[] {
   return [...new Set(list)];
@@ -132,7 +167,11 @@ function hasFullChapterPower(ctx: AccessContext): boolean {
 }
 
 function commissionEntry(ctx: AccessContext, code: string): CommissionRoleCtx | undefined {
-  return (ctx.commissionRoles ?? []).find((c) => c.code === code);
+  const roles = ctx.commissionRoles ?? [];
+  return (
+    roles.find((c) => c.code === code) ??
+    roles.find((c) => c.moduleKey === code)
+  );
 }
 
 /** Papéis de participação na comissão (visualização e operações conforme a matriz). */
@@ -141,6 +180,7 @@ export const COMMISSION_PARTICIPANT_ROLES = [
   "vice",
   "membro",
   "auxiliar_senior",
+  "conselho",
 ] as const;
 
 export function isCommissionParticipant(
@@ -272,7 +312,7 @@ export function canAction(
       return true;
     }
     const entry = commissionEntry(ctx, "eventos");
-    return Boolean(entry); // qualquer papel na Com. Eventos
+    return Boolean(entry); // qualquer papel na Com. Eventos (ou ligada ao módulo)
   }
 
   return false;

@@ -29,6 +29,7 @@ import { MyAttendancePanel } from "@/components/profile/MyAttendancePanel";
 import { MyFinancePanel } from "@/components/profile/MyFinancePanel";
 import { MyHistoryPanel } from "@/components/profile/MyHistoryPanel";
 import { MyOfficeSignaturesPanel } from "@/components/profile/MyOfficeSignaturesPanel";
+import { MyPasswordPanel } from "@/components/profile/MyPasswordPanel";
 import {
   getMyDemolayProfile,
   type LinkedMemberSummary,
@@ -102,6 +103,7 @@ function PerfilPage() {
 
       {data.members.length === 0 ? (
         <div className="space-y-4">
+          <MyPasswordPanel />
           <Card className="rounded-[12px] p-5">
             <p className="text-sm text-muted-foreground">
               Nenhum cadastro de membro vinculado à sua conta neste ambiente.
@@ -193,6 +195,7 @@ function PerfilPage() {
               <TabsContent value="cadastro" className="mt-0 space-y-4">
                 <MyCadastroPanel memberId={selected.id} />
                 <MyOfficeSignaturesPanel memberId={selected.id} />
+                <MyPasswordPanel />
               </TabsContent>
 
               <TabsContent value="frequencia" className="mt-0">

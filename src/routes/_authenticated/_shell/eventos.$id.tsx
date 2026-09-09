@@ -1933,6 +1933,10 @@ function TablesMap({
   const [editCap, setEditCap] = useState(8);
   const [assigning, setAssigning] = useState<EventSeat | null>(null);
   const [pickedTicketId, setPickedTicketId] = useState<string>("");
+  /** "all" | seller_member_id | "__none__" (sem vendedor) — destaque no mapa. */
+  const [sellerFilter, setSellerFilter] = useState<string>("all");
+  /** Filtro de vendedor ao escolher convidado no diálogo de alocação. */
+  const [assignSellerFilter, setAssignSellerFilter] = useState<string>("all");
 
   const createM = useMutation({
     mutationFn: () =>
@@ -2002,6 +2006,38 @@ function TablesMap({
     return map;
   }, [tickets]);
 
+  const sellerOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    let withoutSeller = 0;
+    for (const t of ticketById.values()) {
+      if (t.seller_member_id) {
+        byId.set(
+          t.seller_member_id,
+          t.seller_name?.trim() || "Vendedor",
+        );
+      } else {
+        withoutSeller += 1;
+      }
+    }
+    const list = [...byId.entries()]
+      .map(([id, name]) => ({ value: id, label: name }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+    if (withoutSeller > 0) {
+      list.push({ value: "__none__", label: "Sem vendedor" });
+    }
+    return list;
+  }, [ticketById]);
+
+  function ticketMatchesSeller(
+    ticket: EventDetail["tickets"][number] | null | undefined,
+    filter: string = sellerFilter,
+  ): boolean {
+    if (filter === "all") return true;
+    if (!ticket) return false;
+    if (filter === "__none__") return !ticket.seller_member_id;
+    return ticket.seller_member_id === filter;
+  }
+
   const seatByTicketId = useMemo(() => {
     const map = new Map<string, EventSeat>();
     for (const s of seats) {
@@ -2010,21 +2046,60 @@ function TablesMap({
     return map;
   }, [seats]);
 
+  const filteredSeatCount = useMemo(() => {
+    if (sellerFilter === "all") return null;
+    let n = 0;
+    for (const s of seats) {
+      if (!s.ticket_id) continue;
+      const guest = ticketById.get(s.ticket_id);
+      if (ticketMatchesSeller(guest, sellerFilter)) n += 1;
+    }
+    return n;
+  }, [sellerFilter, seats, ticketById]);
+
+  const assignSellerOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    let withoutSeller = 0;
+    for (const t of ticketById.values()) {
+      if (!t.checked_in) continue;
+      if (t.seller_member_id) {
+        byId.set(
+          t.seller_member_id,
+          t.seller_name?.trim() || "Vendedor",
+        );
+      } else {
+        withoutSeller += 1;
+      }
+    }
+    const list = [...byId.entries()]
+      .map(([id, name]) => ({ value: id, label: name }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+    if (withoutSeller > 0) {
+      list.push({ value: "__none__", label: "Sem vendedor" });
+    }
+    return list;
+  }, [ticketById]);
+
   const ticketOptions = useMemo(() => {
     return [...ticketById.values()]
       .filter((t) => t.checked_in)
+      .filter((t) => ticketMatchesSeller(t, assignSellerFilter))
       .map((t) => {
         const occupied = seatByTicketId.get(t.id);
         const sameSeat = assigning && occupied?.id === assigning.id;
         const suffix =
           occupied && !sameSeat ? ` (mesa/assento já alocado)` : "";
+        const seller =
+          t.seller_name?.trim() && assignSellerFilter === "all"
+            ? ` · ${t.seller_name.trim()}`
+            : "";
         return {
           value: t.id,
-          label: `${t.buyer_name}${suffix}`,
+          label: `${t.buyer_name}${seller}${suffix}`,
         };
       })
       .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-  }, [ticketById, seatByTicketId, assigning]);
+  }, [ticketById, seatByTicketId, assigning, assignSellerFilter]);
 
   const seatsByTable = new Map<string, EventSeat[]>();
   for (const s of seats) {
@@ -2044,6 +2119,16 @@ function TablesMap({
     setAssigning(seat);
     const guest = seat.ticket_id ? ticketById.get(seat.ticket_id) : null;
     setPickedTicketId(guest?.checked_in ? (seat.ticket_id ?? "") : "");
+    // Parte do filtro do mapa; se o convidado atual for de outro vendedor, amplia para todos.
+    if (
+      guest?.checked_in &&
+      sellerFilter !== "all" &&
+      !ticketMatchesSeller(guest, sellerFilter)
+    ) {
+      setAssignSellerFilter("all");
+    } else {
+      setAssignSellerFilter(sellerFilter);
+    }
   }
 
   function openEdit(t: EventTable) {
@@ -2075,19 +2160,52 @@ function TablesMap({
               de Check-ins e volte aqui.
             </p>
           ) : null}
+          {tables.length > 0 && sellerOptions.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Label className="text-xs text-muted-foreground shrink-0">
+                Vendedor
+              </Label>
+              <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                <SelectTrigger className="w-full max-w-xs sm:w-60">
+                  <SelectValue placeholder="Todos os vendedores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os vendedores</SelectItem>
+                  {sellerOptions.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {sellerFilter !== "all" && filteredSeatCount != null ? (
+                <span className="text-xs text-muted-foreground">
+                  {filteredSeatCount} assento
+                  {filteredSeatCount === 1 ? "" : "s"} ocupado
+                  {filteredSeatCount === 1 ? "" : "s"}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {tables.map((t) => {
               const ts = (seatsByTable.get(t.id) ?? []).sort(
                 (a, b) => a.seat_number - b.seat_number,
               );
-              const occupiedCount = ts.filter((s) => s.ticket_id).length;
+              const occupiedCount = ts.filter((s) => {
+                if (!s.ticket_id) return false;
+                if (sellerFilter === "all") return true;
+                return ticketMatchesSeller(ticketById.get(s.ticket_id));
+              }).length;
               return (
                 <Card key={t.id} className="rounded-[12px] p-5">
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="font-semibold">{t.label}</div>
                       <div className="text-xs text-muted-foreground">
-                        {occupiedCount}/{t.capacity} ocupados
+                        {sellerFilter === "all"
+                          ? `${occupiedCount}/${t.capacity} ocupados`
+                          : `${occupiedCount}/${t.capacity} deste vendedor`}
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -2127,26 +2245,44 @@ function TablesMap({
                         ? ticketById.get(s.ticket_id)
                         : null;
                       const taken = Boolean(guest);
+                      const sellerMatch = ticketMatchesSeller(guest);
+                      const dimmed =
+                        sellerFilter !== "all" && taken && !sellerMatch;
+                      const highlight =
+                        sellerFilter !== "all" && taken && sellerMatch;
                       return (
                         <button
                           key={s.id}
                           type="button"
                           onClick={() => openAssign(s)}
-                          className="flex flex-col items-center gap-1 rounded-[10px] p-1 text-left transition-colors hover:bg-muted/50"
+                          className={`flex flex-col items-center gap-1 rounded-[10px] p-1 text-left transition-colors hover:bg-muted/50 ${
+                            dimmed ? "opacity-35" : ""
+                          }`}
                           title={
                             guest
-                              ? `${guest.buyer_name} — toque para alterar`
+                              ? `${guest.buyer_name}${
+                                  guest.seller_name
+                                    ? ` · Vend. ${guest.seller_name}`
+                                    : ""
+                                } — toque para alterar`
                               : "Toque para alocar convidado"
                           }
                         >
                           <div
                             className="grid h-10 w-10 place-items-center rounded-full text-xs font-semibold"
                             style={
-                              taken
+                              taken && !dimmed
                                 ? {
                                     backgroundColor:
                                       primary || "var(--chapter-primary)",
                                     color: "#fff",
+                                    ...(highlight
+                                      ? {
+                                          boxShadow: `0 0 0 2px var(--background), 0 0 0 4px ${
+                                            primary || "var(--chapter-primary)"
+                                          }`,
+                                        }
+                                      : {}),
                                   }
                                 : {
                                     backgroundColor: "var(--muted)",
@@ -2158,7 +2294,7 @@ function TablesMap({
                           </div>
                           <div
                             className={`w-full truncate text-center text-[10px] ${
-                              taken
+                              taken && !dimmed
                                 ? "font-medium text-foreground"
                                 : "text-muted-foreground"
                             }`}
@@ -2209,7 +2345,7 @@ function TablesMap({
           </Button>
           <p className="text-[11px] text-muted-foreground">
             Toque em um assento para alocar quem já fez check-in, ou liberar o
-            lugar.
+            lugar. Use o filtro de vendedor para destacar quem cada um vendeu.
           </p>
         </Card>
       </div>
@@ -2286,6 +2422,7 @@ function TablesMap({
           if (!o) {
             setAssigning(null);
             setPickedTicketId("");
+            setAssignSellerFilter("all");
           }
         }}
       >
@@ -2303,13 +2440,48 @@ function TablesMap({
                 <span className="font-medium text-foreground">
                   {assigningGuest.buyer_name}
                 </span>
+                {assigningGuest.seller_name ? (
+                  <span> · Vend. {assigningGuest.seller_name}</span>
+                ) : null}
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">Assento livre.</p>
             )}
+            {assignSellerOptions.length > 0 ? (
+              <div>
+                <Label className="mb-1.5 block text-xs text-muted-foreground">
+                  Vendedor
+                </Label>
+                <Select
+                  value={assignSellerFilter}
+                  onValueChange={(v) => {
+                    setAssignSellerFilter(v);
+                    setPickedTicketId((prev) => {
+                      if (!prev) return prev;
+                      const t = ticketById.get(prev);
+                      return ticketMatchesSeller(t, v) ? prev : "";
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos os vendedores" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os vendedores</SelectItem>
+                    {assignSellerOptions.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             {ticketOptions.length === 0 ? (
               <p className="text-sm text-amber-700 dark:text-amber-400">
-                Nenhum convidado com check-in disponível para alocar.
+                {assignSellerFilter !== "all"
+                  ? "Nenhum convidado com check-in deste vendedor para alocar. Escolha outro vendedor ou “Todos”."
+                  : "Nenhum convidado com check-in disponível para alocar."}
               </p>
             ) : (
               <div>

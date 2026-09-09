@@ -3,6 +3,15 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  commissionModuleByKey,
+  isFixedDemolayCommissionCode,
+} from "@/lib/fixed-commissions";
+import { normalizeOrgType } from "@/lib/org-types";
+import {
+  ADVISORY_COUNCIL_POSITION_CODES,
+  hasOrgLeaderPosition,
+} from "@/lib/permissions";
 
 const termInput = z.object({
   chapterId: z.string().uuid(),
@@ -26,6 +35,67 @@ function slugCommissionCode(label: string): string {
 }
 
 type OrgSupabase = SupabaseClient<Database>;
+
+async function assertCanLinkCommissionModule(
+  supabase: OrgSupabase,
+  userId: string,
+  chapterId: string,
+): Promise<void> {
+  const { data: memberships, error } = await supabase
+    .from("chapter_members")
+    .select("role:roles(name)")
+    .eq("chapter_id", chapterId)
+    .eq("user_id", userId)
+    .eq("active", true);
+  if (error) throw new Error(error.message);
+
+  const roleNames = (memberships ?? []).map((m) => {
+    const r = m.role as { name?: string } | { name?: string }[] | null;
+    const row = Array.isArray(r) ? r[0] : r;
+    return row?.name ?? "";
+  });
+  if (
+    roleNames.includes("admin_total") ||
+    roleNames.includes("mestre_conselheiro")
+  ) {
+    return;
+  }
+
+  const { currentTerm } = await import("@/lib/terms");
+  const term = currentTerm();
+  const { resolveLinkedMemberIdsForChapter } = await import(
+    "@/lib/resolve-linked-members"
+  );
+  const memberIds = await resolveLinkedMemberIdsForChapter(supabase, {
+    userId,
+    chapterId,
+  });
+  if (memberIds.length === 0) {
+    throw new Error(
+      "Apenas Administrador Total ou Mestre Conselheiro pode vincular comissão a módulo",
+    );
+  }
+
+  const { data: positions, error: posErr } = await supabase
+    .from("member_positions")
+    .select("position:positions(code)")
+    .eq("chapter_id", chapterId)
+    .eq("term_year", term.year)
+    .eq("term_semester", term.semester)
+    .in("member_id", memberIds);
+  if (posErr) throw new Error(posErr.message);
+
+  const codes = (positions ?? []).map((p) => {
+    const pos = p.position as { code?: string } | { code?: string }[] | null;
+    const row = Array.isArray(pos) ? pos[0] : pos;
+    return row?.code ?? "";
+  });
+  if (hasOrgLeaderPosition(codes)) return;
+
+  throw new Error(
+    "Apenas Administrador Total ou Mestre Conselheiro pode vincular comissão a módulo",
+  );
+}
 
 async function uniqueCommissionCode(
   supabase: OrgSupabase,
@@ -53,8 +123,9 @@ async function uniqueCommissionCode(
 export const COMMISSION_ROLE_ORDER: Record<string, number> = {
   presidente: 0,
   vice: 1,
-  membro: 2,
-  auxiliar_senior: 3,
+  conselho: 2,
+  membro: 3,
+  auxiliar_senior: 4,
 };
 
 export function compareCommissionMembersByRoleName(
@@ -94,7 +165,7 @@ export const listCatalog = createServerFn({ method: "POST" })
         .order("sort_order"),
       context.supabase
         .from("commissions")
-        .select("id, code, label, sort_order, chapter_id")
+        .select("id, code, label, sort_order, chapter_id, module_key")
         .eq("chapter_id", data.chapterId)
         .order("sort_order"),
     ]);
@@ -147,12 +218,24 @@ export const listCatalog = createServerFn({ method: "POST" })
 
     return {
       positions,
-      commissions: (com.data ?? []).map((c) => ({
-        id: c.id,
-        code: c.code,
-        label: c.label,
-        sort_order: c.sort_order,
-      })),
+      commissions: (com.data ?? []).map((c) => {
+        const moduleKey =
+          (c as { module_key?: string | null }).module_key ??
+          (isFixedDemolayCommissionCode(c.code) ? c.code : null);
+        const mod = commissionModuleByKey(moduleKey);
+        return {
+          id: c.id,
+          code: c.code,
+          label: c.label,
+          sort_order: c.sort_order,
+          is_fixed:
+            normalizeOrgType(orgType) === "capitulo" &&
+            isFixedDemolayCommissionCode(c.code),
+          module_key: moduleKey,
+          module_label: mod?.label ?? null,
+          module_path: mod?.path ?? null,
+        };
+      }),
     };
   });
 
@@ -170,11 +253,47 @@ export const createChapterCommission = createServerFn({ method: "POST" })
           .regex(/^[a-z][a-z0-9_]*$/, "Código inválido")
           .optional(),
         sortOrder: z.number().int().min(0).max(999).optional(),
+        moduleKey: z
+          .union([
+            z.enum([
+              "hospitalaria",
+              "entretenimento",
+              "auditoria",
+              "financas",
+              "sindicancias",
+              "eventos",
+            ]),
+            z.null(),
+          ])
+          .optional(),
       })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
     const desired = data.code ?? slugCommissionCode(data.label);
+    if (isFixedDemolayCommissionCode(desired)) {
+      const { data: chapter } = await context.supabase
+        .from("chapters")
+        .select("org_type")
+        .eq("id", data.chapterId)
+        .maybeSingle();
+      if (normalizeOrgType(chapter?.org_type) === "capitulo") {
+        throw new Error(
+          "Este código é reservado a uma comissão obrigatória do Capítulo DeMolay",
+        );
+      }
+    }
+
+    let moduleKey: string | null = null;
+    if (data.moduleKey !== undefined) {
+      await assertCanLinkCommissionModule(
+        context.supabase,
+        context.userId,
+        data.chapterId,
+      );
+      moduleKey = data.moduleKey;
+    }
+
     const code = await uniqueCommissionCode(
       context.supabase,
       data.chapterId,
@@ -199,12 +318,13 @@ export const createChapterCommission = createServerFn({ method: "POST" })
       code,
       label: data.label,
       sort_order: sortOrder,
+      module_key: moduleKey,
     };
 
     let { data: row, error } = await context.supabase
       .from("commissions")
       .insert(insertPayload as never)
-      .select("id, code, label, sort_order")
+      .select("id, code, label, sort_order, module_key")
       .single();
 
     if (
@@ -219,7 +339,7 @@ export const createChapterCommission = createServerFn({ method: "POST" })
       const retry = await context.supabase
         .from("commissions")
         .insert({ ...insertPayload, code: retryCode } as never)
-        .select("id, code, label, sort_order")
+        .select("id, code, label, sort_order, module_key")
         .single();
       row = retry.data;
       error = retry.error;
@@ -235,30 +355,84 @@ export const updateChapterCommission = createServerFn({ method: "POST" })
     chapterInput
       .extend({
         id: z.number().int().positive(),
-        label: z.string().trim().min(2).max(80),
+        label: z.string().trim().min(2).max(80).optional(),
         sortOrder: z.number().int().min(0).max(999).optional(),
+        moduleKey: z
+          .union([
+            z.enum([
+              "hospitalaria",
+              "entretenimento",
+              "auditoria",
+              "financas",
+              "sindicancias",
+              "eventos",
+            ]),
+            z.null(),
+          ])
+          .optional(),
       })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
     const { data: existing, error: findErr } = await context.supabase
       .from("commissions")
-      .select("id, code, chapter_id")
+      .select("id, code, chapter_id, module_key")
       .eq("id", data.id)
       .eq("chapter_id", data.chapterId)
       .maybeSingle();
     if (findErr) throw new Error(findErr.message);
     if (!existing) throw new Error("Comissão não encontrada neste capítulo");
 
-    const patch: Record<string, unknown> = { label: data.label };
+    const { data: chapter } = await context.supabase
+      .from("chapters")
+      .select("org_type")
+      .eq("id", data.chapterId)
+      .maybeSingle();
+    const isCapitulo = normalizeOrgType(chapter?.org_type) === "capitulo";
+    const isFixed =
+      isCapitulo && isFixedDemolayCommissionCode(existing.code);
+
+    if (isFixed && data.label != null) {
+      throw new Error(
+        "Comissão obrigatória do Capítulo DeMolay não pode ser renomeada",
+      );
+    }
+
+    if (data.moduleKey !== undefined) {
+      if (isFixed) {
+        throw new Error(
+          "O módulo de comissão obrigatória não pode ser alterado",
+        );
+      }
+      await assertCanLinkCommissionModule(
+        context.supabase,
+        context.userId,
+        data.chapterId,
+      );
+    }
+
+    const patch: Record<string, unknown> = {};
+    if (!isFixed && data.label != null) patch.label = data.label;
     if (data.sortOrder != null) patch.sort_order = data.sortOrder;
+    if (data.moduleKey !== undefined) patch.module_key = data.moduleKey;
+
+    if (Object.keys(patch).length === 0) {
+      return {
+        id: existing.id,
+        code: existing.code,
+        label: (existing as { label?: string }).label ?? "",
+        sort_order: 0,
+        module_key:
+          (existing as { module_key?: string | null }).module_key ?? null,
+      };
+    }
 
     const { data: row, error } = await context.supabase
       .from("commissions")
       .update(patch as never)
       .eq("id", data.id)
       .eq("chapter_id", data.chapterId)
-      .select("id, code, label, sort_order")
+      .select("id, code, label, sort_order, module_key")
       .single();
     if (error) throw new Error(error.message);
     return row;
@@ -278,6 +452,20 @@ export const deleteChapterCommission = createServerFn({ method: "POST" })
       .maybeSingle();
     if (findErr) throw new Error(findErr.message);
     if (!existing) throw new Error("Comissão não encontrada neste capítulo");
+
+    const { data: chapter } = await context.supabase
+      .from("chapters")
+      .select("org_type")
+      .eq("id", data.chapterId)
+      .maybeSingle();
+    if (
+      normalizeOrgType(chapter?.org_type) === "capitulo" &&
+      isFixedDemolayCommissionCode(existing.code)
+    ) {
+      throw new Error(
+        "Comissão obrigatória do Capítulo DeMolay não pode ser excluída",
+      );
+    }
 
     const { error } = await context.supabase
       .from("commissions")
@@ -375,10 +563,28 @@ export const removePosition = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export type CommissionMemberRow = {
+  id: string;
+  commission_id: number;
+  member_id: string;
+  role: string;
+  term_year: number;
+  term_semester: number;
+  /** Vínculo virtual do Conselho Consultivo (não removível). */
+  virtual?: boolean;
+  commission: {
+    id: number;
+    code: string;
+    label: string;
+    sort_order: number;
+  } | null;
+  member: { id: string; full_name: string } | null;
+};
+
 export const listCommissionMembers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => termInput.parse(raw))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }): Promise<CommissionMemberRow[]> => {
     const { data: rows, error } = await context.supabase
       .from("commission_members")
       .select(
@@ -389,7 +595,100 @@ export const listCommissionMembers = createServerFn({ method: "POST" })
       .eq("term_semester", data.semester);
     if (error) throw new Error(error.message);
 
-    return [...(rows ?? [])].sort(compareCommissionMembersByRoleName);
+    const explicit = (rows ?? []).map((r) => ({
+      ...r,
+      virtual: false as boolean,
+      commission: (Array.isArray(r.commission)
+        ? r.commission[0]
+        : r.commission) as CommissionMemberRow["commission"],
+      member: (Array.isArray(r.member)
+        ? r.member[0]
+        : r.member) as CommissionMemberRow["member"],
+    }));
+
+    const { data: chapter } = await context.supabase
+      .from("chapters")
+      .select("org_type")
+      .eq("id", data.chapterId)
+      .maybeSingle();
+
+    if ((chapter?.org_type as string | null) !== "capitulo") {
+      return [...explicit].sort(compareCommissionMembersByRoleName);
+    }
+
+    const { data: commissions, error: comErr } = await context.supabase
+      .from("commissions")
+      .select("id, code, label, sort_order")
+      .eq("chapter_id", data.chapterId);
+    if (comErr) throw new Error(comErr.message);
+
+    const { data: councilPositions, error: posErr } = await context.supabase
+      .from("member_positions")
+      .select(
+        "member_id, position:positions(code), member:members(id, full_name)",
+      )
+      .eq("chapter_id", data.chapterId)
+      .eq("term_year", data.year)
+      .eq("term_semester", data.semester);
+    if (posErr) throw new Error(posErr.message);
+
+    const councilMembers = new Map<
+      string,
+      { id: string; full_name: string }
+    >();
+    for (const row of councilPositions ?? []) {
+      const pos = row.position as
+        | { code?: string }
+        | { code?: string }[]
+        | null;
+      const posRow = Array.isArray(pos) ? pos[0] : pos;
+      const code = posRow?.code ?? "";
+      if (
+        !(ADVISORY_COUNCIL_POSITION_CODES as readonly string[]).includes(code)
+      ) {
+        continue;
+      }
+      const mem = row.member as
+        | { id?: string; full_name?: string }
+        | { id?: string; full_name?: string }[]
+        | null;
+      const memRow = Array.isArray(mem) ? mem[0] : mem;
+      if (!memRow?.id) continue;
+      councilMembers.set(memRow.id, {
+        id: memRow.id,
+        full_name: memRow.full_name ?? "",
+      });
+    }
+
+    const present = new Set(
+      explicit.map((r) => `${r.commission_id}:${r.member_id}`),
+    );
+
+    const virtual: CommissionMemberRow[] = [];
+    for (const c of commissions ?? []) {
+      for (const member of councilMembers.values()) {
+        const key = `${c.id}:${member.id}`;
+        if (present.has(key)) continue;
+        virtual.push({
+          id: `virtual-conselho-${c.id}-${member.id}`,
+          commission_id: c.id,
+          member_id: member.id,
+          role: "conselho",
+          term_year: data.year,
+          term_semester: data.semester,
+          virtual: true,
+          commission: {
+            id: c.id,
+            code: c.code,
+            label: c.label,
+            sort_order: c.sort_order,
+          },
+          member: { id: member.id, full_name: member.full_name },
+        });
+      }
+    }
+
+    return [...explicit, ...virtual].sort(compareCommissionMembersByRoleName);
   });
 
 export const assignCommissionMember = createServerFn({ method: "POST" })
@@ -439,6 +738,11 @@ export const removeCommissionMember = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
+    if (data.id.startsWith("virtual-")) {
+      throw new Error(
+        "Participação do Conselho Consultivo é automática e não pode ser removida",
+      );
+    }
     const { data: row, error: loadErr } = await context.supabase
       .from("commission_members")
       .select("id, chapter_id")

@@ -6,6 +6,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMustChangePassword, signInWithIdentifier } from "@/lib/accounts.functions";
 import { clearAuthNavCache, enterAuthenticatedApp } from "@/lib/auth-nav-cache";
@@ -58,6 +59,7 @@ function AuthPage() {
   const { reason } = Route.useSearch();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(
     reason === "irregular"
       ? "Membros irregulares não podem acessar a plataforma. Regularize sua situação junto à secretaria ou tesouraria do capítulo."
@@ -160,16 +162,31 @@ function AuthPage() {
                   Esqueci a senha
                 </Link>
               </div>
-              <input
-                type="password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-background"
-                style={{ ["--tw-ring-color" as string]: "#9E1B32" }}
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3 py-2.5 pr-11 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-background"
+                  style={{ ["--tw-ring-color" as string]: "#9E1B32" }}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {error && (

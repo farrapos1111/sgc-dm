@@ -6,6 +6,10 @@ import {
   type AccessContext,
 } from "@/lib/permissions";
 import { normalizeOrgType, type OrgType } from "@/lib/org-types";
+import {
+  effectiveCommissionModuleKey,
+  commissionModuleByKey,
+} from "@/lib/fixed-commissions";
 
 export type ScreenAction = "view" | "edit" | "create" | "delete";
 
@@ -312,11 +316,17 @@ const GESTAO_MENU = ["calendario", "gestao", "configuracoes"] as const;
 const EVENTOS = ["eventos", "eventos_checkins"] as const;
 const SIND = ["sindicancias_fichas", "sindicancias", "sindicancias_config"] as const;
 const HOSP = ["hospitalaria_cardapios", "hospitalaria_escala"] as const;
+const FINANCAS = ["caixa", "mensalidades", "cobrancas"] as const;
+const ENTRETENIMENTO = ["calendario"] as const;
+const AUDITORIA = ["configuracoes"] as const;
 
 function commissionScreensForCode(code: string): readonly string[] | null {
   if (code === "eventos") return EVENTOS;
   if (code === "sindicancias") return SIND;
   if (code === "hospitalaria") return HOSP;
+  if (code === "financas") return FINANCAS;
+  if (code === "entretenimento") return ENTRETENIMENTO;
+  if (code === "auditoria") return AUDITORIA;
   return null;
 }
 
@@ -428,12 +438,22 @@ export function resolveHardcodedScreenAccess(
 
   // Participação em comissão (sobreposta)
   for (const entry of ctx.commissionRoles ?? []) {
-    const screens = commissionScreensForCode(entry.code);
+    const moduleKey = effectiveCommissionModuleKey(entry.code, entry.moduleKey);
+    if (!moduleKey) continue;
+    const screens = commissionScreensForCode(moduleKey);
     if (!screens) continue;
+    const mod = commissionModuleByKey(moduleKey);
+    if (mod?.viewOnly) {
+      grantMany(map, screens, viewOnly());
+      continue;
+    }
     if (entry.role === "presidente") {
       grantMany(map, screens, crud());
     } else if (entry.role === "vice") {
       grantMany(map, screens, cru());
+    } else if (entry.role === "conselho") {
+      // Conselho Consultivo: visão do setor (poder pleno já vem de isFullChapterLeader)
+      grantMany(map, screens, viewOnly());
     } else {
       // membro / auxiliar_senior (e demais papéis de participação)
       grantMany(map, screens, viewOnly());

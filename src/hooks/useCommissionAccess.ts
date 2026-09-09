@@ -80,7 +80,7 @@ export function useCommissionAccess(): CommissionAccess {
     () => ({
       roleName: role,
       currentPositions: positions,
-      commissionRoles: commissions.map((c) => ({ code: c.code, role: c.role })),
+      commissionRoles: commissions.map((c) => ({ code: c.code, role: c.role, moduleKey: c.moduleKey })),
     }),
     [role, positions, commissions],
   );
@@ -94,8 +94,10 @@ export function useCommissionAccess(): CommissionAccess {
       isAdmin ||
       canAccess(ctx, "visualizar_total") ||
       canAction(ctx, "comissao.view", code) ||
-      // Qualquer papel na comissão (membro / auxiliar sênior / vice / presidente)
-      commissions.some((c) => c.code === code) ||
+      // Qualquer papel na comissão (ou comissão ligada a este módulo)
+      commissions.some(
+        (c) => c.code === code || c.moduleKey === code,
+      ) ||
       (code === "sindicancias" && voteAccess),
     [commissions, isAdmin, voteAccess, ctx],
   );

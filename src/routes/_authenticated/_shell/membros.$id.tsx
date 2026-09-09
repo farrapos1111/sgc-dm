@@ -1487,6 +1487,7 @@ function PickerDialog({
 const COMMISSION_ROLE_LABELS: Record<string, string> = {
   presidente: "Presidente",
   vice: "Vice",
+  conselho: "Conselho",
   membro: "Membro",
   auxiliar_senior: "Auxiliar Sênior",
 };

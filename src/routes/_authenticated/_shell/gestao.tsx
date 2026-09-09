@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   useSuspenseQuery,
   useMutation,
@@ -62,6 +62,8 @@ import { TermSelect } from "@/components/TermSelect";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { is21OrOlder } from "@/lib/format";
+import { COMMISSION_MODULES } from "@/lib/fixed-commissions";
+import { isOrgLeader } from "@/lib/permissions";
 import { Pencil, Plus, Search, Trash2, UserPlus, Users, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_shell/gestao")({
@@ -83,6 +85,14 @@ const COMMISSION_ROLES = [
   { value: "membro", label: "Membro" },
   { value: "auxiliar_senior", label: "Auxiliar Sênior" },
 ] as const;
+
+const COMMISSION_ROLE_LABELS: Record<string, string> = {
+  presidente: "Presidente",
+  vice: "Vice",
+  conselho: "Conselho",
+  membro: "Membro",
+  auxiliar_senior: "Auxiliar Sênior",
+};
 
 type SortKey = "name_asc" | "name_desc" | "default";
 
@@ -119,7 +129,7 @@ function GestaoPage() {
 
 function GestaoContent({ active }: { active: Membership }) {
   const qc = useQueryClient();
-  const { can, canScreen } = useChapterAccess();
+  const { can, canScreen, ctx, isAdminTotal } = useChapterAccess();
   const [term, setTerm] = useState(currentTerm());
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("default");
@@ -129,6 +139,11 @@ function GestaoContent({ active }: { active: Membership }) {
   const terms = useMemo(() => termOptions({ foundedAt }), [foundedAt]);
   const canEdit = canScreen("gestao", "edit") || can("secretaria");
   const canEditCommissions = can("comissoes");
+  const canLinkModules =
+    isAdminTotal ||
+    isOrgLeader(ctx) ||
+    active.role.name === "admin_total" ||
+    active.role.name === "mestre_conselheiro";
 
   const { data: catalog } = useSuspenseQuery(catalogQO(chapterId));
   const { data: members } = useSuspenseQuery(
@@ -161,7 +176,9 @@ function GestaoContent({ active }: { active: Membership }) {
     open: boolean;
     id?: number;
     label: string;
-  }>({ open: false, label: "" });
+    moduleKey: string;
+    isFixed?: boolean;
+  }>({ open: false, label: "", moduleKey: "" });
   const [deleteTarget, setDeleteTarget] = useState<{
     id: number;
     label: string;
@@ -214,19 +231,37 @@ function GestaoContent({ active }: { active: Membership }) {
   const saveCommission = useMutation({
     mutationFn: async () => {
       const label = commissionForm.label.trim();
+      const moduleKey =
+        commissionForm.moduleKey === "" || commissionForm.moduleKey === "__none__"
+          ? null
+          : commissionForm.moduleKey;
       if (commissionForm.id) {
         return updateChapterCommission({
-          data: { chapterId, id: commissionForm.id, label },
+          data: {
+            chapterId,
+            id: commissionForm.id,
+            ...(commissionForm.isFixed ? {} : { label }),
+            ...(canLinkModules && !commissionForm.isFixed
+              ? { moduleKey }
+              : {}),
+          },
         });
       }
-      return createChapterCommission({ data: { chapterId, label } });
+      return createChapterCommission({
+        data: {
+          chapterId,
+          label,
+          ...(canLinkModules ? { moduleKey } : {}),
+        },
+      });
     },
     onSuccess: () => {
       toast.success(
         commissionForm.id ? "Comissão atualizada" : "Comissão criada",
       );
-      setCommissionForm({ open: false, label: "" });
+      setCommissionForm({ open: false, label: "", moduleKey: "" });
       invalidateCatalog();
+      qc.invalidateQueries({ queryKey: ["my-commissions"] });
     },
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Erro ao salvar comissão"),
@@ -282,6 +317,13 @@ function GestaoContent({ active }: { active: Membership }) {
     if (q) {
       list = list.filter((c) => {
         if (normalizeSearch(c.label).includes(q)) return true;
+        if (
+          "module_label" in c &&
+          c.module_label &&
+          normalizeSearch(String(c.module_label)).includes(q)
+        ) {
+          return true;
+        }
         const rows = commissionMembers.filter(
           (cm) => cm.commission_id === c.id,
         );
@@ -289,7 +331,7 @@ function GestaoContent({ active }: { active: Membership }) {
           if (normalizeSearch(r.member?.full_name ?? "").includes(q))
             return true;
           const roleLabel =
-            COMMISSION_ROLES.find((x) => x.value === r.role)?.label ?? r.role;
+            COMMISSION_ROLE_LABELS[r.role] ?? r.role;
           return normalizeSearch(String(roleLabel)).includes(q);
         });
       });
@@ -299,7 +341,12 @@ function GestaoContent({ active }: { active: Membership }) {
     } else if (sortKey === "name_desc") {
       list.sort((a, b) => b.label.localeCompare(a.label, "pt-BR"));
     } else {
-      list.sort((a, b) => a.sort_order - b.sort_order);
+      list.sort((a, b) => {
+        const af = "is_fixed" in a && a.is_fixed ? 0 : 1;
+        const bf = "is_fixed" in b && b.is_fixed ? 0 : 1;
+        if (af !== bf) return af - bf;
+        return a.sort_order - b.sort_order;
+      });
     }
     return list;
   }, [catalog.commissions, commissionMembers, q, sortKey]);
@@ -319,7 +366,7 @@ function GestaoContent({ active }: { active: Membership }) {
           if (normalizeSearch(r.member?.full_name ?? "").includes(q))
             return true;
           const roleLabel =
-            COMMISSION_ROLES.find((x) => x.value === r.role)?.label ?? r.role;
+            COMMISSION_ROLE_LABELS[r.role] ?? r.role;
           return normalizeSearch(String(roleLabel)).includes(q);
         });
       }
@@ -595,10 +642,24 @@ function GestaoContent({ active }: { active: Membership }) {
         </TabsContent>
 
         <TabsContent value="comissoes">
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              Em Capítulos DeMolay, Hospitalaria, Entretenimento, Auditoria,
+              Finanças, Sindicâncias e Eventos são obrigatórias e ligadas aos
+              módulos do sistema. Administrador Total e Mestre Conselheiro
+              podem vincular comissões extras a um módulo.
+            </p>
             {canEditCommissions && (
               <Button
-                onClick={() => setCommissionForm({ open: true, label: "" })}
+                className="shrink-0 self-end sm:self-auto"
+                onClick={() =>
+                  setCommissionForm({
+                    open: true,
+                    label: "",
+                    moduleKey: "",
+                    isFixed: false,
+                  })
+                }
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Nova comissão
@@ -613,38 +674,74 @@ function GestaoContent({ active }: { active: Membership }) {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {filteredCommissions.map((c) => {
                 const rows = commissionRows(c.id);
+                const isFixed = Boolean("is_fixed" in c && c.is_fixed);
+                const moduleLabel =
+                  "module_label" in c ? (c.module_label as string | null) : null;
+                const modulePath =
+                  "module_path" in c ? (c.module_path as string | null) : null;
                 return (
                   <Card key={c.id} className="rounded-[12px] p-5">
                     <div className="mb-3 flex items-center justify-between gap-2">
-                      <h3 className="min-w-0 truncate text-sm font-semibold">
-                        {c.label}
-                      </h3>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="truncate text-sm font-semibold">
+                            {c.label}
+                          </h3>
+                          {isFixed ? (
+                            <Badge variant="secondary">Obrigatória</Badge>
+                          ) : null}
+                        </div>
+                        {moduleLabel ? (
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                            Módulo:{" "}
+                            {modulePath ? (
+                              <Link
+                                to={modulePath}
+                                className="underline underline-offset-2"
+                              >
+                                {moduleLabel}
+                              </Link>
+                            ) : (
+                              moduleLabel
+                            )}
+                          </p>
+                        ) : null}
+                      </div>
                       {canEditCommissions && (
                         <div className="flex shrink-0 items-center gap-0.5">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            aria-label={`Editar ${c.label}`}
-                            onClick={() =>
-                              setCommissionForm({
-                                open: true,
-                                id: c.id,
-                                label: c.label,
-                              })
-                            }
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            aria-label={`Excluir ${c.label}`}
-                            onClick={() =>
-                              setDeleteTarget({ id: c.id, label: c.label })
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {!isFixed ? (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label={`Editar ${c.label}`}
+                                onClick={() =>
+                                  setCommissionForm({
+                                    open: true,
+                                    id: c.id,
+                                    label: c.label,
+                                    moduleKey:
+                                      ("module_key" in c && c.module_key
+                                        ? String(c.module_key)
+                                        : "") || "",
+                                    isFixed: false,
+                                  })
+                                }
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label={`Excluir ${c.label}`}
+                                onClick={() =>
+                                  setDeleteTarget({ id: c.id, label: c.label })
+                                }
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : null}
                           <AssignDialog
                             title={`Adicionar em ${c.label}`}
                             members={members}
@@ -676,11 +773,10 @@ function GestaoContent({ active }: { active: Membership }) {
                             </span>
                             <span className="flex shrink-0 items-center gap-2">
                               <Badge variant="secondary">
-                                {COMMISSION_ROLES.find(
-                                  (x) => x.value === r.role,
-                                )?.label ?? r.role}
+                                {COMMISSION_ROLE_LABELS[r.role] ?? r.role}
                               </Badge>
-                              {canEditCommissions && (
+                              {canEditCommissions &&
+                                !(r as { virtual?: boolean }).virtual && (
                                 <Button
                                   size="icon"
                                   variant="ghost"
@@ -708,7 +804,9 @@ function GestaoContent({ active }: { active: Membership }) {
           setCommissionForm((prev) => ({
             ...prev,
             open,
-            ...(open ? {} : { id: undefined, label: "" }),
+            ...(open
+              ? {}
+              : { id: undefined, label: "", moduleKey: "", isFixed: false }),
           }))
         }
       >
@@ -731,12 +829,46 @@ function GestaoContent({ active }: { active: Membership }) {
                 }
                 placeholder="Ex.: Captação de recursos"
                 autoFocus
+                disabled={commissionForm.isFixed}
               />
             </div>
+            {canLinkModules && !commissionForm.isFixed ? (
+              <div>
+                <Label className="mb-1.5 block text-sm">
+                  Módulo do sistema
+                </Label>
+                <Select
+                  value={commissionForm.moduleKey || "__none__"}
+                  onValueChange={(v) =>
+                    setCommissionForm((prev) => ({
+                      ...prev,
+                      moduleKey: v === "__none__" ? "" : v,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Nenhum" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
+                    {COMMISSION_MODULES.map((m) => (
+                      <SelectItem key={m.key} value={m.key}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Participantes desta comissão passam a ver o módulo escolhido
+                  (conforme o cargo na comissão).
+                </p>
+              </div>
+            ) : null}
             <Button
               className="w-full"
               disabled={
-                commissionForm.label.trim().length < 2 ||
+                (!commissionForm.isFixed &&
+                  commissionForm.label.trim().length < 2) ||
                 saveCommission.isPending
               }
               onClick={() => saveCommission.mutate()}

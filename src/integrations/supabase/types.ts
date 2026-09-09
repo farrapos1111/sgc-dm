@@ -700,6 +700,7 @@ export type Database = {
           code: string
           id: number
           label: string
+          module_key: string | null
           sort_order: number
         }
         Insert: {
@@ -707,6 +708,7 @@ export type Database = {
           code: string
           id?: number
           label: string
+          module_key?: string | null
           sort_order?: number
         }
         Update: {
@@ -714,6 +716,7 @@ export type Database = {
           code?: string
           id?: number
           label?: string
+          module_key?: string | null
           sort_order?: number
         }
         Relationships: [
@@ -3818,7 +3821,12 @@ export type Database = {
         | "sindicancia"
       cash_entry_kind: "entrada" | "saida"
       checkin_method: "qr" | "nome"
-      commission_role: "presidente" | "vice" | "membro" | "auxiliar_senior"
+      commission_role:
+        | "presidente"
+        | "vice"
+        | "membro"
+        | "auxiliar_senior"
+        | "conselho";
       due_status: "em_aberto" | "pago" | "isento" | "desligado"
       event_status: "rascunho" | "publicado" | "encerrado"
       investigation_status:

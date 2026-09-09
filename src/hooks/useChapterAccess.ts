@@ -70,6 +70,7 @@ export function useChapterAccess() {
       commissionRoles: commissions.map((c) => ({
         code: c.code,
         role: c.role,
+        moduleKey: c.moduleKey,
       })),
     }),
     [roleName, positions, commissions],
