@@ -15,7 +15,11 @@ import {
   summarizeEmailResult,
   type EmailDeliveryStatus,
 } from "@/lib/email";
-import { accountCreatedEmail } from "@/lib/email-templates";
+import {
+  accountCreatedEmail,
+  passwordRecoveryEmail,
+  temploVirtualBrand,
+} from "@/lib/email-templates";
 
 const passwordSchema = z
   .string()
@@ -1019,15 +1023,50 @@ export const requestPasswordReset = createServerFn({ method: "POST" })
     z.object({ email: z.string().trim().email() }).parse(raw),
   )
   .handler(async ({ data }) => {
-    const anon = getAnonAuthClient();
-    const redirectTo = `${appPublicOrigin()}/auth/nova-senha`;
-    const { error } = await anon.auth.resetPasswordForEmail(
-      data.email.trim().toLowerCase(),
-      { redirectTo },
-    );
-    // Sempre sucesso genérico (não revelar se o e-mail existe)
-    if (error) {
-      console.error("[auth] resetPasswordForEmail:", error.message);
+    const email = data.email.trim().toLowerCase();
+    const origin = appPublicOrigin();
+    const redirectTo = `${origin}/auth/nova-senha`;
+    try {
+      const { supabaseAdmin } = await import(
+        "@/integrations/supabase/client.server"
+      );
+      const { data: linkData, error } =
+        await supabaseAdmin.auth.admin.generateLink({
+          type: "recovery",
+          email,
+          options: { redirectTo },
+        });
+      const setPasswordUrl = linkData?.properties?.action_link;
+      if (error || !setPasswordUrl) {
+        if (error) {
+          console.error("[auth] generateLink recovery:", error.message);
+        }
+        return { ok: true };
+      }
+
+      const copy = passwordRecoveryEmail({
+        setPasswordUrl,
+        brand: temploVirtualBrand({
+          logoUrl: `${origin}/logos/templo-virtual.png`,
+        }),
+      });
+      const mail = await sendTransactionalEmail({
+        to: [email],
+        subject: copy.subject,
+        text: copy.text,
+        html: copy.html,
+      });
+      if (!mail.ok) {
+        console.error(
+          "[auth] recovery email:",
+          mail.skipped ? mail.reason : mail.error,
+        );
+      }
+    } catch (e) {
+      console.error(
+        "[auth] requestPasswordReset:",
+        e instanceof Error ? e.message : e,
+      );
     }
     return { ok: true };
   });

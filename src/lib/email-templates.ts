@@ -18,13 +18,17 @@ export type EmailBrand = {
   logoUrl?: string | null;
 };
 
-export function temploVirtualBrand(logoCid?: string | null): EmailBrand {
+export function temploVirtualBrand(opts?: {
+  logoCid?: string | null;
+  logoUrl?: string | null;
+}): EmailBrand {
   return {
     title: "Templo Virtual",
     accent: TV_NAVY,
     headerBg: TV_NAVY,
     goldLine: TV_GOLD,
-    logoCid: logoCid ?? null,
+    logoCid: opts?.logoCid ?? null,
+    logoUrl: opts?.logoUrl ?? null,
   };
 }
 
@@ -136,6 +140,31 @@ export function accountCreatedEmail(input: {
      ${brandedButton("Definir senha", input.setPasswordUrl, input.brand.accent)}
      <tr><td style="padding-top:20px;font-size:13px;line-height:1.5;color:#71717a;">Depois entre em <a href="${escapeHtml(input.loginUrl)}" style="color:${input.brand.accent};">${escapeHtml(input.loginUrl)}</a> com este e-mail. A senha não é enviada por e-mail.</td></tr>
      <tr><td style="padding-top:16px;font-size:12px;color:#a1a1aa;">Se você não esperava esta mensagem, fale com o Mestre Conselheiro do capítulo.</td></tr>`,
+  });
+
+  return { subject, text, html };
+}
+
+export function passwordRecoveryEmail(input: {
+  setPasswordUrl: string;
+  brand?: EmailBrand;
+}): { subject: string; text: string; html: string } {
+  const brand = input.brand ?? temploVirtualBrand();
+  const subject = "Redefinir senha — Templo Virtual";
+  const text = [
+    "Recebemos um pedido para redefinir a senha da sua conta no Templo Virtual.",
+    "Use este link (ele expira em breve):",
+    input.setPasswordUrl,
+    "",
+    "Se você não pediu este e-mail, ignore. O link expira automaticamente.",
+  ].join("\n");
+
+  const html = wrapBrandedHtml({
+    brand,
+    heading: "Redefinir senha",
+    innerRows: `<tr><td style="padding-top:12px;font-size:15px;line-height:1.55;color:#3f3f46;">Recebemos um pedido para redefinir a senha da sua conta no Templo Virtual. Use o botão abaixo. O link expira em breve.</td></tr>
+     ${brandedButton("Definir nova senha", input.setPasswordUrl, brand.accent)}
+     <tr><td style="padding-top:24px;font-size:12px;line-height:1.5;color:#a1a1aa;">Se você não pediu este e-mail, pode ignorá-lo. O link expira automaticamente.</td></tr>`,
   });
 
   return { subject, text, html };

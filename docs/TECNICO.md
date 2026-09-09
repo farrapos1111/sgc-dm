@@ -353,7 +353,7 @@ Esta é a parte que quebra se mexida sem cuidado ([src/lib/finance.functions.ts]
 
 Modelo versionado: [`.env.example`](../.env.example). Os `.env` / `.env.*` locais estão no `.gitignore`.
 
-**Auth vs app:** o app envia transacional (criação de conta, ingresso, solicitação de organização) com `sendTransactionalEmail` ([email.ts](../src/lib/email.ts)) usando `RESEND_API_KEY` + `EMAIL_FROM` no Worker. E-mails do **Supabase Auth** (reset de senha, etc.) passam pela Edge Function [`supabase/functions/send-email`](../supabase/functions/send-email/) quando a **Send Email Hook** está ligada no dashboard — não usam mais o SMTP interno.
+**Auth vs app:** o app envia transacional (criação de conta, ingresso, **recuperação de senha**, solicitação de organização) com `sendTransactionalEmail` ([email.ts](../src/lib/email.ts)) usando `RESEND_API_KEY` + `EMAIL_FROM` no Worker/Vercel. A Edge Function [`supabase/functions/send-email`](../supabase/functions/send-email/) continua disponível como Send Email Hook para outros e-mails nativos do Auth (signup, magic link, troca de e-mail), se a hook estiver ligada.
 
 Checklist da hook (manual no projeto `erjficqzodpfqqdurwgt`; **não** deployar pelo MCP/CLI deste workspace):
 
