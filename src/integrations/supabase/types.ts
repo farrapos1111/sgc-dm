@@ -267,6 +267,7 @@ export type Database = {
           chapter_id: string
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           description: string
           entry_date: string
           event_finance_item_id: string | null
@@ -285,6 +286,7 @@ export type Database = {
           chapter_id: string
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           description: string
           entry_date?: string
           event_finance_item_id?: string | null
@@ -888,6 +890,7 @@ export type Database = {
           cash_entry_id: string | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           event_id: string
           id: string
           item_id: string
@@ -900,6 +903,7 @@ export type Database = {
           cash_entry_id?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           event_id: string
           id?: string
           item_id: string
@@ -912,6 +916,7 @@ export type Database = {
           cash_entry_id?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           event_id?: string
           id?: string
           item_id?: string
@@ -3163,6 +3168,7 @@ export type Database = {
           buyer_member_id: string | null
           buyer_name: string
           created_at: string
+          deleted_at: string | null
           event_id: string
           id: string
           price_paid: number
@@ -3180,6 +3186,7 @@ export type Database = {
           buyer_member_id?: string | null
           buyer_name: string
           created_at?: string
+          deleted_at?: string | null
           event_id: string
           id?: string
           price_paid?: number
@@ -3197,6 +3204,7 @@ export type Database = {
           buyer_member_id?: string | null
           buyer_name?: string
           created_at?: string
+          deleted_at?: string | null
           event_id?: string
           id?: string
           price_paid?: number
