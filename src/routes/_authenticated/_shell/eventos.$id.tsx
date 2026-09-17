@@ -490,10 +490,12 @@ function EventoDetalhe() {
         <TabsContent value="mesas">
           <TablesMap
             eventId={id}
+            eventName={data.event.name}
             tables={data.tables}
             seats={data.seats}
             tickets={data.tickets}
             primary={active?.chapter.primary_color}
+            canEditComanda={canEditFinance}
             onChanged={() => qc.invalidateQueries({ queryKey: ["event", id] })}
           />
         </TabsContent>
@@ -1949,17 +1951,21 @@ function SellTicketCard({
 
 function TablesMap({
   eventId,
+  eventName,
   tables,
   seats,
   tickets,
   primary,
+  canEditComanda,
   onChanged,
 }: {
   eventId: string;
+  eventName?: string;
   tables: EventTable[];
   seats: EventSeat[];
   tickets: EventDetail["tickets"];
   primary?: string;
+  canEditComanda?: boolean;
   onChanged: () => void;
 }) {
   const { confirm, dialog } = useConfirmDialog();
@@ -2098,7 +2104,6 @@ function TablesMap({
     const byId = new Map<string, string>();
     let withoutSeller = 0;
     for (const t of ticketById.values()) {
-      if (!t.checked_in) continue;
       if (t.seller_member_id) {
         byId.set(
           t.seller_member_id,
@@ -2119,7 +2124,6 @@ function TablesMap({
 
   const ticketOptions = useMemo(() => {
     return [...ticketById.values()]
-      .filter((t) => t.checked_in)
       .filter((t) => ticketMatchesSeller(t, assignSellerFilter))
       .map((t) => {
         const occupied = seatByTicketId.get(t.id);
@@ -2151,14 +2155,17 @@ function TablesMap({
   const assigningGuest = assigning?.ticket_id
     ? ticketById.get(assigning.ticket_id)
     : null;
+  const comandaGuest = pickedTicketId
+    ? (ticketById.get(pickedTicketId) ?? null)
+    : assigningGuest;
 
   function openAssign(seat: EventSeat) {
     setAssigning(seat);
     const guest = seat.ticket_id ? ticketById.get(seat.ticket_id) : null;
-    setPickedTicketId(guest?.checked_in ? (seat.ticket_id ?? "") : "");
+    setPickedTicketId(guest ? (seat.ticket_id ?? "") : "");
     // Parte do filtro do mapa; se o convidado atual for de outro vendedor, amplia para todos.
     if (
-      guest?.checked_in &&
+      guest &&
       sellerFilter !== "all" &&
       !ticketMatchesSeller(guest, sellerFilter)
     ) {
@@ -2189,13 +2196,31 @@ function TablesMap({
               Ainda não há ingressos vendidos. Venda ingressos na aba Ingressos
               para alocar convidados nos assentos.
             </p>
-          ) : tables.length > 0 &&
-            tickets.some((t) => t.status !== "cancelado") &&
-            !tickets.some((t) => t.status !== "cancelado" && t.checked_in) ? (
-            <p className="text-sm text-amber-700 dark:text-amber-400">
-              Só dá para alocar quem já fez check-in. Libere a entrada na tela
-              de Check-ins e volte aqui.
-            </p>
+          ) : null}
+          {tables.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="inline-block h-3 w-3 rounded-full bg-emerald-500"
+                  aria-hidden
+                />
+                Pago
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="inline-block h-3 w-3 rounded-full bg-amber-500"
+                  aria-hidden
+                />
+                Em aberto / parcial
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="inline-block h-3 w-3 rounded-full bg-muted"
+                  aria-hidden
+                />
+                Livre
+              </span>
+            </div>
           ) : null}
           {tables.length > 0 && sellerOptions.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -2301,30 +2326,34 @@ function TablesMap({
                                   guest.seller_name
                                     ? ` · Vend. ${guest.seller_name}`
                                     : ""
+                                } · ${
+                                  guest.settlement === "paid"
+                                    ? "Pago"
+                                    : guest.settlement === "partial"
+                                      ? "Parcialmente pago"
+                                      : "Em aberto"
                                 } — toque para alterar`
                               : "Toque para alocar convidado"
                           }
                         >
                           <div
-                            className="grid h-10 w-10 place-items-center rounded-full text-xs font-semibold"
-                            style={
+                            className={`grid h-10 w-10 place-items-center rounded-full text-xs font-semibold ${
                               taken && !dimmed
+                                ? guest?.settlement === "paid"
+                                  ? "bg-emerald-500 text-white"
+                                  : "bg-amber-500 text-white"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                            style={
+                              highlight
                                 ? {
-                                    backgroundColor:
-                                      primary || "var(--chapter-primary)",
-                                    color: "#fff",
-                                    ...(highlight
-                                      ? {
-                                          boxShadow: `0 0 0 2px var(--background), 0 0 0 4px ${
-                                            primary || "var(--chapter-primary)"
-                                          }`,
-                                        }
-                                      : {}),
+                                    boxShadow: `0 0 0 2px var(--background), 0 0 0 4px ${
+                                      guest?.settlement === "paid"
+                                        ? "rgb(16 185 129)"
+                                        : "rgb(245 158 11)"
+                                    }`,
                                   }
-                                : {
-                                    backgroundColor: "var(--muted)",
-                                    color: "var(--muted-foreground)",
-                                  }
+                                : undefined
                             }
                           >
                             {s.seat_number}
@@ -2472,15 +2501,38 @@ function TablesMap({
           </DialogHeader>
           <div className="space-y-3">
             {assigningGuest ? (
-              <p className="text-sm text-muted-foreground">
-                Atual:{" "}
-                <span className="font-medium text-foreground">
-                  {assigningGuest.buyer_name}
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span>
+                  Atual:{" "}
+                  <span className="font-medium text-foreground">
+                    {assigningGuest.buyer_name}
+                  </span>
+                  {assigningGuest.seller_name ? (
+                    <span> · Vend. {assigningGuest.seller_name}</span>
+                  ) : null}
                 </span>
-                {assigningGuest.seller_name ? (
-                  <span> · Vend. {assigningGuest.seller_name}</span>
-                ) : null}
-              </p>
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                    assigningGuest.settlement === "paid"
+                      ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+                      : "bg-amber-500/15 text-amber-900 dark:text-amber-200"
+                  }`}
+                >
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      assigningGuest.settlement === "paid"
+                        ? "bg-emerald-500"
+                        : "bg-amber-500"
+                    }`}
+                    aria-hidden
+                  />
+                  {assigningGuest.settlement === "paid"
+                    ? "Pago"
+                    : assigningGuest.settlement === "partial"
+                      ? "Parcial"
+                      : "Em aberto"}
+                </span>
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">Assento livre.</p>
             )}
@@ -2517,13 +2569,13 @@ function TablesMap({
             {ticketOptions.length === 0 ? (
               <p className="text-sm text-amber-700 dark:text-amber-400">
                 {assignSellerFilter !== "all"
-                  ? "Nenhum convidado com check-in deste vendedor para alocar. Escolha outro vendedor ou “Todos”."
-                  : "Nenhum convidado com check-in disponível para alocar."}
+                  ? "Nenhum convidado deste vendedor para alocar. Escolha outro vendedor ou “Todos”."
+                  : "Nenhum convidado disponível para alocar."}
               </p>
             ) : (
               <div>
                 <Label className="mb-1.5 block text-xs text-muted-foreground">
-                  Convidado com check-in
+                  Convidado
                 </Label>
                 <SearchableSelect
                   value={pickedTicketId}
@@ -2535,6 +2587,29 @@ function TablesMap({
                 />
               </div>
             )}
+            {canEditComanda && comandaGuest ? (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {comandaGuest.checked_in ? (
+                  <TicketComandaButton
+                    eventId={eventId}
+                    ticketId={comandaGuest.id}
+                    buyerName={comandaGuest.buyer_name}
+                    eventName={eventName}
+                    primary={primary}
+                    paid={comandaGuest.settlement === "paid"}
+                  />
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled
+                    title="Comanda disponível após o check-in"
+                  >
+                    <ShoppingBag className="mr-1 h-4 w-4" /> Comanda
+                  </Button>
+                )}
+              </div>
+            ) : null}
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
             {assigning?.ticket_id ? (

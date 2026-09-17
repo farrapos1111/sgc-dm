@@ -962,18 +962,6 @@ export const assignSeat = createServerFn({ method: "POST" })
         throw new Error("Ingresso cancelado não pode ser alocado");
       }
 
-      const { data: checkin, error: cErr } = await context.supabase
-        .from("checkins")
-        .select("id")
-        .eq("ticket_id", data.ticket_id)
-        .maybeSingle();
-      if (cErr) throw new Error(cErr.message);
-      if (!checkin) {
-        throw new Error(
-          "Só é possível alocar convidados com check-in no evento",
-        );
-      }
-
       // Um ingresso só em um assento: libera onde estiver.
       const { error: clearErr } = await context.supabase
         .from("seats")
