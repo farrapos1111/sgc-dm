@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   addDaysYmd,
+  effectiveEventFinanceCloseYmd,
   eventDisplayStatus,
   eventFinanceCloseYmd,
   eventStartYmd,
@@ -15,6 +16,9 @@ assert.equal(addDaysYmd("2026-01-15", 30), "2026-02-14");
 const starts = "2026-03-10T15:00:00.000Z";
 assert.equal(eventStartYmd(starts), "2026-03-10");
 assert.equal(eventFinanceCloseYmd(starts), "2026-04-09");
+assert.equal(effectiveEventFinanceCloseYmd(starts, null), "2026-04-09");
+assert.equal(effectiveEventFinanceCloseYmd(starts, "2026-04-01"), "2026-04-09");
+assert.equal(effectiveEventFinanceCloseYmd(starts, "2026-05-01"), "2026-05-01");
 
 assert.equal(
   isEventFinanceOpen(starts, "publicado", new Date("2026-04-09T15:00:00.000Z")),
@@ -24,11 +28,29 @@ assert.equal(
   isEventFinanceOpen(starts, "publicado", new Date("2026-04-10T15:00:00.000Z")),
   false,
 );
-assert.equal(isEventFinanceOpen(starts, "encerrado", new Date("2026-03-11")), false);
+assert.equal(
+  isEventFinanceOpen(
+    starts,
+    "publicado",
+    new Date("2026-04-20T15:00:00.000Z"),
+    "2026-04-30",
+  ),
+  true,
+);
+assert.equal(isEventFinanceOpen(starts, "encerrado", new Date("2026-03-11"), "2026-05-01"), false);
 
 assert.equal(
   eventDisplayStatus(starts, "publicado", new Date("2026-04-10T15:00:00.000Z")),
   "fechado",
+);
+assert.equal(
+  eventDisplayStatus(
+    starts,
+    "publicado",
+    new Date("2026-04-10T15:00:00.000Z"),
+    "2026-04-15",
+  ),
+  "publicado",
 );
 assert.equal(
   eventDisplayStatus(starts, "rascunho", new Date("2026-04-10T15:00:00.000Z")),

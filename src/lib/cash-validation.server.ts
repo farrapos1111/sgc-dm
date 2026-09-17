@@ -89,14 +89,18 @@ export async function resolveSubcategory(
     }
     const { data: event, error: evErr } = await supabase
       .from("events")
-      .select("id, starts_at, status")
+      .select("id, starts_at, status, finance_open_until")
       .eq("id", item.event_id)
       .maybeSingle();
     if (evErr) throw new Error(evErr.message);
     if (!event) throw new Error("Evento não encontrado");
     if (!opts.forUpdate) {
       const { assertEventFinanceOpen } = await import("@/lib/event-lifecycle");
-      assertEventFinanceOpen(event.starts_at, event.status);
+      assertEventFinanceOpen(
+        event.starts_at,
+        event.status,
+        event.finance_open_until,
+      );
     }
 
     return {

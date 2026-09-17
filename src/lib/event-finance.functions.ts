@@ -903,19 +903,24 @@ async function loadEventForBudget(
 ) {
   const { data: event, error } = await supabase
     .from("events")
-    .select("id, name, chapter_id, starts_at, status")
+    .select("id, name, chapter_id, starts_at, status, finance_open_until")
     .eq("id", eventId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!event) throw new Error("Evento não encontrado");
   const { assertEventFinanceOpen } = await import("@/lib/event-lifecycle");
-  assertEventFinanceOpen(event.starts_at, event.status);
+  assertEventFinanceOpen(
+    event.starts_at,
+    event.status,
+    event.finance_open_until,
+  );
   return event as {
     id: string;
     name: string;
     chapter_id: string;
     starts_at: string;
     status: string;
+    finance_open_until: string | null;
   };
 }
 
@@ -1339,13 +1344,17 @@ async function assertComandaEditable(
   if (ticket?.event_id) {
     const { data: event, error: evErr } = await supabase
       .from("events")
-      .select("starts_at, status")
+      .select("starts_at, status, finance_open_until")
       .eq("id", ticket.event_id)
       .maybeSingle();
     if (evErr) throw new Error(evErr.message);
     if (event) {
       const { assertEventFinanceOpen } = await import("@/lib/event-lifecycle");
-      assertEventFinanceOpen(event.starts_at, event.status);
+      assertEventFinanceOpen(
+        event.starts_at,
+        event.status,
+        event.finance_open_until,
+      );
     }
   }
 

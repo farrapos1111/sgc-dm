@@ -952,7 +952,7 @@ export const listCashCategories = createServerFn({ method: "POST" })
         .order("name"),
       context.supabase
         .from("events")
-        .select("id, name, starts_at, status")
+        .select("id, name, starts_at, status, finance_open_until")
         .eq("chapter_id", data.chapterId)
         .order("starts_at", { ascending: false })
         .limit(200),
@@ -978,7 +978,7 @@ export const listCashCategories = createServerFn({ method: "POST" })
 
     const { isEventFinanceOpen } = await import("@/lib/event-lifecycle");
     const openOpsEvents = (opsEvents.data ?? []).filter((e) =>
-      isEventFinanceOpen(e.starts_at, e.status),
+      isEventFinanceOpen(e.starts_at, e.status, new Date(), e.finance_open_until),
     );
 
     return {

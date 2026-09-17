@@ -92,7 +92,12 @@ function EventosList() {
   const filtered = useMemo(() => {
     const q = search.trim();
     let rows = events.filter((e) => {
-      const display = eventDisplayStatus(e.starts_at, e.status);
+      const display = eventDisplayStatus(
+        e.starts_at,
+        e.status,
+        new Date(),
+        e.finance_open_until,
+      );
       if (statusFilter !== "all" && display !== statusFilter) return false;
 
       const term = termOfEvent(e.starts_at);
@@ -121,8 +126,18 @@ function EventosList() {
         return a.name.localeCompare(b.name, "pt-BR") * dir;
       }
       if (sortKey === "status") {
-        const sa = eventDisplayStatus(a.starts_at, a.status);
-        const sb = eventDisplayStatus(b.starts_at, b.status);
+        const sa = eventDisplayStatus(
+          a.starts_at,
+          a.status,
+          new Date(),
+          a.finance_open_until,
+        );
+        const sb = eventDisplayStatus(
+          b.starts_at,
+          b.status,
+          new Date(),
+          b.finance_open_until,
+        );
         return (
           EVENT_DISPLAY_STATUS_LABELS[sa].localeCompare(
             EVENT_DISPLAY_STATUS_LABELS[sb],
@@ -304,7 +319,12 @@ function EventCard({ event: e }: { event: EventRow }) {
   const raised = Number(e.raised) || 0;
   const goal = Number(e.goal_amount) || 0;
   const pct = goal > 0 ? Math.min(100, (raised / goal) * 100) : 0;
-  const display = eventDisplayStatus(e.starts_at, e.status);
+  const display = eventDisplayStatus(
+    e.starts_at,
+    e.status,
+    new Date(),
+    e.finance_open_until,
+  );
   const label = EVENT_DISPLAY_STATUS_LABELS[display];
   const term = termOfEvent(e.starts_at);
 

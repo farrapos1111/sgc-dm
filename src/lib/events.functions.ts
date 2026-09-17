@@ -13,6 +13,11 @@ import {
   buildTicketPassData,
   ticketQrPngBase64,
 } from "@/lib/ticket-pass-data";
+import {
+  addDaysYmd,
+  EVENT_FINANCE_GRACE_DAYS,
+  isEventFinanceOpen,
+} from "@/lib/event-lifecycle";
 
 export const listEvents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -23,7 +28,7 @@ export const listEvents = createServerFn({ method: "POST" })
     const { data: events, error } = await context.supabase
       .from("events")
       .select(
-        "id, name, description, location, starts_at, ends_at, goal_amount, status, created_at",
+        "id, name, description, location, starts_at, ends_at, goal_amount, status, finance_open_until, created_at",
       )
       .eq("chapter_id", data.chapterId)
       .order("starts_at", { ascending: false });
@@ -226,7 +231,7 @@ export const getEvent = createServerFn({ method: "POST" })
     const eventRes = await context.supabase
       .from("events")
       .select(
-        "id, chapter_id, name, description, location, starts_at, ends_at, goal_amount, status, ticket_artwork_url",
+        "id, chapter_id, name, description, location, starts_at, ends_at, goal_amount, status, finance_open_until, ticket_artwork_url",
       )
       .eq("id", data.id)
       .maybeSingle();
@@ -482,21 +487,108 @@ export const updateEvent = createServerFn({ method: "POST" })
     if (exErr) throw new Error(exErr.message);
     if (!existing) throw new Error("Evento não encontrado");
 
+    const patch: {
+      name: string;
+      description: string;
+      location: string;
+      starts_at: string;
+      ends_at: string | null;
+      goal_amount: number;
+      status: "rascunho" | "publicado" | "encerrado";
+      finance_open_until?: string | null;
+    } = {
+      name: data.name.trim(),
+      description: data.description ?? "",
+      location: data.location ?? "",
+      starts_at: data.starts_at,
+      ends_at: data.ends_at || null,
+      goal_amount: data.goal_amount,
+      status: data.status,
+    };
+    if (data.status === "encerrado") {
+      patch.finance_open_until = null;
+    }
+
+    const { data: row, error } = await context.supabase
+      .from("events")
+      .update(patch)
+      .eq("id", data.id)
+      .eq("chapter_id", data.chapterId)
+      .select(
+        "id, name, description, location, starts_at, ends_at, goal_amount, status, finance_open_until",
+      )
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+/** Reabre evento fechado (status/prazo) por mais 30 dias — só MC / admin total. */
+export const reopenEvent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        chapterId: z.string().uuid(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: allowedRole, error: roleErr } = await context.supabase.rpc(
+      "has_any_role",
+      {
+        _chapter_id: data.chapterId,
+        _role_names: ["admin_total", "mestre_conselheiro"],
+      } as never,
+    );
+    if (roleErr) throw new Error(roleErr.message);
+
+    const { data: allowedPos, error: posErr } = await context.supabase.rpc(
+      "has_current_position",
+      {
+        _chapter_id: data.chapterId,
+        _codes: ["mestre_conselheiro", "loja_veneravel_mestre"],
+      } as never,
+    );
+    if (posErr) throw new Error(posErr.message);
+
+    if (!allowedRole && !allowedPos) {
+      throw new Error(
+        "Apenas Mestre Conselheiro ou Admin Total podem reabrir um evento",
+      );
+    }
+
+    const { data: existing, error: exErr } = await context.supabase
+      .from("events")
+      .select("id, starts_at, status, finance_open_until")
+      .eq("id", data.id)
+      .eq("chapter_id", data.chapterId)
+      .maybeSingle();
+    if (exErr) throw new Error(exErr.message);
+    if (!existing) throw new Error("Evento não encontrado");
+
+    if (
+      isEventFinanceOpen(
+        existing.starts_at,
+        existing.status,
+        new Date(),
+        existing.finance_open_until,
+      )
+    ) {
+      throw new Error("Este evento já está aberto para lançamentos");
+    }
+
+    const until = addDaysYmd(todayYmd(), EVENT_FINANCE_GRACE_DAYS);
     const { data: row, error } = await context.supabase
       .from("events")
       .update({
-        name: data.name.trim(),
-        description: data.description ?? "",
-        location: data.location ?? "",
-        starts_at: data.starts_at,
-        ends_at: data.ends_at || null,
-        goal_amount: data.goal_amount,
-        status: data.status,
+        status: "publicado",
+        finance_open_until: until,
       })
       .eq("id", data.id)
       .eq("chapter_id", data.chapterId)
       .select(
-        "id, name, description, location, starts_at, ends_at, goal_amount, status",
+        "id, name, status, finance_open_until, starts_at",
       )
       .single();
     if (error) throw new Error(error.message);

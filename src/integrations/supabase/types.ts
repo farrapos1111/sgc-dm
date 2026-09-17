@@ -962,6 +962,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           ends_at: string | null
+          finance_open_until: string | null
           goal_amount: number
           id: string
           location: string | null
@@ -977,6 +978,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           ends_at?: string | null
+          finance_open_until?: string | null
           goal_amount?: number
           id?: string
           location?: string | null
@@ -992,6 +994,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           ends_at?: string | null
+          finance_open_until?: string | null
           goal_amount?: number
           id?: string
           location?: string | null

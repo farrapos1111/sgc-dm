@@ -23,6 +23,7 @@ import {
   deleteEvent,
   updateEvent,
   updateEventArtwork,
+  reopenEvent,
   assignSeat,
 } from "@/lib/events.functions";
 import {
@@ -82,12 +83,14 @@ import {
   ShoppingBag,
   Ticket,
   Trash2,
+  Unlock,
 } from "lucide-react";
-import { formatBRL, formatDateTimeBR } from "@/lib/format";
+import { formatBRL, formatDateBR, formatDateTimeBR } from "@/lib/format";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { isOrgLeader } from "@/lib/permissions";
 import { matchesLooseSearch } from "@/lib/utils";
 import {
+  EVENT_FINANCE_GRACE_DAYS,
   eventDisplayStatusLabel,
   isEventFinanceOpen,
 } from "@/lib/event-lifecycle";
@@ -171,9 +174,12 @@ function EventoDetalhe() {
   const canManageTickets = canDo("eventos.manage");
   const canEditEvent =
     canDo("eventos.manage") || canPerm("admin") || canScreen("eventos", "edit");
+  const canReopenEvent = isAdminTotal || isOrgLeader(realCtx);
   const financeWindowOpen = isEventFinanceOpen(
     data.event.starts_at,
     data.event.status,
+    new Date(),
+    data.event.finance_open_until,
   );
   const canEditFinance =
     financeWindowOpen &&
@@ -185,6 +191,8 @@ function EventoDetalhe() {
   const statusLabel = eventDisplayStatusLabel(
     data.event.starts_at,
     data.event.status,
+    new Date(),
+    data.event.finance_open_until,
   );
 
   const remove = useMutation({
@@ -196,6 +204,22 @@ function EventoDetalhe() {
     },
     onError: (e: unknown) =>
       toast.error(mutationErrorMessage(e, "Erro ao excluir")),
+  });
+
+  const reopen = useMutation({
+    mutationFn: () =>
+      reopenEvent({
+        data: { id, chapterId: data.event.chapter_id },
+      }),
+    onSuccess: (row) => {
+      toast.success(
+        `Evento reaberto até ${formatDateBR(row.finance_open_until)}`,
+      );
+      void qc.invalidateQueries({ queryKey: ["event", id] });
+      void qc.invalidateQueries({ queryKey: ["events"] });
+    },
+    onError: (e: unknown) =>
+      toast.error(mutationErrorMessage(e, "Erro ao reabrir evento")),
   });
 
   const eventMeta = {
@@ -211,6 +235,18 @@ function EventoDetalhe() {
         subtitle={`${formatDateTimeBR(data.event.starts_at)}${data.event.location ? ` · ${data.event.location}` : ""} · ${statusLabel}${financeWindowOpen ? "" : " · caixa encerrado"}`}
         actions={
           <div className="flex flex-wrap gap-2">
+            {canReopenEvent && !financeWindowOpen ? (
+              <Button
+                variant="outline"
+                disabled={reopen.isPending}
+                onClick={() => reopen.mutate()}
+              >
+                <Unlock className="mr-2 h-4 w-4" />
+                {reopen.isPending
+                  ? "Reabrindo…"
+                  : `Reabrir (+${EVENT_FINANCE_GRACE_DAYS} dias)`}
+              </Button>
+            ) : null}
             {canDelete ? (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -728,7 +764,8 @@ function EventDetailsCard({
           </Select>
           <p className="mt-1 text-xs text-muted-foreground">
             “Fechado” na lista aparece automaticamente 30 dias após o início,
-            mesmo com status Publicado.
+            mesmo com status Publicado. MC e Admin Total podem reabrir o caixa
+            pelo botão no topo da página.
           </p>
         </div>
       </div>
