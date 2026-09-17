@@ -73,5 +73,5 @@ Tutorial completo (comandos, setup local e regras do projeto): [docs/OPEN-SOURCE
 
 Dois pontos que valem destaque:
 
-- Não reescreva histórico já publicado (`push --force`, `rebase`, `amend`, `squash`). O repositório é sincronizado com o editor Lovable e isso quebra o histórico do projeto.
+- Evite reescrever histórico já publicado no branch principal (`push --force`, `rebase`, `amend`, `squash`) sem acordo explícito da equipe.
 - Toda alteração atualiza a documentação correspondente no mesmo PR. Documentação adiada é documentação nunca escrita.

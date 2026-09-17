@@ -1,13 +1,17 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
-/** Provider da Lovable AI Gateway. Uso exclusivo no servidor. */
-export function createLovableAiGatewayProvider(lovableApiKey: string) {
+/**
+ * Provider OpenAI-compatible para as funções de IA do servidor.
+ * Use AI_API_KEY (+ opcional AI_BASE_URL / AI_MODEL).
+ */
+export function createAiProvider(apiKey: string, baseURL?: string) {
   return createOpenAICompatible({
-    name: "lovable",
-    baseURL: "https://ai.gateway.lovable.dev/v1",
-    headers: {
-      "Lovable-API-Key": lovableApiKey,
-      "X-Lovable-AIG-SDK": "vercel-ai-sdk",
-    },
+    name: "openai-compatible",
+    baseURL: (baseURL?.trim() || "https://api.openai.com/v1").replace(/\/$/, ""),
+    apiKey,
   });
+}
+
+export function resolveAiModelId(): string {
+  return process.env.AI_MODEL?.trim() || "gpt-4o-mini";
 }

@@ -3,6 +3,16 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateText } from "ai";
 
+function requireAiKey(): string {
+  const key = process.env.AI_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim();
+  if (!key) {
+    throw new Error(
+      "IA indisponível: configure AI_API_KEY (ou OPENAI_API_KEY) no ambiente.",
+    );
+  }
+  return key;
+}
+
 /** Revisa ortografia/gramática de um texto curto, preservando o conteúdo original. */
 export const improveText = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -15,15 +25,15 @@ export const improveText = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("IA indisponível: LOVABLE_API_KEY não configurada.");
-
-    const { createLovableAiGatewayProvider } = await import("@/lib/ai-gateway.server");
-    const gateway = createLovableAiGatewayProvider(key);
+    const key = requireAiKey();
+    const { createAiProvider, resolveAiModelId } = await import(
+      "@/lib/ai-gateway.server"
+    );
+    const gateway = createAiProvider(key, process.env.AI_BASE_URL);
 
     try {
       const { text } = await generateText({
-        model: gateway("google/gemini-3.6-flash"),
+        model: gateway(resolveAiModelId()),
         system: [
           "Você revisa textos em português do Brasil para um sistema de gestão de capítulos da Ordem DeMolay.",
           "Corrija ortografia, acentuação, pontuação e concordância; melhore a clareza sem mudar o sentido.",
@@ -45,8 +55,10 @@ export const improveText = createServerFn({ method: "POST" })
       return { text: improved };
     } catch (e: any) {
       const msg = String(e?.message ?? "");
-      if (msg.includes("429")) throw new Error("Muitas solicitações à IA. Tente novamente em instantes.");
-      if (msg.includes("402")) throw new Error("Créditos de IA esgotados no workspace.");
+      if (msg.includes("429"))
+        throw new Error("Muitas solicitações à IA. Tente novamente em instantes.");
+      if (msg.includes("402"))
+        throw new Error("Créditos de IA esgotados.");
       throw new Error(msg || "Não foi possível melhorar o texto.");
     }
   });
@@ -69,11 +81,11 @@ export const composeEventDescription = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("IA indisponível: LOVABLE_API_KEY não configurada.");
-
-    const { createLovableAiGatewayProvider } = await import("@/lib/ai-gateway.server");
-    const gateway = createLovableAiGatewayProvider(key);
+    const key = requireAiKey();
+    const { createAiProvider, resolveAiModelId } = await import(
+      "@/lib/ai-gateway.server"
+    );
+    const gateway = createAiProvider(key, process.env.AI_BASE_URL);
 
     const has = Boolean(data.current?.trim());
     const facts = [
@@ -83,14 +95,16 @@ export const composeEventDescription = createServerFn({ method: "POST" })
       data.location ? `Local: ${data.location}` : null,
       data.dressCode ? `Traje: ${data.dressCode}` : null,
       data.mandatory === true ? "Presença obrigatória para os membros." : null,
-      data.publicOpen === true ? "Atividade aberta ao público (convidados e familiares)." : null,
+      data.publicOpen === true
+        ? "Atividade aberta ao público (convidados e familiares)."
+        : null,
     ]
       .filter(Boolean)
       .join("\n");
 
     try {
       const { text } = await generateText({
-        model: gateway("google/gemini-3.6-flash"),
+        model: gateway(resolveAiModelId()),
         system: [
           "Você escreve descrições de atividades para um capítulo da Ordem DeMolay, em português do Brasil.",
           "Tom formal, institucional e cordial, adequado à rotina de um capítulo DeMolay.",
@@ -106,7 +120,9 @@ export const composeEventDescription = createServerFn({ method: "POST" })
               "Texto atual escrito pelo usuário (preserve o sentido, corrija e complemente):",
               data.current!.trim(),
             ].join("\n")
-          : ["Gere a descrição da atividade a partir dos dados abaixo:", facts].join("\n"),
+          : ["Gere a descrição da atividade a partir dos dados abaixo:", facts].join(
+              "\n",
+            ),
       });
 
       const out = text.trim();
@@ -114,8 +130,10 @@ export const composeEventDescription = createServerFn({ method: "POST" })
       return { text: out };
     } catch (e: any) {
       const msg = String(e?.message ?? "");
-      if (msg.includes("429")) throw new Error("Muitas solicitações à IA. Tente novamente em instantes.");
-      if (msg.includes("402")) throw new Error("Créditos de IA esgotados no workspace.");
+      if (msg.includes("429"))
+        throw new Error("Muitas solicitações à IA. Tente novamente em instantes.");
+      if (msg.includes("402"))
+        throw new Error("Créditos de IA esgotados.");
       throw new Error(msg || "Não foi possível gerar a descrição.");
     }
   });

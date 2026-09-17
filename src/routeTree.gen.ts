@@ -9,96 +9,82 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AtualizarCadastroRouteImport } from './routes/atualizar-cadastro'
-import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as DocumentacaoRouteRouteImport } from './routes/documentacao/route'
-import { Route as AuthenticatedShellRouteRouteImport } from './routes/_authenticated/_shell/route'
-import { Route as AuthenticatedSelecionarCapituloRouteImport } from './routes/_authenticated/selecionar-capitulo'
-import { Route as AtaTokenRouteImport } from './routes/ata.$token'
-import { Route as AuthIndexRouteImport } from './routes/auth/index'
-import { Route as AuthAdicionarOrganizacaoRouteImport } from './routes/auth/adicionar-organizacao'
-import { Route as AuthAssinaturaRouteImport } from './routes/auth/assinatura'
-import { Route as AuthNovaSenhaRouteImport } from './routes/auth/nova-senha'
-import { Route as AuthRecuperarSenhaRouteImport } from './routes/auth/recuperar-senha'
-import { Route as AuthRedefinirSenhaRouteImport } from './routes/auth/redefinir-senha'
-import { Route as CTokenRouteImport } from './routes/c.$token'
+import { Route as AuthRouteRouteImport } from './routes/auth/route'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as DocumentacaoIndexRouteImport } from './routes/documentacao/index'
-import { Route as DocumentacaoGuiaRouteImport } from './routes/documentacao/guia'
-import { Route as DocumentacaoOpenSourceRouteImport } from './routes/documentacao/open-source'
-import { Route as DocumentacaoTecnicaRouteImport } from './routes/documentacao/tecnica'
-import { Route as FTokenRouteImport } from './routes/f.$token'
-import { Route as FluxoCaixaTokenRouteImport } from './routes/fluxo-caixa.$token'
+import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as MensalidadesTokenRouteImport } from './routes/mensalidades.$token'
-import { Route as AuthenticatedShellAtasRouteImport } from './routes/_authenticated/_shell/atas'
-import { Route as AuthenticatedShellCalendarioRouteImport } from './routes/_authenticated/_shell/calendario'
-import { Route as AuthenticatedShellConfiguracoesRouteImport } from './routes/_authenticated/_shell/configuracoes'
-import { Route as AuthenticatedShellFinanceiroRouteImport } from './routes/_authenticated/_shell/financeiro'
-import { Route as AuthenticatedShellGestaoRouteImport } from './routes/_authenticated/_shell/gestao'
-import { Route as AuthenticatedShellInicioRouteImport } from './routes/_authenticated/_shell/inicio'
-import { Route as AuthenticatedShellMaisRouteImport } from './routes/_authenticated/_shell/mais'
-import { Route as AuthenticatedShellPerfilRouteImport } from './routes/_authenticated/_shell/perfil'
-import { Route as AuthenticatedShellPresencasRouteImport } from './routes/_authenticated/_shell/presencas'
-import { Route as AuthenticatedShellSugestoesRouteImport } from './routes/_authenticated/_shell/sugestoes'
+import { Route as FluxoCaixaTokenRouteImport } from './routes/fluxo-caixa.$token'
+import { Route as FTokenRouteImport } from './routes/f.$token'
+import { Route as DocumentacaoTecnicaRouteImport } from './routes/documentacao/tecnica'
+import { Route as DocumentacaoOpenSourceRouteImport } from './routes/documentacao/open-source'
+import { Route as DocumentacaoGuiaRouteImport } from './routes/documentacao/guia'
+import { Route as CTokenRouteImport } from './routes/c.$token'
+import { Route as AuthRedefinirSenhaRouteImport } from './routes/auth/redefinir-senha'
+import { Route as AuthRecuperarSenhaRouteImport } from './routes/auth/recuperar-senha'
+import { Route as AuthNovaSenhaRouteImport } from './routes/auth/nova-senha'
+import { Route as AuthAssinaturaRouteImport } from './routes/auth/assinatura'
+import { Route as AuthAdicionarOrganizacaoRouteImport } from './routes/auth/adicionar-organizacao'
+import { Route as AtaTokenRouteImport } from './routes/ata.$token'
+import { Route as AuthenticatedSelecionarCapituloRouteImport } from './routes/_authenticated/selecionar-capitulo'
+import { Route as AuthenticatedShellRouteRouteImport } from './routes/_authenticated/_shell/route'
 import { Route as CTokenIndexRouteImport } from './routes/c.$token.index'
-import { Route as CTokenEuRouteImport } from './routes/c.$token.eu'
-import { Route as CTokenFluxoRouteImport } from './routes/c.$token.fluxo'
-import { Route as CTokenMensalidadesRouteImport } from './routes/c.$token.mensalidades'
 import { Route as CTokenPresencasRouteImport } from './routes/c.$token.presencas'
-import { Route as AuthenticatedShellConfiguracoesGlobaisCargosRouteImport } from './routes/_authenticated/_shell/configuracoes-globais.cargos'
-import { Route as AuthenticatedShellConfiguracoesGlobaisInboxRouteImport } from './routes/_authenticated/_shell/configuracoes-globais.inbox'
-import { Route as AuthenticatedShellEventosIndexRouteImport } from './routes/_authenticated/_shell/eventos.index'
-import { Route as AuthenticatedShellEventosIdRouteImport } from './routes/_authenticated/_shell/eventos.$id'
-import { Route as AuthenticatedShellEventosCheckinsRouteImport } from './routes/_authenticated/_shell/eventos.checkins'
-import { Route as AuthenticatedShellEventosNovoRouteImport } from './routes/_authenticated/_shell/eventos.novo'
-import { Route as AuthenticatedShellHospitalariaCardapiosRouteImport } from './routes/_authenticated/_shell/hospitalaria.cardapios'
-import { Route as AuthenticatedShellHospitalariaEscalaRouteImport } from './routes/_authenticated/_shell/hospitalaria.escala'
-import { Route as AuthenticatedShellMembrosIndexRouteImport } from './routes/_authenticated/_shell/membros.index'
-import { Route as AuthenticatedShellMembrosIdRouteImport } from './routes/_authenticated/_shell/membros.$id'
-import { Route as AuthenticatedShellMembrosNovoRouteImport } from './routes/_authenticated/_shell/membros.novo'
-import { Route as AuthenticatedShellMembrosSolicitacoesRouteImport } from './routes/_authenticated/_shell/membros.solicitacoes'
-import { Route as AuthenticatedShellOficiosIndexRouteImport } from './routes/_authenticated/_shell/oficios.index'
-import { Route as AuthenticatedShellOficiosIdRouteImport } from './routes/_authenticated/_shell/oficios.$id'
-import { Route as AuthenticatedShellOficiosNovoRouteImport } from './routes/_authenticated/_shell/oficios.novo'
-import { Route as AuthenticatedShellOngoingIdRouteImport } from './routes/_authenticated/_shell/ongoing.$id'
+import { Route as CTokenMensalidadesRouteImport } from './routes/c.$token.mensalidades'
+import { Route as CTokenFluxoRouteImport } from './routes/c.$token.fluxo'
+import { Route as CTokenEuRouteImport } from './routes/c.$token.eu'
+import { Route as AuthenticatedShellSugestoesRouteImport } from './routes/_authenticated/_shell/sugestoes'
+import { Route as AuthenticatedShellPresencasRouteImport } from './routes/_authenticated/_shell/presencas'
+import { Route as AuthenticatedShellPerfilRouteImport } from './routes/_authenticated/_shell/perfil'
+import { Route as AuthenticatedShellMaisRouteImport } from './routes/_authenticated/_shell/mais'
+import { Route as AuthenticatedShellInicioRouteImport } from './routes/_authenticated/_shell/inicio'
+import { Route as AuthenticatedShellGestaoRouteImport } from './routes/_authenticated/_shell/gestao'
+import { Route as AuthenticatedShellFinanceiroRouteImport } from './routes/_authenticated/_shell/financeiro'
+import { Route as AuthenticatedShellConfiguracoesRouteImport } from './routes/_authenticated/_shell/configuracoes'
+import { Route as AuthenticatedShellCalendarioRouteImport } from './routes/_authenticated/_shell/calendario'
+import { Route as AuthenticatedShellAtasRouteImport } from './routes/_authenticated/_shell/atas'
 import { Route as AuthenticatedShellRegionalIndexRouteImport } from './routes/_authenticated/_shell/regional.index'
-import { Route as AuthenticatedShellRegionalAparenciaRouteImport } from './routes/_authenticated/_shell/regional.aparencia'
-import { Route as AuthenticatedShellRegionalCalendarioRouteImport } from './routes/_authenticated/_shell/regional.calendario'
-import { Route as AuthenticatedShellRegionalCapitulosRouteImport } from './routes/_authenticated/_shell/regional.capitulos'
-import { Route as AuthenticatedShellRegionalDatasObrigatoriasRouteImport } from './routes/_authenticated/_shell/regional.datas-obrigatorias'
-import { Route as AuthenticatedShellRegionalEstadosRouteImport } from './routes/_authenticated/_shell/regional.estados'
-import { Route as AuthenticatedShellRegionalLiderancasRouteImport } from './routes/_authenticated/_shell/regional.liderancas'
-import { Route as AuthenticatedShellRegionalMembrosRouteImport } from './routes/_authenticated/_shell/regional.membros'
-import { Route as AuthenticatedShellRegionalRegioesRouteImport } from './routes/_authenticated/_shell/regional.regioes'
-import { Route as AuthenticatedShellSindicanciasConfigRouteImport } from './routes/_authenticated/_shell/sindicancias.config'
-import { Route as AuthenticatedShellSindicanciasFichasRouteImport } from './routes/_authenticated/_shell/sindicancias.fichas'
-import { Route as AuthenticatedShellSindicanciasProcessosRouteImport } from './routes/_authenticated/_shell/sindicancias.processos'
-import { Route as AuthenticatedShellSindicanciasSindicariasRouteImport } from './routes/_authenticated/_shell/sindicancias.sindicarias'
-import { Route as AuthenticatedShellTesourariaAtrasadosRouteImport } from './routes/_authenticated/_shell/tesouraria.atrasados'
-import { Route as AuthenticatedShellTesourariaCobrancasRouteImport } from './routes/_authenticated/_shell/tesouraria.cobrancas'
-import { Route as AuthenticatedShellTesourariaFluxoRouteImport } from './routes/_authenticated/_shell/tesouraria.fluxo'
+import { Route as AuthenticatedShellOficiosIndexRouteImport } from './routes/_authenticated/_shell/oficios.index'
+import { Route as AuthenticatedShellMembrosIndexRouteImport } from './routes/_authenticated/_shell/membros.index'
+import { Route as AuthenticatedShellEventosIndexRouteImport } from './routes/_authenticated/_shell/eventos.index'
 import { Route as AuthenticatedShellTesourariaMensalidadesRouteImport } from './routes/_authenticated/_shell/tesouraria.mensalidades'
-import { Route as AuthenticatedShellMembrosIdEditarRouteImport } from './routes/_authenticated/_shell/membros.$id_.editar'
+import { Route as AuthenticatedShellTesourariaFluxoRouteImport } from './routes/_authenticated/_shell/tesouraria.fluxo'
+import { Route as AuthenticatedShellTesourariaCobrancasRouteImport } from './routes/_authenticated/_shell/tesouraria.cobrancas'
+import { Route as AuthenticatedShellTesourariaAtrasadosRouteImport } from './routes/_authenticated/_shell/tesouraria.atrasados'
+import { Route as AuthenticatedShellSindicanciasSindicariasRouteImport } from './routes/_authenticated/_shell/sindicancias.sindicarias'
+import { Route as AuthenticatedShellSindicanciasProcessosRouteImport } from './routes/_authenticated/_shell/sindicancias.processos'
+import { Route as AuthenticatedShellSindicanciasFichasRouteImport } from './routes/_authenticated/_shell/sindicancias.fichas'
+import { Route as AuthenticatedShellSindicanciasConfigRouteImport } from './routes/_authenticated/_shell/sindicancias.config'
+import { Route as AuthenticatedShellRegionalRegioesRouteImport } from './routes/_authenticated/_shell/regional.regioes'
+import { Route as AuthenticatedShellRegionalMembrosRouteImport } from './routes/_authenticated/_shell/regional.membros'
+import { Route as AuthenticatedShellRegionalLiderancasRouteImport } from './routes/_authenticated/_shell/regional.liderancas'
+import { Route as AuthenticatedShellRegionalEstadosRouteImport } from './routes/_authenticated/_shell/regional.estados'
+import { Route as AuthenticatedShellRegionalDatasObrigatoriasRouteImport } from './routes/_authenticated/_shell/regional.datas-obrigatorias'
+import { Route as AuthenticatedShellRegionalCapitulosRouteImport } from './routes/_authenticated/_shell/regional.capitulos'
+import { Route as AuthenticatedShellRegionalCalendarioRouteImport } from './routes/_authenticated/_shell/regional.calendario'
+import { Route as AuthenticatedShellRegionalAparenciaRouteImport } from './routes/_authenticated/_shell/regional.aparencia'
+import { Route as AuthenticatedShellOngoingIdRouteImport } from './routes/_authenticated/_shell/ongoing.$id'
+import { Route as AuthenticatedShellOficiosNovoRouteImport } from './routes/_authenticated/_shell/oficios.novo'
+import { Route as AuthenticatedShellOficiosIdRouteImport } from './routes/_authenticated/_shell/oficios.$id'
+import { Route as AuthenticatedShellMembrosSolicitacoesRouteImport } from './routes/_authenticated/_shell/membros.solicitacoes'
+import { Route as AuthenticatedShellMembrosNovoRouteImport } from './routes/_authenticated/_shell/membros.novo'
+import { Route as AuthenticatedShellMembrosIdRouteImport } from './routes/_authenticated/_shell/membros.$id'
+import { Route as AuthenticatedShellHospitalariaEscalaRouteImport } from './routes/_authenticated/_shell/hospitalaria.escala'
+import { Route as AuthenticatedShellHospitalariaCardapiosRouteImport } from './routes/_authenticated/_shell/hospitalaria.cardapios'
+import { Route as AuthenticatedShellEventosNovoRouteImport } from './routes/_authenticated/_shell/eventos.novo'
+import { Route as AuthenticatedShellEventosCheckinsRouteImport } from './routes/_authenticated/_shell/eventos.checkins'
+import { Route as AuthenticatedShellEventosIdRouteImport } from './routes/_authenticated/_shell/eventos.$id'
+import { Route as AuthenticatedShellConfiguracoesGlobaisInboxRouteImport } from './routes/_authenticated/_shell/configuracoes-globais.inbox'
+import { Route as AuthenticatedShellConfiguracoesGlobaisCargosRouteImport } from './routes/_authenticated/_shell/configuracoes-globais.cargos'
 import { Route as AuthenticatedShellSindicanciasSindicariasEventIdRouteImport } from './routes/_authenticated/_shell/sindicancias.sindicarias_.$eventId'
+import { Route as AuthenticatedShellMembrosIdEditarRouteImport } from './routes/_authenticated/_shell/membros.$id_.editar'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AtualizarCadastroRoute = AtualizarCadastroRouteImport.update({
   id: '/atualizar-cadastro',
   path: '/atualizar-cadastro',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRouteRoute = AuthRouteRouteImport.update({
-  id: '/auth',
-  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocumentacaoRouteRoute = DocumentacaoRouteRouteImport.update({
@@ -106,24 +92,83 @@ const DocumentacaoRouteRoute = DocumentacaoRouteRouteImport.update({
   path: '/documentacao',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedShellRouteRoute = AuthenticatedShellRouteRouteImport.update({
-  id: '/_shell',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedSelecionarCapituloRoute =
-  AuthenticatedSelecionarCapituloRouteImport.update({
-    id: '/selecionar-capitulo',
-    path: '/selecionar-capitulo',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AtaTokenRoute = AtaTokenRouteImport.update({
-  id: '/ata/$token',
-  path: '/ata/$token',
+const AuthRouteRoute = AuthRouteRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentacaoIndexRoute = DocumentacaoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DocumentacaoRouteRoute,
 } as any)
 const AuthIndexRoute = AuthIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthRouteRoute,
+} as any)
+const MensalidadesTokenRoute = MensalidadesTokenRouteImport.update({
+  id: '/mensalidades/$token',
+  path: '/mensalidades/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FluxoCaixaTokenRoute = FluxoCaixaTokenRouteImport.update({
+  id: '/fluxo-caixa/$token',
+  path: '/fluxo-caixa/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FTokenRoute = FTokenRouteImport.update({
+  id: '/f/$token',
+  path: '/f/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentacaoTecnicaRoute = DocumentacaoTecnicaRouteImport.update({
+  id: '/tecnica',
+  path: '/tecnica',
+  getParentRoute: () => DocumentacaoRouteRoute,
+} as any)
+const DocumentacaoOpenSourceRoute = DocumentacaoOpenSourceRouteImport.update({
+  id: '/open-source',
+  path: '/open-source',
+  getParentRoute: () => DocumentacaoRouteRoute,
+} as any)
+const DocumentacaoGuiaRoute = DocumentacaoGuiaRouteImport.update({
+  id: '/guia',
+  path: '/guia',
+  getParentRoute: () => DocumentacaoRouteRoute,
+} as any)
+const CTokenRoute = CTokenRouteImport.update({
+  id: '/c/$token',
+  path: '/c/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRedefinirSenhaRoute = AuthRedefinirSenhaRouteImport.update({
+  id: '/redefinir-senha',
+  path: '/redefinir-senha',
+  getParentRoute: () => AuthRouteRoute,
+} as any)
+const AuthRecuperarSenhaRoute = AuthRecuperarSenhaRouteImport.update({
+  id: '/recuperar-senha',
+  path: '/recuperar-senha',
+  getParentRoute: () => AuthRouteRoute,
+} as any)
+const AuthNovaSenhaRoute = AuthNovaSenhaRouteImport.update({
+  id: '/nova-senha',
+  path: '/nova-senha',
+  getParentRoute: () => AuthRouteRoute,
+} as any)
+const AuthAssinaturaRoute = AuthAssinaturaRouteImport.update({
+  id: '/assinatura',
+  path: '/assinatura',
   getParentRoute: () => AuthRouteRoute,
 } as any)
 const AuthAdicionarOrganizacaoRoute =
@@ -132,110 +177,50 @@ const AuthAdicionarOrganizacaoRoute =
     path: '/adicionar-organizacao',
     getParentRoute: () => AuthRouteRoute,
   } as any)
-const AuthAssinaturaRoute = AuthAssinaturaRouteImport.update({
-  id: '/assinatura',
-  path: '/assinatura',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
-const AuthNovaSenhaRoute = AuthNovaSenhaRouteImport.update({
-  id: '/nova-senha',
-  path: '/nova-senha',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
-const AuthRecuperarSenhaRoute = AuthRecuperarSenhaRouteImport.update({
-  id: '/recuperar-senha',
-  path: '/recuperar-senha',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
-const AuthRedefinirSenhaRoute = AuthRedefinirSenhaRouteImport.update({
-  id: '/redefinir-senha',
-  path: '/redefinir-senha',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
-const CTokenRoute = CTokenRouteImport.update({
-  id: '/c/$token',
-  path: '/c/$token',
+const AtaTokenRoute = AtaTokenRouteImport.update({
+  id: '/ata/$token',
+  path: '/ata/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DocumentacaoIndexRoute = DocumentacaoIndexRouteImport.update({
+const AuthenticatedSelecionarCapituloRoute =
+  AuthenticatedSelecionarCapituloRouteImport.update({
+    id: '/selecionar-capitulo',
+    path: '/selecionar-capitulo',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedShellRouteRoute = AuthenticatedShellRouteRouteImport.update({
+  id: '/_shell',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const CTokenIndexRoute = CTokenIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => DocumentacaoRouteRoute,
+  getParentRoute: () => CTokenRoute,
 } as any)
-const DocumentacaoGuiaRoute = DocumentacaoGuiaRouteImport.update({
-  id: '/guia',
-  path: '/guia',
-  getParentRoute: () => DocumentacaoRouteRoute,
+const CTokenPresencasRoute = CTokenPresencasRouteImport.update({
+  id: '/presencas',
+  path: '/presencas',
+  getParentRoute: () => CTokenRoute,
 } as any)
-const DocumentacaoOpenSourceRoute = DocumentacaoOpenSourceRouteImport.update({
-  id: '/open-source',
-  path: '/open-source',
-  getParentRoute: () => DocumentacaoRouteRoute,
+const CTokenMensalidadesRoute = CTokenMensalidadesRouteImport.update({
+  id: '/mensalidades',
+  path: '/mensalidades',
+  getParentRoute: () => CTokenRoute,
 } as any)
-const DocumentacaoTecnicaRoute = DocumentacaoTecnicaRouteImport.update({
-  id: '/tecnica',
-  path: '/tecnica',
-  getParentRoute: () => DocumentacaoRouteRoute,
+const CTokenFluxoRoute = CTokenFluxoRouteImport.update({
+  id: '/fluxo',
+  path: '/fluxo',
+  getParentRoute: () => CTokenRoute,
 } as any)
-const FTokenRoute = FTokenRouteImport.update({
-  id: '/f/$token',
-  path: '/f/$token',
-  getParentRoute: () => rootRouteImport,
+const CTokenEuRoute = CTokenEuRouteImport.update({
+  id: '/eu',
+  path: '/eu',
+  getParentRoute: () => CTokenRoute,
 } as any)
-const FluxoCaixaTokenRoute = FluxoCaixaTokenRouteImport.update({
-  id: '/fluxo-caixa/$token',
-  path: '/fluxo-caixa/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MensalidadesTokenRoute = MensalidadesTokenRouteImport.update({
-  id: '/mensalidades/$token',
-  path: '/mensalidades/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedShellAtasRoute = AuthenticatedShellAtasRouteImport.update({
-  id: '/atas',
-  path: '/atas',
-  getParentRoute: () => AuthenticatedShellRouteRoute,
-} as any)
-const AuthenticatedShellCalendarioRoute =
-  AuthenticatedShellCalendarioRouteImport.update({
-    id: '/calendario',
-    path: '/calendario',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellConfiguracoesRoute =
-  AuthenticatedShellConfiguracoesRouteImport.update({
-    id: '/configuracoes',
-    path: '/configuracoes',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellFinanceiroRoute =
-  AuthenticatedShellFinanceiroRouteImport.update({
-    id: '/financeiro',
-    path: '/financeiro',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellGestaoRoute =
-  AuthenticatedShellGestaoRouteImport.update({
-    id: '/gestao',
-    path: '/gestao',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellInicioRoute =
-  AuthenticatedShellInicioRouteImport.update({
-    id: '/inicio',
-    path: '/inicio',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellMaisRoute = AuthenticatedShellMaisRouteImport.update({
-  id: '/mais',
-  path: '/mais',
-  getParentRoute: () => AuthenticatedShellRouteRoute,
-} as any)
-const AuthenticatedShellPerfilRoute =
-  AuthenticatedShellPerfilRouteImport.update({
-    id: '/perfil',
-    path: '/perfil',
+const AuthenticatedShellSugestoesRoute =
+  AuthenticatedShellSugestoesRouteImport.update({
+    id: '/sugestoes',
+    path: '/sugestoes',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
 const AuthenticatedShellPresencasRoute =
@@ -244,107 +229,56 @@ const AuthenticatedShellPresencasRoute =
     path: '/presencas',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
-const AuthenticatedShellSugestoesRoute =
-  AuthenticatedShellSugestoesRouteImport.update({
-    id: '/sugestoes',
-    path: '/sugestoes',
+const AuthenticatedShellPerfilRoute =
+  AuthenticatedShellPerfilRouteImport.update({
+    id: '/perfil',
+    path: '/perfil',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
-const CTokenIndexRoute = CTokenIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => CTokenRoute,
+const AuthenticatedShellMaisRoute = AuthenticatedShellMaisRouteImport.update({
+  id: '/mais',
+  path: '/mais',
+  getParentRoute: () => AuthenticatedShellRouteRoute,
 } as any)
-const CTokenEuRoute = CTokenEuRouteImport.update({
-  id: '/eu',
-  path: '/eu',
-  getParentRoute: () => CTokenRoute,
+const AuthenticatedShellInicioRoute =
+  AuthenticatedShellInicioRouteImport.update({
+    id: '/inicio',
+    path: '/inicio',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellGestaoRoute =
+  AuthenticatedShellGestaoRouteImport.update({
+    id: '/gestao',
+    path: '/gestao',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellFinanceiroRoute =
+  AuthenticatedShellFinanceiroRouteImport.update({
+    id: '/financeiro',
+    path: '/financeiro',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellConfiguracoesRoute =
+  AuthenticatedShellConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellCalendarioRoute =
+  AuthenticatedShellCalendarioRouteImport.update({
+    id: '/calendario',
+    path: '/calendario',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellAtasRoute = AuthenticatedShellAtasRouteImport.update({
+  id: '/atas',
+  path: '/atas',
+  getParentRoute: () => AuthenticatedShellRouteRoute,
 } as any)
-const CTokenFluxoRoute = CTokenFluxoRouteImport.update({
-  id: '/fluxo',
-  path: '/fluxo',
-  getParentRoute: () => CTokenRoute,
-} as any)
-const CTokenMensalidadesRoute = CTokenMensalidadesRouteImport.update({
-  id: '/mensalidades',
-  path: '/mensalidades',
-  getParentRoute: () => CTokenRoute,
-} as any)
-const CTokenPresencasRoute = CTokenPresencasRouteImport.update({
-  id: '/presencas',
-  path: '/presencas',
-  getParentRoute: () => CTokenRoute,
-} as any)
-const AuthenticatedShellConfiguracoesGlobaisCargosRoute =
-  AuthenticatedShellConfiguracoesGlobaisCargosRouteImport.update({
-    id: '/configuracoes-globais/cargos',
-    path: '/configuracoes-globais/cargos',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellConfiguracoesGlobaisInboxRoute =
-  AuthenticatedShellConfiguracoesGlobaisInboxRouteImport.update({
-    id: '/configuracoes-globais/inbox',
-    path: '/configuracoes-globais/inbox',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellEventosIndexRoute =
-  AuthenticatedShellEventosIndexRouteImport.update({
-    id: '/eventos/',
-    path: '/eventos/',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellEventosIdRoute =
-  AuthenticatedShellEventosIdRouteImport.update({
-    id: '/eventos/$id',
-    path: '/eventos/$id',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellEventosCheckinsRoute =
-  AuthenticatedShellEventosCheckinsRouteImport.update({
-    id: '/eventos/checkins',
-    path: '/eventos/checkins',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellEventosNovoRoute =
-  AuthenticatedShellEventosNovoRouteImport.update({
-    id: '/eventos/novo',
-    path: '/eventos/novo',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellHospitalariaCardapiosRoute =
-  AuthenticatedShellHospitalariaCardapiosRouteImport.update({
-    id: '/hospitalaria/cardapios',
-    path: '/hospitalaria/cardapios',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellHospitalariaEscalaRoute =
-  AuthenticatedShellHospitalariaEscalaRouteImport.update({
-    id: '/hospitalaria/escala',
-    path: '/hospitalaria/escala',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellMembrosIndexRoute =
-  AuthenticatedShellMembrosIndexRouteImport.update({
-    id: '/membros/',
-    path: '/membros/',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellMembrosIdRoute =
-  AuthenticatedShellMembrosIdRouteImport.update({
-    id: '/membros/$id',
-    path: '/membros/$id',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellMembrosNovoRoute =
-  AuthenticatedShellMembrosNovoRouteImport.update({
-    id: '/membros/novo',
-    path: '/membros/novo',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellMembrosSolicitacoesRoute =
-  AuthenticatedShellMembrosSolicitacoesRouteImport.update({
-    id: '/membros/solicitacoes',
-    path: '/membros/solicitacoes',
+const AuthenticatedShellRegionalIndexRoute =
+  AuthenticatedShellRegionalIndexRouteImport.update({
+    id: '/regional/',
+    path: '/regional/',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
 const AuthenticatedShellOficiosIndexRoute =
@@ -353,118 +287,16 @@ const AuthenticatedShellOficiosIndexRoute =
     path: '/oficios/',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
-const AuthenticatedShellOficiosIdRoute =
-  AuthenticatedShellOficiosIdRouteImport.update({
-    id: '/oficios/$id',
-    path: '/oficios/$id',
+const AuthenticatedShellMembrosIndexRoute =
+  AuthenticatedShellMembrosIndexRouteImport.update({
+    id: '/membros/',
+    path: '/membros/',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
-const AuthenticatedShellOficiosNovoRoute =
-  AuthenticatedShellOficiosNovoRouteImport.update({
-    id: '/oficios/novo',
-    path: '/oficios/novo',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellOngoingIdRoute =
-  AuthenticatedShellOngoingIdRouteImport.update({
-    id: '/ongoing/$id',
-    path: '/ongoing/$id',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellRegionalIndexRoute =
-  AuthenticatedShellRegionalIndexRouteImport.update({
-    id: '/regional/',
-    path: '/regional/',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellRegionalAparenciaRoute =
-  AuthenticatedShellRegionalAparenciaRouteImport.update({
-    id: '/regional/aparencia',
-    path: '/regional/aparencia',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellRegionalCalendarioRoute =
-  AuthenticatedShellRegionalCalendarioRouteImport.update({
-    id: '/regional/calendario',
-    path: '/regional/calendario',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellRegionalCapitulosRoute =
-  AuthenticatedShellRegionalCapitulosRouteImport.update({
-    id: '/regional/capitulos',
-    path: '/regional/capitulos',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellRegionalDatasObrigatoriasRoute =
-  AuthenticatedShellRegionalDatasObrigatoriasRouteImport.update({
-    id: '/regional/datas-obrigatorias',
-    path: '/regional/datas-obrigatorias',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellRegionalEstadosRoute =
-  AuthenticatedShellRegionalEstadosRouteImport.update({
-    id: '/regional/estados',
-    path: '/regional/estados',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellRegionalLiderancasRoute =
-  AuthenticatedShellRegionalLiderancasRouteImport.update({
-    id: '/regional/liderancas',
-    path: '/regional/liderancas',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellRegionalMembrosRoute =
-  AuthenticatedShellRegionalMembrosRouteImport.update({
-    id: '/regional/membros',
-    path: '/regional/membros',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellRegionalRegioesRoute =
-  AuthenticatedShellRegionalRegioesRouteImport.update({
-    id: '/regional/regioes',
-    path: '/regional/regioes',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellSindicanciasConfigRoute =
-  AuthenticatedShellSindicanciasConfigRouteImport.update({
-    id: '/sindicancias/config',
-    path: '/sindicancias/config',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellSindicanciasFichasRoute =
-  AuthenticatedShellSindicanciasFichasRouteImport.update({
-    id: '/sindicancias/fichas',
-    path: '/sindicancias/fichas',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellSindicanciasProcessosRoute =
-  AuthenticatedShellSindicanciasProcessosRouteImport.update({
-    id: '/sindicancias/processos',
-    path: '/sindicancias/processos',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellSindicanciasSindicariasRoute =
-  AuthenticatedShellSindicanciasSindicariasRouteImport.update({
-    id: '/sindicancias/sindicarias',
-    path: '/sindicancias/sindicarias',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellTesourariaAtrasadosRoute =
-  AuthenticatedShellTesourariaAtrasadosRouteImport.update({
-    id: '/tesouraria/atrasados',
-    path: '/tesouraria/atrasados',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellTesourariaCobrancasRoute =
-  AuthenticatedShellTesourariaCobrancasRouteImport.update({
-    id: '/tesouraria/cobrancas',
-    path: '/tesouraria/cobrancas',
-    getParentRoute: () => AuthenticatedShellRouteRoute,
-  } as any)
-const AuthenticatedShellTesourariaFluxoRoute =
-  AuthenticatedShellTesourariaFluxoRouteImport.update({
-    id: '/tesouraria/fluxo',
-    path: '/tesouraria/fluxo',
+const AuthenticatedShellEventosIndexRoute =
+  AuthenticatedShellEventosIndexRouteImport.update({
+    id: '/eventos/',
+    path: '/eventos/',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
 const AuthenticatedShellTesourariaMensalidadesRoute =
@@ -473,16 +305,184 @@ const AuthenticatedShellTesourariaMensalidadesRoute =
     path: '/tesouraria/mensalidades',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
-const AuthenticatedShellMembrosIdEditarRoute =
-  AuthenticatedShellMembrosIdEditarRouteImport.update({
-    id: '/membros/$id_/editar',
-    path: '/membros/$id/editar',
+const AuthenticatedShellTesourariaFluxoRoute =
+  AuthenticatedShellTesourariaFluxoRouteImport.update({
+    id: '/tesouraria/fluxo',
+    path: '/tesouraria/fluxo',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellTesourariaCobrancasRoute =
+  AuthenticatedShellTesourariaCobrancasRouteImport.update({
+    id: '/tesouraria/cobrancas',
+    path: '/tesouraria/cobrancas',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellTesourariaAtrasadosRoute =
+  AuthenticatedShellTesourariaAtrasadosRouteImport.update({
+    id: '/tesouraria/atrasados',
+    path: '/tesouraria/atrasados',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellSindicanciasSindicariasRoute =
+  AuthenticatedShellSindicanciasSindicariasRouteImport.update({
+    id: '/sindicancias/sindicarias',
+    path: '/sindicancias/sindicarias',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellSindicanciasProcessosRoute =
+  AuthenticatedShellSindicanciasProcessosRouteImport.update({
+    id: '/sindicancias/processos',
+    path: '/sindicancias/processos',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellSindicanciasFichasRoute =
+  AuthenticatedShellSindicanciasFichasRouteImport.update({
+    id: '/sindicancias/fichas',
+    path: '/sindicancias/fichas',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellSindicanciasConfigRoute =
+  AuthenticatedShellSindicanciasConfigRouteImport.update({
+    id: '/sindicancias/config',
+    path: '/sindicancias/config',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellRegionalRegioesRoute =
+  AuthenticatedShellRegionalRegioesRouteImport.update({
+    id: '/regional/regioes',
+    path: '/regional/regioes',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellRegionalMembrosRoute =
+  AuthenticatedShellRegionalMembrosRouteImport.update({
+    id: '/regional/membros',
+    path: '/regional/membros',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellRegionalLiderancasRoute =
+  AuthenticatedShellRegionalLiderancasRouteImport.update({
+    id: '/regional/liderancas',
+    path: '/regional/liderancas',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellRegionalEstadosRoute =
+  AuthenticatedShellRegionalEstadosRouteImport.update({
+    id: '/regional/estados',
+    path: '/regional/estados',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellRegionalDatasObrigatoriasRoute =
+  AuthenticatedShellRegionalDatasObrigatoriasRouteImport.update({
+    id: '/regional/datas-obrigatorias',
+    path: '/regional/datas-obrigatorias',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellRegionalCapitulosRoute =
+  AuthenticatedShellRegionalCapitulosRouteImport.update({
+    id: '/regional/capitulos',
+    path: '/regional/capitulos',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellRegionalCalendarioRoute =
+  AuthenticatedShellRegionalCalendarioRouteImport.update({
+    id: '/regional/calendario',
+    path: '/regional/calendario',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellRegionalAparenciaRoute =
+  AuthenticatedShellRegionalAparenciaRouteImport.update({
+    id: '/regional/aparencia',
+    path: '/regional/aparencia',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellOngoingIdRoute =
+  AuthenticatedShellOngoingIdRouteImport.update({
+    id: '/ongoing/$id',
+    path: '/ongoing/$id',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellOficiosNovoRoute =
+  AuthenticatedShellOficiosNovoRouteImport.update({
+    id: '/oficios/novo',
+    path: '/oficios/novo',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellOficiosIdRoute =
+  AuthenticatedShellOficiosIdRouteImport.update({
+    id: '/oficios/$id',
+    path: '/oficios/$id',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellMembrosSolicitacoesRoute =
+  AuthenticatedShellMembrosSolicitacoesRouteImport.update({
+    id: '/membros/solicitacoes',
+    path: '/membros/solicitacoes',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellMembrosNovoRoute =
+  AuthenticatedShellMembrosNovoRouteImport.update({
+    id: '/membros/novo',
+    path: '/membros/novo',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellMembrosIdRoute =
+  AuthenticatedShellMembrosIdRouteImport.update({
+    id: '/membros/$id',
+    path: '/membros/$id',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellHospitalariaEscalaRoute =
+  AuthenticatedShellHospitalariaEscalaRouteImport.update({
+    id: '/hospitalaria/escala',
+    path: '/hospitalaria/escala',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellHospitalariaCardapiosRoute =
+  AuthenticatedShellHospitalariaCardapiosRouteImport.update({
+    id: '/hospitalaria/cardapios',
+    path: '/hospitalaria/cardapios',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellEventosNovoRoute =
+  AuthenticatedShellEventosNovoRouteImport.update({
+    id: '/eventos/novo',
+    path: '/eventos/novo',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellEventosCheckinsRoute =
+  AuthenticatedShellEventosCheckinsRouteImport.update({
+    id: '/eventos/checkins',
+    path: '/eventos/checkins',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellEventosIdRoute =
+  AuthenticatedShellEventosIdRouteImport.update({
+    id: '/eventos/$id',
+    path: '/eventos/$id',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellConfiguracoesGlobaisInboxRoute =
+  AuthenticatedShellConfiguracoesGlobaisInboxRouteImport.update({
+    id: '/configuracoes-globais/inbox',
+    path: '/configuracoes-globais/inbox',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellConfiguracoesGlobaisCargosRoute =
+  AuthenticatedShellConfiguracoesGlobaisCargosRouteImport.update({
+    id: '/configuracoes-globais/cargos',
+    path: '/configuracoes-globais/cargos',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
 const AuthenticatedShellSindicanciasSindicariasEventIdRoute =
   AuthenticatedShellSindicanciasSindicariasEventIdRouteImport.update({
     id: '/sindicancias/sindicarias_/$eventId',
     path: '/sindicancias/sindicarias/$eventId',
+    getParentRoute: () => AuthenticatedShellRouteRoute,
+  } as any)
+const AuthenticatedShellMembrosIdEditarRoute =
+  AuthenticatedShellMembrosIdEditarRouteImport.update({
+    id: '/membros/$id_/editar',
+    path: '/membros/$id/editar',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
 
@@ -935,32 +935,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/atualizar-cadastro': {
       id: '/atualizar-cadastro'
       path: '/atualizar-cadastro'
       fullPath: '/atualizar-cadastro'
       preLoaderRoute: typeof AtualizarCadastroRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/documentacao': {
@@ -970,74 +949,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocumentacaoRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/_shell': {
-      id: '/_authenticated/_shell'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedShellRouteRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/selecionar-capitulo': {
-      id: '/_authenticated/selecionar-capitulo'
-      path: '/selecionar-capitulo'
-      fullPath: '/selecionar-capitulo'
-      preLoaderRoute: typeof AuthenticatedSelecionarCapituloRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/ata/$token': {
-      id: '/ata/$token'
-      path: '/ata/$token'
-      fullPath: '/ata/$token'
-      preLoaderRoute: typeof AtaTokenRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/': {
-      id: '/auth/'
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
       path: '/'
-      fullPath: '/auth/'
-      preLoaderRoute: typeof AuthIndexRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/adicionar-organizacao': {
-      id: '/auth/adicionar-organizacao'
-      path: '/adicionar-organizacao'
-      fullPath: '/auth/adicionar-organizacao'
-      preLoaderRoute: typeof AuthAdicionarOrganizacaoRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/assinatura': {
-      id: '/auth/assinatura'
-      path: '/assinatura'
-      fullPath: '/auth/assinatura'
-      preLoaderRoute: typeof AuthAssinaturaRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/nova-senha': {
-      id: '/auth/nova-senha'
-      path: '/nova-senha'
-      fullPath: '/auth/nova-senha'
-      preLoaderRoute: typeof AuthNovaSenhaRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/recuperar-senha': {
-      id: '/auth/recuperar-senha'
-      path: '/recuperar-senha'
-      fullPath: '/auth/recuperar-senha'
-      preLoaderRoute: typeof AuthRecuperarSenhaRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/redefinir-senha': {
-      id: '/auth/redefinir-senha'
-      path: '/redefinir-senha'
-      fullPath: '/auth/redefinir-senha'
-      preLoaderRoute: typeof AuthRedefinirSenhaRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/c/$token': {
-      id: '/c/$token'
-      path: '/c/$token'
-      fullPath: '/c/$token'
-      preLoaderRoute: typeof CTokenRouteImport
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/documentacao/': {
@@ -1047,32 +977,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocumentacaoIndexRouteImport
       parentRoute: typeof DocumentacaoRouteRoute
     }
-    '/documentacao/guia': {
-      id: '/documentacao/guia'
-      path: '/guia'
-      fullPath: '/documentacao/guia'
-      preLoaderRoute: typeof DocumentacaoGuiaRouteImport
-      parentRoute: typeof DocumentacaoRouteRoute
+    '/auth/': {
+      id: '/auth/'
+      path: '/'
+      fullPath: '/auth/'
+      preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
-    '/documentacao/open-source': {
-      id: '/documentacao/open-source'
-      path: '/open-source'
-      fullPath: '/documentacao/open-source'
-      preLoaderRoute: typeof DocumentacaoOpenSourceRouteImport
-      parentRoute: typeof DocumentacaoRouteRoute
-    }
-    '/documentacao/tecnica': {
-      id: '/documentacao/tecnica'
-      path: '/tecnica'
-      fullPath: '/documentacao/tecnica'
-      preLoaderRoute: typeof DocumentacaoTecnicaRouteImport
-      parentRoute: typeof DocumentacaoRouteRoute
-    }
-    '/f/$token': {
-      id: '/f/$token'
-      path: '/f/$token'
-      fullPath: '/f/$token'
-      preLoaderRoute: typeof FTokenRouteImport
+    '/mensalidades/$token': {
+      id: '/mensalidades/$token'
+      path: '/mensalidades/$token'
+      fullPath: '/mensalidades/$token'
+      preLoaderRoute: typeof MensalidadesTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fluxo-caixa/$token': {
@@ -1082,109 +998,102 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FluxoCaixaTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/mensalidades/$token': {
-      id: '/mensalidades/$token'
-      path: '/mensalidades/$token'
-      fullPath: '/mensalidades/$token'
-      preLoaderRoute: typeof MensalidadesTokenRouteImport
+    '/f/$token': {
+      id: '/f/$token'
+      path: '/f/$token'
+      fullPath: '/f/$token'
+      preLoaderRoute: typeof FTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/_shell/atas': {
-      id: '/_authenticated/_shell/atas'
-      path: '/atas'
-      fullPath: '/atas'
-      preLoaderRoute: typeof AuthenticatedShellAtasRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
+    '/documentacao/tecnica': {
+      id: '/documentacao/tecnica'
+      path: '/tecnica'
+      fullPath: '/documentacao/tecnica'
+      preLoaderRoute: typeof DocumentacaoTecnicaRouteImport
+      parentRoute: typeof DocumentacaoRouteRoute
     }
-    '/_authenticated/_shell/calendario': {
-      id: '/_authenticated/_shell/calendario'
-      path: '/calendario'
-      fullPath: '/calendario'
-      preLoaderRoute: typeof AuthenticatedShellCalendarioRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
+    '/documentacao/open-source': {
+      id: '/documentacao/open-source'
+      path: '/open-source'
+      fullPath: '/documentacao/open-source'
+      preLoaderRoute: typeof DocumentacaoOpenSourceRouteImport
+      parentRoute: typeof DocumentacaoRouteRoute
     }
-    '/_authenticated/_shell/configuracoes': {
-      id: '/_authenticated/_shell/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/configuracoes'
-      preLoaderRoute: typeof AuthenticatedShellConfiguracoesRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
+    '/documentacao/guia': {
+      id: '/documentacao/guia'
+      path: '/guia'
+      fullPath: '/documentacao/guia'
+      preLoaderRoute: typeof DocumentacaoGuiaRouteImport
+      parentRoute: typeof DocumentacaoRouteRoute
     }
-    '/_authenticated/_shell/financeiro': {
-      id: '/_authenticated/_shell/financeiro'
-      path: '/financeiro'
-      fullPath: '/financeiro'
-      preLoaderRoute: typeof AuthenticatedShellFinanceiroRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
+    '/c/$token': {
+      id: '/c/$token'
+      path: '/c/$token'
+      fullPath: '/c/$token'
+      preLoaderRoute: typeof CTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/_shell/gestao': {
-      id: '/_authenticated/_shell/gestao'
-      path: '/gestao'
-      fullPath: '/gestao'
-      preLoaderRoute: typeof AuthenticatedShellGestaoRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
+    '/auth/redefinir-senha': {
+      id: '/auth/redefinir-senha'
+      path: '/redefinir-senha'
+      fullPath: '/auth/redefinir-senha'
+      preLoaderRoute: typeof AuthRedefinirSenhaRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
-    '/_authenticated/_shell/inicio': {
-      id: '/_authenticated/_shell/inicio'
-      path: '/inicio'
-      fullPath: '/inicio'
-      preLoaderRoute: typeof AuthenticatedShellInicioRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
+    '/auth/recuperar-senha': {
+      id: '/auth/recuperar-senha'
+      path: '/recuperar-senha'
+      fullPath: '/auth/recuperar-senha'
+      preLoaderRoute: typeof AuthRecuperarSenhaRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
-    '/_authenticated/_shell/mais': {
-      id: '/_authenticated/_shell/mais'
-      path: '/mais'
-      fullPath: '/mais'
-      preLoaderRoute: typeof AuthenticatedShellMaisRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
+    '/auth/nova-senha': {
+      id: '/auth/nova-senha'
+      path: '/nova-senha'
+      fullPath: '/auth/nova-senha'
+      preLoaderRoute: typeof AuthNovaSenhaRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
-    '/_authenticated/_shell/perfil': {
-      id: '/_authenticated/_shell/perfil'
-      path: '/perfil'
-      fullPath: '/perfil'
-      preLoaderRoute: typeof AuthenticatedShellPerfilRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
+    '/auth/assinatura': {
+      id: '/auth/assinatura'
+      path: '/assinatura'
+      fullPath: '/auth/assinatura'
+      preLoaderRoute: typeof AuthAssinaturaRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
-    '/_authenticated/_shell/presencas': {
-      id: '/_authenticated/_shell/presencas'
-      path: '/presencas'
-      fullPath: '/presencas'
-      preLoaderRoute: typeof AuthenticatedShellPresencasRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
+    '/auth/adicionar-organizacao': {
+      id: '/auth/adicionar-organizacao'
+      path: '/adicionar-organizacao'
+      fullPath: '/auth/adicionar-organizacao'
+      preLoaderRoute: typeof AuthAdicionarOrganizacaoRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
-    '/_authenticated/_shell/sugestoes': {
-      id: '/_authenticated/_shell/sugestoes'
-      path: '/sugestoes'
-      fullPath: '/sugestoes'
-      preLoaderRoute: typeof AuthenticatedShellSugestoesRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
+    '/ata/$token': {
+      id: '/ata/$token'
+      path: '/ata/$token'
+      fullPath: '/ata/$token'
+      preLoaderRoute: typeof AtaTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/selecionar-capitulo': {
+      id: '/_authenticated/selecionar-capitulo'
+      path: '/selecionar-capitulo'
+      fullPath: '/selecionar-capitulo'
+      preLoaderRoute: typeof AuthenticatedSelecionarCapituloRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/_shell': {
+      id: '/_authenticated/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedShellRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/c/$token/': {
       id: '/c/$token/'
       path: '/'
       fullPath: '/c/$token/'
       preLoaderRoute: typeof CTokenIndexRouteImport
-      parentRoute: typeof CTokenRoute
-    }
-    '/c/$token/eu': {
-      id: '/c/$token/eu'
-      path: '/eu'
-      fullPath: '/c/$token/eu'
-      preLoaderRoute: typeof CTokenEuRouteImport
-      parentRoute: typeof CTokenRoute
-    }
-    '/c/$token/fluxo': {
-      id: '/c/$token/fluxo'
-      path: '/fluxo'
-      fullPath: '/c/$token/fluxo'
-      preLoaderRoute: typeof CTokenFluxoRouteImport
-      parentRoute: typeof CTokenRoute
-    }
-    '/c/$token/mensalidades': {
-      id: '/c/$token/mensalidades'
-      path: '/mensalidades'
-      fullPath: '/c/$token/mensalidades'
-      preLoaderRoute: typeof CTokenMensalidadesRouteImport
       parentRoute: typeof CTokenRoute
     }
     '/c/$token/presencas': {
@@ -1194,116 +1103,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CTokenPresencasRouteImport
       parentRoute: typeof CTokenRoute
     }
-    '/_authenticated/_shell/configuracoes-globais/cargos': {
-      id: '/_authenticated/_shell/configuracoes-globais/cargos'
-      path: '/configuracoes-globais/cargos'
-      fullPath: '/configuracoes-globais/cargos'
-      preLoaderRoute: typeof AuthenticatedShellConfiguracoesGlobaisCargosRouteImport
+    '/c/$token/mensalidades': {
+      id: '/c/$token/mensalidades'
+      path: '/mensalidades'
+      fullPath: '/c/$token/mensalidades'
+      preLoaderRoute: typeof CTokenMensalidadesRouteImport
+      parentRoute: typeof CTokenRoute
+    }
+    '/c/$token/fluxo': {
+      id: '/c/$token/fluxo'
+      path: '/fluxo'
+      fullPath: '/c/$token/fluxo'
+      preLoaderRoute: typeof CTokenFluxoRouteImport
+      parentRoute: typeof CTokenRoute
+    }
+    '/c/$token/eu': {
+      id: '/c/$token/eu'
+      path: '/eu'
+      fullPath: '/c/$token/eu'
+      preLoaderRoute: typeof CTokenEuRouteImport
+      parentRoute: typeof CTokenRoute
+    }
+    '/_authenticated/_shell/sugestoes': {
+      id: '/_authenticated/_shell/sugestoes'
+      path: '/sugestoes'
+      fullPath: '/sugestoes'
+      preLoaderRoute: typeof AuthenticatedShellSugestoesRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/configuracoes-globais/inbox': {
-      id: '/_authenticated/_shell/configuracoes-globais/inbox'
-      path: '/configuracoes-globais/inbox'
-      fullPath: '/configuracoes-globais/inbox'
-      preLoaderRoute: typeof AuthenticatedShellConfiguracoesGlobaisInboxRouteImport
+    '/_authenticated/_shell/presencas': {
+      id: '/_authenticated/_shell/presencas'
+      path: '/presencas'
+      fullPath: '/presencas'
+      preLoaderRoute: typeof AuthenticatedShellPresencasRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/eventos/': {
-      id: '/_authenticated/_shell/eventos/'
-      path: '/eventos'
-      fullPath: '/eventos/'
-      preLoaderRoute: typeof AuthenticatedShellEventosIndexRouteImport
+    '/_authenticated/_shell/perfil': {
+      id: '/_authenticated/_shell/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof AuthenticatedShellPerfilRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/eventos/$id': {
-      id: '/_authenticated/_shell/eventos/$id'
-      path: '/eventos/$id'
-      fullPath: '/eventos/$id'
-      preLoaderRoute: typeof AuthenticatedShellEventosIdRouteImport
+    '/_authenticated/_shell/mais': {
+      id: '/_authenticated/_shell/mais'
+      path: '/mais'
+      fullPath: '/mais'
+      preLoaderRoute: typeof AuthenticatedShellMaisRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/eventos/checkins': {
-      id: '/_authenticated/_shell/eventos/checkins'
-      path: '/eventos/checkins'
-      fullPath: '/eventos/checkins'
-      preLoaderRoute: typeof AuthenticatedShellEventosCheckinsRouteImport
+    '/_authenticated/_shell/inicio': {
+      id: '/_authenticated/_shell/inicio'
+      path: '/inicio'
+      fullPath: '/inicio'
+      preLoaderRoute: typeof AuthenticatedShellInicioRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/eventos/novo': {
-      id: '/_authenticated/_shell/eventos/novo'
-      path: '/eventos/novo'
-      fullPath: '/eventos/novo'
-      preLoaderRoute: typeof AuthenticatedShellEventosNovoRouteImport
+    '/_authenticated/_shell/gestao': {
+      id: '/_authenticated/_shell/gestao'
+      path: '/gestao'
+      fullPath: '/gestao'
+      preLoaderRoute: typeof AuthenticatedShellGestaoRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/hospitalaria/cardapios': {
-      id: '/_authenticated/_shell/hospitalaria/cardapios'
-      path: '/hospitalaria/cardapios'
-      fullPath: '/hospitalaria/cardapios'
-      preLoaderRoute: typeof AuthenticatedShellHospitalariaCardapiosRouteImport
+    '/_authenticated/_shell/financeiro': {
+      id: '/_authenticated/_shell/financeiro'
+      path: '/financeiro'
+      fullPath: '/financeiro'
+      preLoaderRoute: typeof AuthenticatedShellFinanceiroRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/hospitalaria/escala': {
-      id: '/_authenticated/_shell/hospitalaria/escala'
-      path: '/hospitalaria/escala'
-      fullPath: '/hospitalaria/escala'
-      preLoaderRoute: typeof AuthenticatedShellHospitalariaEscalaRouteImport
+    '/_authenticated/_shell/configuracoes': {
+      id: '/_authenticated/_shell/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedShellConfiguracoesRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/membros/': {
-      id: '/_authenticated/_shell/membros/'
-      path: '/membros'
-      fullPath: '/membros/'
-      preLoaderRoute: typeof AuthenticatedShellMembrosIndexRouteImport
+    '/_authenticated/_shell/calendario': {
+      id: '/_authenticated/_shell/calendario'
+      path: '/calendario'
+      fullPath: '/calendario'
+      preLoaderRoute: typeof AuthenticatedShellCalendarioRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/membros/$id': {
-      id: '/_authenticated/_shell/membros/$id'
-      path: '/membros/$id'
-      fullPath: '/membros/$id'
-      preLoaderRoute: typeof AuthenticatedShellMembrosIdRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/membros/novo': {
-      id: '/_authenticated/_shell/membros/novo'
-      path: '/membros/novo'
-      fullPath: '/membros/novo'
-      preLoaderRoute: typeof AuthenticatedShellMembrosNovoRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/membros/solicitacoes': {
-      id: '/_authenticated/_shell/membros/solicitacoes'
-      path: '/membros/solicitacoes'
-      fullPath: '/membros/solicitacoes'
-      preLoaderRoute: typeof AuthenticatedShellMembrosSolicitacoesRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/oficios/': {
-      id: '/_authenticated/_shell/oficios/'
-      path: '/oficios'
-      fullPath: '/oficios/'
-      preLoaderRoute: typeof AuthenticatedShellOficiosIndexRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/oficios/$id': {
-      id: '/_authenticated/_shell/oficios/$id'
-      path: '/oficios/$id'
-      fullPath: '/oficios/$id'
-      preLoaderRoute: typeof AuthenticatedShellOficiosIdRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/oficios/novo': {
-      id: '/_authenticated/_shell/oficios/novo'
-      path: '/oficios/novo'
-      fullPath: '/oficios/novo'
-      preLoaderRoute: typeof AuthenticatedShellOficiosNovoRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/ongoing/$id': {
-      id: '/_authenticated/_shell/ongoing/$id'
-      path: '/ongoing/$id'
-      fullPath: '/ongoing/$id'
-      preLoaderRoute: typeof AuthenticatedShellOngoingIdRouteImport
+    '/_authenticated/_shell/atas': {
+      id: '/_authenticated/_shell/atas'
+      path: '/atas'
+      fullPath: '/atas'
+      preLoaderRoute: typeof AuthenticatedShellAtasRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
     '/_authenticated/_shell/regional/': {
@@ -1313,109 +1201,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellRegionalIndexRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/regional/aparencia': {
-      id: '/_authenticated/_shell/regional/aparencia'
-      path: '/regional/aparencia'
-      fullPath: '/regional/aparencia'
-      preLoaderRoute: typeof AuthenticatedShellRegionalAparenciaRouteImport
+    '/_authenticated/_shell/oficios/': {
+      id: '/_authenticated/_shell/oficios/'
+      path: '/oficios'
+      fullPath: '/oficios/'
+      preLoaderRoute: typeof AuthenticatedShellOficiosIndexRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/regional/calendario': {
-      id: '/_authenticated/_shell/regional/calendario'
-      path: '/regional/calendario'
-      fullPath: '/regional/calendario'
-      preLoaderRoute: typeof AuthenticatedShellRegionalCalendarioRouteImport
+    '/_authenticated/_shell/membros/': {
+      id: '/_authenticated/_shell/membros/'
+      path: '/membros'
+      fullPath: '/membros/'
+      preLoaderRoute: typeof AuthenticatedShellMembrosIndexRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/regional/capitulos': {
-      id: '/_authenticated/_shell/regional/capitulos'
-      path: '/regional/capitulos'
-      fullPath: '/regional/capitulos'
-      preLoaderRoute: typeof AuthenticatedShellRegionalCapitulosRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/regional/datas-obrigatorias': {
-      id: '/_authenticated/_shell/regional/datas-obrigatorias'
-      path: '/regional/datas-obrigatorias'
-      fullPath: '/regional/datas-obrigatorias'
-      preLoaderRoute: typeof AuthenticatedShellRegionalDatasObrigatoriasRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/regional/estados': {
-      id: '/_authenticated/_shell/regional/estados'
-      path: '/regional/estados'
-      fullPath: '/regional/estados'
-      preLoaderRoute: typeof AuthenticatedShellRegionalEstadosRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/regional/liderancas': {
-      id: '/_authenticated/_shell/regional/liderancas'
-      path: '/regional/liderancas'
-      fullPath: '/regional/liderancas'
-      preLoaderRoute: typeof AuthenticatedShellRegionalLiderancasRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/regional/membros': {
-      id: '/_authenticated/_shell/regional/membros'
-      path: '/regional/membros'
-      fullPath: '/regional/membros'
-      preLoaderRoute: typeof AuthenticatedShellRegionalMembrosRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/regional/regioes': {
-      id: '/_authenticated/_shell/regional/regioes'
-      path: '/regional/regioes'
-      fullPath: '/regional/regioes'
-      preLoaderRoute: typeof AuthenticatedShellRegionalRegioesRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/sindicancias/config': {
-      id: '/_authenticated/_shell/sindicancias/config'
-      path: '/sindicancias/config'
-      fullPath: '/sindicancias/config'
-      preLoaderRoute: typeof AuthenticatedShellSindicanciasConfigRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/sindicancias/fichas': {
-      id: '/_authenticated/_shell/sindicancias/fichas'
-      path: '/sindicancias/fichas'
-      fullPath: '/sindicancias/fichas'
-      preLoaderRoute: typeof AuthenticatedShellSindicanciasFichasRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/sindicancias/processos': {
-      id: '/_authenticated/_shell/sindicancias/processos'
-      path: '/sindicancias/processos'
-      fullPath: '/sindicancias/processos'
-      preLoaderRoute: typeof AuthenticatedShellSindicanciasProcessosRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/sindicancias/sindicarias': {
-      id: '/_authenticated/_shell/sindicancias/sindicarias'
-      path: '/sindicancias/sindicarias'
-      fullPath: '/sindicancias/sindicarias'
-      preLoaderRoute: typeof AuthenticatedShellSindicanciasSindicariasRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/tesouraria/atrasados': {
-      id: '/_authenticated/_shell/tesouraria/atrasados'
-      path: '/tesouraria/atrasados'
-      fullPath: '/tesouraria/atrasados'
-      preLoaderRoute: typeof AuthenticatedShellTesourariaAtrasadosRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/tesouraria/cobrancas': {
-      id: '/_authenticated/_shell/tesouraria/cobrancas'
-      path: '/tesouraria/cobrancas'
-      fullPath: '/tesouraria/cobrancas'
-      preLoaderRoute: typeof AuthenticatedShellTesourariaCobrancasRouteImport
-      parentRoute: typeof AuthenticatedShellRouteRoute
-    }
-    '/_authenticated/_shell/tesouraria/fluxo': {
-      id: '/_authenticated/_shell/tesouraria/fluxo'
-      path: '/tesouraria/fluxo'
-      fullPath: '/tesouraria/fluxo'
-      preLoaderRoute: typeof AuthenticatedShellTesourariaFluxoRouteImport
+    '/_authenticated/_shell/eventos/': {
+      id: '/_authenticated/_shell/eventos/'
+      path: '/eventos'
+      fullPath: '/eventos/'
+      preLoaderRoute: typeof AuthenticatedShellEventosIndexRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
     '/_authenticated/_shell/tesouraria/mensalidades': {
@@ -1425,11 +1229,200 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellTesourariaMensalidadesRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
-    '/_authenticated/_shell/membros/$id_/editar': {
-      id: '/_authenticated/_shell/membros/$id_/editar'
-      path: '/membros/$id/editar'
-      fullPath: '/membros/$id/editar'
-      preLoaderRoute: typeof AuthenticatedShellMembrosIdEditarRouteImport
+    '/_authenticated/_shell/tesouraria/fluxo': {
+      id: '/_authenticated/_shell/tesouraria/fluxo'
+      path: '/tesouraria/fluxo'
+      fullPath: '/tesouraria/fluxo'
+      preLoaderRoute: typeof AuthenticatedShellTesourariaFluxoRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/tesouraria/cobrancas': {
+      id: '/_authenticated/_shell/tesouraria/cobrancas'
+      path: '/tesouraria/cobrancas'
+      fullPath: '/tesouraria/cobrancas'
+      preLoaderRoute: typeof AuthenticatedShellTesourariaCobrancasRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/tesouraria/atrasados': {
+      id: '/_authenticated/_shell/tesouraria/atrasados'
+      path: '/tesouraria/atrasados'
+      fullPath: '/tesouraria/atrasados'
+      preLoaderRoute: typeof AuthenticatedShellTesourariaAtrasadosRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/sindicancias/sindicarias': {
+      id: '/_authenticated/_shell/sindicancias/sindicarias'
+      path: '/sindicancias/sindicarias'
+      fullPath: '/sindicancias/sindicarias'
+      preLoaderRoute: typeof AuthenticatedShellSindicanciasSindicariasRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/sindicancias/processos': {
+      id: '/_authenticated/_shell/sindicancias/processos'
+      path: '/sindicancias/processos'
+      fullPath: '/sindicancias/processos'
+      preLoaderRoute: typeof AuthenticatedShellSindicanciasProcessosRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/sindicancias/fichas': {
+      id: '/_authenticated/_shell/sindicancias/fichas'
+      path: '/sindicancias/fichas'
+      fullPath: '/sindicancias/fichas'
+      preLoaderRoute: typeof AuthenticatedShellSindicanciasFichasRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/sindicancias/config': {
+      id: '/_authenticated/_shell/sindicancias/config'
+      path: '/sindicancias/config'
+      fullPath: '/sindicancias/config'
+      preLoaderRoute: typeof AuthenticatedShellSindicanciasConfigRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/regional/regioes': {
+      id: '/_authenticated/_shell/regional/regioes'
+      path: '/regional/regioes'
+      fullPath: '/regional/regioes'
+      preLoaderRoute: typeof AuthenticatedShellRegionalRegioesRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/regional/membros': {
+      id: '/_authenticated/_shell/regional/membros'
+      path: '/regional/membros'
+      fullPath: '/regional/membros'
+      preLoaderRoute: typeof AuthenticatedShellRegionalMembrosRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/regional/liderancas': {
+      id: '/_authenticated/_shell/regional/liderancas'
+      path: '/regional/liderancas'
+      fullPath: '/regional/liderancas'
+      preLoaderRoute: typeof AuthenticatedShellRegionalLiderancasRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/regional/estados': {
+      id: '/_authenticated/_shell/regional/estados'
+      path: '/regional/estados'
+      fullPath: '/regional/estados'
+      preLoaderRoute: typeof AuthenticatedShellRegionalEstadosRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/regional/datas-obrigatorias': {
+      id: '/_authenticated/_shell/regional/datas-obrigatorias'
+      path: '/regional/datas-obrigatorias'
+      fullPath: '/regional/datas-obrigatorias'
+      preLoaderRoute: typeof AuthenticatedShellRegionalDatasObrigatoriasRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/regional/capitulos': {
+      id: '/_authenticated/_shell/regional/capitulos'
+      path: '/regional/capitulos'
+      fullPath: '/regional/capitulos'
+      preLoaderRoute: typeof AuthenticatedShellRegionalCapitulosRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/regional/calendario': {
+      id: '/_authenticated/_shell/regional/calendario'
+      path: '/regional/calendario'
+      fullPath: '/regional/calendario'
+      preLoaderRoute: typeof AuthenticatedShellRegionalCalendarioRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/regional/aparencia': {
+      id: '/_authenticated/_shell/regional/aparencia'
+      path: '/regional/aparencia'
+      fullPath: '/regional/aparencia'
+      preLoaderRoute: typeof AuthenticatedShellRegionalAparenciaRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/ongoing/$id': {
+      id: '/_authenticated/_shell/ongoing/$id'
+      path: '/ongoing/$id'
+      fullPath: '/ongoing/$id'
+      preLoaderRoute: typeof AuthenticatedShellOngoingIdRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/oficios/novo': {
+      id: '/_authenticated/_shell/oficios/novo'
+      path: '/oficios/novo'
+      fullPath: '/oficios/novo'
+      preLoaderRoute: typeof AuthenticatedShellOficiosNovoRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/oficios/$id': {
+      id: '/_authenticated/_shell/oficios/$id'
+      path: '/oficios/$id'
+      fullPath: '/oficios/$id'
+      preLoaderRoute: typeof AuthenticatedShellOficiosIdRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/membros/solicitacoes': {
+      id: '/_authenticated/_shell/membros/solicitacoes'
+      path: '/membros/solicitacoes'
+      fullPath: '/membros/solicitacoes'
+      preLoaderRoute: typeof AuthenticatedShellMembrosSolicitacoesRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/membros/novo': {
+      id: '/_authenticated/_shell/membros/novo'
+      path: '/membros/novo'
+      fullPath: '/membros/novo'
+      preLoaderRoute: typeof AuthenticatedShellMembrosNovoRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/membros/$id': {
+      id: '/_authenticated/_shell/membros/$id'
+      path: '/membros/$id'
+      fullPath: '/membros/$id'
+      preLoaderRoute: typeof AuthenticatedShellMembrosIdRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/hospitalaria/escala': {
+      id: '/_authenticated/_shell/hospitalaria/escala'
+      path: '/hospitalaria/escala'
+      fullPath: '/hospitalaria/escala'
+      preLoaderRoute: typeof AuthenticatedShellHospitalariaEscalaRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/hospitalaria/cardapios': {
+      id: '/_authenticated/_shell/hospitalaria/cardapios'
+      path: '/hospitalaria/cardapios'
+      fullPath: '/hospitalaria/cardapios'
+      preLoaderRoute: typeof AuthenticatedShellHospitalariaCardapiosRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/eventos/novo': {
+      id: '/_authenticated/_shell/eventos/novo'
+      path: '/eventos/novo'
+      fullPath: '/eventos/novo'
+      preLoaderRoute: typeof AuthenticatedShellEventosNovoRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/eventos/checkins': {
+      id: '/_authenticated/_shell/eventos/checkins'
+      path: '/eventos/checkins'
+      fullPath: '/eventos/checkins'
+      preLoaderRoute: typeof AuthenticatedShellEventosCheckinsRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/eventos/$id': {
+      id: '/_authenticated/_shell/eventos/$id'
+      path: '/eventos/$id'
+      fullPath: '/eventos/$id'
+      preLoaderRoute: typeof AuthenticatedShellEventosIdRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/configuracoes-globais/inbox': {
+      id: '/_authenticated/_shell/configuracoes-globais/inbox'
+      path: '/configuracoes-globais/inbox'
+      fullPath: '/configuracoes-globais/inbox'
+      preLoaderRoute: typeof AuthenticatedShellConfiguracoesGlobaisInboxRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/configuracoes-globais/cargos': {
+      id: '/_authenticated/_shell/configuracoes-globais/cargos'
+      path: '/configuracoes-globais/cargos'
+      fullPath: '/configuracoes-globais/cargos'
+      preLoaderRoute: typeof AuthenticatedShellConfiguracoesGlobaisCargosRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
     '/_authenticated/_shell/sindicancias/sindicarias_/$eventId': {
@@ -1437,6 +1430,13 @@ declare module '@tanstack/react-router' {
       path: '/sindicancias/sindicarias/$eventId'
       fullPath: '/sindicancias/sindicarias/$eventId'
       preLoaderRoute: typeof AuthenticatedShellSindicanciasSindicariasEventIdRouteImport
+      parentRoute: typeof AuthenticatedShellRouteRoute
+    }
+    '/_authenticated/_shell/membros/$id_/editar': {
+      id: '/_authenticated/_shell/membros/$id_/editar'
+      path: '/membros/$id/editar'
+      fullPath: '/membros/$id/editar'
+      preLoaderRoute: typeof AuthenticatedShellMembrosIdEditarRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
   }

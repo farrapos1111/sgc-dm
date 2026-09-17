@@ -22,7 +22,6 @@ Sendo direto, para você saber no que está entrando:
 
 - **Em desenvolvimento ativo.** Ainda não há release versionada nem instância pública de referência.
 - **Sem testes automatizados e sem CI.** E o ESLint, que seria a barreira restante, hoje acusa ~2.535 erros pré-existentes — na prática, a única verificação efetiva é o TypeScript em modo `strict` durante o build.
-- **Boa parte do código foi gerada e é sincronizada via [Lovable](https://lovable.dev).** Isso impõe uma restrição real ao histórico do git — veja [Restrição crítica de histórico](#restrição-crítica-de-histórico-git).
 - O histórico de commits **não** serve como documentação: a maioria são commits automáticos com a mensagem "Changes".
 
 Nada disso impede contribuição — mas explica por que a seção de [roadmap](#roadmap--onde-ajudar) começa por testes e CI.
@@ -70,7 +69,9 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-anonima
 
 # Sem esta chave, os recursos de IA lançam "IA indisponível".
 # O restante do sistema funciona normalmente.
-# LOVABLE_API_KEY=
+# AI_API_KEY=
+# AI_BASE_URL=
+# AI_MODEL=
 
 # ---- E-mail transacional (Resend) — server-only ----
 # RESEND_API_KEY=re_xxxxxxxx
@@ -192,15 +193,13 @@ npx prettier --write <apenas-os-arquivos-que-você-tocou>
 bun run build      # confirma que o build passa e o TypeScript está limpo
 ```
 
-> **Não rode `bun run lint` ou `bun run format` no repositório inteiro.** O código atual acumula ~2.535 erros de ESLint em 70 arquivos, sendo 2.377 apenas de formatação. Um `prettier --write .` reformataria 70 arquivos de uma vez, escondendo a sua mudança real e conflitando com a sincronização do Lovable. **Limite-se aos arquivos que você editou.** Detalhe em [TECNICO.md](./TECNICO.md#12-estado-atual-e-lacunas-conhecidas).
+> **Não rode `bun run lint` ou `bun run format` no repositório inteiro.** O código atual acumula ~2.535 erros de ESLint em 70 arquivos, sendo 2.377 apenas de formatação. Um `prettier --write .` reformataria 70 arquivos de uma vez, escondendo a sua mudança real. **Limite-se aos arquivos que você editou.** Detalhe em [TECNICO.md](./TECNICO.md#12-estado-atual-e-lacunas-conhecidas).
 
-### Restrição crítica de histórico git
+### Histórico git
 
-> **Não reescreva histórico já publicado.** Nada de `push --force`, `rebase`, `commit --amend` ou `squash` sobre commits que já estão no remoto.
+> Evite reescrever histórico já publicado no branch principal sem acordo explícito da equipe (`push --force`, `rebase`, `commit --amend` ou `squash` sobre commits remotos).
 
-Este repositório é sincronizado com o editor Lovable: os commits enviados ao branch conectado voltam para lá e aparecem no editor. Reescrever histórico publicado quebra essa sincronia e pode **fazer o mantenedor perder o histórico do projeto** no lado do Lovable. A restrição está registrada em [AGENTS.md](../AGENTS.md) na raiz.
-
-Corolário: mantenha o branch conectado sempre em estado funcional. Um commit quebrado no `main` quebra também o editor.
+Mantenha o branch principal em estado funcional: um commit quebrado no `main` quebra o deploy e o fluxo de contribuição.
 
 ---
 

@@ -18,7 +18,7 @@ A aplicação é **multi-inquilino por capítulo**: quase toda tabela carrega `c
 | Roteamento             | TanStack Router (file-based)                   | `^1.170.16`       |
 | UI                     | React / React DOM                              | `^19.2.0`         |
 | Build                  | Vite                                           | `^8.0.16`         |
-| Preset de build        | `@lovable.dev/vite-tanstack-config`            | `^2.7.7`          |
+| Build                  | Vite + plugins (`@vitejs/plugin-react`, Tailwind, Nitro) | `^8.0.16`         |
 | Servidor               | Nitro (preset `cloudflare-module`)             | `3.0.260603-beta` |
 | Linguagem              | TypeScript (`strict`, ES2022)                  | `^5.8.3`          |
 | Estilo                 | Tailwind CSS v4 + shadcn/ui (new-york) + Radix | `^4.2.1`          |
@@ -26,7 +26,7 @@ A aplicação é **multi-inquilino por capítulo**: quase toda tabela carrega `c
 | Banco / Auth / Storage | `@supabase/supabase-js`                        | `^2.110.8`        |
 | Validação              | Zod                                            | `^3.24.2`         |
 | Formulários            | react-hook-form + `@hookform/resolvers`        | `^7.71.2`         |
-| IA                     | Vercel AI SDK (`ai`) via Lovable AI Gateway    | `^7.0.37`         |
+| IA                     | Vercel AI SDK (`ai`) + provider OpenAI-compatible | `^7.0.37`         |
 | Documentos             | jspdf, xlsx, qrcode, html5-qrcode              | —                 |
 | Markdown (docs no app) | react-markdown + remark-gfm                    | —                 |
 | Gráficos               | recharts                                       | `^2.15.4`         |
@@ -34,14 +34,13 @@ A aplicação é **multi-inquilino por capítulo**: quase toda tabela carrega `c
 
 Gerenciador de pacotes: **Bun** (`bun.lock`, `bunfig.toml`). Existe um `package-lock.json` como alternativa com npm.
 
-> `bunfig.toml` define `minimumReleaseAge = 86400` — pacotes publicados há menos de 24h são bloqueados, como proteção contra ataques de cadeia de suprimentos. Há uma lista de exceções para `@lovable.dev/*`.
+> `bunfig.toml` define `minimumReleaseAge = 86400` — pacotes publicados há menos de 24h são bloqueados, como proteção contra ataques de cadeia de suprimentos.
 
 ---
 
 ## 2. Estrutura de diretórios
 
 ```
-.lovable/            metadados do template + plan.md (spec da camada regional, pt-BR)
 public/              favicon, robots.txt
 supabase/
   config.toml        project ref + [functions.send-email] (verify_jwt = false)
@@ -153,7 +152,7 @@ Os arquivos em `src/lib/*.functions.ts`:
 | Arquivo                           | Cobre                                                                                             |
 | --------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `accounts.functions.ts`           | Provisão/vínculo de contas, e-mail de criação (link para senha), login por ID DeMolay, reset de senha |
-| `ai.functions.ts`                 | `improveText`, `composeEventDescription` (via Lovable AI Gateway)                                 |
+| `ai.functions.ts`                 | `improveText`, `composeEventDescription` (provider OpenAI-compatible)                             |
 | `attendance.functions.ts`         | Chamada e registros de presença por evento de calendário                                          |
 | `calendar.functions.ts`           | CRUD de `calendar_events`, sessões em andamento                                                   |
 | `cash-subcategories.functions.ts` | Configuração de subcategorias de caixa por comissão                                               |
@@ -343,7 +342,7 @@ Esta é a parte que quebra se mexida sem cuidado ([src/lib/finance.functions.ts]
 | `SUPABASE_PUBLISHABLE_KEY`                         | [auth-middleware.ts](../src/integrations/supabase/auth-middleware.ts)              | sim                               | idem                                                                                                                                                      |
 | `VITE_SUPABASE_PROJECT_ID` / `SUPABASE_PROJECT_ID` | `.env`, `supabase/config.toml`                                                     | sim                               | referência do projeto                                                                                                                                     |
 | `SUPABASE_SERVICE_ROLE_KEY`                        | [client.server.ts](../src/integrations/supabase/client.server.ts)                  | **não está no `.env`**            | **ignora RLS** — injetar apenas no ambiente de deploy, jamais no cliente ou no repositório; usada em `accounts.functions.ts` para criar/vincular usuários |
-| `LOVABLE_API_KEY`                                  | [ai.functions.ts](../src/lib/ai.functions.ts)                                      | **não está no `.env`**            | sem ela, as funções de IA lançam `"IA indisponível: LOVABLE_API_KEY não configurada."`                                                                    |
+| `AI_API_KEY` / `OPENAI_API_KEY`                    | [ai.functions.ts](../src/lib/ai.functions.ts)                                      | **não está no `.env`**            | sem ela, as funções de IA lançam `"IA indisponível"`. Opcional: `AI_BASE_URL`, `AI_MODEL`                                                                 |
 | `VITE_APP_URL` / `APP_URL`                         | [accounts.functions.ts](../src/lib/accounts.functions.ts) (`requestPasswordReset`, `generateLink`) | recomendada em produção           | origem do login e do `redirectTo` de recuperação (`/auth/nova-senha`); fallback `http://localhost:8080`                                                   |
 | `RESEND_API_KEY`                                   | [email.ts](../src/lib/email.ts) e Edge Function `send-email`                       | não (sem ela o envio do app é _skipped_) | API key do Resend; **só servidor**; nunca no cliente. No app: Worker/Cloudflare. Na hook: secret da Edge Function. |
 | `EMAIL_FROM`                                       | [email.ts](../src/lib/email.ts) e Edge Function `send-email`                       | junto com `RESEND_API_KEY`        | remetente no formato `Nome <email@dominio-verificado>`; domínio precisa estar Verified no Resend                                                          |
@@ -368,12 +367,12 @@ Detalhe passo a passo: [`supabase/functions/send-email/README.md`](../supabase/f
 
 | Arquivo                                 | Papel                                                                                                                                                                                                                                           |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [vite.config.ts](../vite.config.ts)     | Invólucro fino sobre `@lovable.dev/vite-tanstack-config`. O preset **já injeta** devtools, tanstackStart, viteReact, tailwind, tsconfigPaths, nitro, injeção de `VITE_*` e o alias `@`. Adicionar esses plugins manualmente quebra a aplicação. |
+| [vite.config.ts](../vite.config.ts)     | TanStack Start + React + Tailwind + tsconfigPaths + Nitro (`cloudflare-module` no build). Injeta `VITE_*` via `define` e alias `@`. |
 | `tsconfig.json`                         | strict, ES2022, `@/*` → `./src/*`, `noEmit`                                                                                                                                                                                                     |
 | `components.json`                       | configuração do shadcn/ui (estilo new-york, base slate)                                                                                                                                                                                         |
 | [eslint.config.js](../eslint.config.js) | flat config; proíbe `server-only`; Prettier como regra                                                                                                                                                                                          |
 | `.prettierrc`                           | `printWidth: 100`, aspas duplas, vírgula final                                                                                                                                                                                                  |
-| `bunfig.toml`                           | `minimumReleaseAge` de 24h com exceções para `@lovable.dev/*`                                                                                                                                                                                   |
+| `bunfig.toml`                           | `minimumReleaseAge` de 24h                                                                                                                                                                                      |
 | `supabase/config.toml`                  | project ref + `[functions.send-email] verify_jwt = false` (deploy da function é manual no dashboard)                                                                               |
 
 ---
@@ -391,9 +390,9 @@ Detalhe passo a passo: [`supabase/functions/send-email/README.md`](../supabase/f
 
 **Build:** gera um bundle Nitro com preset `cloudflare-module` (`nodeCompat: true`) em `.output/`.
 
-**Deploy:** Cloudflare Workers, via `npx wrangler deploy` (e `npx wrangler dev` para preview). Não há `wrangler.toml` versionado — ele é gerado em `.output/server/wrangler.json` durante o build. Lembre de configurar `SUPABASE_SERVICE_ROLE_KEY` e `LOVABLE_API_KEY` como _secrets_ do Worker, não em arquivo.
+**Deploy:** Cloudflare Workers, via `npx wrangler deploy` (e `npx wrangler dev` para preview). Não há `wrangler.toml` versionado — ele é gerado em `.output/server/wrangler.json` durante o build. Lembre de configurar `SUPABASE_SERVICE_ROLE_KEY` e `AI_API_KEY` (ou `OPENAI_API_KEY`) como _secrets_ do Worker, não em arquivo.
 
-**Banco:** mudanças de schema sempre por migration em `supabase/migrations/`, aplicadas via Supabase CLI ou Lovable Cloud. Depois de aplicar, regenere `src/integrations/supabase/types.ts`.
+**Banco:** mudanças de schema sempre por migration em `supabase/migrations/`, aplicadas via Supabase CLI ou dashboard. Depois de aplicar, regenere `src/integrations/supabase/types.ts`.
 
 ---
 
@@ -421,7 +420,7 @@ Registrado aqui de propósito, para ninguém descobrir do jeito difícil:
 - **A tela de login exibe credenciais de teste** ([src/routes/auth.tsx](../src/routes/auth.tsx)). Precisa sair antes de qualquer uso real.
 - Revisar histórico do git por `.env` legado com segredos (ver seção 10).
 - `package.json.name` ainda é `tanstack_start_ts`, herdado do template.
-- O histórico de commits não serve como documentação: a maioria são commits automáticos com a mensagem "Changes", vindos da sincronização com o editor Lovable.
+- O histórico de commits não serve como documentação: a maioria são commits automáticos com a mensagem "Changes".
 
 ---
 
