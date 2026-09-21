@@ -1251,7 +1251,11 @@ export const updateEventTicketItem = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    await assertComandaEditable(context.supabase, { lineId: data.lineId });
+    // Item baixado: RPC atualiza o cash_entry ligado (sem criar lançamento novo).
+    await assertComandaEditable(context.supabase, {
+      lineId: data.lineId,
+      allowPaidLine: true,
+    });
 
     const { data: result, error } = await context.supabase.rpc(
       "update_event_ticket_item",

@@ -109,6 +109,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
     links: [
       { rel: "stylesheet", href: appCss },
+      // Preferido por Google/crawlers (e.g. resultados de busca).
+      { rel: "icon", href: "/favicon.ico", sizes: "any" },
       // Light chrome → black glyph; dark chrome → white glyph
       {
         rel: "icon",
@@ -124,6 +126,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       // Fallback when the browser ignores media on <link rel="icon">
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

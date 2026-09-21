@@ -141,13 +141,18 @@ export function EditSoldTicketDialog({
       });
     },
     onSuccess: () => {
-      toast.success("Ingresso atualizado");
+      toast.success(
+        ticket?.seller_charge_paid
+          ? "Ingresso e lançamento do caixa atualizados"
+          : "Ingresso atualizado",
+      );
       qc.invalidateQueries({ queryKey: ["event", eventId] });
       qc.invalidateQueries({ queryKey: ["event-finance", eventId] });
       qc.invalidateQueries({ queryKey: ["event-finance-totals", eventId] });
       qc.invalidateQueries({ queryKey: ["member-charges"] });
       qc.invalidateQueries({ queryKey: ["comanda-checkout", eventId] });
       qc.invalidateQueries({ queryKey: ["checkin-tickets"] });
+      qc.invalidateQueries({ queryKey: ["cash-entries"] });
       onOpenChange(false);
     },
     onError: (e: unknown) =>
@@ -179,6 +184,12 @@ export function EditSoldTicketDialog({
             {sellerLocked ? (
               <p className="mt-1 text-[11px] text-muted-foreground">
                 Não é possível trocar o vendedor após pagamento da cobrança.
+              </p>
+            ) : null}
+            {ticket?.seller_charge_paid ? (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Ingresso já baixado: alterar o valor atualiza o lançamento
+                existente no fluxo de caixa (não cria outro).
               </p>
             ) : null}
           </div>
@@ -246,8 +257,9 @@ export function EditSoldTicketDialog({
 
           {typeChanged || priceChanged ? (
             <p className="text-[11px] text-muted-foreground">
-              A cobrança do vendedor será sincronizada com o novo valor (
-              {formatBRL(Number.isFinite(parsedPrice) ? parsedPrice : 0)}).
+              {ticket?.seller_charge_paid
+                ? `O lançamento no fluxo de caixa será ajustado para ${formatBRL(Number.isFinite(parsedPrice) ? parsedPrice : 0)}.`
+                : `A cobrança do vendedor será sincronizada com o novo valor (${formatBRL(Number.isFinite(parsedPrice) ? parsedPrice : 0)}).`}
             </p>
           ) : null}
         </div>

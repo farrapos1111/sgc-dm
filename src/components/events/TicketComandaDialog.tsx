@@ -590,7 +590,11 @@ export function TicketComandaDialog({
         },
       }),
     onSuccess: () => {
-      toast.success("Item da comanda atualizado");
+      toast.success(
+        editing?.paid
+          ? "Item e lançamento do caixa atualizados"
+          : "Item da comanda atualizado",
+      );
       setEditing(null);
       invalidateComanda(qc, eventId);
     },
@@ -944,17 +948,15 @@ export function TicketComandaDialog({
                                   Baixar
                                 </Button>
                               ) : null}
-                              {!l.paid ? (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-8 w-8"
-                                  onClick={() => openEdit(l)}
-                                  aria-label={`Editar ${l.item_name ?? "item"} da comanda`}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              ) : null}
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => openEdit(l)}
+                                aria-label={`Editar ${l.item_name ?? "item"} da comanda`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
                               <Button
                                 size="icon"
                                 variant="ghost"
@@ -1226,6 +1228,12 @@ export function TicketComandaDialog({
             <div className="text-sm font-medium">
               {editing?.item_name ?? "Item"}
             </div>
+            {editing?.paid ? (
+              <p className="text-[11px] text-muted-foreground">
+                Item já baixado: a alteração atualiza o lançamento correspondente
+                no fluxo de caixa.
+              </p>
+            ) : null}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="mb-1 block text-xs">Qtd</Label>
