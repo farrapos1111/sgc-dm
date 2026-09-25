@@ -109,7 +109,7 @@ export const listChapterMinutes = createServerFn({ method: "POST" })
     const { data: rows, error } = await context.supabase
       .from("session_minutes")
       .select(
-        "id, content, status, kind, opened_at, updated_at, calendar_event_id, calendar_event:calendar_events(id, title, event_type, mandatory, start_at, end_at, location, address)",
+        "id, content, status, kind, opened_at, updated_at, calendar_event_id, rejection_note, rejected_at, calendar_event:calendar_events(id, title, event_type, mandatory, start_at, end_at, location, address)",
       )
       .eq("chapter_id", data.chapterId)
       .is("deleted_at", null)
@@ -292,20 +292,43 @@ export const submitMinute = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const minute = await loadMinute(context.supabase, data.minuteId);
     if (minute.status === "aprovada") throw new Error("Ata já aprovada.");
+    const { data: canEdit, error: permErr } = await context.supabase.rpc(
+      "can_edit_session_minute" as never,
+      { _chapter_id: minute.chapter_id } as never,
+    );
+    if (permErr) throw new Error(permErr.message);
+    if (!canEdit) {
+      throw new Error("Somente o Escrivão pode concluir a ata.");
+    }
     const { error } = await context.supabase
       .from("session_minutes")
-      .update({ status: "em_revisao" })
+      .update({
+        status: "em_revisao",
+        rejection_note: null,
+        rejected_at: null,
+        rejected_by: null,
+      } as never)
       .eq("id", data.minuteId);
     if (error) throw new Error(error.message);
     return { ok: true, status: "em_revisao" as const };
   });
 
-/** Reabrir para correção: limpa as assinaturas e volta para rascunho. */
+/** Reabrir para correção (Escrivão): limpa as assinaturas e volta para rascunho. */
 export const reopenMinute = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ minuteId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
     const minute = await loadMinute(context.supabase, data.minuteId);
+    const { data: canEdit, error: permErr } = await context.supabase.rpc(
+      "can_edit_session_minute" as never,
+      { _chapter_id: minute.chapter_id } as never,
+    );
+    if (permErr) throw new Error(permErr.message);
+    if (!canEdit) {
+      throw new Error(
+        "Somente o Escrivão pode reabrir a ata. Use “Reprovar” com justificativa se for revisor.",
+      );
+    }
     const del = await context.supabase
       .from("minute_approvals")
       .delete()
@@ -313,10 +336,41 @@ export const reopenMinute = createServerFn({ method: "POST" })
     if (del.error) throw new Error(del.error.message);
     const { error } = await context.supabase
       .from("session_minutes")
-      .update({ status: "rascunho" })
+      .update({
+        status: "rascunho",
+        rejection_note: null,
+        rejected_at: null,
+        rejected_by: null,
+      } as never)
       .eq("id", minute.id);
     if (error) throw new Error(error.message);
     return { ok: true, status: "rascunho" as const };
+  });
+
+/** Reprovar ata em revisão/aprovada com justificativa (secretaria; não edita o texto). */
+export const rejectMinute = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        minuteId: z.string().uuid(),
+        justification: z
+          .string()
+          .trim()
+          .min(3, "Informe a justificativa da reprovação"),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc(
+      "reject_session_minute" as never,
+      {
+        _minute_id: data.minuteId,
+        _justification: data.justification,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; status: "rascunho"; rejection_note: string };
   });
 
 /** Assinar a ata como Presidente, Mestre Conselheiro ou Escrivão. */

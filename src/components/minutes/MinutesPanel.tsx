@@ -24,6 +24,7 @@ import {
   getMinuteApprovals,
   submitMinute,
   reopenMinute,
+  rejectMinute,
   signMinute,
   deleteMinute,
   SIGNER_ROLES,
@@ -56,6 +57,7 @@ import {
   MessageSquareText,
   RotateCcw,
   Signature,
+  ThumbsDown,
   Trash2,
 } from "lucide-react";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
@@ -64,6 +66,15 @@ import { canonicalOfficeSignatureCode } from "@/lib/office-signatures-shared";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   MinuteBodyEditor,
   readAutocompletePref,
@@ -88,6 +99,8 @@ type Props = {
     updated_at: string;
     kind?: string | null;
     title?: string | null;
+    rejection_note?: string | null;
+    rejected_at?: string | null;
   } | null;
   roleName: string | null | undefined;
   onChanged: (info?: { minuteId?: string }) => void;
@@ -118,10 +131,14 @@ export function MinutesPanel({
 }: Props) {
   const qc = useQueryClient();
   const { active } = useActiveChapter();
-  const { positions, canScreen } = useChapterAccess();
+  const { positions, canScreen, can } = useChapterAccess();
   const term = currentTerm();
   const { confirm, dialog } = useConfirmDialog();
+  const canEditAtas = canScreen("atas", "edit");
   const canDelete = canScreen("atas", "delete");
+  const canReject =
+    (can("secretaria") || can("admin")) &&
+    (minutes?.status === "em_revisao" || minutes?.status === "aprovada");
 
   function canSignAs(r: SignerRole): boolean {
     if (roleName === "admin_total") return true;
@@ -136,9 +153,11 @@ export function MinutesPanel({
     isMinuteKind(minutes?.kind) ? minutes.kind : "publica",
   );
   const [autocompleteOn, setAutocompleteOn] = useState(true);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
 
   const status = minutes?.status ?? "rascunho";
-  const editable = status === "rascunho";
+  const editable = canEditAtas && status === "rascunho";
 
   const savedContent = minutes?.content ?? "";
   const savedKind: MinuteKind = isMinuteKind(minutes?.kind)
@@ -347,6 +366,20 @@ export function MinutesPanel({
     onError: (e: any) => toast.error(e?.message ?? "Erro ao reabrir ata"),
   });
 
+  const reject = useMutation({
+    mutationFn: (justification: string) =>
+      rejectMinute({
+        data: { minuteId: minutes!.id, justification },
+      }),
+    onSuccess: () => {
+      setRejectOpen(false);
+      setRejectNote("");
+      toast.success("Ata reprovada — devolvida ao Escrivão com a justificativa");
+      refresh();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao reprovar ata"),
+  });
+
   const sign = useMutation({
     mutationFn: (signerRole: SignerRole) =>
       signMinute({ data: { minuteId: minutes!.id, signerRole } }),
@@ -441,6 +474,61 @@ export function MinutesPanel({
   return (
     <Card className="rounded-[12px] p-5">
       {dialog}
+
+      <Dialog
+        open={rejectOpen}
+        onOpenChange={(open) => {
+          setRejectOpen(open);
+          if (!open) setRejectNote("");
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reprovar ata</DialogTitle>
+            <DialogDescription>
+              Informe a justificativa. A ata volta para rascunho e o Escrivão
+              poderá corrigir o texto.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={rejectNote}
+            onChange={(e) => setRejectNote(e.target.value)}
+            rows={4}
+            placeholder="Motivo da reprovação…"
+            className="text-sm"
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRejectOpen(false)}
+              disabled={reject.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={reject.isPending || rejectNote.trim().length < 3}
+              onClick={() => reject.mutate(rejectNote.trim())}
+            >
+              {reject.isPending ? "Reprovando…" : "Reprovar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {minutes?.rejection_note && status === "rascunho" ? (
+        <div className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+          <p className="font-medium">Reprovada — correção solicitada</p>
+          <p className="mt-1 whitespace-pre-wrap text-xs opacity-90">
+            {minutes.rejection_note}
+          </p>
+          {minutes.rejected_at ? (
+            <p className="mt-1 text-[11px] opacity-70">
+              {formatDateTimeBR(minutes.rejected_at)}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -646,8 +734,10 @@ export function MinutesPanel({
       ) : (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Lock className="h-3.5 w-3.5" /> Texto bloqueado. Reabra a ata para
-            corrigir.
+            <Lock className="h-3.5 w-3.5" />
+            {status === "rascunho" && !canEditAtas
+              ? "Somente o Escrivão pode redigir a ata. Você pode acompanhar, aprovar ou reprovar quando estiver em revisão."
+              : "Texto bloqueado. Reabra a ata para corrigir."}
           </p>
           {minutes?.id && canDelete ? (
             <Button
@@ -761,15 +851,28 @@ export function MinutesPanel({
               );
             })}
           </ul>
-          <div className="mt-3 flex justify-end">
-            <Button
-              variant="outline"
-              disabled={reopen.isPending}
-              onClick={() => reopen.mutate()}
-            >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              {reopen.isPending ? "Reabrindo…" : "Reabrir para correção"}
-            </Button>
+          <div className="mt-3 flex flex-wrap justify-end gap-2">
+            {canReject ? (
+              <Button
+                variant="outline"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                disabled={reject.isPending}
+                onClick={() => setRejectOpen(true)}
+              >
+                <ThumbsDown className="mr-2 h-4 w-4" />
+                Reprovar
+              </Button>
+            ) : null}
+            {canEditAtas ? (
+              <Button
+                variant="outline"
+                disabled={reopen.isPending}
+                onClick={() => reopen.mutate()}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {reopen.isPending ? "Reabrindo…" : "Reabrir para correção"}
+              </Button>
+            ) : null}
           </div>
           {status === "aprovada" && (
             <p className="mt-2 text-xs" style={{ color: "#047857" }}>

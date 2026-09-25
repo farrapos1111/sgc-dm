@@ -61,7 +61,9 @@ export const getOngoing = createServerFn({ method: "POST" })
         .eq("calendar_event_id", data.calendarEventId),
       context.supabase
         .from("session_minutes")
-        .select("id, content, opened_at, updated_at, status, title, kind")
+        .select(
+          "id, content, opened_at, updated_at, status, title, kind, rejection_note, rejected_at",
+        )
         .eq("calendar_event_id", data.calendarEventId)
         .is("deleted_at", null)
         .order("opened_at", { ascending: true }),
@@ -91,7 +93,9 @@ export const listMinutesForEvent = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("session_minutes")
-      .select("id, content, opened_at, updated_at, status, title, kind")
+      .select(
+        "id, content, opened_at, updated_at, status, title, kind, rejection_note, rejected_at",
+      )
       .eq("calendar_event_id", data.calendarEventId)
       .is("deleted_at", null)
       .order("opened_at", { ascending: true });
@@ -202,6 +206,15 @@ export const saveMinutes = createServerFn({ method: "POST" })
       throw new Error(
         "Filantropia e entretenimento não possuem registro de ata.",
       );
+    }
+
+    const { data: canEdit, error: permErr } = await context.supabase.rpc(
+      "can_edit_session_minute" as never,
+      { _chapter_id: data.chapterId } as never,
+    );
+    if (permErr) throw new Error(permErr.message);
+    if (!canEdit) {
+      throw new Error("Somente o Escrivão pode redigir a ata.");
     }
 
     if (data.id) {

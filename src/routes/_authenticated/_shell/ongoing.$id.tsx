@@ -38,6 +38,8 @@ type SessionMinute = {
   status: string;
   title: string | null;
   kind?: string | null;
+  rejection_note?: string | null;
+  rejected_at?: string | null;
 };
 
 const NEW_MINUTE_KEY = "__new__";
@@ -83,24 +85,31 @@ function OngoingPage() {
   const { id } = Route.useParams();
   const { tab: searchTab, minute: searchMinute } = Route.useSearch();
   const { active } = useActiveChapter();
-  const { ctx } = useChapterAccess();
+  const { ctx, canScreen } = useChapterAccess();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data } = useSuspenseQuery(ongoingQO(id));
   const [search, setSearch] = useState("");
   const minutesList = (data.minutes as SessionMinute[]) ?? [];
+  const canEditAtas = canScreen("atas", "edit");
   const [selectedMinuteKey, setSelectedMinuteKey] = useState<string>(() => {
     if (searchMinute && minutesList.some((m) => m.id === searchMinute)) {
       return searchMinute;
     }
-    return minutesList[0]?.id ?? NEW_MINUTE_KEY;
+    if (minutesList[0]?.id) return minutesList[0].id;
+    return canEditAtas ? NEW_MINUTE_KEY : "";
   });
 
   useEffect(() => {
-    if (selectedMinuteKey === NEW_MINUTE_KEY) return;
+    if (selectedMinuteKey === NEW_MINUTE_KEY) {
+      if (!canEditAtas) {
+        setSelectedMinuteKey(minutesList[0]?.id ?? NEW_MINUTE_KEY);
+      }
+      return;
+    }
     if (minutesList.some((m) => m.id === selectedMinuteKey)) return;
-    setSelectedMinuteKey(minutesList[0]?.id ?? NEW_MINUTE_KEY);
-  }, [minutesList, selectedMinuteKey]);
+    setSelectedMinuteKey(minutesList[0]?.id ?? (canEditAtas ? NEW_MINUTE_KEY : ""));
+  }, [minutesList, selectedMinuteKey, canEditAtas]);
 
   const selectedMinute =
     selectedMinuteKey === NEW_MINUTE_KEY
@@ -535,46 +544,59 @@ function OngoingPage() {
                   {minuteTabLabel(m, index)}
                 </Button>
               ))}
-              <Button
-                type="button"
-                size="sm"
-                variant={selectedMinuteKey === NEW_MINUTE_KEY ? "default" : "outline"}
-                style={
-                  selectedMinuteKey === NEW_MINUTE_KEY
-                    ? { backgroundColor: "var(--chapter-primary)" }
-                    : undefined
-                }
-                onClick={() => void selectMinuteTab(NEW_MINUTE_KEY)}
-              >
-                <Plus className="mr-1.5 h-4 w-4" />
-                Nova ata
-              </Button>
+              {canEditAtas ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={selectedMinuteKey === NEW_MINUTE_KEY ? "default" : "outline"}
+                  style={
+                    selectedMinuteKey === NEW_MINUTE_KEY
+                      ? { backgroundColor: "var(--chapter-primary)" }
+                      : undefined
+                  }
+                  onClick={() => void selectMinuteTab(NEW_MINUTE_KEY)}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Nova ata
+                </Button>
+              ) : null}
             </div>
-            <MinutesPanel
-              key={selectedMinuteKey}
-              chapterId={item.chapter_id}
-              calendarEventId={id}
-              item={{
-                title: item.title,
-                start_at: item.start_at,
-                location: item.location,
-                address: item.address ?? null,
-              }}
-              minutes={selectedMinute}
-              roleName={active?.role.name ?? null}
-              flushSaveRef={flushAtaSaveRef}
-              onChanged={(info) => {
-                if (info?.minuteId) setSelectedMinuteKey(info.minuteId);
-                void qc.invalidateQueries({ queryKey: ["ongoing", id] });
-              }}
-              onDeleted={() => {
-                const remaining = minutesList.filter(
-                  (m) => m.id !== selectedMinuteKey,
-                );
-                setSelectedMinuteKey(remaining[0]?.id ?? NEW_MINUTE_KEY);
-                void qc.invalidateQueries({ queryKey: ["ongoing", id] });
-              }}
-            />
+            {selectedMinute || canEditAtas ? (
+              <MinutesPanel
+                key={selectedMinuteKey || "empty"}
+                chapterId={item.chapter_id}
+                calendarEventId={id}
+                item={{
+                  title: item.title,
+                  start_at: item.start_at,
+                  location: item.location,
+                  address: item.address ?? null,
+                }}
+                minutes={selectedMinute}
+                roleName={active?.role.name ?? null}
+                flushSaveRef={flushAtaSaveRef}
+                onChanged={(info) => {
+                  if (info?.minuteId) setSelectedMinuteKey(info.minuteId);
+                  void qc.invalidateQueries({ queryKey: ["ongoing", id] });
+                }}
+                onDeleted={() => {
+                  const remaining = minutesList.filter(
+                    (m) => m.id !== selectedMinuteKey,
+                  );
+                  setSelectedMinuteKey(
+                    remaining[0]?.id ?? (canEditAtas ? NEW_MINUTE_KEY : ""),
+                  );
+                  void qc.invalidateQueries({ queryKey: ["ongoing", id] });
+                }}
+              />
+            ) : (
+              <Card className="rounded-[12px] p-5">
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma ata nesta sessão. Somente o Escrivão pode criar e
+                  redigir atas.
+                </p>
+              </Card>
+            )}
           </TabsContent>
         ) : null}
       </Tabs>

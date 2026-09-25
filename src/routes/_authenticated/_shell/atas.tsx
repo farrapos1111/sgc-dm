@@ -118,6 +118,8 @@ type MinuteRow = {
   content?: string | null;
   opened_at: string;
   deleted_at?: string | null;
+  rejection_note?: string | null;
+  rejected_at?: string | null;
   calendar_event_id: string;
   calendar_event?: {
     title?: string | null;
@@ -222,6 +224,11 @@ function MinuteCard({ minute }: { minute: MinuteRow }) {
               ? ` · ${signed.map((r) => SIGNER_LABELS[r]).join(", ")}`
               : " · nenhuma"}
           </p>
+          {minute.rejection_note && minute.status === "rascunho" ? (
+            <p className="mt-1.5 line-clamp-2 text-xs text-amber-700 dark:text-amber-400">
+              Reprovada: {minute.rejection_note}
+            </p>
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <ExportPdfButton minute={minute} size="sm" />
@@ -471,10 +478,9 @@ function AtasPage() {
   const chapterId = active?.chapter_id ?? "";
   const { data: templates } = useSuspenseQuery(templatesQO(chapterId));
   const { data: minutes } = useSuspenseQuery(minutesQO(chapterId));
-  const allowed =
-    canScreen("atas", "edit") || can("secretaria") || can("admin");
+  const canEditAtas = canScreen("atas", "edit");
   const canManageTrash =
-    canScreen("atas", "delete") || can("secretaria") || can("admin");
+    canScreen("atas", "delete") || can("admin");
 
   const deletedQ = useQuery({
     ...deletedMinutesQO(chapterId),
@@ -577,28 +583,36 @@ function AtasPage() {
                 ? "Nenhuma ata em andamento com esses filtros."
                 : `${inProgress.length} ata${inProgress.length === 1 ? "" : "s"} em andamento`}
             </p>
-            <Button
-              style={{ backgroundColor: "var(--chapter-primary)" }}
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Criar nova ata
-            </Button>
+            {canEditAtas ? (
+              <Button
+                style={{ backgroundColor: "var(--chapter-primary)" }}
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Criar nova ata
+              </Button>
+            ) : null}
           </div>
 
           {inProgress.length === 0 ? (
             <EmptyState
               icon={<FileText className="h-7 w-7" />}
               title="Nenhuma ata em andamento"
-              description="Ajuste os filtros ou crie uma nova ata a partir de uma sessão sem registro."
+              description={
+                canEditAtas
+                  ? "Ajuste os filtros ou crie uma nova ata a partir de uma sessão sem registro."
+                  : "Não há atas em andamento com esses filtros."
+              }
               action={
-                <Button
-                  style={{ backgroundColor: "var(--chapter-primary)" }}
-                  onClick={() => setCreateOpen(true)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Criar nova ata
-                </Button>
+                canEditAtas ? (
+                  <Button
+                    style={{ backgroundColor: "var(--chapter-primary)" }}
+                    onClick={() => setCreateOpen(true)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Criar nova ata
+                  </Button>
+                ) : undefined
               }
             />
           ) : (
@@ -611,11 +625,13 @@ function AtasPage() {
             </ul>
           )}
 
-          <CreateMinuteDialog
-            chapterId={chapterId}
-            open={createOpen}
-            onOpenChange={setCreateOpen}
-          />
+          {canEditAtas ? (
+            <CreateMinuteDialog
+              chapterId={chapterId}
+              open={createOpen}
+              onOpenChange={setCreateOpen}
+            />
+          ) : null}
         </TabsContent>
 
         <TabsContent value="todas">
@@ -748,7 +764,7 @@ function AtasPage() {
           <DocumentTemplatesPanel
             chapterId={chapterId}
             templates={(templates as DocTemplate[]) ?? []}
-            editable={allowed}
+            editable={canEditAtas}
             queryKey={["minute-templates", chapterId]}
             kind="ata"
             createTemplate={async ({ chapterId: cid, name, body }) =>

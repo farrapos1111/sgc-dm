@@ -397,6 +397,10 @@ export function resolveHardcodedScreenAccess(
 
   if (isAdminTotal(ctx) || isFullChapterLeader(ctx)) {
     grantMany(map, ALL_CHAPTER_SCREENS, crud());
+    // DeMolay: redação de atas só Escrivão; líderes visualizam / aprovam / reprovam.
+    if (!isEscrivao(ctx)) {
+      map.set("atas", viewOnly());
+    }
     return map;
   }
 
@@ -469,8 +473,17 @@ export function resolveHardcodedCanScreen(
   action: ScreenAction,
   adminBypass: boolean,
 ): boolean {
-  if (adminBypass || isAdminTotal(ctx)) return true;
   if (screenId === "permissoes") return false;
+  // DeMolay: redação de atas só via matriz (Escrivão); sem bypass de admin_total.
+  if (screenId === "atas") {
+    return canScreenFromMap(
+      resolveHardcodedScreenAccess(ctx),
+      screenId,
+      action,
+      false,
+    );
+  }
+  if (adminBypass || isAdminTotal(ctx)) return true;
   return canScreenFromMap(
     resolveHardcodedScreenAccess(ctx),
     screenId,
