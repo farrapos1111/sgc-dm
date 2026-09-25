@@ -119,6 +119,11 @@ export function EditSoldTicketDialog({
   function handleTypeChange(v: string) {
     setTypeId(v);
     const next = typePrice(types, v);
+    // Ingresso já baixado: trocar para tipo R$ 0 (ex. Custo) não zera o valor pago.
+    if (ticket?.seller_charge_paid && next != null && next <= 0) {
+      setAdvancedOpen(true);
+      return;
+    }
     if (next != null) {
       setPrice(String(next));
       setAdvancedOpen(false);
@@ -130,6 +135,15 @@ export function EditSoldTicketDialog({
   const save = useMutation({
     mutationFn: () => {
       if (!ticket) throw new Error("Ingresso inválido");
+      if (
+        ticket.seller_charge_paid &&
+        Number.isFinite(parsedPrice) &&
+        parsedPrice <= 0
+      ) {
+        throw new Error(
+          "Ingresso já baixado no caixa. Não é possível zerar o preço aqui — exclua o lançamento no fluxo de caixa para estornar, ou mantenha um valor maior que zero.",
+        );
+      }
       return updateSoldTicket({
         data: {
           ticketId: ticket.id,
@@ -189,7 +203,9 @@ export function EditSoldTicketDialog({
             {ticket?.seller_charge_paid ? (
               <p className="mt-1 text-[11px] text-muted-foreground">
                 Ingresso já baixado: alterar o valor atualiza o lançamento
-                existente no fluxo de caixa (não cria outro).
+                existente no fluxo de caixa (não cria outro). Zerar o preço ou
+                usar tipo “Custo” (R$ 0) não remove o caixa — estorne pelo fluxo
+                se for o caso.
               </p>
             ) : null}
           </div>
