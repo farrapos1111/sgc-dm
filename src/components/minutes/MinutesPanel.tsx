@@ -298,6 +298,7 @@ export function MinutesPanel({
   const templates = useQuery({
     queryKey: ["minute-templates", chapterId],
     queryFn: () => listTemplates({ data: { chapterId } }),
+    enabled: Boolean(chapterId) && canEditAtas,
   });
 
   const ctx = useQuery({

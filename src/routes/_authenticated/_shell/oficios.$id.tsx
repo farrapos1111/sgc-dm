@@ -1,13 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
-  useSuspenseQuery,
   useMutation,
+  useQuery,
   useQueryClient,
   queryOptions,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { OficioViewPanel } from "@/components/oficios/OficioEditor";
 import {
@@ -33,28 +34,65 @@ const oficioQO = (id: string) =>
 
 function OficioDetailPage() {
   const { id } = Route.useParams();
-  const { data: oficio } = useSuspenseQuery(oficioQO(id));
   const { can, canScreen } = useChapterAccess();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
+  const canView = canScreen("oficios", "view");
   const canDelete =
     canScreen("oficios", "delete") || can("admin");
 
+  const { data: oficio, isLoading } = useQuery({
+    ...oficioQO(id),
+    enabled: canView,
+  });
+
   const remove = useMutation({
-    mutationFn: () => deleteOficio({ data: { id: oficio.id } }),
+    mutationFn: () => deleteOficio({ data: { id: oficio!.id } }),
     onSuccess: () => {
       toast.success("Ofício excluído");
       void qc.invalidateQueries({
-        queryKey: ["oficios", oficio.chapter_id],
+        queryKey: ["oficios", oficio!.chapter_id],
       });
       void qc.invalidateQueries({
-        queryKey: ["oficio-issue-context", oficio.chapter_id],
+        queryKey: ["oficio-issue-context", oficio!.chapter_id],
       });
       navigate({ to: "/oficios" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  if (!canView) {
+    return (
+      <div className="space-y-4">
+        <Button asChild variant="ghost" size="sm" className="-ml-2">
+          <Link to="/inicio">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Início
+          </Link>
+        </Button>
+        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+          Você não tem permissão para acessar ofícios neste capítulo.
+        </Card>
+      </div>
+    );
+  }
+
+  if (isLoading || !oficio) {
+    return (
+      <div className="space-y-4">
+        <Button asChild variant="ghost" size="sm" className="-ml-2">
+          <Link to="/oficios">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Ofícios
+          </Link>
+        </Button>
+        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+          Carregando…
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

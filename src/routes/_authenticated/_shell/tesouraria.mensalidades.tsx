@@ -396,6 +396,8 @@ function Mensalidades() {
   const [includeSearch, setIncludeSearch] = useState("");
   const writable =
     canScreen("mensalidades", "edit") || can("tesouraria");
+  const canView =
+    canScreen("mensalidades", "view") || can("tesouraria") || can("admin");
   const ensuredYears = useRef(new Set<number>());
   const skipCashRef = useRef(skipCashEntry);
   skipCashRef.current = skipCashEntry;
@@ -427,7 +429,7 @@ function Mensalidades() {
     refetch: refetchDues,
   } = useQuery({
     queryKey: duesYearKey(chapterId ?? "", year),
-    enabled: !!chapterId,
+    enabled: !!chapterId && canView,
     staleTime: DUES_STALE_MS,
     placeholderData: keepPreviousData,
     queryFn: async () => {
@@ -942,6 +944,17 @@ function Mensalidades() {
     } catch {
       toast.error("Não foi possível copiar o link");
     }
+  }
+
+  if (!canView) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Mensalidades" />
+        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+          Você não tem permissão para acessar mensalidades neste capítulo.
+        </Card>
+      </div>
+    );
   }
 
   if (!duesEnabled) {

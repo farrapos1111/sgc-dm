@@ -404,11 +404,12 @@ export function resolveHardcodedScreenAccess(
     return map;
   }
 
-  // Membro comum (base)
+  // Membro comum (base): atas (filtro por grau no RLS), presenças, fluxo;
+  // sem ofícios, modelos, mensalidades nem atrasados.
   map.set("inicio", viewOnly());
   map.set("perfil", { can_view: true, can_edit: true, can_create: false, can_delete: false });
-  grantMany(map, ["atas", "oficios", "presencas"], viewOnly());
-  grantMany(map, ["caixa", "mensalidades"], viewOnly());
+  grantMany(map, ["atas", "presencas"], viewOnly());
+  grantMany(map, ["caixa"], viewOnly());
   grantMany(map, ["calendario", "gestao"], viewOnly());
 
   if (isTesoureiro(ctx)) {

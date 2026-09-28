@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  useSuspenseQuery,
   useMutation,
   useQueryClient,
+  useQuery,
   queryOptions,
 } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -126,17 +126,43 @@ function OficiosPage() {
   const { active } = useActiveChapter();
   const { can, canScreen } = useChapterAccess();
   const chapterId = active?.chapter_id ?? "";
-  const { data: templates } = useSuspenseQuery(templatesQO(chapterId));
-  const { data: oficios } = useSuspenseQuery(oficiosQO(chapterId));
+  const canView = canScreen("oficios", "view");
   const allowed =
     canScreen("oficios", "edit") || can("secretaria") || can("admin");
   const canDelete = canScreen("oficios", "delete") || can("admin");
+  const canViewModelos = allowed;
+
+  const oficiosQ = useQuery({
+    ...oficiosQO(chapterId),
+    enabled: Boolean(chapterId) && canView,
+  });
+  const templatesQ = useQuery({
+    ...templatesQO(chapterId),
+    enabled: Boolean(chapterId) && canViewModelos,
+  });
+  const oficios = oficiosQ.data ?? [];
+  const templates = templatesQ.data ?? [];
+
+  if (!canView) {
+    return (
+      <div>
+        <PageHeader title="Ofícios" subtitle="Acesso restrito à secretaria." />
+        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+          Você não tem permissão para acessar ofícios neste capítulo.
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div>
       <PageHeader
         title="Ofícios"
-        subtitle="Emissão numerada, histórico e modelos padrão do capítulo."
+        subtitle={
+          canViewModelos
+            ? "Emissão numerada, histórico e modelos padrão do capítulo."
+            : "Emissão numerada e histórico de ofícios do capítulo."
+        }
         actions={
           allowed ? (
             <Button asChild style={{ backgroundColor: "var(--chapter-primary)" }}>
@@ -152,7 +178,9 @@ function OficiosPage() {
       <Tabs defaultValue="expedidos">
         <TabsList className="mb-4">
           <TabsTrigger value="expedidos">Expedidos</TabsTrigger>
-          <TabsTrigger value="modelos">Modelos</TabsTrigger>
+          {canViewModelos ? (
+            <TabsTrigger value="modelos">Modelos</TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="expedidos">
@@ -164,24 +192,26 @@ function OficiosPage() {
           />
         </TabsContent>
 
-        <TabsContent value="modelos">
-          <DocumentTemplatesPanel
-            chapterId={chapterId}
-            templates={(templates as DocTemplate[]) ?? []}
-            editable={allowed}
-            queryKey={["oficio-templates", chapterId]}
-            kind="oficio"
-            createTemplate={async ({ chapterId: cid, name, body }) =>
-              createOficioTemplate({ data: { chapterId: cid, name, body } })
-            }
-            saveTemplate={async ({ id, name, body }) =>
-              saveOficioTemplate({ data: { id, name, body } })
-            }
-            deleteTemplate={async ({ id }) =>
-              deleteOficioTemplate({ data: { id } })
-            }
-          />
-        </TabsContent>
+        {canViewModelos ? (
+          <TabsContent value="modelos">
+            <DocumentTemplatesPanel
+              chapterId={chapterId}
+              templates={(templates as DocTemplate[]) ?? []}
+              editable={allowed}
+              queryKey={["oficio-templates", chapterId]}
+              kind="oficio"
+              createTemplate={async ({ chapterId: cid, name, body }) =>
+                createOficioTemplate({ data: { chapterId: cid, name, body } })
+              }
+              saveTemplate={async ({ id, name, body }) =>
+                saveOficioTemplate({ data: { id, name, body } })
+              }
+              deleteTemplate={async ({ id }) =>
+                deleteOficioTemplate({ data: { id } })
+              }
+            />
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   );

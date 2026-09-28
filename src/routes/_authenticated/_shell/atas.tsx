@@ -476,16 +476,22 @@ function AtasPage() {
   const { can, canScreen } = useChapterAccess();
   const qc = useQueryClient();
   const chapterId = active?.chapter_id ?? "";
-  const { data: templates } = useSuspenseQuery(templatesQO(chapterId));
   const { data: minutes } = useSuspenseQuery(minutesQO(chapterId));
   const canEditAtas = canScreen("atas", "edit");
   const canManageTrash =
     canScreen("atas", "delete") || can("admin");
+  const canViewModelos = canEditAtas;
 
   const deletedQ = useQuery({
     ...deletedMinutesQO(chapterId),
     enabled: Boolean(chapterId) && canManageTrash,
   });
+
+  const templatesQ = useQuery({
+    ...templatesQO(chapterId),
+    enabled: Boolean(chapterId) && canViewModelos,
+  });
+  const templates = templatesQ.data ?? [];
 
   const restore = useMutation({
     mutationFn: (minuteId: string) => restoreMinute({ data: { minuteId } }),
@@ -559,7 +565,11 @@ function AtasPage() {
     <div>
       <PageHeader
         title="Atas"
-        subtitle="Atas em andamento, histórico por situação, lixeira e modelos padrão do capítulo."
+        subtitle={
+          canViewModelos
+            ? "Atas em andamento, histórico por situação, lixeira e modelos padrão do capítulo."
+            : "Atas em andamento e histórico por situação, conforme o seu grau."
+        }
       />
 
       <Tabs defaultValue="atual">
@@ -572,7 +582,9 @@ function AtasPage() {
               {deletedRows.length > 0 ? ` (${deletedRows.length})` : ""}
             </TabsTrigger>
           ) : null}
-          <TabsTrigger value="modelos">Modelos</TabsTrigger>
+          {canViewModelos ? (
+            <TabsTrigger value="modelos">Modelos</TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="atual">
@@ -760,24 +772,26 @@ function AtasPage() {
           </TabsContent>
         ) : null}
 
-        <TabsContent value="modelos">
-          <DocumentTemplatesPanel
-            chapterId={chapterId}
-            templates={(templates as DocTemplate[]) ?? []}
-            editable={canEditAtas}
-            queryKey={["minute-templates", chapterId]}
-            kind="ata"
-            createTemplate={async ({ chapterId: cid, name, body }) =>
-              createTemplate({ data: { chapterId: cid, name, body } })
-            }
-            saveTemplate={async ({ id, name, body }) =>
-              saveTemplate({ data: { id, name, body } })
-            }
-            deleteTemplate={async ({ id }) =>
-              deleteTemplate({ data: { id } })
-            }
-          />
-        </TabsContent>
+        {canViewModelos ? (
+          <TabsContent value="modelos">
+            <DocumentTemplatesPanel
+              chapterId={chapterId}
+              templates={(templates as DocTemplate[]) ?? []}
+              editable={canEditAtas}
+              queryKey={["minute-templates", chapterId]}
+              kind="ata"
+              createTemplate={async ({ chapterId: cid, name, body }) =>
+                createTemplate({ data: { chapterId: cid, name, body } })
+              }
+              saveTemplate={async ({ id, name, body }) =>
+                saveTemplate({ data: { id, name, body } })
+              }
+              deleteTemplate={async ({ id }) =>
+                deleteTemplate({ data: { id } })
+              }
+            />
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   );

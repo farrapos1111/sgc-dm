@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
+import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { chapterFoundedAt } from "@/lib/terms";
 import {
@@ -106,6 +107,7 @@ type MemberRow = {
 
 function Atrasados() {
   const { active } = useActiveChapter();
+  const { can, canScreen } = useChapterAccess();
   const now = useMemo(() => new Date(), []);
   const [year, setYear] = useState(now.getFullYear());
   const [search, setSearch] = useState("");
@@ -116,6 +118,8 @@ function Atrasados() {
   const [reportText, setReportText] = useState("");
 
   const chapterId = active?.chapter_id;
+  const canView =
+    canScreen("mensalidades", "view") || can("tesouraria") || can("admin");
 
   useEffect(() => {
     setObservations({});
@@ -137,7 +141,7 @@ function Atrasados() {
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: duesYearKey(chapterId ?? "", year),
-    enabled: !!chapterId && duesEnabled,
+    enabled: !!chapterId && duesEnabled && canView,
     staleTime: DUES_STALE_MS,
     placeholderData: keepPreviousData,
     queryFn: async () =>
@@ -148,7 +152,7 @@ function Atrasados() {
 
   const { data: charges = [] } = useQuery({
     queryKey: ["member-charges", chapterId, "atrasados", year],
-    enabled: !!chapterId && duesEnabled,
+    enabled: !!chapterId && duesEnabled && canView,
     staleTime: DUES_STALE_MS,
     queryFn: () =>
       listMemberCharges({
@@ -158,7 +162,7 @@ function Atrasados() {
 
   const { data: signers = [] } = useQuery({
     queryKey: ["finance-signers", chapterId],
-    enabled: !!chapterId && duesEnabled,
+    enabled: !!chapterId && duesEnabled && canView,
     staleTime: 5 * 60_000,
     queryFn: () => getFinanceSigners({ data: { chapterId: chapterId! } }),
   });
@@ -361,6 +365,17 @@ function Atrasados() {
         title="Selecione um capítulo"
         description="Escolha um capítulo ativo para ver as mensalidades."
       />
+    );
+  }
+
+  if (!canView) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title="Atrasados" />
+        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+          Você não tem permissão para acessar atrasados neste capítulo.
+        </Card>
+      </div>
     );
   }
 

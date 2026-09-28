@@ -244,7 +244,7 @@ assert.ok(!canAction(ctx("presidente_conselho"), "eventos.manage"));
 assert.ok(!canAction(ctx("escrivao"), "eventos.manage"));
 assert.ok(canAction(ctx("admin_total"), "eventos.manage"));
 
-// Membro comum: Início; Perfil edit; Atas/Ofícios/Presenças view; Caixa/Mensalidades view; Calendário + Gestão view
+// Membro comum: Início; Perfil edit; Atas/Presenças view; Caixa view; sem ofícios/mensalidades
 const comum = resolveAccess(ctx("membro"));
 assert.deepEqual(comum, ["visualizar"]);
 assert.ok(!canAccess(ctx("membro"), "secretaria"));
@@ -253,6 +253,8 @@ assert.ok(screen(ctx("membro"), "inicio", "view"));
 assert.ok(screen(ctx("membro"), "perfil", "edit"));
 assert.ok(screen(ctx("membro"), "atas", "view"));
 assert.ok(!screen(ctx("membro"), "atas", "edit"));
+assert.ok(!screen(ctx("membro"), "oficios", "view"));
+assert.ok(!screen(ctx("membro"), "mensalidades", "view"));
 assert.ok(screen(ctx("membro"), "caixa", "view"));
 assert.ok(!screen(ctx("membro"), "caixa", "edit"));
 assert.ok(screen(ctx("membro"), "calendario", "view"));
