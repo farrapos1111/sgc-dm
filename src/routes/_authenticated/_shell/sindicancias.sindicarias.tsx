@@ -188,6 +188,7 @@ function SindicariasPage() {
   });
   const [ataRow, setAtaRow] = useState<SindicanciaListItem | null>(null);
   const [ataMode, setAtaMode] = useState<AtaFormMode>("ata");
+  const [search, setSearch] = useState("");
   const [remindOpen, setRemindOpen] = useState(false);
   const [remindEventId, setRemindEventId] = useState<string | null>(null);
   const [remindNominee, setRemindNominee] = useState("");
