@@ -4,6 +4,7 @@
  * Sem configuração, retorna skipped (não falha o fluxo chamador).
  */
 
+import { getRequest } from "@tanstack/react-start/server";
 import { TV_EMAIL_SIGNATURE_CID } from "@/lib/email-templates";
 import { TEMPLO_VIRTUAL_EMAIL_SIGNATURE_PNG } from "@/lib/email-signature-asset";
 
@@ -31,12 +32,74 @@ export type SendEmailResult =
 
 export type EmailDeliveryStatus = "sent" | "skipped" | "failed";
 
-export function appPublicOrigin() {
+function isLocalHostname(hostname: string): boolean {
+  const h = hostname.trim().toLowerCase();
   return (
-    process.env.VITE_APP_URL ||
+    h === "localhost" ||
+    h === "127.0.0.1" ||
+    h === "[::1]" ||
+    h === "::1" ||
+    h.endsWith(".localhost")
+  );
+}
+
+function envPublicOrigin(): string | null {
+  const raw = (
     process.env.APP_URL ||
-    "http://localhost:8080"
-  ).replace(/\/$/, "");
+    process.env.VITE_APP_URL ||
+    (typeof import.meta !== "undefined" ? import.meta.env?.VITE_APP_URL : "") ||
+    ""
+  )
+    .toString()
+    .trim()
+    .replace(/\/$/, "");
+  return raw || null;
+}
+
+/** Origem pública da requisição atual (host do Worker), se houver. */
+function requestPublicOrigin(): string | null {
+  try {
+    const req = getRequest();
+    const url = new URL(req.url);
+    if (!isLocalHostname(url.hostname)) return url.origin;
+
+    const forwardedHost = req.headers
+      .get("x-forwarded-host")
+      ?.split(",")[0]
+      ?.trim();
+    const host = forwardedHost || req.headers.get("host")?.trim() || "";
+    const hostname = host.split(":")[0] ?? "";
+    if (host && !isLocalHostname(hostname)) {
+      const proto =
+        req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+      return `${proto}://${host}`;
+    }
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Origem pública dos links em e-mail.
+ * Em produção usa o host da requisição (evita localhost quando APP_URL não está no Worker).
+ */
+export function appPublicOrigin() {
+  const fromRequest = requestPublicOrigin();
+  if (fromRequest) {
+    try {
+      if (!isLocalHostname(new URL(fromRequest).hostname)) {
+        return fromRequest.replace(/\/$/, "");
+      }
+    } catch {
+      /* segue para env */
+    }
+  }
+
+  const fromEnv = envPublicOrigin();
+  if (fromEnv) return fromEnv;
+  if (fromRequest) return fromRequest.replace(/\/$/, "");
+  return "http://localhost:8080";
 }
 
 export function summarizeEmailResult(result: SendEmailResult): {
