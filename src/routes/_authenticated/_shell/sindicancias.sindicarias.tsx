@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Copy, FileText, Gavel, ListOrdered, Plus, Trash2 } from "lucide-react";
+import { Copy, FileText, Gavel, Link2, ListOrdered, Mail, Pencil, Plus, Trash2, Unlink } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
@@ -40,8 +40,11 @@ import {
 import {
   createSindicancia,
   deleteSindicancia,
+  ensureSindicanciaParticipationLink,
   listFiles,
   listSindicancias,
+  revokeSindicanciaParticipationLink,
+  sendSindicanciaReminder,
   updateSindicancia,
   type InvestigationFileRow,
   type SindicanciaListItem,
@@ -89,6 +92,12 @@ function SindicariasPage() {
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<SindicanciaListItem | null>(null);
+  const [editRoles, setEditRoles] = useState({
+    senior_member_id: null as string | null,
+    investigator_member_id: null as string | null,
+    clerk_member_id: null as string | null,
+  });
   const [ataRow, setAtaRow] = useState<SindicanciaListItem | null>(null);
   const [ataMode, setAtaMode] = useState<AtaFormMode>("ata");
   const [search, setSearch] = useState("");
@@ -140,7 +149,7 @@ function SindicariasPage() {
 
   const { data: members = [] } = useQuery({
     queryKey: ["members-for-sindicancia", active?.chapter_id],
-    enabled: !!active && open,
+    enabled: !!active && (open || !!editing),
     queryFn: () => listMembers({ data: { chapterId: active!.chapter_id } }),
   });
 
@@ -242,6 +251,71 @@ function SindicariasPage() {
     }
   }
 
+  const shareParticipation = useMutation({
+    mutationFn: (calendarEventId: string) =>
+      ensureSindicanciaParticipationLink({ data: { calendarEventId } }),
+    onSuccess: async ({ token }) => {
+      const url = `${window.location.origin}/sindicancia/${token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link de participação copiado");
+      } catch {
+        toast.success("Link gerado", { description: url });
+      }
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao gerar o link"),
+  });
+
+  const revokeParticipation = useMutation({
+    mutationFn: (calendarEventId: string) =>
+      revokeSindicanciaParticipationLink({ data: { calendarEventId } }),
+    onSuccess: () => toast.success("Link de participação revogado"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao revogar o link"),
+  });
+
+  const remind = useMutation({
+    mutationFn: (calendarEventId: string) =>
+      sendSindicanciaReminder({ data: { calendarEventId } }),
+    onSuccess: (res) => {
+      if (res.sent.length === 0) {
+        const why = [...res.skipped, ...res.failed.map((f) => ({
+          name: f.name,
+          reason: f.error,
+        }))]
+          .map((s) => `${s.name}: ${s.reason}`)
+          .join(" · ");
+        toast.error(why || "Nenhum lembrete enviado");
+        return;
+      }
+      const extra = res.skipped.length + res.failed.length;
+      toast.success(
+        `Lembrete enviado para ${res.sent.join(", ")}`,
+        extra
+          ? {
+              description: [
+                ...res.skipped.map((s) => `${s.name}: ${s.reason}`),
+                ...res.failed.map((f) => `${f.name}: ${f.error}`),
+              ].join(" · "),
+            }
+          : undefined,
+      );
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao enviar lembrete"),
+  });
+
+  async function sendReminder(calendarEventId: string, nominee: string) {
+    const ok = await confirm({
+      title: "Enviar lembrete?",
+      description: `E-mail para os participantes de ${nominee}, com o link de acesso, o papel, a postura e o horário. O anexo adiciona o compromisso na Google Agenda.`,
+      confirmLabel: "Enviar",
+      destructive: false,
+    });
+    if (ok) remind.mutate(calendarEventId);
+  }
+
   const create = useMutation({
     mutationFn: () =>
       createSindicancia({
@@ -267,6 +341,44 @@ function SindicariasPage() {
     },
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Erro ao criar"),
+  });
+
+  function startEditMembers(row: SindicanciaListItem) {
+    setEditRoles({
+      senior_member_id: row.senior_member_id,
+      investigator_member_id: row.investigator_member_id,
+      clerk_member_id: row.clerk_member_id,
+    });
+    setEditing(row);
+  }
+
+  const saveMembers = useMutation({
+    mutationFn: () => {
+      if (!editing) throw new Error("Sindicância inválida");
+      return updateSindicancia({
+        data: {
+          calendar_event_id: editing.calendar_event_id,
+          senior_member_id: editRoles.senior_member_id,
+          senior_text: editRoles.senior_member_id
+            ? null
+            : editing.senior_text,
+          investigator_member_id: editRoles.investigator_member_id,
+          investigator_text: editRoles.investigator_member_id
+            ? null
+            : editing.investigator_text,
+          clerk_member_id: editRoles.clerk_member_id,
+          clerk_text: editRoles.clerk_member_id ? null : editing.clerk_text,
+        },
+      });
+    },
+    onSuccess: async () => {
+      toast.success("Membros atualizados");
+      setEditing(null);
+      await qc.invalidateQueries({ queryKey: ["sindicancias"] });
+      await qc.invalidateQueries({ queryKey: ["sindicancia"] });
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar membros"),
   });
 
   const setStatus = useMutation({
@@ -407,6 +519,44 @@ function SindicariasPage() {
                     >
                       <Copy className="mr-1.5 h-3.5 w-3.5" /> Chave
                     </Button>
+                    {writable &&
+                    (r.status === "aberta" || r.status === "em_andamento") ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={shareParticipation.isPending}
+                          onClick={() =>
+                            shareParticipation.mutate(r.calendar_event_id)
+                          }
+                        >
+                          <Link2 className="mr-1.5 h-3.5 w-3.5" /> Link
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={remind.isPending}
+                          onClick={() =>
+                            void sendReminder(
+                              r.calendar_event_id,
+                              r.nominee_name || r.event?.title || "esta sindicância",
+                            )
+                          }
+                        >
+                          <Mail className="mr-1.5 h-3.5 w-3.5" /> Lembrete
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={revokeParticipation.isPending}
+                          onClick={() =>
+                            revokeParticipation.mutate(r.calendar_event_id)
+                          }
+                        >
+                          <Unlink className="mr-1.5 h-3.5 w-3.5" /> Revogar
+                        </Button>
+                      </>
+                    ) : null}
                     {isMobile ? (
                       <>
                         <Button
@@ -462,6 +612,15 @@ function SindicariasPage() {
                           </Link>
                         </Button>
                       </>
+                    )}
+                    {writable && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => startEditMembers(r)}
+                      >
+                        <Pencil className="mr-1.5 h-3.5 w-3.5" /> Membros
+                      </Button>
                     )}
                     {writable && (
                       <Select
@@ -635,6 +794,64 @@ function SindicariasPage() {
               style={{ backgroundColor: active?.chapter.primary_color }}
             >
               {create.isPending ? "Salvando…" : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!editing}
+        onOpenChange={(o) => {
+          if (!o) setEditing(null);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Membros — {editing?.nominee_name ?? "Sindicância"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <MemberSearchSelect
+              label="Tio / Senior"
+              members={memberOpts}
+              kinds={["senior", "macom"]}
+              memberId={editRoles.senior_member_id}
+              placeholder="Buscar Senior ou Tio…"
+              hint="Somente membros Senior ou Maçom (Tio)."
+              onChange={(id) =>
+                setEditRoles((r) => ({ ...r, senior_member_id: id }))
+              }
+            />
+            <MemberSearchSelect
+              label="Sindicante"
+              members={memberOpts}
+              memberId={editRoles.investigator_member_id}
+              placeholder="Buscar membro…"
+              onChange={(id) =>
+                setEditRoles((r) => ({ ...r, investigator_member_id: id }))
+              }
+            />
+            <MemberSearchSelect
+              label="Escrivão de Parecer"
+              members={memberOpts}
+              memberId={editRoles.clerk_member_id}
+              placeholder="Buscar membro…"
+              onChange={(id) =>
+                setEditRoles((r) => ({ ...r, clerk_member_id: id }))
+              }
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditing(null)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={saveMembers.isPending}
+              onClick={() => saveMembers.mutate()}
+              style={{ backgroundColor: active?.chapter.primary_color }}
+            >
+              {saveMembers.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>

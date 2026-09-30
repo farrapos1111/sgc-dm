@@ -4,6 +4,9 @@
  * Sem configuração, retorna skipped (não falha o fluxo chamador).
  */
 
+import { TV_EMAIL_SIGNATURE_CID } from "@/lib/email-templates";
+import { TEMPLO_VIRTUAL_EMAIL_SIGNATURE_PNG } from "@/lib/email-signature-asset";
+
 export type SendEmailAttachment = {
   filename: string;
   /** Conteúdo em base64 (sem prefixo data:). */
@@ -63,6 +66,22 @@ export async function sendTransactionalEmail(
     };
   }
 
+  const attachments = [...(input.attachments ?? [])];
+  const wantsPlatformSignature = input.html?.includes(
+    `cid:${TV_EMAIL_SIGNATURE_CID}`,
+  );
+  if (
+    wantsPlatformSignature &&
+    !attachments.some((a) => a.contentId === TV_EMAIL_SIGNATURE_CID)
+  ) {
+    attachments.push({
+      filename: "assinatura-templo-virtual.png",
+      content: TEMPLO_VIRTUAL_EMAIL_SIGNATURE_PNG,
+      contentType: "image/png",
+      contentId: TV_EMAIL_SIGNATURE_CID,
+    });
+  }
+
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -77,9 +96,9 @@ export async function sendTransactionalEmail(
         subject: input.subject,
         text: input.text,
         ...(input.html ? { html: input.html } : {}),
-        ...(input.attachments?.length
+        ...(attachments.length
           ? {
-              attachments: input.attachments.map((a) => ({
+              attachments: attachments.map((a) => ({
                 filename: a.filename,
                 content: a.content,
                 ...(a.contentType ? { content_type: a.contentType } : {}),

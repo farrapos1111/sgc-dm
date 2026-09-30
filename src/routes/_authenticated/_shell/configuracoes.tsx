@@ -415,13 +415,29 @@ function ConfiguracoesPage() {
   const { active, refetch } = useActiveChapter();
   const { can, isAdminTotal, realCtx } = useChapterAccess();
   const chapterId = active?.chapter_id ?? "";
-  const logoPath = (active?.chapter as any)?.logo_url as string | null | undefined;
+  const logoPath = active?.chapter.logo_url ?? null;
   const logoUrl = useChapterLogo(logoPath);
+  const { data: signaturePath = null, refetch: refetchSignature } = useQuery({
+    queryKey: ["chapter-email-signature", chapterId],
+    enabled: Boolean(chapterId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("chapters")
+        .select("email_signature_url")
+        .eq("id", chapterId)
+        .maybeSingle();
+      if (error) return null;
+      return data?.email_signature_url ?? null;
+    },
+  });
+  const signatureUrl = useChapterLogo(signaturePath);
   const allowed = can("admin") || can("secretaria") || can("conselho");
   const canViewAudit = isAdminTotal || isOrgLeader(realCtx);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const signatureInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [signatureBusy, setSignatureBusy] = useState(false);
 
   async function onFile(file: File) {
     if (!file.type.startsWith("image/")) {
@@ -473,6 +489,63 @@ function ConfiguracoesPage() {
       toast.error(e?.message ?? "Erro ao remover a logo");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onSignatureFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Envie um arquivo de imagem (PNG, JPG ou WEBP).");
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      toast.error("A imagem deve ter no máximo 2 MB.");
+      return;
+    }
+    setSignatureBusy(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `${chapterId}/email-signature/assinatura-${Date.now()}.${ext}`;
+      const up = await supabase.storage
+        .from(LOGO_BUCKET)
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (up.error) throw up.error;
+
+      const { error } = await supabase
+        .from("chapters")
+        .update({ email_signature_url: path })
+        .eq("id", chapterId);
+      if (error) throw error;
+
+      if (signaturePath) {
+        await supabase.storage.from(LOGO_BUCKET).remove([signaturePath]);
+      }
+      toast.success("Assinatura de e-mail atualizada");
+      void refetchSignature();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao enviar a assinatura");
+    } finally {
+      setSignatureBusy(false);
+      if (signatureInputRef.current) signatureInputRef.current.value = "";
+    }
+  }
+
+  async function removeSignature() {
+    setSignatureBusy(true);
+    try {
+      const { error } = await supabase
+        .from("chapters")
+        .update({ email_signature_url: null })
+        .eq("id", chapterId);
+      if (error) throw error;
+      if (signaturePath) {
+        await supabase.storage.from(LOGO_BUCKET).remove([signaturePath]);
+      }
+      toast.success("Assinatura de e-mail removida");
+      void refetchSignature();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao remover a assinatura");
+    } finally {
+      setSignatureBusy(false);
     }
   }
 
@@ -571,6 +644,73 @@ function ConfiguracoesPage() {
                 ) : (
                   <p className="mt-4 text-xs text-muted-foreground">
                     Somente a administração do capítulo pode alterar a logo.
+                  </p>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          <Card className="rounded-[12px] p-5">
+            <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <ImagePlus className="h-5 w-5" /> Assinatura de e-mail
+            </div>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+              <div className="flex h-28 w-full max-w-sm shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-dashed border-border bg-muted/40 p-3">
+                {signatureUrl ? (
+                  <img
+                    src={signatureUrl}
+                    alt="Assinatura de e-mail"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                ) : (
+                  <span className="px-3 text-center text-xs text-muted-foreground">
+                    Nenhuma assinatura definida
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">
+                  Imagem anexada no rodapé dos e-mails do capítulo. Fica na pasta{" "}
+                  <span className="font-medium">email-signature</span> do
+                  capítulo. PNG ou JPG, até 2 MB, de preferência em faixa larga.
+                </p>
+                {allowed ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <input
+                      ref={signatureInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) void onSignatureFile(f);
+                      }}
+                    />
+                    <Button
+                      style={{ backgroundColor: "var(--chapter-primary)" }}
+                      disabled={signatureBusy}
+                      onClick={() => signatureInputRef.current?.click()}
+                    >
+                      {signatureBusy ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <ImagePlus className="mr-2 h-4 w-4" />
+                      )}
+                      {signaturePath ? "Trocar assinatura" : "Enviar assinatura"}
+                    </Button>
+                    {signaturePath ? (
+                      <Button
+                        variant="outline"
+                        disabled={signatureBusy}
+                        onClick={() => void removeSignature()}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Remover
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    Somente a administração do capítulo pode alterar a assinatura.
                   </p>
                 )}
               </div>

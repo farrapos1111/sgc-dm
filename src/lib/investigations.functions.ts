@@ -1,6 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
+import { buildSindicanciaChave } from "@/lib/chave-do-dia";
+import { appPublicOrigin, sendTransactionalEmail } from "@/lib/email";
+import { formatDateTimeBR } from "@/lib/format";
+import { buildIcs, googleCalendarUrl } from "@/lib/ics";
+import { currentTerm } from "@/lib/terms";
+import { normalizeWhatsAppDigits } from "@/lib/dues-reminder";
+import { APP_TIMEZONE, formatTimeInAppTz } from "@/lib/timezone";
+import { TV_EMAIL_SIGNATURE_CID } from "@/lib/email-templates";
 import { digitsOnly } from "@/lib/format";
 import {
   MEMBER_DOCS_BUCKET,
@@ -12,6 +22,7 @@ import {
   investigationDocPath,
   sindicanciaSignaturePath,
   type AgeBand,
+  type AtaBlock,
   type AtaTemplates,
   type IdDocKind,
   type SindicanciaSignatureRole,
@@ -1237,6 +1248,10 @@ export const updateSindicancia = createServerFn({ method: "POST" })
     ] as const) {
       if (rest[key] !== undefined) detailPatch[key] = rest[key];
     }
+    // Membro cadastrado prevalece sobre texto livre (edição depois de aberta).
+    if (rest.senior_member_id) detailPatch.senior_text = null;
+    if (rest.investigator_member_id) detailPatch.investigator_text = null;
+    if (rest.clerk_member_id) detailPatch.clerk_text = null;
     if (Object.keys(detailPatch).length) {
       const { error } = await context.supabase
         .from("sindicancia_details" as never)
@@ -2157,4 +2172,636 @@ export const getSindicanciaChaveContext = createServerFn({ method: "POST" })
       escrivao: d.clerk?.full_name || d.clerk_text || "",
       padrinho,
     };
+  });
+
+function getPublicSupabase() {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key =
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error("Supabase não configurado");
+  return createClient<Database>(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+const participationEventInput = z.object({
+  calendarEventId: z.string().uuid(),
+});
+
+export const ensureSindicanciaParticipationLink = createServerFn({
+  method: "POST",
+})
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => participationEventInput.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { data: token, error } = await context.supabase.rpc(
+      "ensure_sindicancia_participation_token" as never,
+      { _calendar_event_id: data.calendarEventId } as never,
+    );
+    if (error) throw new Error(error.message);
+    if (typeof token !== "string" || !token) {
+      throw new Error("Não foi possível gerar o link");
+    }
+    return { token };
+  });
+
+export const revokeSindicanciaParticipationLink = createServerFn({
+  method: "POST",
+})
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => participationEventInput.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc(
+      "revoke_sindicancia_participation_token" as never,
+      { _calendar_event_id: data.calendarEventId } as never,
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+const PARTICIPATION_ROLE_LABEL = {
+  escrivao: "Escrivão de Parecer",
+  sindicante: "Sindicante",
+  senior: "Tio/Senior",
+} as const;
+
+const PARTICIPATION_TOOL_HINT = {
+  escrivao: "A página abre a ata, para preencher respostas e assinaturas.",
+  sindicante: "A página abre o roteiro, só com as perguntas.",
+  senior: "A página abre o roteiro, para acompanhamento.",
+} as const;
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatWhatsAppDisplay(digits: string): string {
+  const local = digits.startsWith("55") ? digits.slice(2) : digits;
+  if (local.length === 11) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  }
+  if (local.length === 10) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  }
+  return `+${digits}`;
+}
+
+export const sendSindicanciaReminder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => participationEventInput.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { data: token, error: tokenErr } = await context.supabase.rpc(
+      "ensure_sindicancia_participation_token" as never,
+      { _calendar_event_id: data.calendarEventId } as never,
+    );
+    if (tokenErr) throw new Error(tokenErr.message);
+    if (typeof token !== "string" || !token) {
+      throw new Error("Não foi possível gerar o link de participação");
+    }
+
+    const { data: detail, error } = await context.supabase
+      .from("sindicancia_details" as never)
+      .select(
+        `
+        nominee_name, status, chapter_id,
+        senior_member_id, senior_text,
+        investigator_member_id, investigator_text,
+        clerk_member_id, clerk_text,
+        event:calendar_events!sindicancia_details_calendar_event_id_fkey(
+          id, title, start_at, end_at, location, address, dress_code
+        ),
+        senior:members!sindicancia_details_senior_member_id_fkey(id, full_name, email),
+        investigator:members!sindicancia_details_investigator_member_id_fkey(id, full_name, email),
+        clerk:members!sindicancia_details_clerk_member_id_fkey(id, full_name, email),
+        chapter:chapters!sindicancia_details_chapter_id_fkey(name)
+      `.replace(/\s+/g, " "),
+      )
+      .eq("calendar_event_id", data.calendarEventId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!detail) throw new Error("Sindicância não encontrada");
+
+    const row = detail as {
+      nominee_name: string;
+      status: string;
+      chapter_id: string;
+      senior_text: string | null;
+      investigator_text: string | null;
+      clerk_text: string | null;
+      senior_member_id: string | null;
+      investigator_member_id: string | null;
+      clerk_member_id: string | null;
+      event: {
+        id: string;
+        title: string;
+        start_at: string;
+        end_at: string | null;
+        location: string | null;
+        address: string | null;
+        dress_code: string | null;
+      } | null;
+      senior: { id: string; full_name: string; email: string | null } | null;
+      investigator: { id: string; full_name: string; email: string | null } | null;
+      clerk: { id: string; full_name: string; email: string | null } | null;
+      chapter: { name: string } | null;
+    };
+
+    if (row.status !== "aberta" && row.status !== "em_andamento") {
+      throw new Error(
+        "O lembrete só pode ser enviado com a sindicância aberta ou em andamento",
+      );
+    }
+    if (!row.event?.start_at) {
+      throw new Error("A sindicância não tem data definida");
+    }
+
+    type Slot = {
+      role: keyof typeof PARTICIPATION_ROLE_LABEL;
+      memberId: string | null;
+      name: string;
+      email: string | null;
+    };
+    const slots: Slot[] = [];
+    if (row.clerk_member_id || row.clerk_text?.trim()) {
+      slots.push({
+        role: "escrivao",
+        memberId: row.clerk_member_id,
+        name: row.clerk?.full_name || row.clerk_text || "Escrivão de Parecer",
+        email: row.clerk?.email ?? null,
+      });
+    }
+    if (row.investigator_member_id || row.investigator_text?.trim()) {
+      slots.push({
+        role: "sindicante",
+        memberId: row.investigator_member_id,
+        name:
+          row.investigator?.full_name ||
+          row.investigator_text ||
+          "Sindicante",
+        email: row.investigator?.email ?? null,
+      });
+    }
+    if (row.senior_member_id || row.senior_text?.trim()) {
+      slots.push({
+        role: "senior",
+        memberId: row.senior_member_id,
+        name: row.senior?.full_name || row.senior_text || "Tio/Senior",
+        email: row.senior?.email ?? null,
+      });
+    }
+    if (slots.length === 0) {
+      throw new Error("Nenhum participante nomeado nesta sindicância");
+    }
+
+    const byPerson = new Map<string, Slot>();
+    const unnamed: Slot[] = [];
+    for (const slot of slots) {
+      if (!slot.memberId) {
+        unnamed.push(slot);
+        continue;
+      }
+      const prev = byPerson.get(slot.memberId);
+      if (!prev || slot.role === "escrivao") byPerson.set(slot.memberId, slot);
+    }
+
+    const accessUrl = `${appPublicOrigin()}/sindicancia/${token}`;
+    const when = new Date(row.event.start_at);
+    const dateLabel = when.toLocaleDateString("pt-BR", {
+      timeZone: APP_TIMEZONE,
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+    const timeLabel = formatTimeInAppTz(row.event.start_at);
+    const place =
+      [row.event.location, row.event.address].filter(Boolean).join(" — ") ||
+      "A definir";
+    const postura = row.event.dress_code?.trim() || "A definir";
+    const nominee = row.nominee_name || row.event.title || "Sindicância";
+    const chapterName = row.chapter?.name ?? "Capítulo";
+    const term = currentTerm();
+    const { data: sindicanciaCommission } = await context.supabase
+      .from("commissions")
+      .select("id")
+      .eq("chapter_id", row.chapter_id)
+      .eq("code", "sindicancias")
+      .maybeSingle();
+    let presidentName = "";
+    let presidentPhone = "";
+    let presidentWhatsAppUrl = "";
+    if (sindicanciaCommission?.id) {
+      const { data: presidentRow } = await context.supabase
+        .from("commission_members")
+        .select("member:members!commission_members_member_id_fkey(full_name, phone)")
+        .eq("chapter_id", row.chapter_id)
+        .eq("commission_id", sindicanciaCommission.id)
+        .eq("role", "presidente")
+        .eq("term_year", term.year)
+        .eq("term_semester", term.semester)
+        .limit(1)
+        .maybeSingle();
+      const member = presidentRow?.member as
+        | { full_name: string; phone: string | null }
+        | { full_name: string; phone: string | null }[]
+        | null;
+      const person = Array.isArray(member) ? member[0] : member;
+      presidentName = person?.full_name?.trim() ?? "";
+      const digits = normalizeWhatsAppDigits(person?.phone);
+      if (digits) {
+        presidentPhone = formatWhatsAppDisplay(digits);
+        presidentWhatsAppUrl = `https://wa.me/${digits}`;
+      } else {
+        presidentPhone = person?.phone?.trim() ?? "";
+      }
+    }
+    const closingText = presidentName
+      ? [
+          "",
+          "Atenciosamente,",
+          presidentName,
+          "Presidente da Comissão de Sindicâncias",
+          presidentPhone
+            ? `WhatsApp: ${presidentPhone}${presidentWhatsAppUrl ? ` (${presidentWhatsAppUrl})` : ""}`
+            : "",
+        ]
+          .filter((line) => line !== "")
+          .join("\n")
+      : "";
+    const closingHtml = presidentName
+      ? `<p style="margin-top:24px;">Atenciosamente,<br/>
+          <strong>${escapeHtml(presidentName)}</strong><br/>
+          Presidente da Comissão de Sindicâncias${
+            presidentPhone
+              ? `<br/>WhatsApp: ${
+                  presidentWhatsAppUrl
+                    ? `<a href="${escapeHtml(presidentWhatsAppUrl)}">${escapeHtml(presidentPhone)}</a>`
+                    : escapeHtml(presidentPhone)
+                }`
+              : ""
+          }</p>`
+      : "";
+    const { loadChapterEmailAssets } = await import("@/lib/email-brand.server");
+    const emailAssets = await loadChapterEmailAssets(row.chapter_id);
+    const signatureSrc = emailAssets.brand.signatureCid
+      ? `cid:${emailAssets.brand.signatureCid}`
+      : emailAssets.brand.signatureUrl;
+    const signatureHtml = signatureSrc
+      ? `<p style="margin-top:24px;"><img src="${escapeHtml(signatureSrc)}" alt="Assinatura" style="display:block;max-width:100%;height:auto;border:0;"/></p>`
+      : "";
+    const signatureAttachments = emailAssets.attachments.filter(
+      (a) => a.contentId === "email-signature",
+    );
+
+    const sent: string[] = [];
+    const skipped: { name: string; reason: string }[] = [];
+    const failed: { name: string; error: string }[] = [];
+
+    for (const slot of unnamed) {
+      skipped.push({
+        name: slot.name,
+        reason: "Papel sem membro do capítulo (sem e-mail)",
+      });
+    }
+
+    for (const slot of byPerson.values()) {
+      const email = slot.email?.trim();
+      if (!email) {
+        skipped.push({ name: slot.name, reason: "Membro sem e-mail" });
+        continue;
+      }
+      const roleLabel = PARTICIPATION_ROLE_LABEL[slot.role];
+      const toolHint = PARTICIPATION_TOOL_HINT[slot.role];
+      const subject = `Lembrete de sindicância — ${nominee}`;
+      const text = [
+        `Olá, ${slot.name}.`,
+        "",
+        `Você participa como ${roleLabel}.`,
+        "",
+        `Capítulo: ${chapterName}`,
+        `Entrevistado: ${nominee}`,
+        `Data: ${dateLabel}`,
+        `Hora: ${timeLabel}`,
+        `Local: ${place}`,
+        `Postura: ${postura}`,
+        "",
+        "Acesso",
+        accessUrl,
+        "Abra o link e informe seu ID DeMolay. A ferramenta só abre se esse ID for de um participante desta sindicância.",
+        toolHint,
+        "",
+        "Google Agenda",
+        "O anexo sindicancia.ics adiciona este horário à sua agenda. Se o e-mail não oferecer o convite, use o link:",
+        googleCalendarUrl({
+          id: `${data.calendarEventId}-${slot.role}`,
+          title: `Sindicância — ${nominee} (${roleLabel})`,
+          start_at: row.event.start_at,
+          end_at: row.event.end_at,
+          location: row.event.location,
+          address: row.event.address,
+          description: `Capítulo: ${chapterName}. Entrevistado: ${nominee}. ${roleLabel}. Postura: ${postura}. Acesso: ${accessUrl}`,
+        }),
+      ]
+        .concat(closingText ? ["", closingText] : [])
+        .join("\n");
+
+      const calendarDetails = [
+        `Capítulo: ${chapterName}`,
+        `Entrevistado: ${nominee}`,
+        `Papel: ${roleLabel}`,
+        `Postura: ${postura}`,
+        toolHint,
+        `Acesso (informe seu ID DeMolay): ${accessUrl}`,
+      ].join("\n");
+      const ics = buildIcs(
+        [
+          {
+            id: `${data.calendarEventId}-${slot.role}`,
+            title: `Sindicância — ${nominee} (${roleLabel})`,
+            description: calendarDetails,
+            start_at: row.event.start_at,
+            end_at: row.event.end_at,
+            location: row.event.location,
+            address: row.event.address,
+          },
+        ],
+        chapterName,
+        {
+          method: "REQUEST",
+          organizerEmail: (() => {
+            const from = process.env.EMAIL_FROM?.trim();
+            if (!from) return null;
+            const wrapped = from.match(/<([^>]+)>/);
+            return (wrapped?.[1] ?? from).trim();
+          })(),
+          attendeeEmail: email,
+          attendeeName: slot.name,
+        },
+      );
+      const gcal = googleCalendarUrl({
+        id: `${data.calendarEventId}-${slot.role}`,
+        title: `Sindicância — ${nominee} (${roleLabel})`,
+        description: calendarDetails,
+        start_at: row.event.start_at,
+        end_at: row.event.end_at,
+        location: row.event.location,
+        address: row.event.address,
+      });
+
+      const html = `
+        <p>Olá, ${escapeHtml(slot.name)}.</p>
+        <p>Você participa como <strong>${escapeHtml(roleLabel)}</strong>.</p>
+        <p>
+          <strong>Capítulo:</strong> ${escapeHtml(chapterName)}<br/>
+          <strong>Entrevistado:</strong> ${escapeHtml(nominee)}<br/>
+          <strong>Data:</strong> ${escapeHtml(dateLabel)}<br/>
+          <strong>Hora:</strong> ${escapeHtml(timeLabel)}<br/>
+          <strong>Local:</strong> ${escapeHtml(place)}<br/>
+          <strong>Postura:</strong> ${escapeHtml(postura)}
+        </p>
+        <p><strong>Acesso</strong><br/>
+          <a href="${escapeHtml(accessUrl)}">${escapeHtml(accessUrl)}</a><br/>
+          Abra o link e informe seu ID DeMolay. A ferramenta só abre se esse ID for de um participante desta sindicância.<br/>
+          ${escapeHtml(toolHint)}
+        </p>
+        <p><strong>Google Agenda</strong><br/>
+          O anexo <em>sindicancia.ics</em> adiciona este horário à agenda.
+          Se o convite não aparecer, <a href="${escapeHtml(gcal)}">adicione à Google Agenda</a>.
+        </p>
+        ${closingHtml}
+        ${signatureHtml}
+        <p style="margin-top:24px;"><img src="cid:${TV_EMAIL_SIGNATURE_CID}" alt="Templo Virtual — Gestão maçônica e paramaçônica" width="464" style="display:block;max-width:100%;height:auto;border:0;"/></p>
+      `;
+
+      const result = await sendTransactionalEmail({
+        to: [email],
+        subject,
+        text,
+        html,
+        attachments: [
+          {
+            filename: "sindicancia.ics",
+            content: Buffer.from(ics, "utf8").toString("base64"),
+            contentType: "text/calendar; method=REQUEST; charset=UTF-8",
+          },
+          ...signatureAttachments,
+        ],
+      });
+      if (result.ok) sent.push(slot.name);
+      else if (result.skipped) {
+        skipped.push({ name: slot.name, reason: result.reason });
+      } else failed.push({ name: slot.name, error: result.error });
+    }
+
+    if (sent.length === 0 && failed.length === 0 && skipped.length > 0) {
+      const onlyConfig = skipped.every((s) =>
+        s.reason.includes("RESEND_API_KEY"),
+      );
+      if (onlyConfig) {
+        throw new Error(skipped[0]?.reason ?? "E-mail não configurado");
+      }
+    }
+
+    return {
+      sent,
+      skipped,
+      failed,
+      when: formatDateTimeBR(row.event.start_at),
+    };
+  });
+
+export type SindicanciaParticipationRole = "escrivao" | "sindicante" | "senior";
+
+export type SindicanciaParticipationPayload = {
+  role: SindicanciaParticipationRole;
+  participantName: string;
+  ageBand: AgeBand;
+  chapterName: string;
+  chapterNumber: string | null;
+  chapterCity: string | null;
+  primaryColor: string | null;
+  eventTitle: string;
+  startAt: string | null;
+  nominee: string;
+  sindicante: string;
+  senior: string;
+  escrivao: string;
+  chaveText: string;
+  blocks: AtaBlock[];
+  prefill: Record<string, string | boolean | null>;
+  minute: {
+    answers: Record<string, string | boolean | null>;
+    signatures: Record<string, string | null>;
+    completedAt: string | null;
+  } | null;
+};
+
+function isAgeBand(v: unknown): v is AgeBand {
+  return v === "ate_14" || v === "15_17" || v === "18_mais";
+}
+
+function isParticipationRole(v: unknown): v is SindicanciaParticipationRole {
+  return v === "escrivao" || v === "sindicante" || v === "senior";
+}
+
+function asBlocks(raw: unknown, band: AgeBand): AtaBlock[] {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return DEFAULT_ATA_TEMPLATES[band].blocks;
+  }
+  return raw as AtaBlock[];
+}
+
+function asAnswerMap(raw: unknown): Record<string, string | boolean | null> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string | boolean | null> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (
+      typeof value === "string" ||
+      typeof value === "boolean" ||
+      value === null
+    ) {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+function asSignatureMap(raw: unknown): Record<string, string | null> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string | null> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "string" || value === null) out[key] = value;
+  }
+  return out;
+}
+
+export const resolveSindicanciaParticipation = createServerFn({ method: "POST" })
+  .inputValidator((raw) =>
+    z
+      .object({
+        token: z.string().trim().min(32).max(128),
+        demolayId: z.string().trim().min(1).max(64),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data }): Promise<SindicanciaParticipationPayload> => {
+    const supabase = getPublicSupabase();
+    const { data: payload, error } = await supabase.rpc(
+      "resolve_sindicancia_participation" as never,
+      { _token: data.token, _demolay_id: data.demolayId } as never,
+    );
+    if (error) throw new Error(error.message);
+    const row = payload as {
+      role?: unknown;
+      participant_name?: string;
+      age_band?: unknown;
+      chapter?: {
+        name?: string;
+        number?: string | null;
+        city?: string | null;
+        primary_color?: string | null;
+      };
+      event?: { title?: string; start_at?: string | null };
+      chave?: {
+        template?: string | null;
+        chapter_name?: string;
+        nominee?: string;
+        padrinho?: string;
+        start_at?: string | null;
+        location?: string;
+        sindicante?: string;
+        senior?: string;
+        escrivao?: string;
+      };
+      names?: {
+        nominee?: string;
+        sindicante?: string;
+        senior?: string;
+        escrivao?: string;
+      };
+      blocks?: unknown;
+      prefill?: unknown;
+      minute?: {
+        answers?: unknown;
+        signatures?: unknown;
+        completed_at?: string | null;
+      } | null;
+    } | null;
+    if (!row || !isParticipationRole(row.role)) {
+      throw new Error("Este ID não é participante desta sindicância");
+    }
+    const ageBand = isAgeBand(row.age_band) ? row.age_band : "18_mais";
+    const chave = row.chave ?? {};
+    const names = row.names ?? {};
+    return {
+      role: row.role,
+      participantName: row.participant_name ?? "",
+      ageBand,
+      chapterName: row.chapter?.name ?? "",
+      chapterNumber: row.chapter?.number ?? null,
+      chapterCity: row.chapter?.city ?? null,
+      primaryColor: row.chapter?.primary_color ?? null,
+      eventTitle: row.event?.title ?? "",
+      startAt: row.event?.start_at ?? chave.start_at ?? null,
+      nominee: names.nominee ?? chave.nominee ?? "",
+      sindicante: names.sindicante ?? "",
+      senior: names.senior ?? "",
+      escrivao: names.escrivao ?? "",
+      chaveText: buildSindicanciaChave({
+        template: chave.template ?? null,
+        chapterName: chave.chapter_name ?? row.chapter?.name ?? "",
+        nominee: chave.nominee ?? "",
+        padrinho: chave.padrinho ?? "",
+        start_at: chave.start_at ?? new Date().toISOString(),
+        location: chave.location ?? "",
+        sindicante: chave.sindicante ?? "",
+        senior: chave.senior ?? "",
+        escrivao: chave.escrivao ?? "",
+      }),
+      blocks: asBlocks(row.blocks, ageBand),
+      prefill: row.role === "escrivao" ? asAnswerMap(row.prefill) : {},
+      minute:
+        row.role === "escrivao" && row.minute
+          ? {
+              answers: asAnswerMap(row.minute.answers),
+              signatures: asSignatureMap(row.minute.signatures),
+              completedAt: row.minute.completed_at ?? null,
+            }
+          : null,
+    };
+  });
+
+export const saveSindicanciaParticipationMinute = createServerFn({
+  method: "POST",
+})
+  .inputValidator((raw) =>
+    z
+      .object({
+        token: z.string().trim().min(32).max(128),
+        demolayId: z.string().trim().min(1).max(64),
+        answers: z.record(z.union([z.string(), z.boolean(), z.null()])),
+        signatures: z.record(z.string().nullable()),
+        completed: z.boolean().optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getPublicSupabase();
+    const { data: result, error } = await supabase.rpc(
+      "save_sindicancia_participation_minute" as never,
+      {
+        _token: data.token,
+        _demolay_id: data.demolayId,
+        _answers: data.answers,
+        _signatures: data.signatures,
+        _completed: data.completed ?? false,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    return (result ?? { ok: true }) as { ok: boolean; status: string };
   });

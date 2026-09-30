@@ -6,6 +6,7 @@ import type { SendEmailAttachment } from "@/lib/email";
 
 const LOGO_BUCKET = "chapter-logos";
 const LOGO_CID = "chapter-logo";
+const SIGNATURE_CID = "email-signature";
 
 function normalizeChapterLogoPath(
   path: string | null | undefined,
@@ -51,11 +52,32 @@ export async function loadChapterEmailAssets(
   const { supabaseAdmin } = await import(
     "@/integrations/supabase/client.server"
   );
-  const { data: chapter } = await supabaseAdmin
+  let chapter:
+    | {
+        name: string;
+        number: string;
+        primary_color: string | null;
+        logo_url: string | null;
+        email_signature_url: string | null;
+      }
+    | null = null;
+  const withSignature = await supabaseAdmin
     .from("chapters")
-    .select("name, number, primary_color, logo_url")
+    .select("name, number, primary_color, logo_url, email_signature_url")
     .eq("id", chapterId)
     .maybeSingle();
+  if (!withSignature.error) {
+    chapter = withSignature.data;
+  } else {
+    const base = await supabaseAdmin
+      .from("chapters")
+      .select("name, number, primary_color, logo_url")
+      .eq("id", chapterId)
+      .maybeSingle();
+    chapter = base.data
+      ? { ...base.data, email_signature_url: null }
+      : null;
+  }
 
   const title = chapter
     ? `${chapter.name} nº ${chapter.number}`
@@ -70,60 +92,79 @@ export async function loadChapterEmailAssets(
     goldLine: null,
     logoCid: null,
     logoUrl: null,
+    signatureCid: null,
+    signatureUrl: null,
   };
   const attachments: SendEmailAttachment[] = [];
 
-  const rawPath = normalizeChapterLogoPath(chapter?.logo_url);
-  if (!rawPath) return { brand, attachments };
-
-  try {
-    if (/^https?:\/\//i.test(rawPath)) {
-      const res = await fetch(rawPath, { signal: AbortSignal.timeout(8000) });
-      if (!res.ok) return { brand, attachments };
-      const buf = new Uint8Array(await res.arrayBuffer());
-      const contentType = mimeFromPath(
-        rawPath,
-        res.headers.get("content-type") ?? "",
-      );
-      if (contentType.includes("svg")) {
-        brand.logoUrl = rawPath;
-        return { brand, attachments };
+  async function attachImage(
+    raw: string | null,
+    slot: "logo" | "signature",
+  ) {
+    if (!raw) return;
+    const cid = slot === "logo" ? LOGO_CID : SIGNATURE_CID;
+    const filename =
+      slot === "logo" ? "logo-capitulo.png" : "assinatura-email.png";
+    try {
+      if (/^https?:\/\//i.test(raw)) {
+        const res = await fetch(raw, { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) return;
+        const contentType = mimeFromPath(
+          raw,
+          res.headers.get("content-type") ?? "",
+        );
+        if (contentType.includes("svg")) {
+          if (slot === "logo") brand.logoUrl = raw;
+          else brand.signatureUrl = raw;
+          return;
+        }
+        const buf = new Uint8Array(await res.arrayBuffer());
+        if (slot === "logo") brand.logoCid = cid;
+        else brand.signatureCid = cid;
+        attachments.push({
+          filename,
+          content: bytesToBase64(buf),
+          contentType,
+          contentId: cid,
+        });
+        return;
       }
-      brand.logoCid = LOGO_CID;
+
+      const { data: blob, error } = await supabaseAdmin.storage
+        .from(LOGO_BUCKET)
+        .download(raw);
+      if (error || !blob) return;
+
+      const contentType = mimeFromPath(raw, blob.type || "");
+      if (contentType.includes("svg")) {
+        const signed = await supabaseAdmin.storage
+          .from(LOGO_BUCKET)
+          .createSignedUrl(raw, 60 * 60 * 24 * 30);
+        const url = signed.data?.signedUrl ?? null;
+        if (slot === "logo") brand.logoUrl = url;
+        else brand.signatureUrl = url;
+        return;
+      }
+
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      if (slot === "logo") brand.logoCid = cid;
+      else brand.signatureCid = cid;
       attachments.push({
-        filename: "logo-capitulo.png",
+        filename,
         content: bytesToBase64(buf),
         contentType,
-        contentId: LOGO_CID,
+        contentId: cid,
       });
-      return { brand, attachments };
+    } catch {
+      // Sem a imagem: o e-mail segue sem ela.
     }
-
-    const { data: blob, error } = await supabaseAdmin.storage
-      .from(LOGO_BUCKET)
-      .download(rawPath);
-    if (error || !blob) return { brand, attachments };
-
-    const contentType = mimeFromPath(rawPath, blob.type || "");
-    if (contentType.includes("svg")) {
-      const signed = await supabaseAdmin.storage
-        .from(LOGO_BUCKET)
-        .createSignedUrl(rawPath, 60 * 60 * 24 * 30);
-      brand.logoUrl = signed.data?.signedUrl ?? null;
-      return { brand, attachments };
-    }
-
-    const buf = new Uint8Array(await blob.arrayBuffer());
-    brand.logoCid = LOGO_CID;
-    attachments.push({
-      filename: "logo-capitulo.png",
-      content: bytesToBase64(buf),
-      contentType,
-      contentId: LOGO_CID,
-    });
-  } catch {
-    // Sem logo: segue só com a cor do capítulo.
   }
+
+  await attachImage(normalizeChapterLogoPath(chapter?.logo_url), "logo");
+  await attachImage(
+    normalizeChapterLogoPath(chapter?.email_signature_url),
+    "signature",
+  );
 
   return { brand, attachments };
 }

@@ -535,6 +535,7 @@ export type Database = {
           lgpd_officer_contact: string | null
           lgpd_officer_name: string | null
           logo_url: string | null
+          email_signature_url: string | null
           name: string
           number: string
           org_type: string
@@ -552,6 +553,7 @@ export type Database = {
           lgpd_officer_contact?: string | null
           lgpd_officer_name?: string | null
           logo_url?: string | null
+          email_signature_url?: string | null
           name: string
           number: string
           org_type?: string
@@ -568,6 +570,7 @@ export type Database = {
           lgpd_officer_contact?: string | null
           lgpd_officer_name?: string | null
           logo_url?: string | null
+          email_signature_url?: string | null
           name?: string
           number?: string
           org_type?: string

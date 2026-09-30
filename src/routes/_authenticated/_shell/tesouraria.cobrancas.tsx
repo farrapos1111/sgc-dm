@@ -72,7 +72,7 @@ export const Route = createFileRoute(
 });
 
 type ChargeStatus = "em_aberto" | "pago" | "isento";
-type ListFilter = "all" | "parcial" | "em_aberto" | "baixada";
+type ListFilter = "pendentes" | "all" | "parcial" | "em_aberto" | "baixada";
 type SortKey = "name_asc" | "name_desc" | "amount_asc" | "amount_desc";
 type ChargeRow = Awaited<ReturnType<typeof listMemberCharges>>[number];
 
@@ -116,7 +116,7 @@ function Cobrancas() {
   const { confirm, dialog } = useConfirmDialog();
   const writable =
     canScreen("cobrancas", "edit") || can("tesouraria");
-  const [statusFilter, setStatusFilter] = useState<ListFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<ListFilter>("pendentes");
   const [sortKey, setSortKey] = useState<SortKey>("name_asc");
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -181,7 +181,11 @@ function Cobrancas() {
     const q = search.trim().toLowerCase();
     const list = charges.filter((c) => {
       const bucket = chargeBucket(c);
-      if (statusFilter !== "all" && bucket !== statusFilter) return false;
+      if (statusFilter === "pendentes") {
+        if (bucket !== "em_aberto" && bucket !== "parcial") return false;
+      } else if (statusFilter !== "all" && bucket !== statusFilter) {
+        return false;
+      }
       if (!q) return true;
       const hay =
         `${c.member_name ?? ""} ${c.description ?? ""} ${c.category ?? ""}`.toLowerCase();
@@ -458,14 +462,15 @@ function Cobrancas() {
           value={statusFilter}
           onValueChange={(v) => setStatusFilter(v as ListFilter)}
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-52">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            <SelectItem value="parcial">Parcial</SelectItem>
+            <SelectItem value="pendentes">Em aberto e parciais</SelectItem>
             <SelectItem value="em_aberto">Em aberto</SelectItem>
+            <SelectItem value="parcial">Parcial</SelectItem>
             <SelectItem value="baixada">Baixada</SelectItem>
+            <SelectItem value="all">Todas</SelectItem>
           </SelectContent>
         </Select>
         <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>

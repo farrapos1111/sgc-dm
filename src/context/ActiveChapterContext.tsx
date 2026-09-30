@@ -51,6 +51,8 @@ type ActiveChapterContextValue = {
   /** Vínculos em outros realms (ex.: Loja quando o host é ODM). */
   otherRealmMemberships: Membership[];
   loading: boolean;
+  /** A lista de capítulos falhou (não tratar como “sem vínculo”). */
+  membershipsFailed: boolean;
   activeChapterId: string | null;
   active: Membership | null;
   /** Nome completo do perfil (auth). */
@@ -167,7 +169,7 @@ export function ActiveChapterProvider({
   children: ReactNode;
 }) {
   const queryClient = useQueryClient();
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["memberships", userId],
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<Membership[]> => {
@@ -432,6 +434,7 @@ export function ActiveChapterProvider({
       memberships,
       otherRealmMemberships,
       loading: isLoading,
+      membershipsFailed: isError,
       activeChapterId,
       active,
       profileFullName,
@@ -447,6 +450,7 @@ export function ActiveChapterProvider({
       memberships,
       otherRealmMemberships,
       isLoading,
+      isError,
       activeChapterId,
       active,
       profileFullName,

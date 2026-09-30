@@ -9,6 +9,9 @@ export const TV_NAVY = "#072D5A";
 export const TV_GOLD = "#CD991F";
 export const CHAPTER_FALLBACK_ACCENT = "#9E1B32";
 
+/** CID do anexo da assinatura institucional. */
+export const TV_EMAIL_SIGNATURE_CID = "tv-email-signature";
+
 export type EmailBrand = {
   title: string;
   accent: string;
@@ -16,6 +19,8 @@ export type EmailBrand = {
   goldLine?: string | null;
   logoCid?: string | null;
   logoUrl?: string | null;
+  signatureCid?: string | null;
+  signatureUrl?: string | null;
 };
 
 export function temploVirtualBrand(opts?: {
@@ -91,6 +96,20 @@ export function wrapBrandedHtml(opts: {
                 <tr><td style="font-size:22px;font-weight:700;color:#18181b;">${escapeHtml(opts.heading)}</td></tr>
                 ${opts.innerRows}
               </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 28px 8px;">
+              ${
+                opts.brand.signatureCid || opts.brand.signatureUrl
+                  ? `<img src="${escapeHtml(
+                      opts.brand.signatureCid
+                        ? `cid:${opts.brand.signatureCid}`
+                        : opts.brand.signatureUrl || "",
+                    )}" alt="Assinatura do capítulo" style="display:block;max-width:100%;height:auto;border:0;margin-bottom:16px;"/>`
+                  : ""
+              }
+              <img src="cid:${TV_EMAIL_SIGNATURE_CID}" alt="Templo Virtual — Gestão maçônica e paramaçônica" width="464" style="display:block;max-width:100%;height:auto;border:0;"/>
             </td>
           </tr>
           <tr>

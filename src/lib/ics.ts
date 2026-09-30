@@ -36,14 +36,27 @@ function escapeIcs(v: string) {
   return v.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
 }
 
+export type IcsInviteOptions = {
+  /** REQUEST faz o Gmail oferecer “Adicionar à agenda”. */
+  method?: "PUBLISH" | "REQUEST";
+  organizerEmail?: string | null;
+  attendeeEmail?: string | null;
+  attendeeName?: string | null;
+};
+
 /** Gera um arquivo .ics compatível com Google Agenda, Apple, Outlook e Teams. */
-export function buildIcs(items: IcsItem[], calendarName = "Templo Virtual"): string {
+export function buildIcs(
+  items: IcsItem[],
+  calendarName = "Templo Virtual",
+  invite?: IcsInviteOptions,
+): string {
+  const method = invite?.method ?? "PUBLISH";
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Templo Virtual//Calendario//PT-BR",
     "CALSCALE:GREGORIAN",
-    "METHOD:PUBLISH",
+    `METHOD:${method}`,
     `X-WR-CALNAME:${escapeIcs(calendarName)}`,
   ];
   for (const it of items) {
@@ -55,6 +68,17 @@ export function buildIcs(items: IcsItem[], calendarName = "Templo Virtual"): str
       `DTEND:${toUtcStamp(endOrDefault(it))}`,
       `SUMMARY:${escapeIcs(it.title)}`,
     );
+    if (method === "REQUEST" && invite?.organizerEmail) {
+      lines.push(
+        `ORGANIZER;CN=Templo Virtual:mailto:${invite.organizerEmail}`,
+      );
+    }
+    if (method === "REQUEST" && invite?.attendeeEmail) {
+      const cn = invite.attendeeName?.trim();
+      lines.push(
+        `ATTENDEE;RSVP=TRUE${cn ? `;CN=${escapeIcs(cn)}` : ""}:mailto:${invite.attendeeEmail}`,
+      );
+    }
     const loc = fullLocation(it);
     if (loc) lines.push(`LOCATION:${escapeIcs(loc)}`);
     if (it.description) lines.push(`DESCRIPTION:${escapeIcs(it.description)}`);

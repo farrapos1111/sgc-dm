@@ -18,8 +18,15 @@ export const Route = createFileRoute("/_authenticated/_shell")({
 });
 
 function ShellLayout() {
-  const { memberships, otherRealmMemberships, loading, active, activeChapterId } =
-    useActiveChapter();
+  const {
+    memberships,
+    otherRealmMemberships,
+    loading,
+    membershipsFailed,
+    active,
+    activeChapterId,
+    refetch,
+  } = useActiveChapter();
   const {
     scopes,
     activeScope,
@@ -29,14 +36,16 @@ function ShellLayout() {
   const navigate = useNavigate();
 
   // Liderança supra-capitular sem vínculo de capítulo entra no escopo org.
+  // Falha ao carregar capítulos não conta como “sem vínculo”.
   useEffect(() => {
-    if (loading || orgLoading) return;
+    if (loading || orgLoading || membershipsFailed) return;
     if (memberships.length === 0 && scopes.length > 0 && !activeScope) {
       setActiveScopeKey(scopes[0].key);
     }
   }, [
     loading,
     orgLoading,
+    membershipsFailed,
     memberships.length,
     scopes,
     activeScope,
@@ -62,6 +71,27 @@ function ShellLayout() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-sm text-muted-foreground">Carregando…</div>
+      </div>
+    );
+  }
+
+  if (!loading && membershipsFailed && memberships.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-6">
+        <div className="max-w-md space-y-3 rounded-[12px] border border-border bg-card p-6 text-sm">
+          <p className="font-medium">Não foi possível carregar suas instituições.</p>
+          <p className="text-muted-foreground">
+            Atualize a página. Se continuar, o vínculo com o capítulo segue no
+            banco — a lista é que não chegou.
+          </p>
+          <button
+            type="button"
+            className="font-medium underline underline-offset-2"
+            onClick={() => void refetch()}
+          >
+            Tentar de novo
+          </button>
+        </div>
       </div>
     );
   }
