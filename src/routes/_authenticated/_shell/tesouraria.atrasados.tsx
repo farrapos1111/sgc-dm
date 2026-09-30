@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Copy,
   FileText,
+  Mail,
   MessageCircle,
   Search,
   X,
@@ -14,6 +15,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +28,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -33,6 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { chapterFoundedAt } from "@/lib/terms";
@@ -40,6 +50,8 @@ import {
   getFinanceSigners,
   listMemberCharges,
   listYearDues,
+  sendDueReminderEmail,
+  sendDueReminderEmails,
 } from "@/lib/finance.functions";
 import {
   getChapterDefaultDuesAmount,
@@ -66,7 +78,7 @@ export const Route = createFileRoute(
       {
         name: "description",
         content:
-          "Mensalidades e cobranças em atraso por membro, com mensagem para WhatsApp.",
+          "Mensalidades e cobranças em atraso por membro, com mensagem para WhatsApp ou e-mail.",
       },
     ],
   }),
@@ -105,9 +117,78 @@ type MemberRow = {
   grandTotal: number;
 };
 
+function hasOpenBalance(row: MemberRow) {
+  return row.summary.months.length > 0 || row.openCharges.length > 0;
+}
+
+function BulkEmailList({
+  rows,
+  selected,
+  onToggle,
+  onToggleAll,
+}: {
+  rows: MemberRow[];
+  selected: Set<string>;
+  onToggle: (id: string, checked: boolean) => void;
+  onToggleAll: (checked: boolean) => void;
+}) {
+  const withEmail = rows.filter((row) => row.member.email?.trim());
+  const allChecked =
+    withEmail.length > 0 &&
+    withEmail.every((row) => selected.has(row.member.id));
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <label className="flex items-center gap-3 border-b px-1 py-2 text-sm font-medium">
+        <Checkbox
+          checked={allChecked}
+          onCheckedChange={(value) => onToggleAll(value === true)}
+          disabled={withEmail.length === 0}
+          aria-label="Selecionar todos com e-mail"
+        />
+        Selecionar todos com e-mail
+      </label>
+      <ul>
+        {rows.map((row) => {
+          const email = row.member.email?.trim() ?? "";
+          const checked = selected.has(row.member.id);
+          return (
+            <li key={row.member.id}>
+              <label
+                className={`flex items-start gap-3 px-1 py-2.5 text-sm ${
+                  email ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+                }`}
+              >
+                <Checkbox
+                  className="mt-0.5"
+                  checked={checked}
+                  disabled={!email}
+                  onCheckedChange={(value) =>
+                    onToggle(row.member.id, value === true)
+                  }
+                  aria-label={row.member.full_name}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">
+                    {row.member.full_name}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {email || "Sem e-mail"} · {formatBRL(row.grandTotal)}
+                  </span>
+                </span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function Atrasados() {
   const { active } = useActiveChapter();
   const { can, canScreen } = useChapterAccess();
+  const isMobile = useIsMobile();
   const now = useMemo(() => new Date(), []);
   const [year, setYear] = useState(now.getFullYear());
   const [search, setSearch] = useState("");
@@ -116,6 +197,10 @@ function Atrasados() {
   const [observations, setObservations] = useState<Record<string, string>>({});
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState("");
+  const [sendingMemberId, setSendingMemberId] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkRows, setBulkRows] = useState<MemberRow[]>([]);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
 
   const chapterId = active?.chapter_id;
   const canView =
@@ -359,6 +444,120 @@ function Atrasados() {
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
+  const sendEmail = useMutation({
+    mutationFn: (row: MemberRow) =>
+      sendDueReminderEmail({
+        data: {
+          chapterId: chapterId!,
+          memberId: row.member.id,
+          text: messageFor(row),
+        },
+      }),
+    onMutate: (row) => setSendingMemberId(row.member.id),
+    onSuccess: () => toast.success("E-mail enviado"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Não foi possível enviar"),
+    onSettled: () => setSendingMemberId(null),
+  });
+
+  function openBulkEmail() {
+    const list = displayed.filter(hasOpenBalance);
+    if (list.length === 0) {
+      toast.message("Nenhum membro com valores em aberto neste filtro");
+      return;
+    }
+    setBulkRows(list);
+    setBulkSelected(
+      new Set(
+        list
+          .filter((row) => row.member.email?.trim())
+          .map((row) => row.member.id),
+      ),
+    );
+    setBulkOpen(true);
+  }
+
+  function toggleBulk(id: string, checked: boolean) {
+    setBulkSelected((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleBulkAll(checked: boolean) {
+    setBulkSelected(
+      checked
+        ? new Set(
+            bulkRows
+              .filter((row) => row.member.email?.trim())
+              .map((row) => row.member.id),
+          )
+        : new Set(),
+    );
+  }
+
+  const sendBulkEmail = useMutation({
+    mutationFn: async () => {
+      const items = bulkRows
+        .filter((row) => bulkSelected.has(row.member.id))
+        .map((row) => ({
+          memberId: row.member.id,
+          text: messageFor(row),
+        }));
+      const deliveries: {
+        name: string;
+        outcome: "sent" | "no_email" | "error";
+        detail: string | null;
+      }[] = [];
+      for (let i = 0; i < items.length; i += 80) {
+        const res = await sendDueReminderEmails({
+          data: { chapterId: chapterId!, items: items.slice(i, i + 80) },
+        });
+        deliveries.push(...res.deliveries);
+      }
+      return { deliveries };
+    },
+    onSuccess: (res) => {
+      const lines = res.deliveries.map((delivery) => {
+        const status =
+          delivery.outcome === "sent"
+            ? "E-mail enviado"
+            : delivery.outcome === "no_email"
+              ? "Sem e-mail"
+              : delivery.detail || "Erro ao enviar";
+        return `${delivery.name} — ${status}`;
+      });
+      const description = (
+        <span className="block whitespace-pre-line">{lines.join("\n")}</span>
+      );
+      const sent = res.deliveries.filter((d) => d.outcome === "sent").length;
+      if (sent === 0) {
+        toast.error("Nenhum e-mail enviado", { description, duration: 12000 });
+        return;
+      }
+      const pending = res.deliveries.length - sent;
+      toast.success(pending ? "E-mails enviados em parte" : "E-mails enviados", {
+        description,
+        duration: 12000,
+      });
+      setBulkOpen(false);
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Não foi possível enviar"),
+  });
+
+  const bulkPicker = (
+    <BulkEmailList
+      rows={bulkRows}
+      selected={bulkSelected}
+      onToggle={toggleBulk}
+      onToggleAll={toggleBulkAll}
+    />
+  );
+  const bulkCount = bulkSelected.size;
+
   if (!active) {
     return (
       <EmptyState
@@ -398,7 +597,7 @@ function Atrasados() {
     <div>
       <PageHeader
         title="Atrasados"
-        subtitle={`Mensalidades (valor ${formatBRL(defaultAmount)}) e cobranças em aberto/atraso. Mensagem pronta para WhatsApp com PIX e assinatura do Tesoureiro.`}
+        subtitle={`Mensalidades (valor ${formatBRL(defaultAmount)}) e cobranças em aberto/atraso. Mensagem pronta para WhatsApp ou e-mail, com PIX e assinatura do Tesoureiro.`}
       />
 
       {!pixKey?.trim() ? (
@@ -474,6 +673,15 @@ function Atrasados() {
         <Button
           type="button"
           variant="outline"
+          onClick={openBulkEmail}
+          disabled={displayed.every((row) => !hasOpenBalance(row))}
+        >
+          <Mail className="mr-1.5 h-4 w-4" />
+          E-mail em massa
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
           onClick={openReport}
           disabled={displayed.every(
             (r) => r.summary.months.length === 0 && r.openCharges.length === 0,
@@ -538,6 +746,7 @@ function Atrasados() {
             );
             const hasOpen = summary.months.length > 0 || openCharges.length > 0;
             const hasPhone = Boolean(normalizeWhatsAppDigits(member.phone));
+            const hasEmail = Boolean(member.email?.trim());
             const highlighted =
               summary.overdueCount > 0 || overdueCharges.length > 0;
             const overdueItems = summary.overdueCount + overdueCharges.length;
@@ -726,6 +935,21 @@ function Atrasados() {
                           </span>
                         ) : null}
                       </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={!hasOpen || !hasEmail || sendEmail.isPending}
+                        onClick={() => sendEmail.mutate(row)}
+                        title={
+                          hasEmail
+                            ? `Enviar para ${member.email}`
+                            : "Membro sem e-mail no cadastro"
+                        }
+                      >
+                        <Mail className="mr-1.5 h-4 w-4" />
+                        {sendingMemberId === member.id ? "Enviando…" : "E-mail"}
+                      </Button>
                     </div>
                   </div>
                 </Card>
@@ -770,6 +994,68 @@ function Atrasados() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {isMobile ? (
+        <Sheet open={bulkOpen} onOpenChange={setBulkOpen}>
+          <SheetContent
+            side="bottom"
+            className="flex max-h-[85vh] flex-col gap-3 rounded-t-2xl px-4 pb-4 pt-5"
+          >
+            <SheetHeader className="text-left">
+              <SheetTitle>Enviar cobrança por e-mail</SheetTitle>
+            </SheetHeader>
+            <p className="text-sm text-muted-foreground">
+              Marque quem recebe o lembrete dos valores em aberto desta lista.
+            </p>
+            {bulkPicker}
+            <SheetFooter className="gap-2 sm:space-x-0">
+              <Button
+                type="button"
+                className="w-full"
+                disabled={bulkCount === 0 || sendBulkEmail.isPending}
+                onClick={() => sendBulkEmail.mutate()}
+              >
+                <Mail className="mr-1.5 h-4 w-4" />
+                {sendBulkEmail.isPending
+                  ? "Enviando…"
+                  : `Enviar ${bulkCount} e-mail${bulkCount === 1 ? "" : "s"}`}
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+          <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Enviar cobrança por e-mail</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Marque quem recebe o lembrete dos valores em aberto desta lista.
+            </p>
+            {bulkPicker}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setBulkOpen(false)}
+                disabled={sendBulkEmail.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                disabled={bulkCount === 0 || sendBulkEmail.isPending}
+                onClick={() => sendBulkEmail.mutate()}
+              >
+                <Mail className="mr-1.5 h-4 w-4" />
+                {sendBulkEmail.isPending
+                  ? "Enviando…"
+                  : `Enviar ${bulkCount}`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

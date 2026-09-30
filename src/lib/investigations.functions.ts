@@ -10,7 +10,7 @@ import { buildIcs, googleCalendarUrl } from "@/lib/ics";
 import { currentTerm } from "@/lib/terms";
 import { normalizeWhatsAppDigits } from "@/lib/dues-reminder";
 import { APP_TIMEZONE, formatTimeInAppTz } from "@/lib/timezone";
-import { TV_EMAIL_SIGNATURE_CID } from "@/lib/email-templates";
+import { brandedButton, wrapBrandedHtml } from "@/lib/email-templates";
 import { digitsOnly } from "@/lib/format";
 import {
   MEMBER_DOCS_BUCKET,
@@ -2232,6 +2232,15 @@ const PARTICIPATION_TOOL_HINT = {
   senior: "A página abre o roteiro, para acompanhamento.",
 } as const;
 
+const PARTICIPATION_POSTURA = {
+  sindicante:
+    "Você conduz a entrevista para conhecer o candidato, com educação e voz calma. Siga o roteiro: as perguntas não têm resposta certa ou errada, e cabe ouvir mais do que falar. Não prometa iniciação nem o resultado da votação. Deixe claro que a Ordem DeMolay não é religião, trote nem humilhação, sem antecipar a cerimônia. Trate o candidato, a família e o padrinho com o respeito devido a um irmão.",
+  escrivao:
+    "Você registra o que foi dito, com fidelidade, sem completar nem reinterpretar a resposta. A conversa fica com o sindicante. O conteúdo da ata permanece no processo da comissão e do Capítulo. Antes de encerrar, confira nomes e dados com quem falou.",
+  senior:
+    "Você acompanha a entrevista em nome do Conselho Consultivo. Zele pelo decoro, pela segurança e pelo respeito ao candidato e a quem o acompanha. Não assuma as perguntas: deixe o sindicante conduzir e o escrivão registrar. Se o tom sair do respeito ou alguém ficar constrangido, intervenha com serenidade.",
+} as const;
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -2278,7 +2287,8 @@ export const sendSindicanciaReminder = createServerFn({ method: "POST" })
         senior:members!sindicancia_details_senior_member_id_fkey(id, full_name, email),
         investigator:members!sindicancia_details_investigator_member_id_fkey(id, full_name, email),
         clerk:members!sindicancia_details_clerk_member_id_fkey(id, full_name, email),
-        chapter:chapters!sindicancia_details_chapter_id_fkey(name)
+        chapter:chapters!sindicancia_details_chapter_id_fkey(name),
+        file:investigation_files(candidate_name, candidate_email)
       `.replace(/\s+/g, " "),
       )
       .eq("calendar_event_id", data.calendarEventId)
@@ -2309,6 +2319,7 @@ export const sendSindicanciaReminder = createServerFn({ method: "POST" })
       investigator: { id: string; full_name: string; email: string | null } | null;
       clerk: { id: string; full_name: string; email: string | null } | null;
       chapter: { name: string } | null;
+      file: { candidate_name: string | null; candidate_email: string | null } | null;
     };
 
     if (row.status !== "aberta" && row.status !== "em_andamento") {
@@ -2382,7 +2393,7 @@ export const sendSindicanciaReminder = createServerFn({ method: "POST" })
     const place =
       [row.event.location, row.event.address].filter(Boolean).join(" — ") ||
       "A definir";
-    const postura = row.event.dress_code?.trim() || "A definir";
+    const traje = row.event.dress_code?.trim() || "";
     const nominee = row.nominee_name || row.event.title || "Sindicância";
     const chapterName = row.chapter?.name ?? "Capítulo";
     const term = currentTerm();
@@ -2433,50 +2444,57 @@ export const sendSindicanciaReminder = createServerFn({ method: "POST" })
           .filter((line) => line !== "")
           .join("\n")
       : "";
+    const { loadChapterEmailAssets } = await import("@/lib/email-brand.server");
+    const emailAssets = await loadChapterEmailAssets(row.chapter_id);
+    const accent = emailAssets.brand.accent;
+    const mailRow = (inner: string) =>
+      `<tr><td style="padding-top:12px;font-size:15px;line-height:1.55;color:#3f3f46;">${inner}</td></tr>`;
     const closingHtml = presidentName
-      ? `<p style="margin-top:24px;">Atenciosamente,<br/>
+      ? mailRow(
+          `Atenciosamente,<br/>
           <strong>${escapeHtml(presidentName)}</strong><br/>
           Presidente da Comissão de Sindicâncias${
             presidentPhone
               ? `<br/>WhatsApp: ${
                   presidentWhatsAppUrl
-                    ? `<a href="${escapeHtml(presidentWhatsAppUrl)}">${escapeHtml(presidentPhone)}</a>`
+                    ? `<a href="${escapeHtml(presidentWhatsAppUrl)}" style="color:${accent};">${escapeHtml(presidentPhone)}</a>`
                     : escapeHtml(presidentPhone)
                 }`
               : ""
-          }</p>`
+          }`,
+        )
       : "";
-    const { loadChapterEmailAssets } = await import("@/lib/email-brand.server");
-    const emailAssets = await loadChapterEmailAssets(row.chapter_id);
-    const signatureSrc = emailAssets.brand.signatureCid
-      ? `cid:${emailAssets.brand.signatureCid}`
-      : emailAssets.brand.signatureUrl;
-    const signatureHtml = signatureSrc
-      ? `<p style="margin-top:24px;"><img src="${escapeHtml(signatureSrc)}" alt="Assinatura" style="display:block;max-width:100%;height:auto;border:0;"/></p>`
-      : "";
-    const signatureAttachments = emailAssets.attachments.filter(
-      (a) => a.contentId === "email-signature",
-    );
 
-    const sent: string[] = [];
-    const skipped: { name: string; reason: string }[] = [];
-    const failed: { name: string; error: string }[] = [];
+    const deliveries: {
+      name: string;
+      role: string;
+      outcome: "sent" | "no_email" | "error";
+      detail: string | null;
+    }[] = [];
 
     for (const slot of unnamed) {
-      skipped.push({
+      deliveries.push({
         name: slot.name,
-        reason: "Papel sem membro do capítulo (sem e-mail)",
+        role: PARTICIPATION_ROLE_LABEL[slot.role],
+        outcome: "no_email",
+        detail: null,
       });
     }
 
     for (const slot of byPerson.values()) {
       const email = slot.email?.trim();
       if (!email) {
-        skipped.push({ name: slot.name, reason: "Membro sem e-mail" });
+        deliveries.push({
+          name: slot.name,
+          role: PARTICIPATION_ROLE_LABEL[slot.role],
+          outcome: "no_email",
+          detail: null,
+        });
         continue;
       }
       const roleLabel = PARTICIPATION_ROLE_LABEL[slot.role];
       const toolHint = PARTICIPATION_TOOL_HINT[slot.role];
+      const postura = PARTICIPATION_POSTURA[slot.role];
       const subject = `Lembrete de sindicância — ${nominee}`;
       const text = [
         `Olá, ${slot.name}.`,
@@ -2488,7 +2506,10 @@ export const sendSindicanciaReminder = createServerFn({ method: "POST" })
         `Data: ${dateLabel}`,
         `Hora: ${timeLabel}`,
         `Local: ${place}`,
-        `Postura: ${postura}`,
+        ...(traje ? [`Traje: ${traje}`] : []),
+        "",
+        "Postura",
+        postura,
         "",
         "Acesso",
         accessUrl,
@@ -2504,7 +2525,7 @@ export const sendSindicanciaReminder = createServerFn({ method: "POST" })
           end_at: row.event.end_at,
           location: row.event.location,
           address: row.event.address,
-          description: `Capítulo: ${chapterName}. Entrevistado: ${nominee}. ${roleLabel}. Postura: ${postura}. Acesso: ${accessUrl}`,
+          description: `Capítulo: ${chapterName}. Entrevistado: ${nominee}. ${roleLabel}. Acesso: ${accessUrl}`,
         }),
       ]
         .concat(closingText ? ["", closingText] : [])
@@ -2514,6 +2535,7 @@ export const sendSindicanciaReminder = createServerFn({ method: "POST" })
         `Capítulo: ${chapterName}`,
         `Entrevistado: ${nominee}`,
         `Papel: ${roleLabel}`,
+        ...(traje ? [`Traje: ${traje}`] : []),
         `Postura: ${postura}`,
         toolHint,
         `Acesso (informe seu ID DeMolay): ${accessUrl}`,
@@ -2553,30 +2575,35 @@ export const sendSindicanciaReminder = createServerFn({ method: "POST" })
         address: row.event.address,
       });
 
-      const html = `
-        <p>Olá, ${escapeHtml(slot.name)}.</p>
-        <p>Você participa como <strong>${escapeHtml(roleLabel)}</strong>.</p>
-        <p>
-          <strong>Capítulo:</strong> ${escapeHtml(chapterName)}<br/>
-          <strong>Entrevistado:</strong> ${escapeHtml(nominee)}<br/>
-          <strong>Data:</strong> ${escapeHtml(dateLabel)}<br/>
-          <strong>Hora:</strong> ${escapeHtml(timeLabel)}<br/>
-          <strong>Local:</strong> ${escapeHtml(place)}<br/>
-          <strong>Postura:</strong> ${escapeHtml(postura)}
-        </p>
-        <p><strong>Acesso</strong><br/>
-          <a href="${escapeHtml(accessUrl)}">${escapeHtml(accessUrl)}</a><br/>
-          Abra o link e informe seu ID DeMolay. A ferramenta só abre se esse ID for de um participante desta sindicância.<br/>
-          ${escapeHtml(toolHint)}
-        </p>
-        <p><strong>Google Agenda</strong><br/>
-          O anexo <em>sindicancia.ics</em> adiciona este horário à agenda.
-          Se o convite não aparecer, <a href="${escapeHtml(gcal)}">adicione à Google Agenda</a>.
-        </p>
-        ${closingHtml}
-        ${signatureHtml}
-        <p style="margin-top:24px;"><img src="cid:${TV_EMAIL_SIGNATURE_CID}" alt="Templo Virtual — Gestão maçônica e paramaçônica" width="464" style="display:block;max-width:100%;height:auto;border:0;"/></p>
-      `;
+      const html = wrapBrandedHtml({
+        brand: emailAssets.brand,
+        heading: "Lembrete de sindicância",
+        innerRows: [
+          mailRow(`Olá, ${escapeHtml(slot.name)}.`),
+          mailRow(
+            `Você participa como <strong>${escapeHtml(roleLabel)}</strong>.`,
+          ),
+          mailRow(
+            `<strong>Capítulo:</strong> ${escapeHtml(chapterName)}<br/>
+            <strong>Entrevistado:</strong> ${escapeHtml(nominee)}<br/>
+            <strong>Data:</strong> ${escapeHtml(dateLabel)}<br/>
+            <strong>Hora:</strong> ${escapeHtml(timeLabel)}<br/>
+            <strong>Local:</strong> ${escapeHtml(place)}${
+              traje ? `<br/><strong>Traje:</strong> ${escapeHtml(traje)}` : ""
+            }`,
+          ),
+          mailRow(`<strong>Postura</strong><br/>${escapeHtml(postura)}`),
+          mailRow(
+            "Abra o link e informe seu ID DeMolay. A ferramenta só abre se esse ID for de um participante desta sindicância.",
+          ),
+          brandedButton("Abrir a sindicância", accessUrl, accent),
+          mailRow(escapeHtml(toolHint)),
+          mailRow(
+            `O anexo <em>sindicancia.ics</em> adiciona este horário à agenda. Se o convite não aparecer, <a href="${escapeHtml(gcal)}" style="color:${accent};">adicione à Google Agenda</a>.`,
+          ),
+          closingHtml,
+        ].join(""),
+      });
 
       const result = await sendTransactionalEmail({
         to: [email],
@@ -2589,28 +2616,209 @@ export const sendSindicanciaReminder = createServerFn({ method: "POST" })
             content: Buffer.from(ics, "utf8").toString("base64"),
             contentType: "text/calendar; method=REQUEST; charset=UTF-8",
           },
-          ...signatureAttachments,
+          ...emailAssets.attachments,
         ],
       });
-      if (result.ok) sent.push(slot.name);
-      else if (result.skipped) {
-        skipped.push({ name: slot.name, reason: result.reason });
-      } else failed.push({ name: slot.name, error: result.error });
-    }
-
-    if (sent.length === 0 && failed.length === 0 && skipped.length > 0) {
-      const onlyConfig = skipped.every((s) =>
-        s.reason.includes("RESEND_API_KEY"),
-      );
-      if (onlyConfig) {
-        throw new Error(skipped[0]?.reason ?? "E-mail não configurado");
+      if (result.ok) {
+        deliveries.push({
+          name: slot.name,
+          role: roleLabel,
+          outcome: "sent",
+          detail: null,
+        });
+      } else if (result.skipped) {
+        deliveries.push({
+          name: slot.name,
+          role: roleLabel,
+          outcome: "error",
+          detail: result.reason,
+        });
+      } else {
+        deliveries.push({
+          name: slot.name,
+          role: roleLabel,
+          outcome: "error",
+          detail: result.error,
+        });
       }
     }
 
+    const intervieweeName =
+      row.file?.candidate_name?.trim() || nominee;
+    const intervieweeEmail = row.file?.candidate_email?.trim() || "";
+    if (!intervieweeEmail) {
+      deliveries.push({
+        name: intervieweeName,
+        role: "Entrevistado",
+        outcome: "no_email",
+        detail: null,
+      });
+    } else {
+      const roleLabels = new Set<string>(Object.values(PARTICIPATION_ROLE_LABEL));
+      const visitorNames = [
+        ...new Set(
+          slots
+            .map((slot) => slot.name.trim())
+            .filter((name) => name && !roleLabels.has(name)),
+        ),
+      ];
+      const visitorsText = visitorNames.length
+        ? ["A visita será feita por:", ...visitorNames.map((name) => `- ${name}`), ""]
+        : [];
+      const aboutUrl = "https://www.demolay.org.br/conheca/o-que-e/";
+      const aboutText = [
+        "A Ordem DeMolay reúne rapazes de 12 a 21 anos com o propósito de formar bons cidadãos. Foi criada em 1919, em Kansas City, por Frank Sherman Land, e é patrocinada pela maçonaria desde a origem. Na prática, ajuda cada jovem a ser melhor filho, melhor irmão e melhor amigo.",
+        "No caminho, o jovem desenvolve fala em público, liderança, respeito às regras, serviço à comunidade, responsabilidade e amizades duradouras. A Ordem é uma organização própria: ser DeMolay não significa ingressar na maçonaria, e ela não é uma sociedade secreta. Princípios, história e forma de organização são públicos.",
+        `Para conhecer mais: ${aboutUrl}`,
+      ].join("\n\n");
+      const intervieweeSubject = `Sua entrevista de sindicância — ${chapterName}`;
+      const intervieweeText = [
+        `Olá, ${intervieweeName}.`,
+        "",
+        `É uma satisfação recebê-lo. O ${chapterName} lembra a entrevista de sindicância marcada para conhecê-lo melhor. Esta é a etapa em que o Capítulo conversa com quem deseja ingressar na Ordem DeMolay.`,
+        "",
+        `Capítulo: ${chapterName}`,
+        `Data: ${dateLabel}`,
+        `Hora: ${timeLabel}`,
+        `Local: ${place}`,
+        "",
+        ...visitorsText,
+        "Pedimos a gentileza de chegar no horário. A conversa é tranquila: as perguntas servem para conhecê-lo, e não há resposta certa ou errada.",
+        "",
+        "O que é a Ordem DeMolay",
+        aboutText,
+      ]
+        .concat(closingText ? ["", closingText] : [])
+        .join("\n");
+      const intervieweeCalendar = [
+        `Entrevista de sindicância do ${chapterName}.`,
+        `Entrevistado: ${intervieweeName}`,
+        ...(visitorNames.length
+          ? [`Visita: ${visitorNames.join(", ")}`]
+          : []),
+        `Sobre a Ordem DeMolay: ${aboutUrl}`,
+      ].join("\n");
+      const intervieweeIcs = buildIcs(
+        [
+          {
+            id: `${data.calendarEventId}-entrevistado`,
+            title: `Sindicância — ${nominee}`,
+            description: intervieweeCalendar,
+            start_at: row.event.start_at,
+            end_at: row.event.end_at,
+            location: row.event.location,
+            address: row.event.address,
+          },
+        ],
+        chapterName,
+        {
+          method: "REQUEST",
+          organizerEmail: (() => {
+            const from = process.env.EMAIL_FROM?.trim();
+            if (!from) return null;
+            const wrapped = from.match(/<([^>]+)>/);
+            return (wrapped?.[1] ?? from).trim();
+          })(),
+          attendeeEmail: intervieweeEmail,
+          attendeeName: intervieweeName,
+        },
+      );
+      const intervieweeGcal = googleCalendarUrl({
+        id: `${data.calendarEventId}-entrevistado`,
+        title: `Sindicância — ${nominee}`,
+        description: intervieweeCalendar,
+        start_at: row.event.start_at,
+        end_at: row.event.end_at,
+        location: row.event.location,
+        address: row.event.address,
+      });
+      const intervieweeHtml = wrapBrandedHtml({
+        brand: emailAssets.brand,
+        heading: "Sua entrevista de sindicância",
+        innerRows: [
+          mailRow(`Olá, ${escapeHtml(intervieweeName)}.`),
+          mailRow(
+            `É uma satisfação recebê-lo. O <strong>${escapeHtml(chapterName)}</strong> lembra a entrevista de sindicância marcada para conhecê-lo melhor. Esta é a etapa em que o Capítulo conversa com quem deseja ingressar na Ordem DeMolay.`,
+          ),
+          mailRow(
+            `<strong>Capítulo:</strong> ${escapeHtml(chapterName)}<br/>
+            <strong>Data:</strong> ${escapeHtml(dateLabel)}<br/>
+            <strong>Hora:</strong> ${escapeHtml(timeLabel)}<br/>
+            <strong>Local:</strong> ${escapeHtml(place)}`,
+          ),
+          visitorNames.length
+            ? mailRow(
+                `<strong>A visita será feita por</strong><ul style="margin:8px 0 0;padding-left:18px;">${visitorNames
+                  .map((name) => `<li>${escapeHtml(name)}</li>`)
+                  .join("")}</ul>`,
+              )
+            : "",
+          mailRow(
+            "Pedimos a gentileza de chegar no horário. A conversa é tranquila: as perguntas servem para conhecê-lo, e não há resposta certa ou errada.",
+          ),
+          mailRow("<strong>O que é a Ordem DeMolay</strong>"),
+          mailRow(
+            "A Ordem DeMolay reúne rapazes de 12 a 21 anos com o propósito de formar bons cidadãos. Foi criada em 1919, em Kansas City, por Frank Sherman Land, e é patrocinada pela maçonaria desde a origem. Na prática, ajuda cada jovem a ser melhor filho, melhor irmão e melhor amigo.",
+          ),
+          mailRow(
+            "No caminho, o jovem desenvolve fala em público, liderança, respeito às regras, serviço à comunidade, responsabilidade e amizades duradouras. A Ordem é uma organização própria: ser DeMolay não significa ingressar na maçonaria, e ela não é uma sociedade secreta. Princípios, história e forma de organização são públicos.",
+          ),
+          brandedButton("Conheça a Ordem DeMolay", aboutUrl, accent),
+          mailRow(
+            `O anexo <em>sindicancia.ics</em> adiciona este horário à agenda. Se o convite não aparecer, <a href="${escapeHtml(intervieweeGcal)}" style="color:${accent};">adicione à Google Agenda</a>.`,
+          ),
+          closingHtml,
+        ].join(""),
+      });
+      const intervieweeResult = await sendTransactionalEmail({
+        to: [intervieweeEmail],
+        subject: intervieweeSubject,
+        text: intervieweeText,
+        html: intervieweeHtml,
+        attachments: [
+          {
+            filename: "sindicancia.ics",
+            content: Buffer.from(intervieweeIcs, "utf8").toString("base64"),
+            contentType: "text/calendar; method=REQUEST; charset=UTF-8",
+          },
+          ...emailAssets.attachments,
+        ],
+      });
+      if (intervieweeResult.ok) {
+        deliveries.push({
+          name: intervieweeName,
+          role: "Entrevistado",
+          outcome: "sent",
+          detail: null,
+        });
+      } else if (intervieweeResult.skipped) {
+        deliveries.push({
+          name: intervieweeName,
+          role: "Entrevistado",
+          outcome: "error",
+          detail: intervieweeResult.reason,
+        });
+      } else {
+        deliveries.push({
+          name: intervieweeName,
+          role: "Entrevistado",
+          outcome: "error",
+          detail: intervieweeResult.error,
+        });
+      }
+    }
+
+    const sentCount = deliveries.filter((d) => d.outcome === "sent").length;
+    if (
+      sentCount === 0 &&
+      deliveries.length > 0 &&
+      deliveries.every((d) => d.detail?.includes("RESEND_API_KEY"))
+    ) {
+      throw new Error(deliveries[0]?.detail ?? "E-mail não configurado");
+    }
+
     return {
-      sent,
-      skipped,
-      failed,
+      deliveries,
       when: formatDateTimeBR(row.event.start_at),
     };
   });

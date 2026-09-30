@@ -19,6 +19,8 @@ export type DueMemberLite = {
   exam_grau_demolay?: string | null;
   /** Telefone do cadastro (WhatsApp / cobrança). */
   phone?: string | null;
+  /** E-mail do cadastro (cobrança). */
+  email?: string | null;
   /** Períodos de irregularidade (afastamento). */
   awayPeriods?: AwayPeriod[];
   /** Incluído manualmente neste calendário anual. */

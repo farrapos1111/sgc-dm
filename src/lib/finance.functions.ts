@@ -1124,7 +1124,7 @@ export const saveChapterDuesEnabled = createServerFn({ method: "POST" })
   });
 
 const MEMBER_DUES_SELECT =
-  "id, full_name, status, kind, birth_date, iniciacao_ordem, exam_grau_iniciatico, phone";
+  "id, full_name, status, kind, birth_date, iniciacao_ordem, exam_grau_iniciatico, phone, email";
 
 type YearDuesResult = {
   members: DueMemberLite[];
@@ -1295,6 +1295,184 @@ export const listYearDues = createServerFn({ method: "POST" })
       data.ensure ?? true,
     ),
   );
+
+/** Envia o lembrete de atrasados para o e-mail do cadastro do membro. */
+export const sendDueReminderEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    chapterInput
+      .extend({
+        memberId: z.string().uuid(),
+        text: z.string().trim().min(1).max(8000),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: member, error } = await context.supabase
+      .from("members")
+      .select("id, full_name, email")
+      .eq("id", data.memberId)
+      .eq("chapter_id", data.chapterId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!member) throw new Error("Membro não encontrado");
+    const to = member.email?.trim() ?? "";
+    if (!to) throw new Error("Membro sem e-mail no cadastro");
+
+    const { data: chapter, error: chErr } = await context.supabase
+      .from("chapters")
+      .select("name")
+      .eq("id", data.chapterId)
+      .maybeSingle();
+    if (chErr) throw new Error(chErr.message);
+
+    const { loadChapterEmailAssets } = await import("@/lib/email-brand.server");
+    const { sendTransactionalEmail, summarizeEmailResult } = await import(
+      "@/lib/email"
+    );
+    const { wrapBrandedHtml, escapeHtml } = await import(
+      "@/lib/email-templates"
+    );
+    const assets = await loadChapterEmailAssets(data.chapterId);
+    const chapterName = chapter?.name?.trim() || assets.brand.title;
+    const innerRows = data.text
+      .split(/\n{2,}/)
+      .map(
+        (block) =>
+          `<tr><td style="padding-top:12px;font-size:15px;line-height:1.55;color:#3f3f46;white-space:pre-wrap;">${escapeHtml(block)}</td></tr>`,
+      )
+      .join("");
+    const result = await sendTransactionalEmail({
+      to: [to],
+      subject: `Valores em aberto — ${chapterName}`,
+      text: data.text,
+      html: wrapBrandedHtml({
+        brand: assets.brand,
+        heading: "Valores em aberto",
+        innerRows,
+      }),
+      attachments: assets.attachments,
+    });
+    const summary = summarizeEmailResult(result);
+    if (summary.status === "failed") {
+      throw new Error(summary.error ?? "Falha ao enviar e-mail");
+    }
+    if (summary.status === "skipped") {
+      throw new Error(summary.error ?? "Envio de e-mail indisponível");
+    }
+    return { ok: true as const };
+  });
+
+/** Envia o lembrete de atrasados para vários membros de uma vez. */
+export const sendDueReminderEmails = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    chapterInput
+      .extend({
+        items: z
+          .array(
+            z.object({
+              memberId: z.string().uuid(),
+              text: z.string().trim().min(1).max(8000),
+            }),
+          )
+          .min(1)
+          .max(80),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const ids = [...new Set(data.items.map((item) => item.memberId))];
+    const { data: members, error } = await context.supabase
+      .from("members")
+      .select("id, full_name, email")
+      .eq("chapter_id", data.chapterId)
+      .in("id", ids);
+    if (error) throw new Error(error.message);
+
+    const byId = new Map(
+      (members ?? []).map((member) => [member.id, member] as const),
+    );
+    const { data: chapter, error: chErr } = await context.supabase
+      .from("chapters")
+      .select("name")
+      .eq("id", data.chapterId)
+      .maybeSingle();
+    if (chErr) throw new Error(chErr.message);
+
+    const { loadChapterEmailAssets } = await import("@/lib/email-brand.server");
+    const { sendTransactionalEmail, summarizeEmailResult } = await import(
+      "@/lib/email"
+    );
+    const { wrapBrandedHtml, escapeHtml } = await import(
+      "@/lib/email-templates"
+    );
+    const assets = await loadChapterEmailAssets(data.chapterId);
+    const chapterName = chapter?.name?.trim() || assets.brand.title;
+
+    const deliveries: {
+      name: string;
+      outcome: "sent" | "no_email" | "error";
+      detail: string | null;
+    }[] = [];
+
+    for (const item of data.items) {
+      const member = byId.get(item.memberId);
+      const name = member?.full_name?.trim() || "Membro";
+      if (!member) {
+        deliveries.push({
+          name,
+          outcome: "error",
+          detail: "Membro não encontrado",
+        });
+        continue;
+      }
+      const to = member.email?.trim() ?? "";
+      if (!to) {
+        deliveries.push({ name, outcome: "no_email", detail: null });
+        continue;
+      }
+      const innerRows = item.text
+        .split(/\n{2,}/)
+        .map(
+          (block) =>
+            `<tr><td style="padding-top:12px;font-size:15px;line-height:1.55;color:#3f3f46;white-space:pre-wrap;">${escapeHtml(block)}</td></tr>`,
+        )
+        .join("");
+      const result = await sendTransactionalEmail({
+        to: [to],
+        subject: `Valores em aberto — ${chapterName}`,
+        text: item.text,
+        html: wrapBrandedHtml({
+          brand: assets.brand,
+          heading: "Valores em aberto",
+          innerRows,
+        }),
+        attachments: assets.attachments,
+      });
+      const summary = summarizeEmailResult(result);
+      if (summary.status === "sent") {
+        deliveries.push({ name, outcome: "sent", detail: null });
+      } else {
+        deliveries.push({
+          name,
+          outcome: "error",
+          detail: summary.error ?? "Falha ao enviar e-mail",
+        });
+      }
+    }
+
+    const sentCount = deliveries.filter((d) => d.outcome === "sent").length;
+    if (
+      sentCount === 0 &&
+      deliveries.length > 0 &&
+      deliveries.every((d) => d.detail?.includes("RESEND_API_KEY"))
+    ) {
+      throw new Error(deliveries[0]?.detail ?? "E-mail não configurado");
+    }
+
+    return { deliveries };
+  });
 
 /** Candidatos a inclusão manual (qualquer membro do capítulo fora da tabela do ano, incl. irregulares). */
 export const listDuesInclusionCandidates = createServerFn({ method: "POST" })

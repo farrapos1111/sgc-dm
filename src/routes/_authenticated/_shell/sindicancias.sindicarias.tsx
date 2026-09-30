@@ -279,28 +279,28 @@ function SindicariasPage() {
     mutationFn: (calendarEventId: string) =>
       sendSindicanciaReminder({ data: { calendarEventId } }),
     onSuccess: (res) => {
-      if (res.sent.length === 0) {
-        const why = [...res.skipped, ...res.failed.map((f) => ({
-          name: f.name,
-          reason: f.error,
-        }))]
-          .map((s) => `${s.name}: ${s.reason}`)
-          .join(" · ");
-        toast.error(why || "Nenhum lembrete enviado");
+      const lines = res.deliveries.map((d) => {
+        const status =
+          d.outcome === "sent"
+            ? "E-mail enviado"
+            : d.outcome === "no_email"
+              ? "Sem e-mail"
+              : d.detail || "Erro ao enviar";
+        return `${d.name} — ${d.role} — ${status}`;
+      });
+      const description = (
+        <span className="block whitespace-pre-line">{lines.join("\n")}</span>
+      );
+      const sent = res.deliveries.filter((d) => d.outcome === "sent").length;
+      if (sent === 0) {
+        toast.error("Nenhum lembrete enviado", { description, duration: 12000 });
         return;
       }
-      const extra = res.skipped.length + res.failed.length;
-      toast.success(
-        `Lembrete enviado para ${res.sent.join(", ")}`,
-        extra
-          ? {
-              description: [
-                ...res.skipped.map((s) => `${s.name}: ${s.reason}`),
-                ...res.failed.map((f) => `${f.name}: ${f.error}`),
-              ].join(" · "),
-            }
-          : undefined,
-      );
+      const pending = res.deliveries.length - sent;
+      toast.success(pending ? "Lembrete enviado em parte" : "Lembrete enviado", {
+        description,
+        duration: 12000,
+      });
     },
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Erro ao enviar lembrete"),
@@ -309,7 +309,7 @@ function SindicariasPage() {
   async function sendReminder(calendarEventId: string, nominee: string) {
     const ok = await confirm({
       title: "Enviar lembrete?",
-      description: `E-mail para os participantes de ${nominee}, com o link de acesso, o papel, a postura e o horário. O anexo adiciona o compromisso na Google Agenda.`,
+      description: `E-mail para os participantes de ${nominee}, com o link de acesso, o papel, a postura e o horário, e outro para o entrevistado, com os dados da reunião e um resumo do que é a Ordem DeMolay. O anexo adiciona o compromisso na Google Agenda.`,
       confirmLabel: "Enviar",
       destructive: false,
     });
