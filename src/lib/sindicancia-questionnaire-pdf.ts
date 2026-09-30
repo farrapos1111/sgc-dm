@@ -250,7 +250,10 @@ export async function exportSindicanciaQuestionnairePdf(
       doc.text(sig.label, MARGIN, y);
       y += 3;
       try {
-        doc.addImage(sig.dataUrl, "PNG", MARGIN, y, 60, 20);
+        const format = sig.dataUrl.startsWith("data:image/jpeg")
+          ? "JPEG"
+          : "PNG";
+        doc.addImage(sig.dataUrl, format, MARGIN, y, 60, 20);
       } catch {
         /* ignore invalid image */
       }

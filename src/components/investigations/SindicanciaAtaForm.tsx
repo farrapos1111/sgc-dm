@@ -29,7 +29,7 @@ import {
   type AgeBand,
   type AtaBlock,
 } from "@/lib/member-documents";
-import { applySindicanciaAtaVars } from "@/lib/sindicancia-ata-vars";
+import { applySindicanciaAtaVars, formatAtaDocumentDigits, seniorDeclarationQuality } from "@/lib/sindicancia-ata-vars";
 import { exportSindicanciaQuestionnairePdf } from "@/lib/sindicancia-questionnaire-pdf";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
 import { useSindicanciaVotingRealtime } from "@/hooks/useSindicanciaVotingRealtime";
@@ -206,20 +206,46 @@ export function SindicanciaAtaForm({
   const rgDisplay =
     revealed.rg || (row.file?.rg_last2 ? `•••${row.file.rg_last2}` : "—");
 
+  useEffect(() => {
+    if (!row.file_id) return;
+    let cancelled = false;
+    void (async () => {
+      for (const field of ["cpf", "rg"] as const) {
+        try {
+          const res = await revealInvestigationPii({
+            data: { fileId: row.file_id!, field },
+          });
+          if (!cancelled && res.value.trim()) {
+            setRevealed((current) => ({ ...current, [field]: res.value }));
+          }
+        } catch {
+          /* sem permissão: a declaração fica com os últimos dígitos */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [row.file_id]);
+
   const varCtx = useMemo(
     () => ({
       candidato:
         String(answers.pre_nome ?? "").trim() ||
         row.file?.candidate_name ||
         row.nominee_name,
-      rg: rgDisplay === "—" ? "" : rgDisplay,
-      cpf: cpfDisplay === "—" ? "" : cpfDisplay,
+      rg: formatAtaDocumentDigits("rg", rgDisplay),
+      cpf: formatAtaDocumentDigits("cpf", cpfDisplay),
       capitulo_nome: active?.chapter.name,
       numero: active?.chapter.number,
       cidade: active?.chapter.city,
       sindicante: sindicanteName,
       escrivao: escrivaoName,
       senior: seniorName,
+      seniorQualidade: seniorDeclarationQuality({
+        kind: row.senior?.kind,
+        onCouncil: row.senior_on_council,
+      }),
       date: row.event?.start_at ?? null,
     }),
     [
@@ -243,17 +269,23 @@ export function SindicanciaAtaForm({
   }, [blocks, varCtx, row.nominee_name]);
 
   const save = useMutation({
-    mutationFn: (completed: boolean) =>
-      saveSindicanciaMinute({
-        data: {
-          calendarEventId: row.calendar_event_id,
-          chapterId,
-          age_band: ageBand,
-          answers,
-          signatures,
-          completed,
-        },
-      }),
+    mutationFn: async (completed: boolean) => {
+      const payload = {
+        calendarEventId: row.calendar_event_id,
+        chapterId,
+        age_band: ageBand,
+        answers,
+        signatures,
+      };
+      await saveSindicanciaMinute({ data: { ...payload, completed: false } });
+      if (!completed) return;
+      try {
+        await saveSindicanciaMinute({ data: { ...payload, completed: true } });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Erro ao salvar ata";
+        throw new Error(`${msg} A ata ficou como rascunho.`);
+      }
+    },
     onSuccess: async (_, completed) => {
       toast.success(
         completed
@@ -587,7 +619,8 @@ export function SindicanciaAtaForm({
           <h4 className="text-sm font-semibold">Assinaturas</h4>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Firmam abaixo o indicado, responsáveis e a comissão, confirmando as
-            informações desta sindicância.
+            informações desta sindicância. A assinatura do Responsável 2 não é
+            obrigatória.
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {SIGNATURE_ROLES.map((role) => (

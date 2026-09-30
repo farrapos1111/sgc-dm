@@ -153,6 +153,6 @@ export const SIGNATURE_ROLES: Array<{
   { id: "sindicante", label: "Sindicante" },
   { id: "escrivao", label: "Escrivão de Parecer" },
   { id: "guardian1", label: "Responsável 1 do indicado" },
-  { id: "guardian2", label: "Responsável 2 do indicado" },
+  { id: "guardian2", label: "Responsável 2 do indicado (opcional)" },
   { id: "nominee", label: "Indicado" },
 ];

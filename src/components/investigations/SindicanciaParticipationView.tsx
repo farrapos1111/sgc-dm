@@ -19,7 +19,7 @@ import {
   isAtaQuestionBlock,
   type AtaBlock,
 } from "@/lib/member-documents";
-import { applySindicanciaAtaVars } from "@/lib/sindicancia-ata-vars";
+import { applySindicanciaAtaVars, formatAtaDocumentDigits, seniorDeclarationQuality } from "@/lib/sindicancia-ata-vars";
 
 const ROLE_LABEL = {
   escrivao: "Escrivão de Parecer",
@@ -72,28 +72,39 @@ export function SindicanciaParticipationView({
     () => ({
       candidato:
         String(answers.pre_nome ?? "").trim() || session.nominee,
+      rg: formatAtaDocumentDigits("rg", session.candidateRg),
+      cpf: formatAtaDocumentDigits("cpf", session.candidateCpf),
       capitulo_nome: session.chapterName,
       numero: session.chapterNumber,
       cidade: session.chapterCity,
       sindicante: session.sindicante,
       escrivao: session.escrivao,
       senior: session.senior,
+      seniorQualidade: seniorDeclarationQuality({
+        kind: session.seniorKind,
+        onCouncil: session.seniorOnCouncil,
+      }),
       date: session.startAt,
     }),
     [answers.pre_nome, session],
   );
 
   const save = useMutation({
-    mutationFn: (completed: boolean) =>
-      saveSindicanciaParticipationMinute({
-        data: {
-          token,
-          demolayId,
-          answers,
-          signatures,
-          completed,
-        },
-      }),
+    mutationFn: async (completed: boolean) => {
+      const payload = { token, demolayId, answers, signatures };
+      const draft = await saveSindicanciaParticipationMinute({
+        data: { ...payload, completed: false },
+      });
+      if (!completed) return draft;
+      try {
+        return await saveSindicanciaParticipationMinute({
+          data: { ...payload, completed: true },
+        });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Erro ao salvar a ata";
+        throw new Error(`${msg} A ata ficou como rascunho.`);
+      }
+    },
     onSuccess: (res, completed) => {
       if (completed || res.status === "votacao_comissao") {
         toast.success("Ata concluída. O link de participação foi encerrado.");
@@ -260,7 +271,8 @@ export function SindicanciaParticipationView({
           <section className="space-y-3 rounded-[12px] border border-border/70 bg-muted/10 p-4">
             <h2 className="text-sm font-semibold">Assinaturas</h2>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Firmam abaixo o indicado, responsáveis e a comissão.
+              Firmam abaixo o indicado, responsáveis e a comissão. A assinatura
+              do Responsável 2 não é obrigatória.
             </p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {SIGNATURE_ROLES.map((role) => (

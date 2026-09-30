@@ -952,7 +952,7 @@ const DETAILS_SELECT = `
     has_demolay_relative, demolay_relative_name, demolay_relative_chapter,
     sponsor_text, referred_by, cpf_last2, rg_last2
   ),
-  senior:members!sindicancia_details_senior_member_id_fkey(id, full_name),
+  senior:members!sindicancia_details_senior_member_id_fkey(id, full_name, kind),
   investigator:members!sindicancia_details_investigator_member_id_fkey(id, full_name),
   clerk:members!sindicancia_details_clerk_member_id_fkey(id, full_name)
 `.replace(/\s+/g, " ");
@@ -999,7 +999,9 @@ export type SindicanciaListItem = {
     cpf_last2: string | null;
     rg_last2: string | null;
   } | null;
-  senior: { id: string; full_name: string } | null;
+  senior: { id: string; full_name: string; kind: string | null } | null;
+  /** Cargo de conselho no semestre da sindicância. */
+  senior_on_council: boolean;
   investigator: { id: string; full_name: string } | null;
   clerk: { id: string; full_name: string } | null;
 };
@@ -1013,7 +1015,11 @@ export const listSindicancias = createServerFn({ method: "POST" })
       .select(DETAILS_SELECT)
       .eq("chapter_id", data.chapterId);
     if (error) throw new Error(error.message);
-    return (rows as unknown as SindicanciaListItem[]) ?? [];
+    return attachSeniorCouncil(
+      context.supabase,
+      data.chapterId,
+      (rows as unknown as SindicanciaListItem[]) ?? [],
+    );
   });
 
 export const getSindicancia = createServerFn({ method: "POST" })
@@ -1029,8 +1035,72 @@ export const getSindicancia = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) throw new Error("Sindicância não encontrada");
-    return row as unknown as SindicanciaListItem;
+    const [withCouncil] = await attachSeniorCouncil(
+      context.supabase,
+      (row as unknown as SindicanciaListItem).chapter_id,
+      [row as unknown as SindicanciaListItem],
+    );
+    return withCouncil!;
   });
+
+async function attachSeniorCouncil(
+  supabase: {
+    from: (table: string) => any;
+  },
+  chapterId: string,
+  rows: SindicanciaListItem[],
+): Promise<SindicanciaListItem[]> {
+  const memberIds = [
+    ...new Set(rows.map((row) => row.senior_member_id).filter(Boolean)),
+  ] as string[];
+  if (memberIds.length === 0) {
+    return rows.map((row) => ({ ...row, senior_on_council: false }));
+  }
+
+  const [{ data: councilPositions, error: posErr }, { data: seats, error: seatErr }] =
+    await Promise.all([
+      supabase
+        .from("position_org_types")
+        .select("position_id")
+        .eq("org_type", "capitulo")
+        .eq("role_group", "conselho"),
+      supabase
+        .from("member_positions")
+        .select("member_id, position_id, term_year, term_semester")
+        .eq("chapter_id", chapterId)
+        .in("member_id", memberIds)
+        .is("ended_at", null),
+    ]);
+  if (posErr) throw new Error(posErr.message);
+  if (seatErr) throw new Error(seatErr.message);
+
+  const councilIds = new Set(
+    (councilPositions ?? []).map(
+      (row: { position_id: number }) => row.position_id,
+    ),
+  );
+  const held = new Set(
+    (seats ?? [])
+      .filter((seat: { position_id: number }) => councilIds.has(seat.position_id))
+      .map(
+        (seat: {
+          member_id: string;
+          term_year: number;
+          term_semester: number;
+        }) => `${seat.member_id}:${seat.term_year}:${seat.term_semester}`,
+      ),
+  );
+
+  return rows.map((row) => {
+    const term = row.event?.start_at
+      ? currentTerm(new Date(row.event.start_at))
+      : currentTerm();
+    const key = row.senior_member_id
+      ? `${row.senior_member_id}:${term.year}:${term.semester}`
+      : "";
+    return { ...row, senior_on_council: held.has(key) };
+  });
+}
 
 const sindicanciaInput = z.object({
   chapterId: z.string().uuid(),
@@ -1362,17 +1432,21 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
     for (const [role, value] of Object.entries(signatures)) {
       if (!value || !value.startsWith("data:image")) continue;
       if (!SIGNATURE_ROLES.some((r) => r.id === role)) continue;
-      const base64 = value.split(",")[1];
-      if (!base64) continue;
-      const bytes = Buffer.from(base64, "base64");
+      const match = value.match(
+        /^data:(image\/(?:png|jpeg));base64,([A-Za-z0-9+/=]+)$/,
+      );
+      if (!match) continue;
+      const contentType = match[1]!;
+      const bytes = Buffer.from(match[2]!, "base64");
+      const ext = contentType === "image/jpeg" ? "jpg" : "png";
       const path = sindicanciaSignaturePath(
         data.chapterId,
         data.calendarEventId,
         role as SindicanciaSignatureRole,
-      );
+      ).replace(/\.png$/, `.${ext}`);
       const { error: upErr } = await context.supabase.storage
         .from(MEMBER_DOCS_BUCKET)
-        .upload(path, bytes, { contentType: "image/png", upsert: true });
+        .upload(path, bytes, { contentType, upsert: true });
       if (upErr) throw new Error(upErr.message);
       signatures[role] = path;
     }
@@ -1408,7 +1482,13 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
         .from("sindicancia_details" as never)
         .update({ status: "votacao_comissao" } as never)
         .eq("calendar_event_id", data.calendarEventId);
-      if (stErr) throw new Error(stErr.message);
+      if (stErr) {
+        await context.supabase
+          .from("sindicancia_minutes" as never)
+          .update({ completed_at: null } as never)
+          .eq("calendar_event_id", data.calendarEventId);
+        throw new Error(stErr.message);
+      }
     }
 
     return { ok: true };
@@ -2838,7 +2918,11 @@ export type SindicanciaParticipationPayload = {
   nominee: string;
   sindicante: string;
   senior: string;
+  seniorKind: string | null;
+  seniorOnCouncil: boolean;
   escrivao: string;
+  candidateCpf: string;
+  candidateRg: string;
   chaveText: string;
   blocks: AtaBlock[];
   prefill: Record<string, string | boolean | null>;
@@ -2932,6 +3016,10 @@ export const resolveSindicanciaParticipation = createServerFn({ method: "POST" }
         senior?: string;
         escrivao?: string;
       };
+      candidate_cpf?: string | null;
+      candidate_rg?: string | null;
+      senior_kind?: string | null;
+      senior_on_council?: boolean;
       blocks?: unknown;
       prefill?: unknown;
       minute?: {
@@ -2959,7 +3047,11 @@ export const resolveSindicanciaParticipation = createServerFn({ method: "POST" }
       nominee: names.nominee ?? chave.nominee ?? "",
       sindicante: names.sindicante ?? "",
       senior: names.senior ?? "",
+      seniorKind: row.senior_kind ?? null,
+      seniorOnCouncil: Boolean(row.senior_on_council),
       escrivao: names.escrivao ?? "",
+      candidateCpf: row.candidate_cpf ?? "",
+      candidateRg: row.candidate_rg ?? "",
       chaveText: buildSindicanciaChave({
         template: chave.template ?? null,
         chapterName: chave.chapter_name ?? row.chapter?.name ?? "",

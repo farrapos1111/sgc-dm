@@ -9,7 +9,7 @@ Tenho crença em um Criador, sigo as leis de meu país e garanto ser uma pessoa 
 
 Caso seja aceito como membro da Ordem DeMolay, prometo seguir todas as normas estipuladas pelas Normas, Estatutos, Regimentos e Atos nacionais, estaduais e regionais, assim como o Regimento Interno do Capítulo em que peticiono.
 
-Asseguro ter passado pela entrevista exigida, que foi realizada por [sindicante], e [escrivao], membros ativos da Ordem DeMolay, acompanhados pelo senhor [senior], membro do Conselho Consultivo.
+Asseguro ter passado pela entrevista exigida, que foi realizada por [sindicante], e [escrivao], membros ativos da Ordem DeMolay, acompanhados pelo senhor [senior], [senior_qualidade].
 
 Declaro ter sanado todas as minhas dúvidas acerca dos objetivos e valores da Ordem DeMolay, e afirmo estar ciente dos compromissos e responsabilidades próprias da instituição, bem como afirmo-me ciente dos compromissos financeiros que são exigidos.
 
