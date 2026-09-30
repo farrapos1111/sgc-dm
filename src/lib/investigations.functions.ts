@@ -2269,6 +2269,27 @@ const participationEventInput = z.object({
   calendarEventId: z.string().uuid(),
 });
 
+export const SINDICANCIA_REMINDER_ROLES = [
+  "escrivao",
+  "sindicante",
+  "senior",
+  "entrevistado",
+] as const;
+
+export type SindicanciaReminderRole = (typeof SINDICANCIA_REMINDER_ROLES)[number];
+
+export type SindicanciaReminderRecipient = {
+  role: SindicanciaReminderRole;
+  label: string;
+  name: string;
+  hasEmail: boolean;
+};
+
+const reminderInput = z.object({
+  calendarEventId: z.string().uuid(),
+  recipients: z.array(z.enum(SINDICANCIA_REMINDER_ROLES)).min(1).max(4),
+});
+
 export const ensureSindicanciaParticipationLink = createServerFn({
   method: "POST",
 })
@@ -2340,9 +2361,92 @@ function formatWhatsAppDisplay(digits: string): string {
   return `+${digits}`;
 }
 
-export const sendSindicanciaReminder = createServerFn({ method: "POST" })
+export const listSindicanciaReminderRecipients = createServerFn({
+  method: "POST",
+})
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => participationEventInput.parse(raw))
+  .handler(async ({ data, context }): Promise<SindicanciaReminderRecipient[]> => {
+    const { data: detail, error } = await context.supabase
+      .from("sindicancia_details" as never)
+      .select(
+        `
+        nominee_name, status,
+        senior_member_id, senior_text,
+        investigator_member_id, investigator_text,
+        clerk_member_id, clerk_text,
+        senior:members!sindicancia_details_senior_member_id_fkey(full_name, email),
+        investigator:members!sindicancia_details_investigator_member_id_fkey(full_name, email),
+        clerk:members!sindicancia_details_clerk_member_id_fkey(full_name, email),
+        event:calendar_events!sindicancia_details_calendar_event_id_fkey(title),
+        file:investigation_files(candidate_name, candidate_email)
+      `.replace(/\s+/g, " "),
+      )
+      .eq("calendar_event_id", data.calendarEventId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!detail) throw new Error("Sindicância não encontrada");
+    const row = detail as {
+      nominee_name: string;
+      status: string;
+      senior_text: string | null;
+      investigator_text: string | null;
+      clerk_text: string | null;
+      senior_member_id: string | null;
+      investigator_member_id: string | null;
+      clerk_member_id: string | null;
+      senior: { full_name: string; email: string | null } | null;
+      investigator: { full_name: string; email: string | null } | null;
+      clerk: { full_name: string; email: string | null } | null;
+      event: { title: string } | null;
+      file: { candidate_name: string | null; candidate_email: string | null } | null;
+    };
+    if (row.status !== "aberta" && row.status !== "em_andamento") {
+      throw new Error(
+        "O lembrete só pode ser enviado com a sindicância aberta ou em andamento",
+      );
+    }
+    const people: SindicanciaReminderRecipient[] = [];
+    if (row.clerk_member_id || row.clerk_text?.trim()) {
+      people.push({
+        role: "escrivao",
+        label: PARTICIPATION_ROLE_LABEL.escrivao,
+        name: row.clerk?.full_name || row.clerk_text || "Escrivão de Parecer",
+        hasEmail: Boolean(row.clerk?.email?.trim()),
+      });
+    }
+    if (row.investigator_member_id || row.investigator_text?.trim()) {
+      people.push({
+        role: "sindicante",
+        label: PARTICIPATION_ROLE_LABEL.sindicante,
+        name: row.investigator?.full_name || row.investigator_text || "Sindicante",
+        hasEmail: Boolean(row.investigator?.email?.trim()),
+      });
+    }
+    if (row.senior_member_id || row.senior_text?.trim()) {
+      people.push({
+        role: "senior",
+        label: PARTICIPATION_ROLE_LABEL.senior,
+        name: row.senior?.full_name || row.senior_text || "Tio/Senior",
+        hasEmail: Boolean(row.senior?.email?.trim()),
+      });
+    }
+    people.push({
+      role: "entrevistado",
+      label: "Entrevistado",
+      name:
+        row.file?.candidate_name?.trim() ||
+        row.nominee_name ||
+        row.event?.title ||
+        "Entrevistado",
+      hasEmail: Boolean(row.file?.candidate_email?.trim()),
+    });
+    return people;
+  });
+
+export const sendSindicanciaReminder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => reminderInput.parse(raw))
   .handler(async ({ data, context }) => {
     const { data: token, error: tokenErr } = await context.supabase.rpc(
       "ensure_sindicancia_participation_token" as never,
@@ -2445,13 +2549,16 @@ export const sendSindicanciaReminder = createServerFn({ method: "POST" })
         email: row.senior?.email ?? null,
       });
     }
-    if (slots.length === 0) {
-      throw new Error("Nenhum participante nomeado nesta sindicância");
+    const wanted = new Set(data.recipients);
+    const audience = slots.filter((slot) => wanted.has(slot.role));
+    const includeInterviewee = wanted.has("entrevistado");
+    if (audience.length === 0 && !includeInterviewee) {
+      throw new Error("Escolha ao menos um destinatário");
     }
 
     const byPerson = new Map<string, Slot>();
     const unnamed: Slot[] = [];
-    for (const slot of slots) {
+    for (const slot of audience) {
       if (!slot.memberId) {
         unnamed.push(slot);
         continue;
@@ -2726,14 +2833,14 @@ export const sendSindicanciaReminder = createServerFn({ method: "POST" })
     const intervieweeName =
       row.file?.candidate_name?.trim() || nominee;
     const intervieweeEmail = row.file?.candidate_email?.trim() || "";
-    if (!intervieweeEmail) {
+    if (includeInterviewee && !intervieweeEmail) {
       deliveries.push({
         name: intervieweeName,
         role: "Entrevistado",
         outcome: "no_email",
         detail: null,
       });
-    } else {
+    } else if (includeInterviewee && intervieweeEmail) {
       const roleLabels = new Set<string>(Object.values(PARTICIPATION_ROLE_LABEL));
       const visitorNames = [
         ...new Set(

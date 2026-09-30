@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,6 +28,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
@@ -43,11 +51,14 @@ import {
   ensureSindicanciaParticipationLink,
   listFiles,
   listSindicancias,
+  listSindicanciaReminderRecipients,
   revokeSindicanciaParticipationLink,
   sendSindicanciaReminder,
   updateSindicancia,
   type InvestigationFileRow,
   type SindicanciaListItem,
+  type SindicanciaReminderRecipient,
+  type SindicanciaReminderRole,
 } from "@/lib/investigations.functions";
 import { resolveCalendarChaveText } from "@/lib/resolve-calendar-chave";
 import { listMembers } from "@/lib/members.functions";
@@ -63,6 +74,83 @@ import {
 
 function isInvestigationStatus(v: string): v is InvestigationStatus {
   return Object.prototype.hasOwnProperty.call(STATUS_LABELS, v);
+}
+
+function ReminderRecipientList({
+  nominee,
+  loading,
+  people,
+  selected,
+  onToggle,
+  onToggleAll,
+}: {
+  nominee: string;
+  loading: boolean;
+  people: SindicanciaReminderRecipient[];
+  selected: Set<SindicanciaReminderRole>;
+  onToggle: (role: SindicanciaReminderRole, checked: boolean) => void;
+  onToggleAll: (checked: boolean) => void;
+}) {
+  const withEmail = people.filter((person) => person.hasEmail);
+  const allChecked =
+    withEmail.length > 0 &&
+    withEmail.every((person) => selected.has(person.role));
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <p className="mb-3 text-sm text-muted-foreground">
+        Marque quem recebe o lembrete de {nominee}. Quem não tem e-mail fica
+        de fora.
+      </p>
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Carregando destinatários…</p>
+      ) : (
+        <>
+          <label className="flex items-center gap-3 border-b px-1 py-2 text-sm font-medium">
+            <Checkbox
+              checked={allChecked}
+              onCheckedChange={(value) => onToggleAll(value === true)}
+              disabled={withEmail.length === 0}
+              aria-label="Selecionar todos com e-mail"
+            />
+            Selecionar todos com e-mail
+          </label>
+          <ul>
+            {people.map((person) => (
+              <li key={person.role}>
+                <label
+                  className={`flex items-start gap-3 px-1 py-2.5 text-sm ${
+                    person.hasEmail
+                      ? "cursor-pointer"
+                      : "cursor-not-allowed opacity-60"
+                  }`}
+                >
+                  <Checkbox
+                    className="mt-0.5"
+                    checked={selected.has(person.role)}
+                    disabled={!person.hasEmail}
+                    onCheckedChange={(value) =>
+                      onToggle(person.role, value === true)
+                    }
+                    aria-label={`${person.name} — ${person.label}`}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">
+                      {person.name}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {person.label}
+                      {person.hasEmail ? "" : " · Sem e-mail"}
+                    </span>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
 }
 
 type SortKey = "data_desc" | "data_asc" | "nome_asc" | "nome_desc" | "status";
@@ -100,7 +188,16 @@ function SindicariasPage() {
   });
   const [ataRow, setAtaRow] = useState<SindicanciaListItem | null>(null);
   const [ataMode, setAtaMode] = useState<AtaFormMode>("ata");
-  const [search, setSearch] = useState("");
+  const [remindOpen, setRemindOpen] = useState(false);
+  const [remindEventId, setRemindEventId] = useState<string | null>(null);
+  const [remindNominee, setRemindNominee] = useState("");
+  const [remindPeople, setRemindPeople] = useState<SindicanciaReminderRecipient[]>(
+    [],
+  );
+  const [remindSelected, setRemindSelected] = useState<Set<SindicanciaReminderRole>>(
+    new Set(),
+  );
+  const [remindLoading, setRemindLoading] = useState(false);
 
   function openAtaMobile(row: SindicanciaListItem, mode: AtaFormMode) {
     const resolved: AtaFormMode =
@@ -276,9 +373,12 @@ function SindicariasPage() {
   });
 
   const remind = useMutation({
-    mutationFn: (calendarEventId: string) =>
-      sendSindicanciaReminder({ data: { calendarEventId } }),
+    mutationFn: (input: {
+      calendarEventId: string;
+      recipients: SindicanciaReminderRole[];
+    }) => sendSindicanciaReminder({ data: input }),
     onSuccess: (res) => {
+      setRemindOpen(false);
       const lines = res.deliveries.map((d) => {
         const status =
           d.outcome === "sent"
@@ -306,14 +406,50 @@ function SindicariasPage() {
       toast.error(e instanceof Error ? e.message : "Erro ao enviar lembrete"),
   });
 
-  async function sendReminder(calendarEventId: string, nominee: string) {
-    const ok = await confirm({
-      title: "Enviar lembrete?",
-      description: `E-mail para os participantes de ${nominee}, com o link de acesso, o papel, a postura e o horário, e outro para o entrevistado, com os dados da reunião e um resumo do que é a Ordem DeMolay. O anexo adiciona o compromisso na Google Agenda.`,
-      confirmLabel: "Enviar",
-      destructive: false,
+  async function openRemind(calendarEventId: string, nominee: string) {
+    setRemindEventId(calendarEventId);
+    setRemindNominee(nominee);
+    setRemindPeople([]);
+    setRemindSelected(new Set());
+    setRemindOpen(true);
+    setRemindLoading(true);
+    try {
+      const people = await listSindicanciaReminderRecipients({
+        data: { calendarEventId },
+      });
+      setRemindPeople(people);
+      setRemindSelected(
+        new Set(
+          people.filter((person) => person.hasEmail).map((person) => person.role),
+        ),
+      );
+    } catch (e: unknown) {
+      setRemindOpen(false);
+      toast.error(
+        e instanceof Error ? e.message : "Erro ao carregar destinatários",
+      );
+    } finally {
+      setRemindLoading(false);
+    }
+  }
+
+  function toggleRemind(role: SindicanciaReminderRole, checked: boolean) {
+    setRemindSelected((current) => {
+      const next = new Set(current);
+      if (checked) next.add(role);
+      else next.delete(role);
+      return next;
     });
-    if (ok) remind.mutate(calendarEventId);
+  }
+
+  function toggleAllRemind(checked: boolean) {
+    setRemindSelected(
+      checked
+        ? new Set(
+            remindPeople.filter((person) => person.hasEmail).map((person) => person.role),
+          )
+        : new Set(),
+    );
   }
 
   const create = useMutation({
@@ -537,7 +673,7 @@ function SindicariasPage() {
                           variant="outline"
                           disabled={remind.isPending}
                           onClick={() =>
-                            void sendReminder(
+                            void openRemind(
                               r.calendar_event_id,
                               r.nominee_name || r.event?.title || "esta sindicância",
                             )
@@ -885,6 +1021,89 @@ function SindicariasPage() {
           )}
         </DialogContent>
       </Dialog>
+      {isMobile ? (
+        <Sheet open={remindOpen} onOpenChange={setRemindOpen}>
+          <SheetContent
+            side="bottom"
+            className="flex max-h-[85vh] flex-col gap-3 rounded-t-2xl px-4 pb-4 pt-5"
+          >
+            <SheetHeader className="text-left">
+              <SheetTitle>Enviar lembrete</SheetTitle>
+            </SheetHeader>
+            <ReminderRecipientList
+              nominee={remindNominee}
+              loading={remindLoading}
+              people={remindPeople}
+              selected={remindSelected}
+              onToggle={toggleRemind}
+              onToggleAll={toggleAllRemind}
+            />
+            <SheetFooter className="gap-2 sm:space-x-0">
+              <Button
+                type="button"
+                className="w-full"
+                disabled={remindSelected.size === 0 || remind.isPending}
+                style={{ backgroundColor: active?.chapter.primary_color }}
+                onClick={() => {
+                  if (!remindEventId) return;
+                  remind.mutate({
+                    calendarEventId: remindEventId,
+                    recipients: [...remindSelected],
+                  });
+                }}
+              >
+                <Mail className="mr-1.5 h-4 w-4" />
+                {remind.isPending
+                  ? "Enviando…"
+                  : `Enviar (${remindSelected.size})`}
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Dialog open={remindOpen} onOpenChange={setRemindOpen}>
+          <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Enviar lembrete</DialogTitle>
+            </DialogHeader>
+            <ReminderRecipientList
+              nominee={remindNominee}
+              loading={remindLoading}
+              people={remindPeople}
+              selected={remindSelected}
+              onToggle={toggleRemind}
+              onToggleAll={toggleAllRemind}
+            />
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={remind.isPending}
+                onClick={() => setRemindOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                disabled={remindSelected.size === 0 || remind.isPending}
+                style={{ backgroundColor: active?.chapter.primary_color }}
+                onClick={() => {
+                  if (!remindEventId) return;
+                  remind.mutate({
+                    calendarEventId: remindEventId,
+                    recipients: [...remindSelected],
+                  });
+                }}
+              >
+                <Mail className="mr-1.5 h-4 w-4" />
+                {remind.isPending
+                  ? "Enviando…"
+                  : `Enviar (${remindSelected.size})`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       {dialog}
     </div>
   );
