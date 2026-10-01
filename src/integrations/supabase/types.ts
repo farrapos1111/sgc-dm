@@ -1704,6 +1704,7 @@ export type Database = {
           charge_id: string
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           id: string
           notes: string | null
           paid_at: string
@@ -1715,6 +1716,7 @@ export type Database = {
           charge_id: string
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           id?: string
           notes?: string | null
           paid_at?: string
@@ -1726,6 +1728,7 @@ export type Database = {
           charge_id?: string
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           id?: string
           notes?: string | null
           paid_at?: string
@@ -1762,6 +1765,7 @@ export type Database = {
           chapter_id: string
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           description: string
           due_date: string
           id: string
@@ -1780,6 +1784,7 @@ export type Database = {
           chapter_id: string
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           description: string
           due_date?: string
           id?: string
@@ -1798,6 +1803,7 @@ export type Database = {
           chapter_id?: string
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           description?: string
           due_date?: string
           id?: string

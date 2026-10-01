@@ -781,6 +781,7 @@ export const getMyMemberFinance = createServerFn({ method: "POST" })
         )
         .eq("chapter_id", data.chapterId)
         .eq("member_id", data.memberId)
+        .is("deleted_at", null)
         .order("due_date", { ascending: false })
         .limit(200),
       supabaseAdmin
@@ -798,10 +799,11 @@ export const getMyMemberFinance = createServerFn({ method: "POST" })
     const paidByCharge = new Map<string, number>();
     if (chargeIds.length) {
       const { data: payments, error: payErr } = await supabaseAdmin
-        .from("member_charge_payments" as never)
+        .from("member_charge_payments")
         .select("charge_id, amount")
         .eq("chapter_id", data.chapterId)
-        .in("charge_id", chargeIds);
+        .in("charge_id", chargeIds)
+        .is("deleted_at", null);
       if (payErr) throw new Error(payErr.message);
       for (const p of (payments as Array<{
         charge_id: string;
