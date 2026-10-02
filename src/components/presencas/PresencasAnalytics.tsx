@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { Ban } from "lucide-react";
 import { toast } from "sonner";
 import {
   Bar,
@@ -27,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { setAttendance } from "@/lib/attendance.functions";
-import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
+import { eventCountsForAttendance, TYPE_META, type CalendarType } from "@/lib/calendar-types";
 import {
   memberEligibleForAttendance,
   type DueMemberLite,
@@ -171,7 +172,10 @@ export function PresencasChartsTab({
   const yearItems = useMemo(
     () =>
       items
-        .filter((i) => i.mandatory && eventYear(i.start_at) === year)
+        .filter(
+          (i) =>
+            i.mandatory && eventYear(i.start_at) === year,
+        )
         .sort((a, b) => a.start_at.localeCompare(b.start_at)),
     [items, year],
   );
@@ -833,23 +837,26 @@ export function PresencasOverviewTab({
           return {
             eventId: ev.id,
             status: st,
+            counts: eventCountsForAttendance(ev),
             justification: rec?.justification ?? null,
           };
         });
-        const eligible = cells.filter((c) => c.status !== "na");
-        const present = eligible.filter((c) => c.status === "presente").length;
+        const countable = cells.filter((c) => c.counts && c.status !== "na");
+        const present = countable.filter((c) => c.status === "presente").length;
+        const visible = cells.some((c) => c.status !== "na");
         return {
           member: m,
           cells,
           present,
-          total: eligible.length,
+          total: countable.length,
+          visible,
           pct:
-            eligible.length > 0
-              ? Math.round((present / eligible.length) * 100)
+            countable.length > 0
+              ? Math.round((present / countable.length) * 100)
               : null,
         };
       })
-      .filter((r) => r.total > 0)
+      .filter((r) => r.visible)
       .sort((a, b) =>
         a.member.full_name.localeCompare(b.member.full_name, "pt-BR"),
       );
@@ -1044,23 +1051,34 @@ export function PresencasOverviewTab({
                       ? TYPE_META[ev.event_type as CalendarType]
                       : undefined;
                     return (
-                      <div key={cell.eventId} className="min-w-0 space-y-1">
+                      <div
+                        key={cell.eventId}
+                        className={`min-w-0 space-y-1 ${cell.counts ? "" : "rounded-md bg-zinc-100/80 dark:bg-zinc-800/40"}`}
+                      >
                         <Link
                           to="/ongoing/$id"
                           params={{ id: cell.eventId }}
                           search={{ tab: "chamada" }}
-                          className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-foreground"
+                          className={`flex items-center justify-center gap-1 text-[10px] hover:text-foreground ${
+                            cell.counts
+                              ? "text-muted-foreground"
+                              : "text-zinc-400"
+                          }`}
                           title={
                             ev
-                              ? `${ev.title} · ${formatDateBR(ev.start_at)}`
+                              ? `${ev.title} · ${formatDateBR(ev.start_at)}${cell.counts ? "" : " · Facultativo"}`
                               : undefined
                           }
                         >
                           <span>{ev ? shortHeader(ev.start_at) : "—"}</span>
-                          <span
-                            className="h-1 w-1 shrink-0 rounded-full"
-                            style={{ backgroundColor: meta?.color ?? "#888" }}
-                          />
+                          {cell.counts ? (
+                            <span
+                              className="h-1 w-1 shrink-0 rounded-full"
+                              style={{ backgroundColor: meta?.color ?? "#888" }}
+                            />
+                          ) : (
+                            <Ban className="h-2.5 w-2.5 shrink-0" />
+                          )}
                         </Link>
                         <OverviewAttendanceCell
                           status={cell.status}
@@ -1099,6 +1117,10 @@ export function PresencasOverviewTab({
                 letter="—"
                 label="Não elegível"
               />
+              <span className="inline-flex items-center gap-1.5">
+                <Ban className="h-3 w-3 text-zinc-400" />
+                Facultativo
+              </span>
             </div>
           </div>
 
@@ -1113,11 +1135,16 @@ export function PresencasOverviewTab({
                     </th>
                     {semesterEvents.map((ev) => {
                       const meta = TYPE_META[ev.event_type as CalendarType];
+                      const counts = eventCountsForAttendance(ev);
                       return (
                         <th
                           key={ev.id}
-                          className="min-w-[3rem] px-0.5 py-3 text-center text-[10px] font-medium text-muted-foreground"
-                          title={`${ev.title} · ${formatDateBR(ev.start_at)} · ${meta?.label ?? ev.event_type}${ev.mandatory ? " · Obrigatório" : " · Facultativo"}`}
+                          className={`min-w-[3rem] px-0.5 py-3 text-center text-[10px] font-medium ${
+                            counts
+                              ? "text-muted-foreground"
+                              : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800/60"
+                          }`}
+                          title={`${ev.title} · ${formatDateBR(ev.start_at)} · ${meta?.label ?? ev.event_type}${counts ? " · Obrigatório" : " · Facultativo"}`}
                         >
                           <Link
                             to="/ongoing/$id"
@@ -1126,12 +1153,16 @@ export function PresencasOverviewTab({
                             className="inline-flex w-full flex-col items-center gap-0.5 hover:text-foreground"
                           >
                             <span>{shortHeader(ev.start_at)}</span>
-                            <span
-                              className="h-1 w-1 rounded-full"
-                              style={{
-                                backgroundColor: meta?.color ?? "#888",
-                              }}
-                            />
+                            {counts ? (
+                              <span
+                                className="h-1 w-1 rounded-full"
+                                style={{
+                                  backgroundColor: meta?.color ?? "#888",
+                                }}
+                              />
+                            ) : (
+                              <Ban className="h-3 w-3" />
+                            )}
                           </Link>
                         </th>
                       );
@@ -1164,7 +1195,11 @@ export function PresencasOverviewTab({
                         return (
                           <td
                             key={cell.eventId}
-                            className="px-0.5 py-2 text-center"
+                            className={`px-0.5 py-2 text-center ${
+                              cell.counts
+                                ? ""
+                                : "bg-zinc-100/80 dark:bg-zinc-800/40"
+                            }`}
                           >
                             <OverviewAttendanceCell
                               status={cell.status}
@@ -1208,6 +1243,10 @@ export function PresencasOverviewTab({
                 letter="—"
                 label="Não elegível"
               />
+              <span className="inline-flex items-center gap-1.5">
+                <Ban className="h-3 w-3 text-zinc-400" />
+                Facultativo
+              </span>
             </div>
           </Card>
         </>
@@ -1215,7 +1254,8 @@ export function PresencasOverviewTab({
 
       <p className="text-xs text-muted-foreground">
         Clique na célula para ciclar: Presente → Ausente → Pendente. Clique na
-        data para abrir a chamada. 1º semestre = jan–jun · 2º = jul–dez.
+        data para abrir a chamada. Colunas em cinza são facultativas e ficam
+        fora da porcentagem. 1º semestre = jan–jun · 2º = jul–dez.
       </p>
     </div>
   );

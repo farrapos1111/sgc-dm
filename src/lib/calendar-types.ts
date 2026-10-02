@@ -57,6 +57,13 @@ export function supportsAttendance(t: string): boolean {
   return !NO_ATTENDANCE_TYPES.includes(t as CalendarType);
 }
 
+/** Facultativo fica fora da porcentagem. A chamada P/A continua. */
+export function eventCountsForAttendance(event: {
+  mandatory?: boolean | null;
+}): boolean {
+  return event.mandatory !== false;
+}
+
 export type CalendarTypeLabels = Partial<Record<CalendarType, string>>;
 
 /** Lê overrides de rótulo em chapters.settings.calendar_type_labels. */

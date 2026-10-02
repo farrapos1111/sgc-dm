@@ -216,7 +216,6 @@ export const updateCalendarItem = createServerFn({ method: "POST" })
     return row;
   });
 
-
 export const deleteCalendarItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))

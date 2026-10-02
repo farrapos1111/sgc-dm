@@ -328,7 +328,7 @@ function PresencasFrequencyTab({
           <>
             Frequência ({rangeLabel}): apenas itens obrigatórios em que o membro
             era elegível (após a iniciação e até virar Senior no aniversário de
-            21 anos).
+            21 anos). Facultativos ficam registrados, mas fora da porcentagem.
           </>
         )}
       </p>

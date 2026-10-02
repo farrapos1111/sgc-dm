@@ -2380,7 +2380,7 @@ function CreateDialog({
 
           <span className="block text-[11px] text-muted-foreground">
 
-            Conta na frequência dos membros.
+            Conta na frequência dos membros. Desligado, a data é facultativa.
 
           </span>
 
