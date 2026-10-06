@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Check, Loader2, LogOut, Search } from "lucide-react";
+import { Banknote, Check, Loader2, LogOut, Receipt, Search } from "lucide-react";
 import { LobbyBackLink, usePublicLobby } from "@/context/PublicLobbyContext";
 import {
   getPublicMemberPortal,
@@ -15,13 +15,19 @@ import type {
   CadastroLookupMember,
 } from "@/lib/cadastro.functions";
 import { Field, GUARDIAN_RELATIONSHIPS } from "@/components/members/MemberFields";
-import { MONTH_SHORT, autoDueStatus, isFutureMonth } from "@/lib/dues-rules";
+import {
+  MONTH_SHORT,
+  autoDueExemptTip,
+  isDueOverdue,
+  isFutureMonth,
+} from "@/lib/dues-rules";
 import type { DueMemberLite } from "@/lib/dues-rules";
 import {
   digitsOnly,
   formatBRL,
   formatCpfMask,
   formatDateBR,
+  formatDateTimeBR,
   formatRgMask,
   isUnder21,
   kindLabel,
@@ -31,9 +37,11 @@ import {
 } from "@/lib/format";
 import { lookupCep, maskCepInput, createCepLookupSeq } from "@/lib/cep";
 import { typeLabel } from "@/lib/calendar-types";
+import { currentYearMonthInAppTz } from "@/lib/timezone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -229,12 +237,19 @@ function LobbyMemberPortalPage() {
   );
 }
 
+const DUE_STATUS_LABEL: Record<string, string> = {
+  em_aberto: "Em aberto",
+  pago: "Pago",
+  isento: "Isento",
+  desligado: "Desligado",
+};
+
 function MemberChargesTab({
   token: _token,
   demolayId: _demolayId,
   year,
   onYearChange,
-  accent,
+  accent: _accent,
   showMensalidades,
   portalData,
   isLoading,
@@ -265,6 +280,23 @@ function MemberChargesTab({
     return map;
   }, [data?.payments]);
 
+  const charges = useMemo(() => {
+    return (data?.charges ?? []).map((c) => {
+      const amount = Number(c.amount) || 0;
+      let amountPaid = paidByCharge.get(c.id) ?? 0;
+      if (amountPaid === 0 && c.status === "pago" && c.cash_entry_id) {
+        amountPaid = amount;
+      }
+      amountPaid = Math.min(amountPaid, amount);
+      return {
+        ...c,
+        amount,
+        amount_paid: amountPaid,
+        remaining: Math.max(0, amount - amountPaid),
+      };
+    });
+  }, [data?.charges, paidByCharge]);
+
   const parsedDefault = Number(data?.defaultAmount);
   const defaultAmount = Number.isFinite(parsedDefault) ? parsedDefault : 20;
 
@@ -279,14 +311,37 @@ function MemberChargesTab({
       }
     : null;
 
-  const charges = useMemo(() => {
-    const list = data?.charges ?? [];
-    // Maçom: só cobranças em aberto (não pagas)
-    if (data?.member.kind === "macom") {
-      return list.filter((c) => c.status !== "pago");
+  const summary = useMemo(() => {
+    const { year: appYear, month: appMonth } = currentYearMonthInAppTz();
+    let duesOpenAmount = 0;
+    let duesOpenCount = 0;
+    for (const d of data?.dues ?? []) {
+      if (d.status !== "em_aberto") continue;
+      if (
+        d.competence_year > appYear ||
+        (d.competence_year === appYear && d.competence_month > appMonth)
+      ) {
+        continue;
+      }
+      duesOpenCount += 1;
+      duesOpenAmount += Number(d.amount) || 0;
     }
-    return list;
-  }, [data?.charges, data?.member.kind]);
+    let chargesOpenAmount = 0;
+    let chargesOpenCount = 0;
+    for (const c of charges) {
+      if (c.status === "isento") continue;
+      if (c.remaining <= 0) continue;
+      chargesOpenCount += 1;
+      chargesOpenAmount += c.remaining;
+    }
+    return {
+      duesOpenCount,
+      duesOpenAmount,
+      chargesOpenCount,
+      chargesOpenAmount,
+      totalOpen: duesOpenAmount + chargesOpenAmount,
+    };
+  }, [charges, data?.dues]);
 
   if (error) {
     return (
@@ -298,11 +353,13 @@ function MemberChargesTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="font-medium">{data?.member.full_name ?? "…"}</p>
+          <p className="text-sm font-medium">Situação financeira</p>
           <p className="text-xs text-muted-foreground">
-            {data ? `${kindLabel(data.member.kind)} · ${statusLabel(data.member.status)}` : ""}
+            {data
+              ? `${data.member.full_name} · ${kindLabel(data.member.kind)} · ${statusLabel(data.member.status)}`
+              : "Mensalidades e cobranças deste membro"}
           </p>
         </div>
         <Select value={String(year)} onValueChange={(v) => onYearChange(Number(v))}>
@@ -325,124 +382,162 @@ function MemberChargesTab({
         </div>
       ) : (
         <>
-          {showMensalidades ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Card className="rounded-[12px] p-4">
-              <h3 className="mb-3 text-sm font-medium text-muted-foreground">
-                Mensalidades {year}
-              </h3>
-              <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
-                {Array.from({ length: 12 }, (_, i) => {
-                  const month = i + 1;
-                  const due = data?.dues.find((d) => d.competence_month === month);
-                  const rawStatus = due?.status ?? "em_aberto";
-                  const auto =
-                    memberLite && rawStatus === "em_aberto"
-                      ? autoDueStatus(memberLite, year, month)
-                      : rawStatus;
-                  const status =
-                    rawStatus === "pago" || rawStatus === "desligado"
-                      ? rawStatus
-                      : auto;
-                  const future =
-                    status === "em_aberto" && isFutureMonth(year, month);
-                  const amount =
-                    status === "pago" && due
-                      ? Number(due.amount)
-                      : defaultAmount;
-                  const showAmount =
-                    (status === "pago" || status === "em_aberto") &&
-                    !future &&
-                    amount > 0;
-                  return (
-                    <div
-                      key={month}
-                      className={`rounded-md px-1 py-2 text-center text-[10px] ${
-                        status === "pago"
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
-                          : status === "isento"
-                            ? "bg-[#c8e0f7] text-sky-900 dark:bg-[#c8e0f7]/25 dark:text-sky-200"
-                            : status === "desligado"
-                              ? "bg-[#d3d3d3] text-stone-700 dark:bg-[#d3d3d3]/30 dark:text-stone-200"
-                              : future
-                                ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-300"
-                                : "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
-                      }`}
-                    >
-                      <div className="opacity-70">{MONTH_SHORT[i]}</div>
-                      <div className="font-semibold uppercase">
-                        {status === "pago"
-                          ? "Pag"
-                          : status === "isento"
-                            ? "Ise"
-                            : status === "desligado"
-                              ? "Des"
-                              : future
-                                ? "Fut"
-                                : "Abe"}
-                      </div>
-                      {showAmount ? (
-                        <div className="mt-0.5 tabular-nums">
-                          {formatBRL(amount)}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
+              <div className="text-xs text-muted-foreground">Total em aberto</div>
+              <div
+                className={`mt-1 text-xl font-bold ${
+                  (showMensalidades
+                    ? summary.totalOpen
+                    : summary.chargesOpenAmount) > 0
+                    ? "text-amber-600"
+                    : "text-emerald-600"
+                }`}
+              >
+                {formatBRL(
+                  showMensalidades
+                    ? summary.totalOpen
+                    : summary.chargesOpenAmount,
+                )}
               </div>
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                Fut = competência futura · valor padrão {formatBRL(defaultAmount)}.
-                Sênior fica isento a partir do aniversário de 21 anos.
-              </p>
+            </Card>
+            <Card className="rounded-[12px] p-4">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Receipt className="h-3.5 w-3.5" /> Mensalidades
+              </div>
+              <div className="mt-1 text-lg font-semibold">
+                {formatBRL(showMensalidades ? summary.duesOpenAmount : 0)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {showMensalidades ? summary.duesOpenCount : 0} competência
+                {(showMensalidades ? summary.duesOpenCount : 0) === 1 ? "" : "s"}
+              </div>
+            </Card>
+            <Card className="rounded-[12px] p-4">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Banknote className="h-3.5 w-3.5" /> Cobranças
+              </div>
+              <div className="mt-1 text-lg font-semibold">
+                {formatBRL(summary.chargesOpenAmount)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {summary.chargesOpenCount} em aberto
+              </div>
+            </Card>
+          </div>
+
+          {showMensalidades ? (
+            <Card className="rounded-[12px] p-5">
+              <h3 className="mb-3 text-sm font-semibold">
+                Mensalidades · {year}
+                <span className="ml-2 font-normal text-muted-foreground">
+                  · padrão {formatBRL(defaultAmount)}
+                </span>
+              </h3>
+              {(data?.dues.length ?? 0) === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma competência registrada neste ano.
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                  {(data?.dues ?? []).map((d) => {
+                    const status = d.status;
+                    const future =
+                      status === "em_aberto" &&
+                      isFutureMonth(year, d.competence_month);
+                    const overdue =
+                      !future &&
+                      isDueOverdue(year, d.competence_month, status);
+                    const style = future
+                      ? "bg-zinc-100 text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
+                      : status === "pago"
+                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200"
+                        : status === "isento"
+                          ? "bg-slate-100 text-slate-600 dark:bg-slate-500/20 dark:text-slate-300"
+                          : status === "desligado"
+                            ? "bg-stone-200 text-stone-700 dark:bg-stone-500/20 dark:text-stone-300"
+                            : overdue
+                              ? "bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-200"
+                              : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200";
+                    const cellLabel = future
+                      ? "·"
+                      : overdue
+                        ? "Atrasado"
+                        : (DUE_STATUS_LABEL[status] ?? status);
+                    const exemptTip =
+                      status === "isento" && memberLite
+                        ? autoDueExemptTip(memberLite, year, d.competence_month)
+                        : null;
+                    return (
+                      <div
+                        key={d.id}
+                        title={exemptTip ?? undefined}
+                        className={`rounded-[8px] px-2 py-2 text-center ${style}`}
+                      >
+                        <div className="text-xs font-medium">
+                          {MONTH_SHORT[d.competence_month - 1] ??
+                            d.competence_month}
+                        </div>
+                        <div className="text-[11px] opacity-80">{cellLabel}</div>
+                        <div className="mt-0.5 text-xs font-semibold">
+                          {formatBRL(Number(d.amount))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
           ) : null}
 
-          <Card className="rounded-[12px] p-4">
-            <h3 className="mb-3 text-sm font-medium text-muted-foreground">
-              {data?.member.kind === "macom"
-                ? "Cobranças em aberto"
-                : "Cobranças avulsas"}
-            </h3>
+          <Card className="rounded-[12px] p-5">
+            <h3 className="mb-3 text-sm font-semibold">Cobranças</h3>
             {charges.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                {data?.member.kind === "macom"
-                  ? "Nenhuma cobrança em aberto."
-                  : "Nenhuma cobrança neste ano."}
+                Nenhuma cobrança atribuída a este membro.
               </p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="divide-y divide-border">
                 {charges.map((c) => {
-                  const paid = paidByCharge.get(c.id) ?? 0;
+                  const pct =
+                    c.amount > 0
+                      ? Math.min(100, Math.round((c.amount_paid / c.amount) * 100))
+                      : 0;
                   return (
                     <li
                       key={c.id}
-                      className="rounded-lg border border-border px-3 py-2 text-sm"
+                      className="space-y-1.5 py-3 first:pt-0 last:pb-0"
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="font-medium">{c.description}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <div className="truncate text-sm font-medium">
+                            {c.description}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
                             {c.category} · venc. {formatDateBR(c.due_date)}
-                          </p>
+                          </div>
                         </div>
-                        <Badge
-                          variant="outline"
-                          style={
-                            c.status === "pago"
-                              ? { borderColor: accent, color: accent }
-                              : undefined
-                          }
-                        >
-                          {c.status}
+                        <Badge variant="secondary">
+                          {c.remaining <= 0 || c.status === "pago"
+                            ? "Quitada"
+                            : c.amount_paid > 0
+                              ? "Parcial"
+                              : (DUE_STATUS_LABEL[c.status] ?? c.status)}
                         </Badge>
                       </div>
-                      <div className="mt-1 flex justify-between text-xs tabular-nums">
-                        <span>{formatBRL(Number(c.amount))}</span>
-                        {paid > 0 ? (
-                          <span className="text-muted-foreground">
-                            pago {formatBRL(paid)}
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {formatBRL(c.amount_paid)} de {formatBRL(c.amount)}
+                        </span>
+                        {c.remaining > 0 && c.status !== "isento" ? (
+                          <span className="font-medium text-amber-700 dark:text-amber-400">
+                            resta {formatBRL(c.remaining)}
                           </span>
                         ) : null}
                       </div>
+                      {c.status !== "isento" ? (
+                        <Progress value={pct} className="h-1.5" />
+                      ) : null}
                     </li>
                   );
                 })}
@@ -484,25 +579,27 @@ function MemberFrequencyTab({
   }, [data?.attendance]);
 
   const events = useMemo(
-    () => [...(data?.events ?? [])].sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
+    () => [...(data?.events ?? [])].sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
     [data?.events],
+  );
+
+  const recorded = useMemo(
+    () => events.filter((ev) => statusByEvent.has(ev.id)),
+    [events, statusByEvent],
   );
 
   const stats = useMemo(() => {
     let present = 0;
-    let absent = 0;
-    for (const ev of events) {
-      const s = statusByEvent.get(ev.id);
-      if (s === "presente") present += 1;
-      else if (s === "ausente") absent += 1;
+    for (const ev of recorded) {
+      if (statusByEvent.get(ev.id) === "presente") present += 1;
     }
-    const total = present + absent;
+    const total = recorded.length;
     return {
       present,
-      absent,
+      total,
       pct: total ? Math.round((present / total) * 100) : null,
     };
-  }, [events, statusByEvent]);
+  }, [recorded, statusByEvent]);
 
   if (error) {
     return (
@@ -536,62 +633,71 @@ function MemberFrequencyTab({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-2">
-            <Card className="rounded-[12px] p-3 text-center">
-              <div className="text-xs text-muted-foreground">Presenças</div>
-              <div className="text-lg font-bold text-emerald-600">{stats.present}</div>
-            </Card>
-            <Card className="rounded-[12px] p-3 text-center">
-              <div className="text-xs text-muted-foreground">Ausências</div>
-              <div className="text-lg font-bold text-rose-600">{stats.absent}</div>
-            </Card>
-            <Card className="rounded-[12px] p-3 text-center">
-              <div className="text-xs text-muted-foreground">Frequência</div>
-              <div className="text-lg font-bold">
+          <Card className="rounded-[12px] p-5">
+            <div className="text-sm font-medium text-muted-foreground">
+              Frequência em itens obrigatórios
+            </div>
+            <div className="mt-2 flex items-baseline gap-3">
+              <span
+                className="text-3xl font-bold"
+                style={{
+                  color:
+                    stats.pct === null
+                      ? "var(--muted-foreground)"
+                      : stats.pct >= 75
+                        ? "#047857"
+                        : "#B91C1C",
+                }}
+              >
                 {stats.pct == null ? "—" : `${stats.pct}%`}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                {stats.present} de {stats.total} contabilizáveis
+              </span>
+            </div>
+          </Card>
+          <Card className="rounded-[12px] p-0">
+            {recorded.length === 0 ? (
+              <div className="p-5 text-sm text-muted-foreground">
+                Nenhum registro de presença neste ano.
               </div>
-            </Card>
-          </div>
-
-          {events.length === 0 ? (
-            <Card className="p-6 text-center text-sm text-muted-foreground">
-              Nenhum evento obrigatório neste ano.
-            </Card>
-          ) : (
-            <ul className="space-y-2">
-              {events.map((ev) => {
-                const status = statusByEvent.get(ev.id);
-                return (
-                  <li
-                    key={ev.id}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{ev.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDateBR(ev.starts_at)} · {typeLabel(ev.event_type)}
-                      </p>
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-semibold uppercase ${
-                        status === "presente"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : status === "ausente"
-                            ? "bg-rose-100 text-rose-800"
-                            : "bg-zinc-100 text-zinc-500"
-                      }`}
-                    >
-                      {status === "presente"
-                        ? "Presente"
-                        : status === "ausente"
-                          ? "Ausente"
-                          : "Sem registro"}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+            ) : (
+              <ul className="divide-y divide-border">
+                {recorded.map((ev) => {
+                  const status = statusByEvent.get(ev.id);
+                  return (
+                    <li key={ev.id} className="p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium">{ev.title}</span>
+                        <Badge variant="secondary">{typeLabel(ev.event_type)}</Badge>
+                        <Badge variant="default">Contabilizável</Badge>
+                        <span
+                          className="ml-auto text-xs font-semibold"
+                          style={{
+                            color:
+                              status === "presente"
+                                ? "#047857"
+                                : status === "pendente"
+                                  ? "#D97706"
+                                  : "#B91C1C",
+                          }}
+                        >
+                          {status === "presente"
+                            ? "Presente"
+                            : status === "pendente"
+                              ? "Pendente"
+                              : "Ausente"}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {formatDateTimeBR(ev.starts_at)}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
         </>
       )}
     </div>

@@ -345,7 +345,9 @@ export function PublicMensalidadesView({
                 <div className="text-xl font-bold text-amber-600 dark:text-amber-400">{formatBRL(totals.openAmount)}</div>
               </Card>
               <Card className="rounded-[12px] p-5">
-                <div className="text-sm text-muted-foreground">Atrasado</div>
+                <div className="text-sm text-muted-foreground">
+                  Atrasado (após dia 15)
+                </div>
                 <div className="text-xl font-bold text-rose-600 dark:text-rose-400">{formatBRL(totals.overdue)}</div>
               </Card>
             </div>

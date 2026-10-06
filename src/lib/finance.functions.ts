@@ -2183,7 +2183,7 @@ export const listMemberCharges = createServerFn({ method: "POST" })
       let query = context.supabase
         .from("member_charges")
         .select(
-          "id, member_id, kind, category, subcategory, description, amount, due_date, status, paid_at, cash_entry_id, notes, created_at, members(full_name)",
+          "id, member_id, kind, category, subcategory, description, amount, due_date, status, paid_at, cash_entry_id, notes, created_at, members(full_name, phone, email, status, kind, birth_date, iniciacao_ordem)",
         )
         .eq("chapter_id", data.chapterId)
         .order("due_date", { ascending: false })
@@ -2248,9 +2248,24 @@ export const listMemberCharges = createServerFn({ method: "POST" })
       if (amountPaid === 0 && r.status === "pago" && r.cash_entry_id) {
         amountPaid = amount;
       }
+      const linked = r.members as {
+        full_name?: string | null;
+        phone?: string | null;
+        email?: string | null;
+        status?: string | null;
+        kind?: string | null;
+        birth_date?: string | null;
+        iniciacao_ordem?: string | null;
+      } | null;
       return {
         ...r,
-        member_name: r.members?.full_name ?? "",
+        member_name: linked?.full_name ?? "",
+        member_phone: linked?.phone ?? null,
+        member_email: linked?.email ?? null,
+        member_status: linked?.status ?? null,
+        member_kind: linked?.kind ?? null,
+        member_birth_date: linked?.birth_date ?? null,
+        member_iniciacao_ordem: linked?.iniciacao_ordem ?? null,
         members: undefined,
         amount_paid: Math.min(amountPaid, amount),
       };

@@ -107,6 +107,7 @@ export type PublicMemberPortal = {
     paid_at: string | null;
     category: string;
     kind: string;
+    cash_entry_id?: string | null;
   }>;
   payments: Array<{
     id: string;

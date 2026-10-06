@@ -7,7 +7,9 @@ import {
   FileText,
   Landmark,
   Loader2,
+  Search,
   TrendingDown,
+  X,
   TrendingUp,
   Wallet,
 } from "lucide-react";
@@ -17,6 +19,7 @@ import { exportCashXlsx } from "@/lib/finance-xlsx";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { centsToMoney, moneyCents, roundCashTotals, sumCashByKind } from "@/lib/cash-totals";
 import {
@@ -78,6 +81,7 @@ export function PublicCashFlowView({
   const [exportingPdf, setExportingPdf] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
 
   const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ["public-cash-flow", token, year, month],
@@ -119,14 +123,32 @@ export function PublicCashFlowView({
   }, [entries, selectedCategories]);
 
   const filteredEntries = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return entries.filter((e) => {
       if (selectedCategories.length && !selectedCategories.includes(e.category)) return false;
       if (selectedSubcategories.length) {
         if (!e.subcategory || !selectedSubcategories.includes(e.subcategory)) return false;
       }
+      if (q) {
+        const hay = [
+          e.description,
+          e.category,
+          e.subcategory,
+          e.kind,
+          e.kind === "entrada" ? "entrada" : "saída saida",
+          formatBRL(Number(e.amount)),
+          String(e.amount),
+          e.entry_date,
+          formatDateBR(e.entry_date),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
-  }, [entries, selectedCategories, selectedSubcategories]);
+  }, [entries, selectedCategories, selectedSubcategories, search]);
 
   useEffect(() => {
     if (!selectedSubcategories.length) return;
@@ -146,7 +168,9 @@ export function PublicCashFlowView({
   }
 
   const hasClientFilters =
-    selectedCategories.length > 0 || selectedSubcategories.length > 0;
+    selectedCategories.length > 0 ||
+    selectedSubcategories.length > 0 ||
+    search.trim().length > 0;
   const usingServerPeriodTotals =
     !hasClientFilters && Boolean(data?.entries_truncated) && Boolean(data?.totals);
 
@@ -349,6 +373,25 @@ export function PublicCashFlowView({
         }
       >
         <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-8 pr-8"
+              placeholder="Buscar descrição, categoria…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search ? (
+              <button
+                type="button"
+                aria-label="Limpar busca"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                onClick={() => setSearch("")}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
           {data?.entries_truncated ? (
             <p className="w-full text-xs text-amber-700 dark:text-amber-300">
               Exibindo os {entries.length} lançamentos mais recentes de{" "}

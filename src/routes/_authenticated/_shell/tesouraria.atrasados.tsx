@@ -301,16 +301,28 @@ function Atrasados() {
 
     // Membros só com cobrança (fora da tabela de mensalidades do ano).
     for (const [memberId, openCharges] of openChargesByMember) {
-      if (byId.has(memberId)) continue;
       const sample = charges.find((c) => c.member_id === memberId);
+      const existing = byId.get(memberId);
+      if (existing) {
+        const phone = existing.member.phone?.trim() || sample?.member_phone || null;
+        const email = existing.member.email?.trim() || sample?.member_email || null;
+        if (phone !== existing.member.phone || email !== existing.member.email) {
+          byId.set(memberId, {
+            ...existing,
+            member: { ...existing.member, phone, email },
+          });
+        }
+        continue;
+      }
       const member: DueMemberLite = {
         id: memberId,
         full_name: sample?.member_name || "Membro",
-        status: "regular",
-        kind: "ativo",
-        birth_date: null,
-        iniciacao_ordem: null,
-        phone: null,
+        status: sample?.member_status || "regular",
+        kind: sample?.member_kind || "senior",
+        birth_date: sample?.member_birth_date ?? null,
+        iniciacao_ordem: sample?.member_iniciacao_ordem ?? null,
+        phone: sample?.member_phone ?? null,
+        email: sample?.member_email ?? null,
       };
       const summary = classifyOpenMonthsForMember(
         memberId,
