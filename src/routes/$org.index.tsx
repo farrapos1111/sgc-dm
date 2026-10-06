@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+  Briefcase,
   CalendarCheck,
+  CalendarDays,
   ClipboardList,
   IdCard,
   Receipt,
@@ -48,6 +50,20 @@ function PublicOrgIndex() {
           hint: "Visão geral das chamadas",
           icon: CalendarCheck,
           show: sections?.frequencia !== false,
+        },
+        {
+          to: "/$org/calendario" as const,
+          label: "Calendário",
+          hint: "Sessões, eventos e filantropia",
+          icon: CalendarDays,
+          show: sections?.calendario !== false,
+        },
+        {
+          to: "/$org/nominata" as const,
+          label: "Nominata",
+          hint: "Cargos da vigência",
+          icon: Briefcase,
+          show: sections?.nominata !== false,
         },
       ].filter((item) => item.show),
     [chapter.dues_enabled, sections],

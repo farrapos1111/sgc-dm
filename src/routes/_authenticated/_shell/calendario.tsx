@@ -124,7 +124,7 @@ export const Route = createFileRoute("/_authenticated/_shell/calendario")({
   component: CalendarioPage,
 });
 
-type CalendarItem = {
+export type CalendarItem = {
   id: string;
   chapter_id: string;
   title: string;
@@ -147,7 +147,7 @@ type CalendarItem = {
 };
 
 /** Interseção do evento com o intervalo YYYY-MM-DD da busca. */
-function eventIntersectsSearchRange(
+export function eventIntersectsSearchRange(
   it: { start_at: string; end_at: string | null },
   fromYmd: string | null,
   toYmd: string | null,
@@ -184,7 +184,7 @@ const itemsQO = (
     enabled: chapterIds.length > 0,
   });
 
-function yearBoundsIso(year: number) {
+export function yearBoundsIso(year: number) {
   return {
     from: new Date(year, 0, 1, 0, 0, 0, 0).toISOString(),
     to: new Date(year, 11, 31, 23, 59, 59, 999).toISOString(),
@@ -219,7 +219,7 @@ function itemDayKeys(it: {
   return keys.length ? keys : [startKey];
 }
 
-function occursOnDay(
+export function occursOnDay(
   it: { start_at: string; end_at: string | null },
   key: string,
 ) {
@@ -822,7 +822,7 @@ function CalendarioPage() {
   );
 }
 
-function MandatoryDatesBanner({
+export function MandatoryDatesBanner({
   items,
 }: {
   items: { id: string; title: string; prazo_label: string }[];
@@ -857,7 +857,7 @@ function MandatoryDatesBanner({
   );
 }
 
-function MonthView({
+export function MonthView({
   cursor,
   setCursor,
   items,
@@ -1021,7 +1021,7 @@ function MonthView({
   );
 }
 
-function AgendaView({
+export function AgendaView({
   items,
   typeLabels,
   onSelect,

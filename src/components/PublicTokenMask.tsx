@@ -50,6 +50,12 @@ export function PublicTokenMask({
   if (section === "frequencia") {
     return <Navigate to="/$org/frequencia" params={{ org: data.slug }} replace />;
   }
+  if (section === "calendario") {
+    return <Navigate to="/$org/calendario" params={{ org: data.slug }} replace />;
+  }
+  if (section === "nominata") {
+    return <Navigate to="/$org/nominata" params={{ org: data.slug }} replace />;
+  }
   return <Navigate to="/$org/perfil" params={{ org: data.slug }} replace />;
 }
 

@@ -26,7 +26,9 @@ function sectionFromPath(pathname: string, org: string) {
     rest === "fluxo" ||
     rest === "mensalidades" ||
     rest === "frequencia" ||
-    rest === "perfil"
+    rest === "perfil" ||
+    rest === "calendario" ||
+    rest === "nominata"
   ) {
     return rest;
   }
@@ -47,7 +49,11 @@ function PublicOrgLayout() {
   const chapter = data?.chapter;
   const accent = chapter?.primary_color || "#9E1B32";
   const theme = resolveChapterTheme(null, accent);
-  const bare = section === "fluxo" || section === "mensalidades";
+  const bare =
+    section === "fluxo" ||
+    section === "mensalidades" ||
+    section === "calendario" ||
+    section === "nominata";
 
   useEffect(() => {
     if (!chapter) return;

@@ -16,9 +16,11 @@ import { Route as AtualizarCadastroRouteImport } from './routes/atualizar-cadast
 import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as DocumentacaoRouteRouteImport } from './routes/documentacao/route'
 import { Route as OrgIndexRouteImport } from './routes/$org.index'
+import { Route as OrgCalendarioRouteImport } from './routes/$org.calendario'
 import { Route as OrgFluxoRouteImport } from './routes/$org.fluxo'
 import { Route as OrgFrequenciaRouteImport } from './routes/$org.frequencia'
 import { Route as OrgMensalidadesRouteImport } from './routes/$org.mensalidades'
+import { Route as OrgNominataRouteImport } from './routes/$org.nominata'
 import { Route as OrgPerfilRouteImport } from './routes/$org.perfil'
 import { Route as AuthenticatedShellRouteRouteImport } from './routes/_authenticated/_shell/route'
 import { Route as AuthenticatedSelecionarCapituloRouteImport } from './routes/_authenticated/selecionar-capitulo'
@@ -123,6 +125,11 @@ const OrgIndexRoute = OrgIndexRouteImport.update({
   path: '/',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgCalendarioRoute = OrgCalendarioRouteImport.update({
+  id: '/calendario',
+  path: '/calendario',
+  getParentRoute: () => OrgRoute,
+} as any)
 const OrgFluxoRoute = OrgFluxoRouteImport.update({
   id: '/fluxo',
   path: '/fluxo',
@@ -136,6 +143,11 @@ const OrgFrequenciaRoute = OrgFrequenciaRouteImport.update({
 const OrgMensalidadesRoute = OrgMensalidadesRouteImport.update({
   id: '/mensalidades',
   path: '/mensalidades',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgNominataRoute = OrgNominataRouteImport.update({
+  id: '/nominata',
+  path: '/nominata',
   getParentRoute: () => OrgRoute,
 } as any)
 const OrgPerfilRoute = OrgPerfilRouteImport.update({
@@ -534,9 +546,11 @@ export interface FileRoutesByFullPath {
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
   '/$org': typeof OrgRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
+  '/$org/calendario': typeof OrgCalendarioRoute
   '/$org/fluxo': typeof OrgFluxoRoute
   '/$org/frequencia': typeof OrgFrequenciaRoute
   '/$org/mensalidades': typeof OrgMensalidadesRoute
+  '/$org/nominata': typeof OrgNominataRoute
   '/$org/perfil': typeof OrgPerfilRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
@@ -610,9 +624,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
+  '/$org/calendario': typeof OrgCalendarioRoute
   '/$org/fluxo': typeof OrgFluxoRoute
   '/$org/frequencia': typeof OrgFrequenciaRoute
   '/$org/mensalidades': typeof OrgMensalidadesRoute
+  '/$org/nominata': typeof OrgNominataRoute
   '/$org/perfil': typeof OrgPerfilRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
@@ -691,9 +707,11 @@ export interface FileRoutesById {
   '/$org': typeof OrgRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
   '/_authenticated/_shell': typeof AuthenticatedShellRouteRouteWithChildren
+  '/$org/calendario': typeof OrgCalendarioRoute
   '/$org/fluxo': typeof OrgFluxoRoute
   '/$org/frequencia': typeof OrgFrequenciaRoute
   '/$org/mensalidades': typeof OrgMensalidadesRoute
+  '/$org/nominata': typeof OrgNominataRoute
   '/$org/perfil': typeof OrgPerfilRoute
   '/_authenticated/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
@@ -772,9 +790,11 @@ export interface FileRouteTypes {
     | '/documentacao'
     | '/$org'
     | '/atualizar-cadastro'
+    | '/$org/calendario'
     | '/$org/fluxo'
     | '/$org/frequencia'
     | '/$org/mensalidades'
+    | '/$org/nominata'
     | '/$org/perfil'
     | '/selecionar-capitulo'
     | '/ata/$token'
@@ -848,9 +868,11 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/atualizar-cadastro'
+    | '/$org/calendario'
     | '/$org/fluxo'
     | '/$org/frequencia'
     | '/$org/mensalidades'
+    | '/$org/nominata'
     | '/$org/perfil'
     | '/selecionar-capitulo'
     | '/ata/$token'
@@ -928,9 +950,11 @@ export interface FileRouteTypes {
     | '/$org'
     | '/atualizar-cadastro'
     | '/_authenticated/_shell'
+    | '/$org/calendario'
     | '/$org/fluxo'
     | '/$org/frequencia'
     | '/$org/mensalidades'
+    | '/$org/nominata'
     | '/$org/perfil'
     | '/_authenticated/selecionar-capitulo'
     | '/ata/$token'
@@ -1068,6 +1092,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgIndexRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/calendario': {
+      id: '/$org/calendario'
+      path: '/calendario'
+      fullPath: '/$org/calendario'
+      preLoaderRoute: typeof OrgCalendarioRouteImport
+      parentRoute: typeof OrgRoute
+    }
     '/$org/fluxo': {
       id: '/$org/fluxo'
       path: '/fluxo'
@@ -1087,6 +1118,13 @@ declare module '@tanstack/react-router' {
       path: '/mensalidades'
       fullPath: '/$org/mensalidades'
       preLoaderRoute: typeof OrgMensalidadesRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/nominata': {
+      id: '/$org/nominata'
+      path: '/nominata'
+      fullPath: '/$org/nominata'
+      preLoaderRoute: typeof OrgNominataRouteImport
       parentRoute: typeof OrgRoute
     }
     '/$org/perfil': {
@@ -1754,17 +1792,21 @@ const DocumentacaoRouteRouteWithChildren =
   DocumentacaoRouteRoute._addFileChildren(DocumentacaoRouteRouteChildren)
 
 interface OrgRouteChildren {
+  OrgCalendarioRoute: typeof OrgCalendarioRoute
   OrgFluxoRoute: typeof OrgFluxoRoute
   OrgFrequenciaRoute: typeof OrgFrequenciaRoute
   OrgMensalidadesRoute: typeof OrgMensalidadesRoute
+  OrgNominataRoute: typeof OrgNominataRoute
   OrgPerfilRoute: typeof OrgPerfilRoute
   OrgIndexRoute: typeof OrgIndexRoute
 }
 
 const OrgRouteChildren: OrgRouteChildren = {
+  OrgCalendarioRoute: OrgCalendarioRoute,
   OrgFluxoRoute: OrgFluxoRoute,
   OrgFrequenciaRoute: OrgFrequenciaRoute,
   OrgMensalidadesRoute: OrgMensalidadesRoute,
+  OrgNominataRoute: OrgNominataRoute,
   OrgPerfilRoute: OrgPerfilRoute,
   OrgIndexRoute: OrgIndexRoute,
 }

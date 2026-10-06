@@ -11,6 +11,8 @@ export const PUBLIC_ORG_SECTIONS = [
   "mensalidades",
   "frequencia",
   "perfil",
+  "calendario",
+  "nominata",
 ] as const;
 
 export type PublicOrgSection = (typeof PUBLIC_ORG_SECTIONS)[number];
