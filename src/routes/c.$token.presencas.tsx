@@ -59,7 +59,7 @@ function attendanceCellLetter(status: string) {
   return "—";
 }
 
-function LobbyPresencasPage() {
+export function LobbyPresencasPage() {
   const { token } = usePublicLobby();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());

@@ -3,6 +3,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useMemo, useState } from "react";
 import { Loader2, Receipt, Search, X } from "lucide-react";
 import { getPublicYearDues } from "@/lib/dues-share.functions";
+import { PublicTokenMask } from "@/components/PublicTokenMask";
 import {
   isDueOverdue,
   MONTH_LONG,
@@ -36,7 +37,12 @@ export const Route = createFileRoute("/mensalidades/$token")({
   }),
   component: function PublicMensalidadesRoute() {
     const { token } = Route.useParams();
-    return <PublicMensalidadesView token={token} variant="standalone" />;
+    return (
+      <>
+        <PublicTokenMask token={token} section="mensalidades" />
+        <PublicMensalidadesView token={token} variant="standalone" />
+      </>
+    );
   },
 });
 

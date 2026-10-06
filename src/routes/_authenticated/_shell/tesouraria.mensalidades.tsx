@@ -69,6 +69,10 @@ import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { chapterFoundedAt } from "@/lib/terms";
 import { formatBRL, kindLabel, statusLabel } from "@/lib/format";
+import {
+  publicOrgHref,
+  useChapterPublicSlug,
+} from "@/lib/org-public-path.functions";
 import { todayYmd } from "@/lib/timezone";
 import {
   bulkYearDuesAction,
@@ -415,6 +419,7 @@ function Mensalidades() {
   }, [active?.chapter]);
 
   const chapterId = active?.chapter_id;
+  const { data: publicSlug } = useChapterPublicSlug(chapterId);
 
   useEffect(() => {
     ensuredYears.current.clear();
@@ -808,9 +813,12 @@ function Mensalidades() {
     }
   }
 
-  const shareUrl = shareToken
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/mensalidades/${shareToken}`
-    : "";
+  const shareUrl =
+    shareToken && publicSlug?.slug
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}${publicOrgHref(publicSlug.slug, "mensalidades")}`
+      : shareToken
+        ? `${typeof window !== "undefined" ? window.location.origin : ""}/mensalidades/${shareToken}`
+        : "";
 
   const {
     data: includeData,

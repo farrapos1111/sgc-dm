@@ -14,6 +14,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { getPublicCashFlow, type PublicCashEntry } from "@/lib/cash-share.functions";
+import { PublicTokenMask } from "@/components/PublicTokenMask";
 import { exportCashPdf } from "@/lib/finance-pdf";
 import { exportCashXlsx } from "@/lib/finance-xlsx";
 import { formatBRL, formatDateBR } from "@/lib/format";
@@ -52,7 +53,12 @@ export const Route = createFileRoute("/fluxo-caixa/$token")({
   }),
   component: function PublicCashFlowRoute() {
     const { token } = Route.useParams();
-    return <PublicCashFlowView token={token} variant="standalone" />;
+    return (
+      <>
+        <PublicTokenMask token={token} section="fluxo" />
+        <PublicCashFlowView token={token} variant="standalone" />
+      </>
+    );
   },
 });
 

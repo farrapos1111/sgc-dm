@@ -45,6 +45,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
+import {
+  publicOrgHref,
+  useChapterPublicSlug,
+} from "@/lib/org-public-path.functions";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
@@ -180,6 +184,7 @@ function formFromCashEntry(e: {
 
 function FluxoCaixa() {
   const { active } = useActiveChapter();
+  const { data: publicSlug } = useChapterPublicSlug(active?.chapter_id);
   const { can, canScreen } = useChapterAccess();
   const qc = useQueryClient();
   const { confirm, dialog } = useConfirmDialog();
@@ -719,9 +724,12 @@ function FluxoCaixa() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao gerar PDF"),
   });
 
-  const shareUrl = shareToken
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/fluxo-caixa/${shareToken}`
-    : "";
+  const shareUrl =
+    shareToken && publicSlug?.slug
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}${publicOrgHref(publicSlug.slug, "fluxo")}`
+      : shareToken
+        ? `${typeof window !== "undefined" ? window.location.origin : ""}/fluxo-caixa/${shareToken}`
+        : "";
 
   const openShare = useMutation({
     mutationFn: async () => {

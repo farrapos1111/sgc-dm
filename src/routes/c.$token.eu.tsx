@@ -71,7 +71,7 @@ type EditableGuardian = {
   cpf_last2: string | null;
 };
 
-function LobbyMemberPortalPage() {
+export function LobbyMemberPortalPage() {
   const { token, chapter } = usePublicLobby();
   const qc = useQueryClient();
   const accent = chapter.primary_color || "#9E1B32";

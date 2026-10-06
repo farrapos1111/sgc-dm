@@ -10,10 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OrgRouteImport } from './routes/$org'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AtualizarCadastroRouteImport } from './routes/atualizar-cadastro'
 import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as DocumentacaoRouteRouteImport } from './routes/documentacao/route'
+import { Route as OrgIndexRouteImport } from './routes/$org.index'
+import { Route as OrgFluxoRouteImport } from './routes/$org.fluxo'
+import { Route as OrgFrequenciaRouteImport } from './routes/$org.frequencia'
+import { Route as OrgMensalidadesRouteImport } from './routes/$org.mensalidades'
+import { Route as OrgPerfilRouteImport } from './routes/$org.perfil'
 import { Route as AuthenticatedShellRouteRouteImport } from './routes/_authenticated/_shell/route'
 import { Route as AuthenticatedSelecionarCapituloRouteImport } from './routes/_authenticated/selecionar-capitulo'
 import { Route as AtaTokenRouteImport } from './routes/ata.$token'
@@ -88,6 +94,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgRoute = OrgRouteImport.update({
+  id: '/$org',
+  path: '/$org',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
@@ -106,6 +117,31 @@ const DocumentacaoRouteRoute = DocumentacaoRouteRouteImport.update({
   id: '/documentacao',
   path: '/documentacao',
   getParentRoute: () => rootRouteImport,
+} as any)
+const OrgIndexRoute = OrgIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgFluxoRoute = OrgFluxoRouteImport.update({
+  id: '/fluxo',
+  path: '/fluxo',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgFrequenciaRoute = OrgFrequenciaRouteImport.update({
+  id: '/frequencia',
+  path: '/frequencia',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgMensalidadesRoute = OrgMensalidadesRouteImport.update({
+  id: '/mensalidades',
+  path: '/mensalidades',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgPerfilRoute = OrgPerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => OrgRoute,
 } as any)
 const AuthenticatedShellRouteRoute = AuthenticatedShellRouteRouteImport.update({
   id: '/_shell',
@@ -496,7 +532,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
+  '/$org': typeof OrgRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
+  '/$org/fluxo': typeof OrgFluxoRoute
+  '/$org/frequencia': typeof OrgFrequenciaRoute
+  '/$org/mensalidades': typeof OrgMensalidadesRoute
+  '/$org/perfil': typeof OrgPerfilRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
   '/auth/adicionar-organizacao': typeof AuthAdicionarOrganizacaoRoute
@@ -512,6 +553,7 @@ export interface FileRoutesByFullPath {
   '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
   '/sindicancia/$token': typeof SindicanciaTokenRoute
+  '/$org/': typeof OrgIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/documentacao/': typeof DocumentacaoIndexRoute
   '/atas': typeof AuthenticatedShellAtasRoute
@@ -568,6 +610,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
+  '/$org/fluxo': typeof OrgFluxoRoute
+  '/$org/frequencia': typeof OrgFrequenciaRoute
+  '/$org/mensalidades': typeof OrgMensalidadesRoute
+  '/$org/perfil': typeof OrgPerfilRoute
   '/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
   '/auth/adicionar-organizacao': typeof AuthAdicionarOrganizacaoRoute
@@ -582,6 +628,7 @@ export interface FileRoutesByTo {
   '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
   '/sindicancia/$token': typeof SindicanciaTokenRoute
+  '/$org': typeof OrgIndexRoute
   '/auth': typeof AuthIndexRoute
   '/documentacao': typeof DocumentacaoIndexRoute
   '/atas': typeof AuthenticatedShellAtasRoute
@@ -641,8 +688,13 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRouteRouteWithChildren
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
+  '/$org': typeof OrgRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
   '/_authenticated/_shell': typeof AuthenticatedShellRouteRouteWithChildren
+  '/$org/fluxo': typeof OrgFluxoRoute
+  '/$org/frequencia': typeof OrgFrequenciaRoute
+  '/$org/mensalidades': typeof OrgMensalidadesRoute
+  '/$org/perfil': typeof OrgPerfilRoute
   '/_authenticated/selecionar-capitulo': typeof AuthenticatedSelecionarCapituloRoute
   '/ata/$token': typeof AtaTokenRoute
   '/auth/adicionar-organizacao': typeof AuthAdicionarOrganizacaoRoute
@@ -658,6 +710,7 @@ export interface FileRoutesById {
   '/fluxo-caixa/$token': typeof FluxoCaixaTokenRoute
   '/mensalidades/$token': typeof MensalidadesTokenRoute
   '/sindicancia/$token': typeof SindicanciaTokenRoute
+  '/$org/': typeof OrgIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/documentacao/': typeof DocumentacaoIndexRoute
   '/_authenticated/_shell/atas': typeof AuthenticatedShellAtasRoute
@@ -717,7 +770,12 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/documentacao'
+    | '/$org'
     | '/atualizar-cadastro'
+    | '/$org/fluxo'
+    | '/$org/frequencia'
+    | '/$org/mensalidades'
+    | '/$org/perfil'
     | '/selecionar-capitulo'
     | '/ata/$token'
     | '/auth/adicionar-organizacao'
@@ -733,6 +791,7 @@ export interface FileRouteTypes {
     | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
     | '/sindicancia/$token'
+    | '/$org/'
     | '/auth/'
     | '/documentacao/'
     | '/atas'
@@ -789,6 +848,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/atualizar-cadastro'
+    | '/$org/fluxo'
+    | '/$org/frequencia'
+    | '/$org/mensalidades'
+    | '/$org/perfil'
     | '/selecionar-capitulo'
     | '/ata/$token'
     | '/auth/adicionar-organizacao'
@@ -803,6 +866,7 @@ export interface FileRouteTypes {
     | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
     | '/sindicancia/$token'
+    | '/$org'
     | '/auth'
     | '/documentacao'
     | '/atas'
@@ -861,8 +925,13 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/documentacao'
+    | '/$org'
     | '/atualizar-cadastro'
     | '/_authenticated/_shell'
+    | '/$org/fluxo'
+    | '/$org/frequencia'
+    | '/$org/mensalidades'
+    | '/$org/perfil'
     | '/_authenticated/selecionar-capitulo'
     | '/ata/$token'
     | '/auth/adicionar-organizacao'
@@ -878,6 +947,7 @@ export interface FileRouteTypes {
     | '/fluxo-caixa/$token'
     | '/mensalidades/$token'
     | '/sindicancia/$token'
+    | '/$org/'
     | '/auth/'
     | '/documentacao/'
     | '/_authenticated/_shell/atas'
@@ -937,6 +1007,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRouteRoute: typeof AuthRouteRouteWithChildren
   DocumentacaoRouteRoute: typeof DocumentacaoRouteRouteWithChildren
+  OrgRoute: typeof OrgRouteWithChildren
   AtualizarCadastroRoute: typeof AtualizarCadastroRoute
   AtaTokenRoute: typeof AtaTokenRoute
   CTokenRoute: typeof CTokenRouteWithChildren
@@ -953,6 +1024,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$org': {
+      id: '/$org'
+      path: '/$org'
+      fullPath: '/$org'
+      preLoaderRoute: typeof OrgRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -982,6 +1060,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/documentacao'
       preLoaderRoute: typeof DocumentacaoRouteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/$org/': {
+      id: '/$org/'
+      path: '/'
+      fullPath: '/$org/'
+      preLoaderRoute: typeof OrgIndexRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/fluxo': {
+      id: '/$org/fluxo'
+      path: '/fluxo'
+      fullPath: '/$org/fluxo'
+      preLoaderRoute: typeof OrgFluxoRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/frequencia': {
+      id: '/$org/frequencia'
+      path: '/frequencia'
+      fullPath: '/$org/frequencia'
+      preLoaderRoute: typeof OrgFrequenciaRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/mensalidades': {
+      id: '/$org/mensalidades'
+      path: '/mensalidades'
+      fullPath: '/$org/mensalidades'
+      preLoaderRoute: typeof OrgMensalidadesRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/perfil': {
+      id: '/$org/perfil'
+      path: '/perfil'
+      fullPath: '/$org/perfil'
+      preLoaderRoute: typeof OrgPerfilRouteImport
+      parentRoute: typeof OrgRoute
     }
     '/_authenticated/_shell': {
       id: '/_authenticated/_shell'
@@ -1640,6 +1753,24 @@ const DocumentacaoRouteRouteChildren: DocumentacaoRouteRouteChildren = {
 const DocumentacaoRouteRouteWithChildren =
   DocumentacaoRouteRoute._addFileChildren(DocumentacaoRouteRouteChildren)
 
+interface OrgRouteChildren {
+  OrgFluxoRoute: typeof OrgFluxoRoute
+  OrgFrequenciaRoute: typeof OrgFrequenciaRoute
+  OrgMensalidadesRoute: typeof OrgMensalidadesRoute
+  OrgPerfilRoute: typeof OrgPerfilRoute
+  OrgIndexRoute: typeof OrgIndexRoute
+}
+
+const OrgRouteChildren: OrgRouteChildren = {
+  OrgFluxoRoute: OrgFluxoRoute,
+  OrgFrequenciaRoute: OrgFrequenciaRoute,
+  OrgMensalidadesRoute: OrgMensalidadesRoute,
+  OrgPerfilRoute: OrgPerfilRoute,
+  OrgIndexRoute: OrgIndexRoute,
+}
+
+const OrgRouteWithChildren = OrgRoute._addFileChildren(OrgRouteChildren)
+
 interface CTokenRouteChildren {
   CTokenEuRoute: typeof CTokenEuRoute
   CTokenFluxoRoute: typeof CTokenFluxoRoute
@@ -1664,6 +1795,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRouteRoute: AuthRouteRouteWithChildren,
   DocumentacaoRouteRoute: DocumentacaoRouteRouteWithChildren,
+  OrgRoute: OrgRouteWithChildren,
   AtualizarCadastroRoute: AtualizarCadastroRoute,
   AtaTokenRoute: AtaTokenRoute,
   CTokenRoute: CTokenRouteWithChildren,

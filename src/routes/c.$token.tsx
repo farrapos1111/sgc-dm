@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { getPublicLobby } from "@/lib/lobby-share.functions";
 import { PublicLobbyContext } from "@/context/PublicLobbyContext";
+import { useLobbyPublicMask } from "@/components/PublicTokenMask";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card } from "@/components/ui/card";
 import {
@@ -28,6 +29,7 @@ export const Route = createFileRoute("/c/$token")({
 
 function PublicLobbyLayout() {
   const { token } = useParams({ from: "/c/$token" });
+  const masked = useLobbyPublicMask(token);
   const { data, isLoading, error } = useQuery({
     queryKey: ["public-lobby", token],
     queryFn: () => getPublicLobby({ data: { token } }),
@@ -45,6 +47,8 @@ function PublicLobbyLayout() {
       applyPlatformDefaultThemeVars(document.documentElement);
     };
   }, [theme.accent, theme.background, theme.accentDark, theme.highlight, theme.font, theme.sidebar]);
+
+  if (masked) return masked;
 
   if (error) {
     return (

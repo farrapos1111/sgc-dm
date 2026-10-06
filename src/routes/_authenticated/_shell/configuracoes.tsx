@@ -39,6 +39,10 @@ import {
   revokePublicLobbyToken,
 } from "@/lib/lobby-share.functions";
 import {
+  publicOrgHref,
+  useChapterPublicSlug,
+} from "@/lib/org-public-path.functions";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -864,6 +868,7 @@ function PublicLobbyLinkCard() {
   const { active } = useActiveChapter();
   const { can } = useChapterAccess();
   const chapterId = active?.chapter_id;
+  const { data: publicSlug } = useChapterPublicSlug(chapterId);
   const allowed = can("tesouraria") || can("admin");
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
@@ -872,11 +877,13 @@ function PublicLobbyLinkCard() {
   );
 
   const shareUrl =
-    typeof window !== "undefined" && token
-      ? `${window.location.origin}/c/${token}`
-      : token
-        ? `/c/${token}`
-        : "";
+    token && publicSlug?.slug
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}${publicOrgHref(publicSlug.slug)}`
+      : typeof window !== "undefined" && token
+        ? `${window.location.origin}/c/${token}`
+        : token
+          ? `/c/${token}`
+          : "";
 
   const openShare = useMutation({
     mutationFn: async () => {
