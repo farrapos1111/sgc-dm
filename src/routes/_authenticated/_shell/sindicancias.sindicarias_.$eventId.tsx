@@ -41,7 +41,6 @@ function SindicanciaAtaPage() {
   const { modo = "ata" } = Route.useSearch();
   const { active } = useActiveChapter();
   const { canManage } = useCommissionAccess();
-  const writable = canManage("sindicancias");
 
   const { data: row, isLoading, error } = useQuery({
     queryKey: ["sindicancia", eventId],
@@ -49,6 +48,9 @@ function SindicanciaAtaPage() {
     queryFn: (): Promise<SindicanciaListItem> =>
       getSindicancia({ data: { calendarEventId: eventId } }),
   });
+
+  const writable =
+    Boolean(row?.can_edit_minute) || canManage("sindicancias");
 
   const title =
     modo === "roteiro"

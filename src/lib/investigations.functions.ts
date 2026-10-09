@@ -1004,7 +1004,82 @@ export type SindicanciaListItem = {
   senior_on_council: boolean;
   investigator: { id: string; full_name: string } | null;
   clerk: { id: string; full_name: string } | null;
+  /** Presente quando a ata existe e ainda não foi concluída (visível à comissão). */
+  minute_draft?: boolean;
+  minute_completed?: boolean;
+  /** Usuário atual pode editar a ata (gestor da comissão ou escrivão da ata). */
+  can_edit_minute?: boolean;
 };
+
+async function attachMinuteAccess(
+  supabase: {
+    from: (table: string) => any;
+    rpc: (
+      fn: string,
+      args: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: { message: string } | null }>;
+  },
+  chapterId: string,
+  rows: SindicanciaListItem[],
+): Promise<SindicanciaListItem[]> {
+  if (rows.length === 0) return rows;
+  const eventIds = rows.map((r) => r.calendar_event_id);
+  const [{ data: minutes, error }, { data: canManage, error: manageErr }] =
+    await Promise.all([
+      supabase
+        .from("sindicancia_minutes")
+        .select("calendar_event_id, completed_at")
+        .eq("chapter_id", chapterId)
+        .in("calendar_event_id", eventIds),
+      supabase.rpc("can_manage_commission", {
+        _chapter_id: chapterId,
+        _commission_code: "sindicancias",
+      }),
+    ]);
+  if (error) throw new Error(error.message);
+  if (manageErr) throw new Error(manageErr.message);
+
+  const byEvent = new Map<string, { completed_at: string | null }>();
+  for (const m of (minutes ?? []) as Array<{
+    calendar_event_id: string;
+    completed_at: string | null;
+  }>) {
+    byEvent.set(m.calendar_event_id, { completed_at: m.completed_at });
+  }
+
+  const clerkIds = [
+    ...new Set(rows.map((r) => r.clerk_member_id).filter(Boolean)),
+  ] as string[];
+  const linkedClerkIds = new Set<string>();
+  if (!canManage && clerkIds.length > 0) {
+    const checks = await Promise.all(
+      clerkIds.map(async (memberId) => {
+        const { data: linked, error: linkErr } = await supabase.rpc(
+          "is_linked_member",
+          { _member_id: memberId },
+        );
+        if (linkErr) throw new Error(linkErr.message);
+        return linked ? memberId : null;
+      }),
+    );
+    for (const id of checks) {
+      if (id) linkedClerkIds.add(id);
+    }
+  }
+
+  return rows.map((row) => {
+    const minute = byEvent.get(row.calendar_event_id);
+    const canEdit =
+      Boolean(canManage) ||
+      (row.clerk_member_id != null && linkedClerkIds.has(row.clerk_member_id));
+    return {
+      ...row,
+      minute_draft: Boolean(minute && !minute.completed_at),
+      minute_completed: Boolean(minute?.completed_at),
+      can_edit_minute: canEdit,
+    };
+  });
+}
 
 export const listSindicancias = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -1015,11 +1090,12 @@ export const listSindicancias = createServerFn({ method: "POST" })
       .select(DETAILS_SELECT)
       .eq("chapter_id", data.chapterId);
     if (error) throw new Error(error.message);
-    return attachSeniorCouncil(
+    const withCouncil = await attachSeniorCouncil(
       context.supabase,
       data.chapterId,
       (rows as unknown as SindicanciaListItem[]) ?? [],
     );
+    return attachMinuteAccess(context.supabase, data.chapterId, withCouncil);
   });
 
 export const getSindicancia = createServerFn({ method: "POST" })
@@ -1040,7 +1116,12 @@ export const getSindicancia = createServerFn({ method: "POST" })
       (row as unknown as SindicanciaListItem).chapter_id,
       [row as unknown as SindicanciaListItem],
     );
-    return withCouncil!;
+    const [withMinute] = await attachMinuteAccess(
+      context.supabase,
+      withCouncil!.chapter_id,
+      [withCouncil!],
+    );
+    return withMinute!;
   });
 
 async function attachSeniorCouncil(
@@ -1376,6 +1457,116 @@ export const getSindicanciaMinute = createServerFn({ method: "POST" })
     return (row as SindicanciaMinuteRow | null) ?? null;
   });
 
+/** Quem pode editar a ata: gestor da comissão ou escrivão de parecer da sindicância. */
+export const getSindicanciaMinuteAccess = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        chapterId: z.string().uuid(),
+        calendarEventId: z.string().uuid(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: canEdit, error } = await context.supabase.rpc(
+      "can_edit_sindicancia_minute" as never,
+      {
+        _chapter_id: data.chapterId,
+        _calendar_event_id: data.calendarEventId,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    return { canEdit: Boolean(canEdit) };
+  });
+
+/** Presidente/gestor da comissão reabre ata concluída para correção. */
+export const reopenSindicanciaMinute = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        calendarEventId: z.string().uuid(),
+        chapterId: z.string().uuid(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: canManage, error: mErr } = await context.supabase.rpc(
+      "can_manage_commission" as never,
+      {
+        _chapter_id: data.chapterId,
+        _commission_code: "sindicancias",
+      } as never,
+    );
+    if (mErr) throw new Error(mErr.message);
+    if (!canManage) {
+      throw new Error(
+        "Apenas o presidente/gestor da comissão pode reabrir a ata",
+      );
+    }
+
+    const { data: detail, error: dErr } = await context.supabase
+      .from("sindicancia_details" as never)
+      .select("chapter_id, status")
+      .eq("calendar_event_id", data.calendarEventId)
+      .maybeSingle();
+    if (dErr) throw new Error(dErr.message);
+    const d = detail as { chapter_id: string; status: string } | null;
+    if (!d) throw new Error("Sindicância não encontrada");
+    if (d.chapter_id !== data.chapterId) {
+      throw new Error("Capítulo inválido para esta sindicância");
+    }
+    if (
+      d.status === "aprovada" ||
+      d.status === "reprovada" ||
+      d.status === "arquivada"
+    ) {
+      throw new Error(
+        "Não é possível reabrir a ata de uma sindicância já encerrada",
+      );
+    }
+
+    const { data: minute, error: minErr } = await context.supabase
+      .from("sindicancia_minutes" as never)
+      .select("calendar_event_id, completed_at")
+      .eq("calendar_event_id", data.calendarEventId)
+      .maybeSingle();
+    if (minErr) throw new Error(minErr.message);
+    const m = minute as {
+      calendar_event_id: string;
+      completed_at: string | null;
+    } | null;
+    if (!m?.completed_at) {
+      throw new Error("Esta ata já está aberta para edição");
+    }
+
+    const { error: upErr } = await context.supabase
+      .from("sindicancia_minutes" as never)
+      .update({ completed_at: null } as never)
+      .eq("calendar_event_id", data.calendarEventId)
+      .eq("chapter_id", data.chapterId);
+    if (upErr) throw new Error(upErr.message);
+
+    if (d.status === "votacao_comissao") {
+      const { error: voteErr } = await context.supabase
+        .from("sindicancia_votes" as never)
+        .delete()
+        .eq("calendar_event_id", data.calendarEventId)
+        .eq("chapter_id", data.chapterId);
+      if (voteErr) throw new Error(voteErr.message);
+
+      const { error: stErr } = await context.supabase
+        .from("sindicancia_details" as never)
+        .update({ status: "em_andamento" } as never)
+        .eq("calendar_event_id", data.calendarEventId)
+        .eq("chapter_id", data.chapterId);
+      if (stErr) throw new Error(stErr.message);
+    }
+
+    return { ok: true as const, status: "em_andamento" as const };
+  });
+
 export const saveSindicanciaMinute = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
@@ -1394,15 +1585,15 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { data: canManage, error: mErr } = await context.supabase.rpc(
-      "can_manage_commission" as never,
+    const { data: canEdit, error: mErr } = await context.supabase.rpc(
+      "can_edit_sindicancia_minute" as never,
       {
         _chapter_id: data.chapterId,
-        _commission_code: "sindicancias",
+        _calendar_event_id: data.calendarEventId,
       } as never,
     );
     if (mErr) throw new Error(mErr.message);
-    if (!canManage) {
+    if (!canEdit) {
       throw new Error("Sem permissão para gravar a ata de sindicância");
     }
 

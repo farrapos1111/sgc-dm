@@ -648,6 +648,12 @@ function SindicariasPage() {
                     <Badge variant="secondary">
                       {STATUS_LABELS[r.status] ?? r.status}
                     </Badge>
+                    {r.minute_draft ? (
+                      <Badge variant="outline">Ata em rascunho</Badge>
+                    ) : null}
+                    {r.minute_completed ? (
+                      <Badge variant="outline">Ata concluída</Badge>
+                    ) : null}
                     <Button
                       size="sm"
                       variant="outline"
@@ -1016,7 +1022,7 @@ function SindicariasPage() {
               chapterId={active.chapter_id}
               accent={active.chapter.primary_color}
               row={ataRow}
-              writable={writable}
+              writable={Boolean(ataRow.can_edit_minute) || writable}
               mode={ataMode}
             />
           )}

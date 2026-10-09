@@ -17,6 +17,7 @@ import {
   getSindicanciaAtaTemplates,
   getSindicanciaMinute,
   getSindicanciaVoting,
+  reopenSindicanciaMinute,
   revealInvestigationPii,
   saveSindicanciaMinute,
   type SindicanciaListItem,
@@ -98,8 +99,12 @@ export function SindicanciaAtaForm({
     row.file?.candidate_birth_date ?? null,
   );
   const isRoteiro = mode === "roteiro";
-  const isVotacao = mode === "votacao" || row.status === "votacao_comissao";
-  const answersWritable = writable && mode === "ata" && !isVotacao;
+  // Votação só enquanto o status for votação — após reabrir a ata, volta a edição.
+  const isVotacao = row.status === "votacao_comissao";
+  const answersWritable =
+    (writable || Boolean(row.can_edit_minute)) &&
+    !isRoteiro &&
+    !isVotacao;
 
   useSindicanciaVotingRealtime({
     calendarEventId: row.calendar_event_id,
@@ -342,6 +347,32 @@ export function SindicanciaAtaForm({
     },
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Erro ao encerrar"),
+  });
+
+  const reopenMut = useMutation({
+    mutationFn: () =>
+      reopenSindicanciaMinute({
+        data: {
+          calendarEventId: row.calendar_event_id,
+          chapterId,
+        },
+      }),
+    onSuccess: async () => {
+      toast.success("Ata reaberta para correção");
+      await qc.invalidateQueries({
+        queryKey: ["sindicancia-minute", row.calendar_event_id],
+      });
+      await qc.invalidateQueries({
+        queryKey: ["sindicancia", row.calendar_event_id],
+      });
+      await qc.invalidateQueries({
+        queryKey: ["sindicancia-voting", row.calendar_event_id],
+      });
+      await qc.invalidateQueries({ queryKey: ["sindicancias"] });
+      await qc.invalidateQueries({ queryKey: ["open-sindicancias"] });
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao reabrir ata"),
   });
 
   async function revealField(field: "cpf" | "rg") {
@@ -752,9 +783,32 @@ export function SindicanciaAtaForm({
       )}
 
       {!isRoteiro && minute?.completed_at && (
-        <p className="text-xs text-muted-foreground">
-          Concluída em {new Date(minute.completed_at).toLocaleString("pt-BR")}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            Concluída em {new Date(minute.completed_at).toLocaleString("pt-BR")}
+          </p>
+          {canFinalize &&
+          row.status !== "aprovada" &&
+          row.status !== "reprovada" &&
+          row.status !== "arquivada" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={reopenMut.isPending}
+              onClick={() => {
+                const inVoting = row.status === "votacao_comissao";
+                const ok = window.confirm(
+                  inVoting
+                    ? "Reabrir a ata? A sindicância volta para Em andamento e os votos da comissão serão apagados."
+                    : "Reabrir a ata para correção?",
+                );
+                if (ok) reopenMut.mutate();
+              }}
+            >
+              {reopenMut.isPending ? "Reabrindo…" : "Reabrir ata"}
+            </Button>
+          ) : null}
+        </div>
       )}
       {!isRoteiro && minute?.updated_at && !minute.completed_at && (
         <p className="text-xs text-muted-foreground">
