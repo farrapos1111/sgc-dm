@@ -101,10 +101,16 @@ export function SindicanciaAtaForm({
   const isRoteiro = mode === "roteiro";
   // Votação só enquanto o status for votação — após reabrir a ata, volta a edição.
   const isVotacao = row.status === "votacao_comissao";
+  const isClosed =
+    row.status === "aprovada" ||
+    row.status === "reprovada" ||
+    row.status === "arquivada";
+  // Presidente/gestor edita respostas e assinaturas mesmo com ata concluída / em votação.
   const answersWritable =
     (writable || Boolean(row.can_edit_minute)) &&
     !isRoteiro &&
-    !isVotacao;
+    !isClosed &&
+    (!isVotacao || canFinalize);
 
   useSindicanciaVotingRealtime({
     calendarEventId: row.calendar_event_id,
@@ -168,10 +174,11 @@ export function SindicanciaAtaForm({
     setHydrated(true);
   }, [minute, row, hydrated, isRoteiro]);
 
-  // Pré-preenche assinatura oficial do Escrivão só se o usuário for o cargo.
+  // Pré-preenche assinatura oficial do Escrivão só se o usuário for o cargo
+  // e ainda não houver assinatura salva/exibida neste campo.
   useEffect(() => {
     if (!hydrated || isRoteiro || !answersWritable) return;
-    if (signatures.escrivao?.startsWith("data:")) return;
+    if (signatures.escrivao) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -187,9 +194,7 @@ export function SindicanciaAtaForm({
         });
         const ink = slots[0]?.signatureDataUrl;
         if (!cancelled && ink?.startsWith("data:image/")) {
-          setSignatures((s) =>
-            s.escrivao?.startsWith("data:") ? s : { ...s, escrivao: ink },
-          );
+          setSignatures((s) => (s.escrivao ? s : { ...s, escrivao: ink }));
         }
       } catch {
         /* sem tinta oficial — pad livre permanece */
@@ -645,7 +650,15 @@ export function SindicanciaAtaForm({
 
       {!isRoteiro &&
         (answersWritable ||
-          SIGNATURE_ROLES.some((r) => signatures[r.id]?.startsWith("data:"))) && (
+          SIGNATURE_ROLES.some((r) => {
+            const v = signatures[r.id];
+            return Boolean(
+              v &&
+                (v.startsWith("data:") ||
+                  v.startsWith("http://") ||
+                  v.startsWith("https://")),
+            );
+          })) && (
         <section className="space-y-3 rounded-[12px] border border-border/70 bg-muted/10 p-4">
           <h4 className="text-sm font-semibold">Assinaturas</h4>
           <p className="text-sm leading-relaxed text-muted-foreground">
@@ -654,25 +667,31 @@ export function SindicanciaAtaForm({
             obrigatória.
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {SIGNATURE_ROLES.map((role) => (
-              <SignaturePad
-                key={role.id}
-                label={
-                  role.id === "escrivao"
-                    ? `${role.label} (cargo do capítulo, se registrado)`
-                    : role.label
-                }
-                value={
-                  signatures[role.id]?.startsWith("data:")
-                    ? signatures[role.id]
-                    : null
-                }
-                disabled={!answersWritable}
-                onChange={(v) =>
-                  setSignatures((s) => ({ ...s, [role.id]: v }))
-                }
-              />
-            ))}
+            {SIGNATURE_ROLES.map((role) => {
+              const raw = signatures[role.id] ?? null;
+              const displayValue =
+                raw &&
+                (raw.startsWith("data:") ||
+                  raw.startsWith("http://") ||
+                  raw.startsWith("https://"))
+                  ? raw
+                  : null;
+              return (
+                <SignaturePad
+                  key={role.id}
+                  label={
+                    role.id === "escrivao"
+                      ? `${role.label} (cargo do capítulo, se registrado)`
+                      : role.label
+                  }
+                  value={displayValue}
+                  disabled={!answersWritable}
+                  onChange={(v) =>
+                    setSignatures((s) => ({ ...s, [role.id]: v }))
+                  }
+                />
+              );
+            })}
           </div>
         </section>
       )}

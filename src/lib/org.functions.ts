@@ -256,7 +256,7 @@ export const listScopeMembers = createServerFn({ method: "POST" })
     const term = currentTerm();
     const search = data.search.trim();
     const memberSelect =
-      "id, chapter_id, full_name, birth_date, status, kind, phone, email, cpf_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay";
+      "id, chapter_id, full_name, birth_date, status, kind, phone, email, user_id, cpf_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay";
 
     function applyMemberFilters<T extends { eq: Function; ilike?: Function }>(
       q: T,
@@ -724,11 +724,15 @@ export const createScopeMember = createServerFn({ method: "POST" })
         fullName: z.string().trim().min(2),
         demolayId: z.string().trim().optional().nullable(),
         birthDate: z.string().optional().nullable(),
+        email: z.string().trim().email().optional().nullable(),
+        /** Se true e houver e-mail, cria conta e envia convite. */
+        sendInvite: z.boolean().optional().default(false),
       })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
     await assertCanManageRegionChapters(context.supabase, data.chapterId);
+    const email = data.email?.trim().toLowerCase() || "";
     const { data: id, error } = await context.supabase.rpc(
       "create_member_with_pii" as never,
       {
@@ -738,7 +742,7 @@ export const createScopeMember = createServerFn({ method: "POST" })
         _cpf: "",
         _rg: "",
         _phone: "",
-        _email: "",
+        _email: email,
         _address: {},
         _status: "regular",
         _kind: "demolay_ativo",
@@ -750,7 +754,56 @@ export const createScopeMember = createServerFn({ method: "POST" })
       } as never,
     );
     if (error) throw new Error(error.message);
-    return { id: id as string };
+    return {
+      id: id as string,
+      email: email || null,
+      sendInvite: Boolean(data.sendInvite && email),
+    };
+  });
+
+/** Garante o lobby público e devolve o link mascarado do capítulo (ex.: odm…/nome). */
+export const ensureScopeChapterPublicLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z.object({ chapterId: z.string().uuid() }).parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    await assertCanManageRegionChapters(context.supabase, data.chapterId);
+
+    const { data: token, error: tokErr } = await context.supabase.rpc(
+      "ensure_public_lobby_token" as never,
+      { _chapter_id: data.chapterId, _regenerate: false } as never,
+    );
+    if (tokErr) throw new Error(tokErr.message);
+
+    const { data: slug, error: slugErr } = await context.supabase.rpc(
+      "chapter_public_slug" as never,
+      { _chapter_id: data.chapterId } as never,
+    );
+    if (slugErr) throw new Error(slugErr.message);
+    const slugValue = typeof slug === "string" ? slug.trim() : "";
+    if (!slugValue) throw new Error("Não foi possível montar o link público");
+
+    const { data: chapter, error: chErr } = await context.supabase
+      .from("chapters")
+      .select("name, org_type")
+      .eq("id", data.chapterId)
+      .maybeSingle();
+    if (chErr) throw new Error(chErr.message);
+
+    const { getRealmForOrgType, realmAbsoluteUrl } = await import(
+      "@/lib/realm"
+    );
+    const realm = getRealmForOrgType(chapter?.org_type) ?? "odm";
+    const origin = realmAbsoluteUrl(realm).replace(/\/$/, "");
+    const url = `${origin}/${slugValue}`;
+
+    return {
+      token: (token as string) ?? null,
+      slug: slugValue,
+      url,
+      chapterName: chapter?.name ?? null,
+    };
   });
 
 export type OrgLeadershipRow = {

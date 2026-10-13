@@ -20,6 +20,7 @@ import {
   passwordRecoveryEmail,
   temploVirtualBrand,
 } from "@/lib/email-templates";
+import { getRealmForOrgType, realmAbsoluteUrl, type Realm } from "@/lib/realm";
 
 const passwordSchema = z
   .string()
@@ -154,6 +155,112 @@ async function assertChapterAdmin(
   );
   if (error) throw new Error(error.message);
   if (!ok) throw new Error("Sem permissão para gerenciar contas neste capítulo");
+}
+
+/** Admin do capítulo ou gestor regional (GME/MCR/OE) do escopo. */
+async function assertCanManageMemberAccounts(
+  supabase: {
+    rpc: (
+      fn: never,
+      args: never,
+    ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  },
+  chapterId: string,
+) {
+  const { data: admin, error: aErr } = await supabase.rpc(
+    "has_permission" as never,
+    { _chapter_id: chapterId, _perm: "admin" } as never,
+  );
+  if (aErr) throw new Error(aErr.message);
+  if (admin) return;
+
+  const { data: region, error: rErr } = await supabase.rpc(
+    "can_manage_region_chapter" as never,
+    { _chapter_id: chapterId } as never,
+  );
+  if (rErr) throw new Error(rErr.message);
+  if (!region) {
+    throw new Error("Sem permissão para gerenciar contas neste capítulo");
+  }
+}
+
+async function resolveChapterCadastroUrl(
+  supabase: {
+    from: (t: string) => any;
+    rpc: (
+      fn: never,
+      args: never,
+    ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  },
+  chapterId: string,
+): Promise<string | null> {
+  const [{ data: chapter }, { data: slug, error: slugErr }] = await Promise.all([
+    supabase
+      .from("chapters")
+      .select("org_type")
+      .eq("id", chapterId)
+      .maybeSingle(),
+    supabase.rpc("chapter_public_slug" as never, {
+      _chapter_id: chapterId,
+    } as never),
+  ]);
+  if (slugErr) return null;
+  const value = typeof slug === "string" ? slug.trim() : "";
+  if (!value) return null;
+  const realm: Realm = getRealmForOrgType(chapter?.org_type) ?? "odm";
+  const origin = realmAbsoluteUrl(realm).replace(/\/$/, "");
+  return `${origin}/${value}/perfil`;
+}
+
+async function ensureChapterLobbyTokenForInvite(
+  supabase: {
+    rpc: (
+      fn: never,
+      args: never,
+    ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  },
+  chapterId: string,
+) {
+  const { error } = await supabase.rpc("ensure_public_lobby_token" as never, {
+    _chapter_id: chapterId,
+    _regenerate: false,
+  } as never);
+  if (error) {
+    console.error("[accounts] ensure lobby for invite:", error.message);
+  }
+}
+
+async function sendMemberInviteEmail(input: {
+  chapterId: string;
+  fullName: string;
+  email: string;
+  setPasswordUrl: string;
+}): Promise<{ status: EmailDeliveryStatus; error: string | null }> {
+  const origin = appPublicOrigin();
+  const { loadChapterEmailAssets } = await import("@/lib/email-brand.server");
+  const assets = await loadChapterEmailAssets(input.chapterId);
+  const { supabaseAdmin } = await import(
+    "@/integrations/supabase/client.server"
+  );
+  const completeCadastroUrl = await resolveChapterCadastroUrl(
+    supabaseAdmin as never,
+    input.chapterId,
+  );
+  const copy = accountCreatedEmail({
+    fullName: input.fullName,
+    loginUrl: `${origin}/auth`,
+    setPasswordUrl: input.setPasswordUrl,
+    brand: assets.brand,
+    completeCadastroUrl,
+  });
+  const mail = await sendTransactionalEmail({
+    to: [input.email],
+    subject: copy.subject,
+    text: copy.text,
+    html: copy.html,
+    attachments: assets.attachments,
+  });
+  return summarizeEmailResult(mail);
 }
 
 async function findAuthUserByEmail(
@@ -360,7 +467,7 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!member) throw new Error("Membro não encontrado");
 
-    await assertChapterAdmin(context.supabase, member.chapter_id);
+    await assertCanManageMemberAccounts(context.supabase, member.chapter_id);
 
     if (member.user_id) {
       throw new Error("Este membro já possui conta vinculada");
@@ -488,24 +595,16 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
         emailError =
           linkErr?.message ?? "Não foi possível gerar o link de senha";
       } else {
-        const { loadChapterEmailAssets } = await import(
-          "@/lib/email-brand.server"
+        await ensureChapterLobbyTokenForInvite(
+          context.supabase,
+          member.chapter_id,
         );
-        const assets = await loadChapterEmailAssets(member.chapter_id);
-        const copy = accountCreatedEmail({
+        const summary = await sendMemberInviteEmail({
+          chapterId: member.chapter_id,
           fullName: member.full_name ?? "",
-          loginUrl: `${origin}/auth`,
+          email,
           setPasswordUrl,
-          brand: assets.brand,
         });
-        const mail = await sendTransactionalEmail({
-          to: [email],
-          subject: copy.subject,
-          text: copy.text,
-          html: copy.html,
-          attachments: assets.attachments,
-        });
-        const summary = summarizeEmailResult(mail);
         emailStatus = summary.status;
         emailError = summary.error;
       }
@@ -521,6 +620,114 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
       accessSummary: access.accessSummary,
       emailStatus,
       emailError,
+    };
+  });
+
+/**
+ * Cria ou reenvia convite de conta para o membro concluir o cadastro
+ * (senha + dados pessoais no link do capítulo). Admin do capítulo ou MCR/OE/GME.
+ */
+export const inviteMemberAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        memberId: z.string().uuid(),
+        /** Atualiza o e-mail da ficha antes de enviar (opcional). */
+        email: z.string().trim().email().optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: member, error } = await context.supabase
+      .from("members")
+      .select(
+        "id, chapter_id, email, full_name, user_id, birth_date, phone, address, status, kind, demolay_id, masonic_id, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, initiation_chapter_id",
+      )
+      .eq("id", data.memberId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!member) throw new Error("Membro não encontrado");
+
+    await assertCanManageMemberAccounts(context.supabase, member.chapter_id);
+
+    const nextEmail = (data.email ?? member.email ?? "").trim().toLowerCase();
+    if (!nextEmail || !z.string().email().safeParse(nextEmail).success) {
+      throw new Error("Informe um e-mail válido para enviar o convite");
+    }
+
+    if (nextEmail !== (member.email ?? "").trim().toLowerCase()) {
+      const { error: upErr } = await context.supabase.rpc(
+        "update_member_with_pii" as never,
+        {
+          _member_id: member.id,
+          _full_name: member.full_name,
+          _birth_date: member.birth_date,
+          _cpf: "",
+          _rg: "",
+          _phone: member.phone ?? "",
+          _email: nextEmail,
+          _address: member.address ?? {},
+          _status: member.status,
+          _kind: member.kind,
+          _exam_grau_iniciatico: member.exam_grau_iniciatico,
+          _exam_grau_demolay: member.exam_grau_demolay,
+          _guardians: null,
+          _iniciacao_ordem: member.iniciacao_ordem,
+          _iniciacao_grau_demolay: member.iniciacao_grau_demolay,
+          _demolay_id: member.demolay_id,
+          _masonic_id: member.masonic_id,
+          _initiation_chapter_id: member.initiation_chapter_id,
+        } as never,
+      );
+      if (upErr) throw new Error(upErr.message);
+    }
+
+    // Sem conta: e-mail já gravado — o cliente chama provisionMemberAccount em seguida.
+    if (!member.user_id) {
+      return {
+        status: "needs_provision" as const,
+        email: nextEmail,
+        emailStatus: null,
+        emailError: null,
+        resent: false as const,
+      };
+    }
+
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const origin = appPublicOrigin();
+    const { data: linkData, error: linkErr } =
+      await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
+        email: nextEmail,
+        options: { redirectTo: `${origin}/auth/nova-senha` },
+      });
+    const setPasswordUrl = linkData?.properties?.action_link;
+    if (linkErr || !setPasswordUrl) {
+      throw new Error(
+        linkErr?.message ?? "Não foi possível gerar o link de acesso",
+      );
+    }
+
+    await ensureChapterLobbyTokenForInvite(
+      context.supabase,
+      member.chapter_id,
+    );
+    const summary = await sendMemberInviteEmail({
+      chapterId: member.chapter_id,
+      fullName: member.full_name ?? "",
+      email: nextEmail,
+      setPasswordUrl,
+    });
+
+    return {
+      status: "linked" as const,
+      email: nextEmail,
+      emailStatus: summary.status,
+      emailError: summary.error,
+      resent: true as const,
     };
   });
 

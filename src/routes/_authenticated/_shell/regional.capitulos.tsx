@@ -1,10 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ArrowDownAZ, ArrowUpAZ, Pencil, Plus, Search, X } from "lucide-react";
+import {
+  ArrowDownAZ,
+  ArrowUpAZ,
+  Link2,
+  Pencil,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useOrgScope } from "@/context/OrgScopeContext";
-import { listRegions, listScopeChapters, saveChapter, setChapterActive } from "@/lib/org.functions";
+import {
+  ensureScopeChapterPublicLink,
+  listRegions,
+  listScopeChapters,
+  saveChapter,
+  setChapterActive,
+} from "@/lib/org.functions";
 import {
   ORG_TYPES,
   ORG_TYPE_FILTER_LABELS,
@@ -206,6 +220,20 @@ function ChaptersContent() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const copyPublicLink = useMutation({
+    mutationFn: (chapterId: string) =>
+      ensureScopeChapterPublicLink({ data: { chapterId } }),
+    onSuccess: async (res) => {
+      try {
+        await navigator.clipboard.writeText(res.url);
+        toast.success(`Link copiado: ${res.url}`);
+      } catch {
+        toast.message(res.url);
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (!canManageChapters) {
     return (
       <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
@@ -358,6 +386,17 @@ function ChaptersContent() {
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  disabled={copyPublicLink.isPending}
+                  title="Copiar link de cadastro público"
+                  onClick={() => copyPublicLink.mutate(c.id)}
+                >
+                  <Link2 className="mr-1 h-3.5 w-3.5" />
+                  Link
+                </Button>
                 <Switch
                   checked={c.active}
                   onCheckedChange={(v) =>

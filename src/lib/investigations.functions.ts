@@ -1454,7 +1454,30 @@ export const getSindicanciaMinute = createServerFn({ method: "POST" })
       .eq("calendar_event_id", data.calendarEventId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return (row as SindicanciaMinuteRow | null) ?? null;
+    if (!row) return null;
+    const minute = row as SindicanciaMinuteRow;
+    const rawSigs = (minute.signatures ?? {}) as Record<string, string | null>;
+    const signatures: Record<string, string | null> = { ...rawSigs };
+    const needsSigned = Object.values(rawSigs).some(
+      (v) => v && !v.startsWith("data:") && !v.startsWith("http"),
+    );
+    if (needsSigned) {
+      const { supabaseAdmin } = await import(
+        "@/integrations/supabase/client.server"
+      );
+      await Promise.all(
+        Object.entries(rawSigs).map(async ([role, value]) => {
+          if (!value || value.startsWith("data:") || value.startsWith("http")) {
+            return;
+          }
+          const { data: signed } = await supabaseAdmin.storage
+            .from(MEMBER_DOCS_BUCKET)
+            .createSignedUrl(value, 60 * 30);
+          if (signed?.signedUrl) signatures[role] = signed.signedUrl;
+        }),
+      );
+    }
+    return { ...minute, signatures };
   });
 
 /** Quem pode editar a ata: gestor da comissão ou escrivão de parecer da sindicância. */
@@ -1597,9 +1620,22 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
       throw new Error("Sem permissão para gravar a ata de sindicância");
     }
 
+    const { data: canManage, error: manageErr } = await context.supabase.rpc(
+      "can_manage_commission" as never,
+      {
+        _chapter_id: data.chapterId,
+        _commission_code: "sindicancias",
+      } as never,
+    );
+    if (manageErr) throw new Error(manageErr.message);
+
     const email = (context.claims as { email?: string } | null)?.email ?? null;
     const escrivaoInk = data.signatures?.escrivao;
-    if (escrivaoInk && String(escrivaoInk).startsWith("data:image")) {
+    if (
+      !canManage &&
+      escrivaoInk &&
+      String(escrivaoInk).startsWith("data:image")
+    ) {
       const { userHoldsOfficeInChapter } = await import(
         "@/lib/office-signatures.functions"
       );
@@ -1616,13 +1652,39 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
       }
     }
 
+    const { data: existingMinute } = await context.supabase
+      .from("sindicancia_minutes" as never)
+      .select("signatures, completed_at")
+      .eq("calendar_event_id", data.calendarEventId)
+      .maybeSingle();
+    const existingSigs =
+      (
+        existingMinute as {
+          signatures?: Record<string, string | null> | null;
+          completed_at?: string | null;
+        } | null
+      )?.signatures ?? {};
+
     // Persist signature data URLs as storage PNGs when long
     const signatures: Record<string, string | null> = {
       ...data.signatures,
     };
     for (const [role, value] of Object.entries(signatures)) {
-      if (!value || !value.startsWith("data:image")) continue;
       if (!SIGNATURE_ROLES.some((r) => r.id === role)) continue;
+      if (!value) {
+        signatures[role] = null;
+        continue;
+      }
+      // URL assinada de exibição (não regravar): mantém o path já persistido.
+      if (value.startsWith("http://") || value.startsWith("https://")) {
+        const prev = existingSigs[role];
+        signatures[role] =
+          prev && !prev.startsWith("data:") && !prev.startsWith("http")
+            ? prev
+            : null;
+        continue;
+      }
+      if (!value.startsWith("data:image")) continue;
       const match = value.match(
         /^data:(image\/(?:png|jpeg));base64,([A-Za-z0-9+/=]+)$/,
       );
@@ -1651,16 +1713,13 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
     };
     if (data.completed) {
       payload.completed_at = new Date().toISOString();
-    } else {
+    } else if (
+      !(
+        existingMinute as { completed_at?: string | null } | null
+      )?.completed_at
+    ) {
       // Rascunho: não apaga conclusão prévia; só define null na primeira gravação.
-      const { data: existing } = await context.supabase
-        .from("sindicancia_minutes" as never)
-        .select("completed_at")
-        .eq("calendar_event_id", data.calendarEventId)
-        .maybeSingle();
-      if (!(existing as { completed_at?: string | null } | null)?.completed_at) {
-        payload.completed_at = null;
-      }
+      payload.completed_at = null;
     }
 
     const { error } = await context.supabase

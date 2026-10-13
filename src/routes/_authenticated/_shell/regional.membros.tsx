@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, Plus, Search, X } from "lucide-react";
+import { ChevronDown, Mail, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
 import {
@@ -10,6 +10,10 @@ import {
   listScopeMembers,
   setScopeMemberStatus,
 } from "@/lib/org.functions";
+import {
+  inviteMemberAccount,
+  provisionMemberAccount,
+} from "@/lib/accounts.functions";
 import { ScopeGuard } from "./regional.index";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -65,6 +69,38 @@ function RegionalMembers() {
   );
 }
 
+async function sendScopeMemberInvite(memberId: string, email?: string) {
+  const prepared = await inviteMemberAccount({
+    data: { memberId, email: email || undefined },
+  });
+  if (prepared.status === "needs_provision") {
+    const provisioned = await provisionMemberAccount({
+      data: { memberId },
+    });
+    if (provisioned.emailStatus != null) {
+      return {
+        emailStatus: provisioned.emailStatus,
+        emailError: provisioned.emailError,
+        resent: false as const,
+      };
+    }
+    // Conta Auth já existia: reenvia o e-mail de acesso/cadastro.
+    const resent = await inviteMemberAccount({
+      data: { memberId, email: email || provisioned.email },
+    });
+    return {
+      emailStatus: resent.emailStatus,
+      emailError: resent.emailError,
+      resent: true as const,
+    };
+  }
+  return {
+    emailStatus: prepared.emailStatus,
+    emailError: prepared.emailError,
+    resent: prepared.resent,
+  };
+}
+
 function MembersContent() {
   const { activeScope, canManageChapters } = useOrgScope();
   const scope = activeScope!;
@@ -78,7 +114,15 @@ function MembersContent() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDemolay, setNewDemolay] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [sendInvite, setSendInvite] = useState(true);
   const [newChapterId, setNewChapterId] = useState("");
+  const [inviteFor, setInviteFor] = useState<{
+    id: string;
+    name: string;
+    email: string | null;
+  } | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
 
   const { data: chapters } = useQuery({
     queryKey: ["scope-chapters", scope.key],
@@ -144,19 +188,44 @@ function MembersContent() {
   }
 
   const create = useMutation({
-    mutationFn: () =>
-      createScopeMember({
+    mutationFn: async () => {
+      const created = await createScopeMember({
         data: {
           chapterId: newChapterId,
           fullName: newName,
           demolayId: newDemolay || null,
+          email: newEmail.trim() || null,
+          sendInvite: Boolean(sendInvite && newEmail.trim()),
         },
-      }),
-    onSuccess: () => {
-      toast.success("Membro criado");
+      });
+      if (!created.sendInvite || !created.email) {
+        return { created, invite: null as null };
+      }
+      const invite = await sendScopeMemberInvite(
+        created.id,
+        created.email,
+      );
+      return { created, invite };
+    },
+    onSuccess: ({ invite }) => {
+      if (invite?.emailStatus === "sent") {
+        toast.success("Membro criado e e-mail de cadastro enviado");
+      } else if (invite?.emailStatus === "failed") {
+        toast.success("Membro criado");
+        toast.error(invite.emailError || "Falha ao enviar o e-mail");
+      } else if (invite?.emailStatus === "skipped") {
+        toast.success("Membro criado");
+        toast.message(
+          invite.emailError || "E-mail não enviado (configuração Resend).",
+        );
+      } else {
+        toast.success("Membro criado");
+      }
       setCreateOpen(false);
       setNewName("");
       setNewDemolay("");
+      setNewEmail("");
+      setSendInvite(true);
       qc.invalidateQueries({ queryKey: ["scope-members"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -167,6 +236,32 @@ function MembersContent() {
       setScopeMemberStatus({ data: v }),
     onSuccess: () => {
       toast.success("Status atualizado");
+      qc.invalidateQueries({ queryKey: ["scope-members"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const inviteMut = useMutation({
+    mutationFn: () =>
+      sendScopeMemberInvite(inviteFor!.id, inviteEmail.trim() || undefined),
+    onSuccess: (res) => {
+      if (res.emailStatus === "sent") {
+        toast.success(
+          res.resent
+            ? "E-mail de cadastro reenviado"
+            : "E-mail de cadastro enviado",
+        );
+      } else if (res.emailStatus === "skipped") {
+        toast.message(
+          res.emailError || "E-mail não enviado (configuração Resend).",
+        );
+      } else if (res.emailStatus === "failed") {
+        toast.error(res.emailError || "Falha ao enviar o e-mail");
+      } else {
+        toast.success("Convite processado");
+      }
+      setInviteFor(null);
+      setInviteEmail("");
       qc.invalidateQueries({ queryKey: ["scope-members"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -347,6 +442,7 @@ function MembersContent() {
                   <div className="truncate text-xs text-muted-foreground">
                     {chapter?.name ?? "—"}
                     {chapter?.number ? ` · Nº ${chapter.number}` : ""}
+                    {m.email ? ` · ${m.email}` : ""}
                     {m.phone ? ` · ${m.phone}` : ""}
                   </div>
                 </div>
@@ -360,21 +456,39 @@ function MembersContent() {
                       "—"}
                   </Badge>
                   {canManageChapters && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="ml-auto h-7 text-xs"
-                      disabled={toggleStatus.isPending}
-                      onClick={() =>
-                        toggleStatus.mutate({
-                          memberId: m.id,
-                          status:
-                            m.status === "regular" ? "irregular" : "regular",
-                        })
-                      }
-                    >
-                      {m.status === "regular" ? "Inativar" : "Reativar"}
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          setInviteFor({
+                            id: m.id,
+                            name: m.full_name,
+                            email: m.email ?? null,
+                          });
+                          setInviteEmail(m.email ?? "");
+                        }}
+                      >
+                        <Mail className="mr-1 h-3.5 w-3.5" />
+                        {m.user_id ? "Reenviar" : "Convidar"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="ml-auto h-7 text-xs"
+                        disabled={toggleStatus.isPending}
+                        onClick={() =>
+                          toggleStatus.mutate({
+                            memberId: m.id,
+                            status:
+                              m.status === "regular" ? "irregular" : "regular",
+                          })
+                        }
+                      >
+                        {m.status === "regular" ? "Inativar" : "Reativar"}
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -419,6 +533,30 @@ function MembersContent() {
                 onChange={(e) => setNewDemolay(e.target.value)}
               />
             </div>
+            <div>
+              <Label htmlFor="nm-email">E-mail (opcional)</Label>
+              <Input
+                id="nm-email"
+                type="email"
+                autoComplete="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="para enviar o link de cadastro"
+              />
+            </div>
+            <label className="flex items-start gap-2 text-sm leading-snug">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={sendInvite}
+                disabled={!newEmail.trim()}
+                onChange={(e) => setSendInvite(e.target.checked)}
+              />
+              <span className="text-muted-foreground">
+                Enviar e-mail com link para definir senha e concluir o cadastro
+                (dados pessoais e cargos).
+              </span>
+            </label>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
@@ -430,7 +568,63 @@ function MembersContent() {
               }
               onClick={() => create.mutate()}
             >
-              Criar
+              {create.isPending
+                ? "Salvando…"
+                : sendInvite && newEmail.trim()
+                  ? "Criar e enviar"
+                  : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(inviteFor)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setInviteFor(null);
+            setInviteEmail("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {inviteFor?.email ? "Reenviar convite" : "Enviar convite"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {inviteFor?.name
+                ? `Envie um link para ${inviteFor.name} definir a senha e concluir o cadastro no capítulo.`
+                : "Envie um link para definir a senha e concluir o cadastro."}
+            </p>
+            <div>
+              <Label htmlFor="invite-email">E-mail</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                autoComplete="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setInviteFor(null);
+                setInviteEmail("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={!inviteEmail.trim() || inviteMut.isPending}
+              onClick={() => inviteMut.mutate()}
+            >
+              {inviteMut.isPending ? "Enviando…" : "Enviar e-mail"}
             </Button>
           </DialogFooter>
         </DialogContent>

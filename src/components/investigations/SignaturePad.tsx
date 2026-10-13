@@ -44,8 +44,13 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
     ctx.clearRect(0, 0, w, h);
 
     let cancelled = false;
-    if (value?.startsWith("data:image/")) {
+    const isImageSrc =
+      Boolean(value?.startsWith("data:image/")) ||
+      Boolean(value?.startsWith("http://")) ||
+      Boolean(value?.startsWith("https://"));
+    if (isImageSrc && value) {
       const img = new Image();
+      img.crossOrigin = "anonymous";
       img.onload = () => {
         if (cancelled) return;
         // Centraliza mantendo proporção (útil para PNG transparente).
@@ -58,6 +63,11 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
         ctx.drawImage(img, dx, dy, dw, dh);
         stroked.current = true;
         setHasStroke(true);
+      };
+      img.onerror = () => {
+        if (cancelled) return;
+        stroked.current = false;
+        setHasStroke(false);
       };
       img.src = value;
     } else {
@@ -264,7 +274,11 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
                 : "hidden"
             }
           />
-          {value?.startsWith("data:image/") && !cameraOn ? (
+          {value &&
+          (value.startsWith("data:image/") ||
+            value.startsWith("http://") ||
+            value.startsWith("https://")) &&
+          !cameraOn ? (
             <div className="flex h-40 items-center justify-center overflow-hidden rounded-[12px] border border-border bg-muted/30 p-2">
               <img
                 src={value}

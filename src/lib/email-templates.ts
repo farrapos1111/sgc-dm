@@ -137,8 +137,11 @@ export function accountCreatedEmail(input: {
   loginUrl: string;
   setPasswordUrl: string;
   brand: EmailBrand;
+  /** Link público do capítulo para concluir dados pessoais / perfil. */
+  completeCadastroUrl?: string | null;
 }): { subject: string; text: string; html: string } {
   const name = input.fullName.trim() || "irmão";
+  const cadastro = input.completeCadastroUrl?.trim() || null;
   const subject = `Sua conta — ${input.brand.title}`;
   const text = [
     `Olá, ${name}.`,
@@ -148,9 +151,21 @@ export function accountCreatedEmail(input: {
     input.setPasswordUrl,
     "",
     `Depois, entre em ${input.loginUrl} com o e-mail desta mensagem.`,
+    ...(cadastro
+      ? [
+          "",
+          "Conclua seu cadastro (dados pessoais e cargos) neste link do capítulo:",
+          cadastro,
+        ]
+      : []),
     "",
     "Se você não esperava este e-mail, fale com o Mestre Conselheiro do capítulo.",
   ].join("\n");
+
+  const cadastroRow = cadastro
+    ? `<tr><td style="padding-top:16px;font-size:13px;line-height:1.5;color:#71717a;">Depois de definir a senha, conclua seus dados pessoais e cargos no link do capítulo:</td></tr>
+     ${brandedButton("Concluir cadastro", cadastro, input.brand.accent)}`
+    : "";
 
   const html = wrapBrandedHtml({
     brand: input.brand,
@@ -158,6 +173,7 @@ export function accountCreatedEmail(input: {
     innerRows: `<tr><td style="padding-top:12px;font-size:15px;line-height:1.55;color:#3f3f46;">Olá, ${escapeHtml(name)}. Uma conta foi criada para você. Defina sua senha pelo botão abaixo — o link expira em breve.</td></tr>
      ${brandedButton("Definir senha", input.setPasswordUrl, input.brand.accent)}
      <tr><td style="padding-top:20px;font-size:13px;line-height:1.5;color:#71717a;">Depois entre em <a href="${escapeHtml(input.loginUrl)}" style="color:${input.brand.accent};">${escapeHtml(input.loginUrl)}</a> com este e-mail. A senha não é enviada por e-mail.</td></tr>
+     ${cadastroRow}
      <tr><td style="padding-top:16px;font-size:12px;color:#a1a1aa;">Se você não esperava esta mensagem, fale com o Mestre Conselheiro do capítulo.</td></tr>`,
   });
 
