@@ -1098,6 +1098,7 @@ export const transferRegionOffice = createServerFn({ method: "POST" })
         _target_member_id: data.targetMemberId,
         _org_role: data.orgRole,
         _region_id: data.regionId,
+        _starts_on: null,
       } as never,
     );
     if (error) throw new Error(error.message);
