@@ -553,8 +553,8 @@ function MembersContent() {
                 onChange={(e) => setSendInvite(e.target.checked)}
               />
               <span className="text-muted-foreground">
-                Enviar e-mail com link para definir senha e concluir o cadastro
-                (dados pessoais e cargos).
+                Enviar e-mail com senha temporária, instrução de login (ID
+                DeMolay) e link para concluir o cadastro.
               </span>
             </label>
           </div>
@@ -596,8 +596,8 @@ function MembersContent() {
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               {inviteFor?.name
-                ? `Envie um link para ${inviteFor.name} definir a senha e concluir o cadastro no capítulo.`
-                : "Envie um link para definir a senha e concluir o cadastro."}
+                ? `Envie para ${inviteFor.name} a senha temporária, instrução de login com ID DeMolay e o link para concluir o cadastro.`
+                : "Envie a senha temporária, instrução de login com ID DeMolay e o link para concluir o cadastro."}
             </p>
             <div>
               <Label htmlFor="invite-email">E-mail</Label>

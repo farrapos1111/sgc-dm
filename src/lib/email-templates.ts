@@ -135,49 +135,90 @@ export function brandedButton(label: string, href: string, accent: string) {
 export function accountCreatedEmail(input: {
   fullName: string;
   loginUrl: string;
-  setPasswordUrl: string;
+  setPasswordUrl?: string | null;
   brand: EmailBrand;
   /** Link público do capítulo para concluir dados pessoais / perfil. */
   completeCadastroUrl?: string | null;
+  /** Senha temporária gerada (convite MCR / provisionamento). */
+  temporaryPassword?: string | null;
+  /** ID DeMolay para instrução de login. */
+  demolayId?: string | null;
 }): { subject: string; text: string; html: string } {
   const name = input.fullName.trim() || "irmão";
   const cadastro = input.completeCadastroUrl?.trim() || null;
+  const password = input.temporaryPassword?.trim() || null;
+  const demolayId = input.demolayId?.trim() || null;
+  const setPasswordUrl = input.setPasswordUrl?.trim() || null;
   const subject = `Sua conta — ${input.brand.title}`;
-  const text = [
+  const loginIdHint = demolayId
+    ? `seu ID DeMolay (${demolayId}) ou o e-mail desta mensagem`
+    : "o e-mail desta mensagem";
+
+  const textParts: string[] = [
     `Olá, ${name}.`,
     "",
     `Uma conta foi criada para você em ${input.brand.title}.`,
-    "Defina sua senha neste link (ele expira em breve):",
-    input.setPasswordUrl,
-    "",
-    `Depois, entre em ${input.loginUrl} com o e-mail desta mensagem.`,
-    ...(cadastro
-      ? [
-          "",
-          "Conclua seu cadastro (dados pessoais e cargos) neste link do capítulo:",
-          cadastro,
-        ]
-      : []),
+  ];
+
+  if (password) {
+    textParts.push(
+      "",
+      "Senha temporária:",
+      password,
+      "",
+      `Entre em ${input.loginUrl} com ${loginIdHint} e a senha acima.`,
+      "No primeiro acesso o sistema pode pedir para trocar a senha.",
+    );
+  } else if (setPasswordUrl) {
+    textParts.push(
+      "",
+      "Defina sua senha neste link (ele expira em breve):",
+      setPasswordUrl,
+      "",
+      `Depois, entre em ${input.loginUrl} com ${loginIdHint}.`,
+    );
+  } else {
+    textParts.push("", `Entre em ${input.loginUrl} com ${loginIdHint}.`);
+  }
+
+  if (cadastro) {
+    textParts.push(
+      "",
+      "Conclua seu cadastro (dados pessoais e cargos) neste link do capítulo:",
+      cadastro,
+    );
+  }
+
+  textParts.push(
     "",
     "Se você não esperava este e-mail, fale com o Mestre Conselheiro do capítulo.",
-  ].join("\n");
+  );
+
+  const passwordBlock = password
+    ? `<tr><td style="padding-top:16px;font-size:15px;line-height:1.55;color:#3f3f46;">Senha temporária:</td></tr>
+     <tr><td style="padding-top:8px;font-size:18px;font-weight:700;letter-spacing:.04em;color:#18181b;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;">${escapeHtml(password)}</td></tr>
+     <tr><td style="padding-top:16px;font-size:13px;line-height:1.5;color:#71717a;">Entre em <a href="${escapeHtml(input.loginUrl)}" style="color:${input.brand.accent};">${escapeHtml(input.loginUrl)}</a> com ${escapeHtml(loginIdHint)} e a senha acima. No primeiro acesso o sistema pode pedir para trocar a senha.</td></tr>`
+    : setPasswordUrl
+      ? `<tr><td style="padding-top:12px;font-size:15px;line-height:1.55;color:#3f3f46;">Defina sua senha pelo botão abaixo — o link expira em breve.</td></tr>
+     ${brandedButton("Definir senha", setPasswordUrl, input.brand.accent)}
+     <tr><td style="padding-top:20px;font-size:13px;line-height:1.5;color:#71717a;">Depois entre em <a href="${escapeHtml(input.loginUrl)}" style="color:${input.brand.accent};">${escapeHtml(input.loginUrl)}</a> com ${escapeHtml(loginIdHint)}.</td></tr>`
+      : `<tr><td style="padding-top:16px;font-size:13px;line-height:1.5;color:#71717a;">Entre em <a href="${escapeHtml(input.loginUrl)}" style="color:${input.brand.accent};">${escapeHtml(input.loginUrl)}</a> com ${escapeHtml(loginIdHint)}.</td></tr>`;
 
   const cadastroRow = cadastro
-    ? `<tr><td style="padding-top:16px;font-size:13px;line-height:1.5;color:#71717a;">Depois de definir a senha, conclua seus dados pessoais e cargos no link do capítulo:</td></tr>
+    ? `<tr><td style="padding-top:16px;font-size:13px;line-height:1.5;color:#71717a;">Conclua seus dados pessoais e cargos no link do capítulo:</td></tr>
      ${brandedButton("Concluir cadastro", cadastro, input.brand.accent)}`
     : "";
 
   const html = wrapBrandedHtml({
     brand: input.brand,
     heading: "Sua conta foi criada",
-    innerRows: `<tr><td style="padding-top:12px;font-size:15px;line-height:1.55;color:#3f3f46;">Olá, ${escapeHtml(name)}. Uma conta foi criada para você. Defina sua senha pelo botão abaixo — o link expira em breve.</td></tr>
-     ${brandedButton("Definir senha", input.setPasswordUrl, input.brand.accent)}
-     <tr><td style="padding-top:20px;font-size:13px;line-height:1.5;color:#71717a;">Depois entre em <a href="${escapeHtml(input.loginUrl)}" style="color:${input.brand.accent};">${escapeHtml(input.loginUrl)}</a> com este e-mail. A senha não é enviada por e-mail.</td></tr>
+    innerRows: `<tr><td style="padding-top:12px;font-size:15px;line-height:1.55;color:#3f3f46;">Olá, ${escapeHtml(name)}. Uma conta foi criada para você.</td></tr>
+     ${passwordBlock}
      ${cadastroRow}
      <tr><td style="padding-top:16px;font-size:12px;color:#a1a1aa;">Se você não esperava esta mensagem, fale com o Mestre Conselheiro do capítulo.</td></tr>`,
   });
 
-  return { subject, text, html };
+  return { subject, text: textParts.join("\n"), html };
 }
 
 export function passwordRecoveryEmail(input: {

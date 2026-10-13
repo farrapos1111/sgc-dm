@@ -234,7 +234,9 @@ async function sendMemberInviteEmail(input: {
   chapterId: string;
   fullName: string;
   email: string;
-  setPasswordUrl: string;
+  setPasswordUrl?: string | null;
+  temporaryPassword?: string | null;
+  demolayId?: string | null;
 }): Promise<{ status: EmailDeliveryStatus; error: string | null }> {
   const origin = appPublicOrigin();
   const { loadChapterEmailAssets } = await import("@/lib/email-brand.server");
@@ -249,9 +251,11 @@ async function sendMemberInviteEmail(input: {
   const copy = accountCreatedEmail({
     fullName: input.fullName,
     loginUrl: `${origin}/auth`,
-    setPasswordUrl: input.setPasswordUrl,
+    setPasswordUrl: input.setPasswordUrl ?? null,
     brand: assets.brand,
     completeCadastroUrl,
+    temporaryPassword: input.temporaryPassword ?? null,
+    demolayId: input.demolayId ?? null,
   });
   const mail = await sendTransactionalEmail({
     to: [input.email],
@@ -461,7 +465,7 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: member, error } = await context.supabase
       .from("members")
-      .select("id, chapter_id, email, full_name, user_id")
+      .select("id, chapter_id, email, full_name, user_id, demolay_id")
       .eq("id", data.memberId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -512,25 +516,23 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
         .update({ full_name: member.full_name })
         .eq("id", userId);
 
-      // Se informaram senha ao vincular conta existente, aplica
-      if (data.password) {
-        const { error: pwdErr } = await supabaseAdmin.auth.admin.updateUserById(
-          userId,
-          {
-            password: data.password,
-            user_metadata: {
-              full_name: member.full_name,
-              must_change_password: mustChange,
-            },
+      // Sempre aplica senha no provisionamento (informada ou gerada).
+      const { error: pwdErr } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        {
+          password,
+          user_metadata: {
+            full_name: member.full_name,
+            must_change_password: mustChange,
           },
-        );
-        if (pwdErr) throw new Error(pwdErr.message);
-        await supabaseAdmin
-          .from("profiles")
-          .update({ must_change_password: mustChange })
-          .eq("id", userId);
-        temporaryPassword = data.password;
-      }
+        },
+      );
+      if (pwdErr) throw new Error(pwdErr.message);
+      await supabaseAdmin
+        .from("profiles")
+        .update({ must_change_password: mustChange })
+        .eq("id", userId);
+      temporaryPassword = password;
     } else {
       temporaryPassword = password;
       const { data: created, error: createErr } =
@@ -581,33 +583,20 @@ export const provisionMemberAccount = createServerFn({ method: "POST" })
 
     let emailStatus: EmailDeliveryStatus | null = null;
     let emailError: string | null = null;
-    if (status === "created") {
-      const origin = appPublicOrigin();
-      const { data: linkData, error: linkErr } =
-        await supabaseAdmin.auth.admin.generateLink({
-          type: "recovery",
-          email,
-          options: { redirectTo: `${origin}/auth/nova-senha` },
-        });
-      const setPasswordUrl = linkData?.properties?.action_link;
-      if (linkErr || !setPasswordUrl) {
-        emailStatus = "failed";
-        emailError =
-          linkErr?.message ?? "Não foi possível gerar o link de senha";
-      } else {
-        await ensureChapterLobbyTokenForInvite(
-          context.supabase,
-          member.chapter_id,
-        );
-        const summary = await sendMemberInviteEmail({
-          chapterId: member.chapter_id,
-          fullName: member.full_name ?? "",
-          email,
-          setPasswordUrl,
-        });
-        emailStatus = summary.status;
-        emailError = summary.error;
-      }
+    if (temporaryPassword) {
+      await ensureChapterLobbyTokenForInvite(
+        context.supabase,
+        member.chapter_id,
+      );
+      const summary = await sendMemberInviteEmail({
+        chapterId: member.chapter_id,
+        fullName: member.full_name ?? "",
+        email,
+        temporaryPassword,
+        demolayId: member.demolay_id,
+      });
+      emailStatus = summary.status;
+      emailError = summary.error;
     }
 
     return {
@@ -697,19 +686,22 @@ export const inviteMemberAccount = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const origin = appPublicOrigin();
-    const { data: linkData, error: linkErr } =
-      await supabaseAdmin.auth.admin.generateLink({
-        type: "recovery",
-        email: nextEmail,
-        options: { redirectTo: `${origin}/auth/nova-senha` },
-      });
-    const setPasswordUrl = linkData?.properties?.action_link;
-    if (linkErr || !setPasswordUrl) {
-      throw new Error(
-        linkErr?.message ?? "Não foi possível gerar o link de acesso",
-      );
-    }
+    const temporaryPassword = randomPassword();
+    const { error: pwdErr } = await supabaseAdmin.auth.admin.updateUserById(
+      member.user_id,
+      {
+        password: temporaryPassword,
+        user_metadata: {
+          full_name: member.full_name,
+          must_change_password: true,
+        },
+      },
+    );
+    if (pwdErr) throw new Error(pwdErr.message);
+    await supabaseAdmin
+      .from("profiles")
+      .update({ must_change_password: true })
+      .eq("id", member.user_id);
 
     await ensureChapterLobbyTokenForInvite(
       context.supabase,
@@ -719,7 +711,8 @@ export const inviteMemberAccount = createServerFn({ method: "POST" })
       chapterId: member.chapter_id,
       fullName: member.full_name ?? "",
       email: nextEmail,
-      setPasswordUrl,
+      temporaryPassword,
+      demolayId: member.demolay_id,
     });
 
     return {
