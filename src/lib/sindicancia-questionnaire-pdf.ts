@@ -1,15 +1,62 @@
 import { jsPDF } from "jspdf";
 import { loadLogoDataUrl } from "@/lib/chapter-logo";
 import { formatDateBR } from "@/lib/format";
+import { supabase } from "@/integrations/supabase/client";
 import {
   formatAtaAnswer,
   isAtaQuestionBlock,
+  MEMBER_DOCS_BUCKET,
   SIGNATURE_ROLES,
   type AtaBlock,
 } from "@/lib/member-documents";
 import { applySindicanciaAtaVars } from "@/lib/sindicancia-ata-vars";
 
 const MARGIN = 16;
+
+async function blobToDataUrl(blob: Blob): Promise<string | null> {
+  try {
+    const buffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    const mime = blob.type || "image/png";
+    return `data:${mime};base64,${btoa(binary)}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Converte data URL, URL assinada ou path do storage em data URL para o jsPDF. */
+async function resolveSignatureDataUrl(
+  value: string | null | undefined,
+): Promise<string | null> {
+  if (!value?.trim()) return null;
+  const raw = value.trim();
+  if (raw.startsWith("data:image/")) return raw;
+
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const res = await fetch(raw);
+      if (!res.ok) return null;
+      return blobToDataUrl(await res.blob());
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(MEMBER_DOCS_BUCKET)
+      .download(raw);
+    if (error || !data) return null;
+    return blobToDataUrl(data);
+  } catch {
+    return null;
+  }
+}
 
 export type SindicanciaQuestionnairePdfInput = {
   chapterName: string;
@@ -159,40 +206,7 @@ export async function exportSindicanciaQuestionnairePdf(
     }
 
     if (block.type === "text") {
-      // Declaração e intros: só a declaração final entra no PDF (perguntas/respostas);
-      // textos introdutórios de seção ficam de fora para manter o relatório enxuto.
-      if (block.id === "decl_texto" || block.id.startsWith("decl_")) {
-        const rendered = applySindicanciaAtaVars(block.label, {
-          candidato: input.nomineeName,
-          rg: input.rg,
-          cpf: input.cpf,
-          capitulo_nome: input.chapterName,
-          numero: input.chapterNumber,
-          cidade: input.chapterCity,
-          sindicante: input.sindicante,
-          escrivao: input.escrivao,
-          senior: input.senior,
-          date: input.eventDate,
-        });
-        const body = input.declaration?.trim() || rendered;
-        y = ensureSpace(doc, y, 12, pageH);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.text("Declaração de Sindicância", MARGIN, y);
-        y += 5;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        const paras = body.split(/\n+/);
-        for (const p of paras) {
-          const lines = doc.splitTextToSize(p.trim(), contentW) as string[];
-          for (const l of lines) {
-            y = ensureSpace(doc, y, 5, pageH);
-            doc.text(l, MARGIN, y);
-            y += 4.2;
-          }
-          y += 2;
-        }
-      }
+      // Declaração vai para página dedicada com as assinaturas.
       continue;
     }
 
@@ -228,42 +242,152 @@ export async function exportSindicanciaQuestionnairePdf(
     y += 3;
   }
 
-  const sigEntries = SIGNATURE_ROLES.map((role) => {
-    const dataUrl = input.signatures?.[role.id];
-    if (!dataUrl?.startsWith("data:image")) return null;
-    return { label: role.label, dataUrl };
-  }).filter((x): x is { label: string; dataUrl: string } => Boolean(x));
+  // Página dedicada: declaração + assinaturas preenchidas.
+  const declBlock = input.blocks.find(
+    (b) => b.type === "text" && (b.id === "decl_texto" || b.id.startsWith("decl_")),
+  );
+  const declarationBody = (() => {
+    if (input.declaration?.trim()) return input.declaration.trim();
+    if (!declBlock || declBlock.type !== "text") return "";
+    return applySindicanciaAtaVars(declBlock.label, {
+      candidato: input.nomineeName,
+      rg: input.rg,
+      cpf: input.cpf,
+      capitulo_nome: input.chapterName,
+      numero: input.chapterNumber,
+      cidade: input.chapterCity,
+      sindicante: input.sindicante,
+      escrivao: input.escrivao,
+      senior: input.senior,
+      date: input.eventDate,
+    }).trim();
+  })();
 
-  if (sigEntries.length > 0) {
-    y = ensureSpace(doc, y, 14, pageH);
-    y += 4;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(26);
-    doc.text("Assinaturas", MARGIN, y);
-    y += 6;
+  const signerNames = (input.guardians ?? [])
+    .map((g) => g.full_name?.trim() || "")
+    .filter(Boolean);
+  const signerNameByRole: Record<string, string> = {
+    senior: input.senior?.trim() || "",
+    sindicante: input.sindicante?.trim() || "",
+    escrivao: input.escrivao?.trim() || "",
+    guardian1: signerNames[0] || "",
+    guardian2: signerNames[1] || "",
+    nominee: input.nomineeName?.trim() || "",
+  };
 
-    for (const sig of sigEntries) {
-      y = ensureSpace(doc, y, 28, pageH);
+  const sigEntries = (
+    await Promise.all(
+      SIGNATURE_ROLES.map(async (role) => {
+        const dataUrl = await resolveSignatureDataUrl(
+          input.signatures?.[role.id],
+        );
+        if (!dataUrl) return null;
+        return {
+          role: role.label,
+          name: signerNameByRole[role.id] || "—",
+          dataUrl,
+        };
+      }),
+    )
+  ).filter(
+    (x): x is { role: string; name: string; dataUrl: string } => Boolean(x),
+  );
+
+  if (declarationBody || sigEntries.length > 0) {
+    doc.addPage();
+    y = MARGIN;
+
+    if (declarationBody) {
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.text(sig.label, MARGIN, y);
-      y += 3;
-      try {
-        const format = sig.dataUrl.startsWith("data:image/jpeg")
-          ? "JPEG"
-          : "PNG";
-        doc.addImage(sig.dataUrl, format, MARGIN, y, 60, 20);
-      } catch {
-        /* ignore invalid image */
+      doc.setFontSize(13);
+      doc.setTextColor(26);
+      doc.text("Declaração de Sindicância", pageW / 2, y, { align: "center" });
+      y += 8;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      const paras = declarationBody.split(/\n+/);
+      for (const p of paras) {
+        const trimmed = p.trim();
+        if (!trimmed) {
+          y += 2;
+          continue;
+        }
+        const lines = doc.splitTextToSize(trimmed, contentW) as string[];
+        for (const l of lines) {
+          y = ensureSpace(doc, y, 5.5, pageH);
+          doc.text(l, MARGIN, y);
+          y += 5;
+        }
+        y += 3;
       }
-      y += 24;
+      y += 4;
+    }
+
+    if (sigEntries.length > 0) {
+      y = ensureSpace(doc, y, 14, pageH);
+      doc.setDrawColor(200);
+      doc.line(MARGIN, y, pageW - MARGIN, y);
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(26);
+      doc.text("Assinaturas", MARGIN, y);
+      y += 8;
+
+      const colGap = 10;
+      const colW = (contentW - colGap) / 2;
+      const imgH = 20;
+      const imgW = Math.min(68, colW - 2);
+      const blockH = imgH + 18;
+      let col = 0;
+      let rowTop = y;
+
+      for (const sig of sigEntries) {
+        if (col === 0) {
+          rowTop = ensureSpace(doc, rowTop, blockH, pageH);
+        }
+        const x = MARGIN + col * (colW + colGap);
+        try {
+          const format = sig.dataUrl.startsWith("data:image/jpeg")
+            ? "JPEG"
+            : "PNG";
+          doc.addImage(sig.dataUrl, format, x, rowTop, imgW, imgH);
+        } catch {
+          /* ignore invalid image */
+        }
+        const lineY = rowTop + imgH + 1;
+        doc.setDrawColor(40);
+        doc.setLineWidth(0.3);
+        doc.line(x, lineY, x + imgW, lineY);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(26);
+        const nameLines = doc.splitTextToSize(sig.name, imgW) as string[];
+        doc.text(nameLines[0] ?? "—", x, lineY + 4.5);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(80);
+        const roleLines = doc.splitTextToSize(sig.role, imgW) as string[];
+        doc.text(roleLines[0] ?? "", x, lineY + 8.5);
+
+        col += 1;
+        if (col >= 2) {
+          col = 0;
+          rowTop += blockH;
+        }
+      }
     }
   }
 
-  doc.setFontSize(8);
-  doc.setTextColor(120);
-  doc.text(chapterLine, pageW / 2, pageH - 10, { align: "center" });
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(chapterLine, pageW / 2, pageH - 10, { align: "center" });
+  }
 
   const dateSrc = input.eventDate ? new Date(input.eventDate) : new Date();
   const dd = String(dateSrc.getDate()).padStart(2, "0");
