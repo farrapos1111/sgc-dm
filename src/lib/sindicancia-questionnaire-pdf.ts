@@ -309,89 +309,96 @@ export async function exportSindicanciaQuestionnairePdf(
 
   if (declarationBody || sigEntries.length > 0) {
     doc.addPage();
-    const footerY = pageH - 10;
-    const pageBottom = footerY - 4;
-    const cols = sigEntries.length > 4 ? 3 : 2;
-    const colGap = 6;
-    const colW = (contentW - colGap * (cols - 1)) / cols;
-    const imgH = 11;
-    const imgW = Math.min(48, colW - 1);
-    const blockH = imgH + 12;
+    const pageBottom = pageH - 14;
+    const cols = 2;
+    const colGap = 10;
+    const colW = (contentW - colGap) / 2;
     const sigRows = Math.ceil(Math.max(sigEntries.length, 1) / cols);
-    const sigHeaderH = sigEntries.length > 0 ? 12 : 0;
-    const sigBlockH =
-      sigEntries.length > 0 ? sigHeaderH + sigRows * blockH + 2 : 0;
+    const paras = declarationBody
+      ? declarationBody
+          .split(/\n+/)
+          .map((p) => p.trim())
+          .filter(Boolean)
+      : [];
 
-    // Declaração + assinaturas sempre na mesma página (sem addPage interno).
-    let yDecl = MARGIN;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(26);
-    if (declarationBody) {
-      doc.text("Declaração de Sindicância", pageW / 2, yDecl, {
-        align: "center",
-      });
-      yDecl += 5;
+    // Escala única: declaração → assinaturas logo abaixo (sem buraco no meio).
+    let fontSize = 9;
+    let lineH = 3.9;
+    let paraGap = 2;
+    let imgH = 16;
+    let fitted: string[] = [];
+
+    const measure = () => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(fontSize);
+      fitted = [];
+      for (const p of paras) {
+        fitted.push(...(doc.splitTextToSize(p, contentW) as string[]));
+        fitted.push("");
+      }
+      while (fitted.length && fitted[fitted.length - 1] === "") fitted.pop();
+      const titleH = declarationBody ? 7 : 0;
+      const declH = fitted.reduce(
+        (acc, l) => acc + (l === "" ? paraGap : lineH),
+        0,
+      );
+      const blockH = imgH + 14;
+      const sigH =
+        sigEntries.length > 0 ? 10 + sigRows * blockH : 0;
+      return titleH + declH + (sigEntries.length && declarationBody ? 5 : 0) + sigH;
+    };
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      if (MARGIN + measure() <= pageBottom) break;
+      if (fontSize > 7) {
+        fontSize -= 0.35;
+        lineH = Math.max(3.1, lineH - 0.12);
+        paraGap = Math.max(1.2, paraGap - 0.1);
+      } else if (imgH > 11) {
+        imgH -= 1;
+      } else {
+        fontSize = Math.max(6.5, fontSize - 0.25);
+        lineH = Math.max(2.9, lineH - 0.1);
+      }
     }
 
-    const declMaxBottom = pageBottom - sigBlockH - (sigEntries.length ? 4 : 0);
-    if (declarationBody) {
-      const paras = declarationBody
-        .split(/\n+/)
-        .map((p) => p.trim())
-        .filter(Boolean);
-      let fontSize = 8.5;
-      let lineH = 3.6;
-      let paraGap = 1.6;
-      let fitted: string[] = [];
+    const imgW = Math.min(62, colW - 2);
+    const blockH = imgH + 14;
+    let y = MARGIN;
 
-      for (let attempt = 0; attempt < 8; attempt++) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(fontSize);
-        fitted = [];
-        for (const p of paras) {
-          fitted.push(...(doc.splitTextToSize(p, contentW) as string[]));
-          fitted.push(""); // gap marker
-        }
-        while (fitted.length && fitted[fitted.length - 1] === "") fitted.pop();
-        const linesH = fitted.reduce(
-          (acc, l) => acc + (l === "" ? paraGap : lineH),
-          0,
-        );
-        if (yDecl + linesH <= declMaxBottom) break;
-        fontSize = Math.max(6.5, fontSize - 0.4);
-        lineH = Math.max(2.8, lineH - 0.15);
-        paraGap = Math.max(1, paraGap - 0.1);
-      }
+    if (declarationBody) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(26);
+      doc.text("Declaração de Sindicância", pageW / 2, y, { align: "center" });
+      y += 6;
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(fontSize);
-      doc.setTextColor(26);
       for (const l of fitted) {
         if (l === "") {
-          yDecl += paraGap;
+          y += paraGap;
           continue;
         }
-        if (yDecl + lineH > declMaxBottom) break;
-        doc.text(l, MARGIN, yDecl);
-        yDecl += lineH;
+        doc.text(l, MARGIN, y);
+        y += lineH;
       }
     }
 
     if (sigEntries.length > 0) {
-      let ySig = Math.max(yDecl + 3, pageBottom - sigBlockH);
+      y += declarationBody ? 4 : 0;
       doc.setDrawColor(200);
       doc.setLineWidth(0.2);
-      doc.line(MARGIN, ySig, pageW - MARGIN, ySig);
-      ySig += 4;
+      doc.line(MARGIN, y, pageW - MARGIN, y);
+      y += 5;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
+      doc.setFontSize(11);
       doc.setTextColor(26);
-      doc.text("Assinaturas", MARGIN, ySig);
-      ySig += 5;
+      doc.text("Assinaturas", MARGIN, y);
+      y += 6;
 
       let col = 0;
-      let rowTop = ySig;
+      let rowTop = y;
       for (const sig of sigEntries) {
         const x = MARGIN + col * (colW + colGap);
         try {
@@ -402,22 +409,25 @@ export async function exportSindicanciaQuestionnairePdf(
         } catch {
           /* ignore invalid image */
         }
-        const lineY = rowTop + imgH + 0.8;
+        const lineY = rowTop + imgH + 1.2;
         doc.setDrawColor(40);
-        doc.setLineWidth(0.25);
+        doc.setLineWidth(0.3);
         doc.line(x, lineY, x + imgW, lineY);
 
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(7.5);
+        doc.setFontSize(8);
         doc.setTextColor(26);
         const nameLines = doc.splitTextToSize(sig.name, imgW) as string[];
-        doc.text(nameLines[0] ?? "—", x, lineY + 3.5);
+        doc.text(nameLines[0] ?? "—", x, lineY + 4);
 
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(6.5);
+        doc.setFontSize(7);
         doc.setTextColor(80);
-        const roleLines = doc.splitTextToSize(sig.role, imgW) as string[];
-        doc.text(roleLines[0] ?? "", x, lineY + 6.5);
+        const roleLabel = sig.role
+          .replace(/\s*\(opcional\)\s*$/i, "")
+          .replace(/^Responsável (\d+) do indicado$/i, "Responsável $1");
+        const roleLines = doc.splitTextToSize(roleLabel, imgW) as string[];
+        doc.text(roleLines[0] ?? "", x, lineY + 7.5);
 
         col += 1;
         if (col >= cols) {
