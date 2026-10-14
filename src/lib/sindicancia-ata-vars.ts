@@ -44,6 +44,26 @@ export function seniorDeclarationQuality(opts: {
   return SENIOR_ACOMPANHANTE;
 }
 
+/**
+ * Rótulo da assinatura do acompanhante no PDF/UI.
+ * Sênior → Senior Acompanhante; Tio (maçom) ou Tio+Sênior → Tio Acompanhante.
+ */
+export function seniorAcompanhanteRoleLabel(opts: {
+  kind?: string | null;
+  /** Se preenchido, trata como Tio mesmo com kind senior. */
+  masonicId?: string | null;
+} | string | null | undefined): string {
+  const kind =
+    typeof opts === "string" || opts == null ? opts : opts.kind;
+  const masonicId =
+    typeof opts === "string" || opts == null ? null : opts.masonicId;
+  const isTio =
+    kind === "macom" || Boolean(masonicId && String(masonicId).trim());
+  if (isTio) return "Tio Acompanhante";
+  if (kind === "senior") return "Senior Acompanhante";
+  return "Tio Acompanhante";
+}
+
 /** Variáveis da declaração / textos introdutórios da ata de sindicância. */
 export function buildSindicanciaAtaVarMap(
   ctx: SindicanciaAtaVarContext,

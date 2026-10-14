@@ -952,7 +952,7 @@ const DETAILS_SELECT = `
     has_demolay_relative, demolay_relative_name, demolay_relative_chapter,
     sponsor_text, referred_by, cpf_last2, rg_last2
   ),
-  senior:members!sindicancia_details_senior_member_id_fkey(id, full_name, kind),
+  senior:members!sindicancia_details_senior_member_id_fkey(id, full_name, kind, masonic_id),
   investigator:members!sindicancia_details_investigator_member_id_fkey(id, full_name),
   clerk:members!sindicancia_details_clerk_member_id_fkey(id, full_name)
 `.replace(/\s+/g, " ");
@@ -999,7 +999,12 @@ export type SindicanciaListItem = {
     cpf_last2: string | null;
     rg_last2: string | null;
   } | null;
-  senior: { id: string; full_name: string; kind: string | null } | null;
+  senior: {
+    id: string;
+    full_name: string;
+    kind: string | null;
+    masonic_id?: string | null;
+  } | null;
   /** Cargo de conselho no semestre da sindicância. */
   senior_on_council: boolean;
   investigator: { id: string; full_name: string } | null;

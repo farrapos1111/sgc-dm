@@ -9,7 +9,10 @@ import {
   SIGNATURE_ROLES,
   type AtaBlock,
 } from "@/lib/member-documents";
-import { applySindicanciaAtaVars } from "@/lib/sindicancia-ata-vars";
+import {
+  applySindicanciaAtaVars,
+  seniorAcompanhanteRoleLabel,
+} from "@/lib/sindicancia-ata-vars";
 
 const MARGIN = 16;
 
@@ -74,6 +77,10 @@ export type SindicanciaQuestionnairePdfInput = {
   guardians?: Array<{ full_name?: string; relationship?: string }> | null;
   sindicante?: string | null;
   senior?: string | null;
+  /** kind do acompanhante: senior | macom (Tio). */
+  seniorKind?: string | null;
+  /** ID maçônico do acompanhante (indica Tio mesmo se kind=senior). */
+  seniorMasonicId?: string | null;
   escrivao?: string | null;
   eventDate?: string | null;
   blocks: AtaBlock[];
@@ -282,8 +289,15 @@ export async function exportSindicanciaQuestionnairePdf(
           input.signatures?.[role.id],
         );
         if (!dataUrl) return null;
+        const roleLabel =
+          role.id === "senior"
+            ? seniorAcompanhanteRoleLabel({
+                kind: input.seniorKind,
+                masonicId: input.seniorMasonicId,
+              })
+            : role.label;
         return {
-          role: role.label,
+          role: roleLabel,
           name: signerNameByRole[role.id] || "—",
           dataUrl,
         };
@@ -336,9 +350,9 @@ export async function exportSindicanciaQuestionnairePdf(
 
       const colGap = 10;
       const colW = (contentW - colGap) / 2;
-      const imgH = 20;
-      const imgW = Math.min(68, colW - 2);
-      const blockH = imgH + 18;
+      const imgH = 14;
+      const imgW = Math.min(52, colW - 2);
+      const blockH = imgH + 16;
       let col = 0;
       let rowTop = y;
 

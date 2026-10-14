@@ -30,7 +30,12 @@ import {
   type AgeBand,
   type AtaBlock,
 } from "@/lib/member-documents";
-import { applySindicanciaAtaVars, formatAtaDocumentDigits, seniorDeclarationQuality } from "@/lib/sindicancia-ata-vars";
+import {
+  applySindicanciaAtaVars,
+  formatAtaDocumentDigits,
+  seniorAcompanhanteRoleLabel,
+  seniorDeclarationQuality,
+} from "@/lib/sindicancia-ata-vars";
 import { exportSindicanciaQuestionnairePdf } from "@/lib/sindicancia-questionnaire-pdf";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
 import { useSindicanciaVotingRealtime } from "@/hooks/useSindicanciaVotingRealtime";
@@ -415,6 +420,8 @@ export function SindicanciaAtaForm({
         guardians: row.file?.guardians,
         sindicante: sindicanteName,
         senior: seniorName,
+        seniorKind: row.senior?.kind ?? null,
+        seniorMasonicId: row.senior?.masonic_id ?? null,
         escrivao: escrivaoName,
         eventDate: row.event?.start_at,
         blocks,
@@ -682,7 +689,12 @@ export function SindicanciaAtaForm({
                   label={
                     role.id === "escrivao"
                       ? `${role.label} (cargo do capítulo, se registrado)`
-                      : role.label
+                      : role.id === "senior"
+                        ? seniorAcompanhanteRoleLabel({
+                            kind: row.senior?.kind,
+                            masonicId: row.senior?.masonic_id,
+                          })
+                        : role.label
                   }
                   value={displayValue}
                   disabled={!answersWritable}
