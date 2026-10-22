@@ -917,6 +917,7 @@ const LOGIN_ID_MAX_FAILS = 5;
 /** NAT compartilhado: limite mais alto por IP para não bloquear colegas. */
 const LOGIN_IP_MAX_FAILS = 80;
 const LOGIN_LOCK_MS = 15 * 60 * 1000;
+const RESET_WINDOW_MS = 60 * 60 * 1000;
 
 type ThrottleRow = {
   scope: string;
@@ -1128,9 +1129,8 @@ export const signInWithIdentifier = createServerFn({ method: "POST" })
         if (!member?.user_id) {
           throw new Error("Identificador ou senha inválidos.");
         }
-        if (member.status === "irregular") {
-          throw new Error(IRREGULAR_LOGIN_MESSAGE);
-        }
+        // Situação "irregular" só é revelada após a senha conferir
+        // (evaluateMemberLoginGate), para não expor contas a quem não tem a senha.
         const { data: authUser, error: authErr } =
           await supabaseAdmin.auth.admin.getUserById(member.user_id);
         if (authErr || !authUser.user?.email) {
@@ -1227,6 +1227,22 @@ export const requestPasswordReset = createServerFn({ method: "POST" })
     const origin = appPublicOrigin();
     const redirectTo = `${origin}/auth/nova-senha`;
     try {
+      // generateLink (admin) não passa pelo rate limit do GoTrue: limita aqui
+      // por e-mail e por IP. Resposta é sempre { ok: true } (sem enumeração).
+      const { takeQuota, hashQuotaKey } = await import("@/lib/rate-limit.server");
+      if (
+        !(await takeQuota("password_reset", hashQuotaKey(email), 3, RESET_WINDOW_MS))
+      ) {
+        return { ok: true };
+      }
+      const ip = await clientIpForLogin();
+      if (
+        ip &&
+        !(await takeQuota("password_reset", `ip:${ip}`, 20, RESET_WINDOW_MS))
+      ) {
+        return { ok: true };
+      }
+
       const { supabaseAdmin } = await import(
         "@/integrations/supabase/client.server"
       );

@@ -26,3 +26,7 @@ Thumbs.db
 .idea
 .vscode/*
 !.vscode/extensions.json
+
+# Listas de membros (dados pessoais) usadas pelos scripts de importação — só locais
+scripts/*-demolay-ids.txt
+scripts/*-demolay-ids.sql

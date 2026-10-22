@@ -593,14 +593,12 @@ export const getMyCurrentPositions = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }): Promise<MyCurrentPosition[]> => {
-    const email = (context.claims as { email?: string } | null)?.email ?? null;
     const { resolveLinkedMemberIdsForChapter } = await import(
       "@/lib/resolve-linked-members"
     );
     const memberIds = await resolveLinkedMemberIdsForChapter(context.supabase, {
       userId: context.userId,
       chapterId: data.chapterId,
-      email,
     });
     if (memberIds.length === 0) return [];
 
@@ -644,14 +642,12 @@ export const listMyChapterAccessLabels = createServerFn({ method: "POST" })
 
     const { currentTerm } = await import("@/lib/terms");
     const term = currentTerm();
-    const email = (context.claims as { email?: string } | null)?.email ?? null;
     const { resolveLinkedMemberIdsGlobal } = await import(
       "@/lib/resolve-linked-members"
     );
 
     const memberIds = await resolveLinkedMemberIdsGlobal(context.supabase, {
       userId: context.userId,
-      email,
     });
 
     const result: Record<string, string[]> = {};

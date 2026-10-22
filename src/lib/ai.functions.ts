@@ -13,6 +13,14 @@ function requireAiKey(): string {
   return key;
 }
 
+/** Cota por usuário (custo do provedor): 30 chamadas por hora. */
+async function assertAiQuota(userId: string) {
+  const { takeQuota } = await import("@/lib/rate-limit.server");
+  if (!(await takeQuota("ai", userId, 30, 60 * 60 * 1000))) {
+    throw new Error("Limite de uso da IA atingido. Tente novamente mais tarde.");
+  }
+}
+
 /** Revisa ortografia/gramática de um texto curto, preservando o conteúdo original. */
 export const improveText = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -24,8 +32,9 @@ export const improveText = createServerFn({ method: "POST" })
       })
       .parse(raw),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const key = requireAiKey();
+    await assertAiQuota(context.userId);
     const { createAiProvider, resolveAiModelId } = await import(
       "@/lib/ai-gateway.server"
     );
@@ -80,8 +89,9 @@ export const composeEventDescription = createServerFn({ method: "POST" })
       })
       .parse(raw),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const key = requireAiKey();
+    await assertAiQuota(context.userId);
     const { createAiProvider, resolveAiModelId } = await import(
       "@/lib/ai-gateway.server"
     );

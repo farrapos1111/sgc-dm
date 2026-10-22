@@ -132,7 +132,6 @@ async function findLinkedMemberIds(
     from: (t: string) => any;
   },
   userId: string,
-  email: string | null,
 ): Promise<{ ids: string[]; fullName: string | null }> {
   const { data: profile } = await supabase
     .from("profiles")
@@ -142,28 +141,15 @@ async function findLinkedMemberIds(
 
   const fullName = (profile?.full_name as string | null) ?? null;
 
-  // Prefer hard link members.user_id → auth user
+  // Vínculo apenas por members.user_id. O fallback legado por e-mail/nome
+  // permitia assumir cadastros alheios (members.email/profiles.full_name são
+  // editáveis) e interpolava texto do usuário no filtro .or() do PostgREST.
   const { data: byUser } = await supabase
     .from("members")
     .select("id")
     .eq("user_id", userId);
-  if (byUser && byUser.length > 0) {
-    return {
-      ids: byUser.map((m: { id: string }) => m.id),
-      fullName,
-    };
-  }
-
-  // Fallback legado: e-mail / nome
-  const filters: string[] = [];
-  if (email) filters.push(`email.eq.${email}`);
-  if (fullName) filters.push(`full_name.eq.${fullName}`);
-  if (filters.length === 0) return { ids: [], fullName };
-
-  const { data: members } = await supabase.from("members").select("id").or(filters.join(","));
-
   return {
-    ids: (members ?? []).map((m: { id: string }) => m.id),
+    ids: (byUser ?? []).map((m: { id: string }) => m.id),
     fullName,
   };
 }
@@ -263,7 +249,6 @@ export const getMyDemolayProfile = createServerFn({ method: "POST" })
     const { ids, fullName } = await findLinkedMemberIds(
       context.supabase,
       context.userId,
-      email,
     );
 
     const { data: profile } = await context.supabase
@@ -488,10 +473,9 @@ export const revokeProficiencyCard = createServerFn({ method: "POST" })
 async function assertOwnMemberId(
   supabase: { from: (t: string) => any },
   userId: string,
-  email: string | null,
   memberId: string,
 ): Promise<void> {
-  const { ids } = await findLinkedMemberIds(supabase, userId, email);
+  const { ids } = await findLinkedMemberIds(supabase, userId);
   if (!ids.includes(memberId)) {
     throw new Error("Este cadastro não está vinculado à sua conta");
   }
@@ -551,11 +535,9 @@ export const getMyMemberCadastro = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ memberId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const email = (context.claims as { email?: string } | null)?.email ?? null;
     await assertOwnMemberId(
       context.supabase,
       context.userId,
-      email,
       data.memberId,
     );
 
@@ -656,30 +638,17 @@ export const updateMyMemberCadastro = createServerFn({ method: "POST" })
     // Self-service permitido: phone, email, address, cpf, rg, guardians (+ memberId).
     // Campos extras são rejeitados pelo .strict() do inputValidator.
 
-    const email = (context.claims as { email?: string } | null)?.email ?? null;
     await assertOwnMemberId(
       context.supabase,
       context.userId,
-      email,
       data.memberId,
     );
 
-    const { data: member, error } = await context.supabase
-      .from("members")
-      .select("id, demolay_id")
-      .eq("id", data.memberId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!member?.demolay_id) {
-      throw new Error(
-        "Seu cadastro ainda não possui ID DeMolay. Peça à secretaria para preencher.",
-      );
-    }
-
+    // RPC confere members.user_id = auth.uid() no banco (não depende do ID DeMolay).
     const { data: payload, error: rpcErr } = await context.supabase.rpc(
-      "submit_member_cadastro_update" as never,
+      "update_my_member_cadastro" as never,
       {
-        _demolay_id: member.demolay_id,
+        _member_id: data.memberId,
         _phone: data.phone || null,
         _email: data.email || null,
         _address: data.address,
@@ -696,11 +665,9 @@ export const getMyMemberAttendance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ memberId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const email = (context.claims as { email?: string } | null)?.email ?? null;
     await assertOwnMemberId(
       context.supabase,
       context.userId,
-      email,
       data.memberId,
     );
 
@@ -734,11 +701,9 @@ export const getMyMemberFinance = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const email = (context.claims as { email?: string } | null)?.email ?? null;
     await assertOwnMemberId(
       context.supabase,
       context.userId,
-      email,
       data.memberId,
     );
 
@@ -899,11 +864,9 @@ export const getMyMemberOrgHistory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ memberId: z.string().uuid() }).parse(raw))
   .handler(async ({ data, context }) => {
-    const email = (context.claims as { email?: string } | null)?.email ?? null;
     await assertOwnMemberId(
       context.supabase,
       context.userId,
-      email,
       data.memberId,
     );
 

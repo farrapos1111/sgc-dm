@@ -261,7 +261,19 @@ export const updateChaveTemplate = createServerFn({ method: "POST" })
     return { id: data.chapter_id, settings };
   });
 
-/** Senhas do link público por tipo de ata (settings.minute_passwords). */
+/** Senhas do link público por tipo de ata (tabela chapter_minute_passwords). */
+export const getMinutePasswords = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ chapter_id: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const { data: passwords, error } = await context.supabase.rpc(
+      "get_minute_passwords" as never,
+      { _chapter_id: data.chapter_id } as never,
+    );
+    if (error) throw new Error(error.message);
+    return (passwords ?? {}) as Record<string, string>;
+  });
+
 export const updateMinutePasswords = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
@@ -277,32 +289,18 @@ export const updateMinutePasswords = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { data: allowed, error: roleErr } = await context.supabase.rpc(
-      "has_permission",
+    // Permissão (secretaria) é validada dentro do RPC.
+    const { data: passwords, error } = await context.supabase.rpc(
+      "set_minute_passwords" as never,
       {
         _chapter_id: data.chapter_id,
-        _perm: "secretaria",
-      },
-    );
-    if (roleErr) throw new Error(roleErr.message);
-    if (!allowed) {
-      throw new Error(
-        "Apenas Escrivão, Presidente do Conselho ou Mestre Conselheiro podem alterar as senhas das atas",
-      );
-    }
-
-    const settingsPatch = {
-      minute_passwords: {
-        publica: data.passwords.publica.trim(),
-        grau_iniciatico: data.passwords.grau_iniciatico.trim(),
-        grau_demolay: data.passwords.grau_demolay.trim(),
-      },
-    };
-
-    const { data: settings, error } = await context.supabase.rpc(
-      "patch_chapter_settings",
-      { _chapter_id: data.chapter_id, _patch: settingsPatch },
+        _passwords: {
+          publica: data.passwords.publica.trim(),
+          grau_iniciatico: data.passwords.grau_iniciatico.trim(),
+          grau_demolay: data.passwords.grau_demolay.trim(),
+        },
+      } as never,
     );
     if (error) throw new Error(error.message);
-    return { id: data.chapter_id, settings };
+    return (passwords ?? {}) as Record<string, string>;
   });

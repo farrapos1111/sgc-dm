@@ -1,4 +1,4 @@
-/** Tipos de ata e senhas do link público (chapters.settings.minute_passwords). */
+/** Tipos de ata e senhas do link público (tabela chapter_minute_passwords). */
 
 export const MINUTE_KINDS = [
   "publica",
@@ -53,9 +53,8 @@ export function isMinuteKind(value: unknown): value is MinuteKind {
 }
 
 export function parseMinutePasswords(
-  settings: Record<string, unknown> | null | undefined,
+  raw: Record<string, unknown> | null | undefined,
 ): MinutePasswords {
-  const raw = settings?.minute_passwords;
   const obj =
     raw && typeof raw === "object" && !Array.isArray(raw)
       ? (raw as Record<string, unknown>)
@@ -66,15 +65,6 @@ export function parseMinutePasswords(
     out[kind] = typeof v === "string" ? v : "";
   }
   return out;
-}
-
-/** Senha esperada para o link público deste tipo (null = não configurada). */
-export function expectedMinutePublicPassword(
-  settings: Record<string, unknown> | null | undefined,
-  kind: MinuteKind,
-): string | null {
-  const configured = parseMinutePasswords(settings)[kind].trim();
-  return configured || null;
 }
 
 /** Dados mínimos do membro para decidir acesso à ata. */

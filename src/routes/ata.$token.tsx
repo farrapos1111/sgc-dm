@@ -23,6 +23,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+const MEMBER_LOGIN_REQUIRED =
+  "Entre na sua conta do Templo Virtual (nesta mesma aba) e tente de novo.";
+
 export const Route = createFileRoute("/ata/$token")({
   ssr: false,
   head: () => ({
@@ -50,7 +53,6 @@ function PublicAtaPage() {
     memberName: string;
   } | null>(null);
 
-  const [demolayId, setDemolayId] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [email, setEmail] = useState("");
   const [decision, setDecision] = useState<"aprovada" | "reprovada" | null>(
@@ -80,9 +82,7 @@ function PublicAtaPage() {
           data: { token, password: unlock.password },
         });
       }
-      const res = await getPublicMinuteByMember({
-        data: { token, demolayId: unlock.demolayId },
-      });
+      const res = await getPublicMinuteByMember({ data: { token } });
       if (res.locked) {
         throw new Error("Seu grau não permite acesso a este tipo de ata");
       }
@@ -93,13 +93,17 @@ function PublicAtaPage() {
   });
 
   const unlockAsMember = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await getPublicMinuteByMember({
-        data: { token, demolayId: id },
-      });
-      return { id, res };
+    mutationFn: async () => {
+      try {
+        return await getPublicMinuteByMember({ data: { token } });
+      } catch (e) {
+        if (e instanceof Error && e.message.startsWith("Unauthorized")) {
+          throw new Error(MEMBER_LOGIN_REQUIRED);
+        }
+        throw e;
+      }
     },
-    onSuccess: ({ id, res }) => {
+    onSuccess: (res) => {
       if (res.locked) {
         setLockedInfo({
           kind: String(res.kind),
@@ -111,7 +115,7 @@ function PublicAtaPage() {
         return;
       }
       setLockedInfo(null);
-      const next: PublicMinuteUnlock = { mode: "member", demolayId: id };
+      const next: PublicMinuteUnlock = { mode: "member" };
       writePublicMinuteUnlock(storageKey, next);
       const attempt = unlockAttempt + 1;
       setUnlockAttempt(attempt);
@@ -155,7 +159,7 @@ function PublicAtaPage() {
         data: {
           token,
           password: unlock.mode === "password" ? unlock.password : null,
-          demolayId: unlock.mode === "member" ? unlock.demolayId : null,
+          asMember: unlock.mode === "member",
           email,
           decision,
           justification: decision === "reprovada" ? justification : null,
@@ -190,7 +194,6 @@ function PublicAtaPage() {
     setUnlock(null);
     setLockedInfo(null);
     setPasswordInput("");
-    setDemolayId("");
     setEmail("");
     setDecision(null);
     setJustification("");
@@ -276,45 +279,38 @@ function PublicAtaPage() {
               {kindLabel ? ` · ${kindLabel}` : ""}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Membros com grau adequado entram com o ID DeMolay (sem senha).
+              Membros com grau adequado entram com a própria conta (sem senha).
               Visitantes usam a senha do tipo da ata para ler e enviar feedback.
             </p>
           </div>
 
           <Card className="space-y-3 rounded-[12px] p-5">
             <h2 className="text-sm font-semibold">Sou membro do capítulo</h2>
-            <div>
-              <Label className="mb-1.5 block text-sm">ID DeMolay</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={demolayId}
-                  placeholder="Seu ID DeMolay"
-                  autoComplete="username"
-                  onChange={(e) => setDemolayId(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      if (demolayId.trim())
-                        unlockAsMember.mutate(demolayId.trim());
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  style={{ backgroundColor: accent }}
-                  disabled={
-                    unlockAsMember.isPending || !demolayId.trim()
-                  }
-                  onClick={() => unlockAsMember.mutate(demolayId.trim())}
-                >
-                  {unlockAsMember.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Entrar"
-                  )}
-                </Button>
-              </div>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Usa a sua sessão do Templo Virtual. Sem login?{" "}
+              <a
+                href="/auth"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Entrar
+              </a>{" "}
+              e depois volte aqui.
+            </p>
+            <Button
+              type="button"
+              className="w-full"
+              style={{ backgroundColor: accent }}
+              disabled={unlockAsMember.isPending}
+              onClick={() => unlockAsMember.mutate()}
+            >
+              {unlockAsMember.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Entrar com minha conta"
+              )}
+            </Button>
           </Card>
 
           <Card className="space-y-3 rounded-[12px] p-5">
