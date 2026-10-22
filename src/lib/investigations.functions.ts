@@ -1634,7 +1634,6 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
     );
     if (manageErr) throw new Error(manageErr.message);
 
-    const email = (context.claims as { email?: string } | null)?.email ?? null;
     const escrivaoInk = data.signatures?.escrivao;
     if (
       !canManage &&
@@ -1648,7 +1647,6 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
         userId: context.userId,
         chapterId: data.chapterId,
         positionCode: "escrivao",
-        email,
       });
       if (!canSignEsc) {
         throw new Error(
@@ -1757,7 +1755,6 @@ async function resolveLinkedMemberIds(
   },
   userId: string,
   chapterId: string,
-  email: string | null,
 ): Promise<string[]> {
   const { resolveLinkedMemberIdsForChapter } = await import(
     "@/lib/resolve-linked-members"
@@ -1765,7 +1762,6 @@ async function resolveLinkedMemberIds(
   return resolveLinkedMemberIdsForChapter(supabase, {
     userId,
     chapterId,
-    email,
   });
 }
 
@@ -1773,7 +1769,6 @@ async function userCanVoteSindicancia(
   supabase: { from: (t: string) => any },
   opts: {
     userId: string;
-    email: string | null;
     chapterId: string;
     year: number;
     semester: 1 | 2;
@@ -1783,7 +1778,6 @@ async function userCanVoteSindicancia(
     supabase,
     opts.userId,
     opts.chapterId,
-    opts.email,
   );
   if (memberIds.length === 0) {
     return { canVote: false, memberIds, reason: "Membro não vinculado" };
@@ -1848,11 +1842,8 @@ export const getSindicanciaVoting = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { currentTerm } = await import("@/lib/terms");
     const term = currentTerm();
-    const email =
-      (context.claims as { email?: string } | null)?.email ?? null;
     const eligibility = await userCanVoteSindicancia(context.supabase, {
       userId: context.userId,
-      email,
       chapterId: data.chapterId,
       year: term.year,
       semester: term.semester,
@@ -1914,8 +1905,6 @@ export const castSindicanciaVote = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { currentTerm } = await import("@/lib/terms");
     const term = currentTerm();
-    const email =
-      (context.claims as { email?: string } | null)?.email ?? null;
 
     const { data: detail, error: dErr } = await context.supabase
       .from("sindicancia_details" as never)
@@ -1934,7 +1923,6 @@ export const castSindicanciaVote = createServerFn({ method: "POST" })
 
     const eligibility = await userCanVoteSindicancia(context.supabase, {
       userId: context.userId,
-      email,
       chapterId: d.chapter_id,
       year: term.year,
       semester: term.semester,
@@ -2035,11 +2023,8 @@ export const getMySindicanciaAccess = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { currentTerm } = await import("@/lib/terms");
     const term = currentTerm();
-    const email =
-      (context.claims as { email?: string } | null)?.email ?? null;
     const eligibility = await userCanVoteSindicancia(context.supabase, {
       userId: context.userId,
-      email,
       chapterId: data.chapterId,
       year: term.year,
       semester: term.semester,
@@ -2058,11 +2043,8 @@ export const listOpenSindicanciasForMe = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { currentTerm } = await import("@/lib/terms");
     const term = currentTerm();
-    const email =
-      (context.claims as { email?: string } | null)?.email ?? null;
     const eligibility = await userCanVoteSindicancia(context.supabase, {
       userId: context.userId,
-      email,
       chapterId: data.chapterId,
       year: term.year,
       semester: term.semester,

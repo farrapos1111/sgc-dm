@@ -28,7 +28,7 @@ async function assertCanViewChapterAudit(
   supabase: {
     from: (t: string) => any;
   },
-  opts: { userId: string; chapterId: string; email?: string | null },
+  opts: { userId: string; chapterId: string },
 ) {
   const { userHoldsOfficeInChapter } = await import(
     "@/lib/office-signatures.functions"
@@ -37,7 +37,6 @@ async function assertCanViewChapterAudit(
     userId: opts.userId,
     chapterId: opts.chapterId,
     positionCode: "mestre_conselheiro",
-    email: opts.email ?? null,
   });
   if (!ok) {
     throw new Error(
@@ -108,12 +107,9 @@ export const listChapterAudit = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }): Promise<ChapterAuditRow[]> => {
-    const email =
-      (context.claims as { email?: string } | null)?.email ?? null;
     await assertCanViewChapterAudit(context.supabase, {
       userId: context.userId,
       chapterId: data.chapterId,
-      email,
     });
 
     const { start, endExclusive } = ymdRangeIso(data.from, data.until);

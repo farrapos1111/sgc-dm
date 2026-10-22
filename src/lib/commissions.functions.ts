@@ -31,14 +31,12 @@ export const listMyCommissions = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }): Promise<MyCommission[]> => {
-    const email = (context.claims as { email?: string } | null)?.email ?? null;
     const { resolveLinkedMemberIdsForChapter } = await import(
       "@/lib/resolve-linked-members"
     );
     const ids = await resolveLinkedMemberIdsForChapter(context.supabase, {
       userId: context.userId,
       chapterId: data.chapterId,
-      email,
     });
     if (ids.length === 0) return [];
 

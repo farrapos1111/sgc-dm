@@ -412,7 +412,6 @@ export async function userHoldsOfficeInChapter(
     userId: string;
     chapterId: string;
     positionCode: string;
-    email?: string | null;
     year?: number;
     semester?: 1 | 2;
   },
@@ -449,7 +448,6 @@ export async function userHoldsOfficeInChapter(
   const memberIds = await resolveLinkedMemberIdsForChapter(supabase, {
     userId: opts.userId,
     chapterId: opts.chapterId,
-    email: opts.email,
   });
   if (memberIds.length === 0) return false;
 
@@ -476,7 +474,6 @@ export async function assertCanSignAsOffice(
     userId: string;
     chapterId: string;
     positionCode: string;
-    email?: string | null;
   },
 ): Promise<void> {
   const ok = await userHoldsOfficeInChapter(supabase, opts);
@@ -634,12 +631,10 @@ export const canSignAsOffice = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const email = (context.claims as { email?: string } | null)?.email ?? null;
     const ok = await userHoldsOfficeInChapter(context.supabase, {
       userId: context.userId,
       chapterId: data.chapterId,
       positionCode: data.positionCode,
-      email,
     });
     return { canSign: ok };
   });

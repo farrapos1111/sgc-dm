@@ -1791,14 +1791,12 @@ export const listEventComandaAudit = createServerFn({ method: "POST" })
     if (evErr) throw new Error(evErr.message);
     if (!event) throw new Error("Evento não encontrado");
 
-    const email = (context.claims as { email?: string } | null)?.email ?? null;
     const { userHoldsOfficeInChapter } =
       await import("@/lib/office-signatures.functions");
     const canView = await userHoldsOfficeInChapter(context.supabase, {
       userId: context.userId,
       chapterId: event.chapter_id,
       positionCode: "mestre_conselheiro",
-      email,
     });
     if (!canView) {
       throw new Error(

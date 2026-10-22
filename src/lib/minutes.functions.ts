@@ -391,14 +391,12 @@ export const signMinute = createServerFn({ method: "POST" })
       getOfficeSignaturesForChapter,
       OFFICE_SIGNATURE_LABELS,
     } = await import("@/lib/office-signatures.functions");
-    const email = (context.claims as { email?: string } | null)?.email ?? null;
     const positionCode = canonicalOfficeSignatureCode(data.signerRole);
 
     await assertCanSignAsOffice(context.supabase, {
       userId: context.userId,
       chapterId: minute.chapter_id,
       positionCode,
-      email,
     });
 
     const slots = await getOfficeSignaturesForChapter(context.supabase, {

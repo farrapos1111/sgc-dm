@@ -3,10 +3,6 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
-import type {
-  CadastroLookupGuardian,
-  CadastroLookupMember,
-} from "@/lib/cadastro.functions";
 
 function getPublicSupabase() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -237,81 +233,4 @@ export const getPublicMemberPortal = createServerFn({ method: "POST" })
         amount: d.status === "pago" ? d.amount : defaultAmount,
       })),
     } satisfies PublicMemberPortal;
-  });
-
-const addressSchema = z.object({
-  zip: z.string().optional().default(""),
-  street: z.string().optional().default(""),
-  number: z.string().optional().default(""),
-  complement: z.string().optional().default(""),
-  neighborhood: z.string().optional().default(""),
-  city: z.string().optional().default(""),
-  state: z.string().optional().default(""),
-  country: z.string().optional().default("Brasil"),
-});
-
-const guardianUpdateSchema = z.object({
-  id: z.string().uuid(),
-  relationship: z.string().optional().default(""),
-  cpf: z.string().optional().default(""),
-  phone: z.string().optional().default(""),
-  email: z.string().optional().default(""),
-});
-
-/** Lookup de cadastro escopado ao capítulo do lobby. */
-export const lookupLobbyMemberCadastro = createServerFn({ method: "POST" })
-  .inputValidator((raw) =>
-    z
-      .object({
-        token: tokenInput,
-        demolayId: z.string().trim().min(3).max(40),
-      })
-      .parse(raw),
-  )
-  .handler(async ({ data }) => {
-    const supabase = getPublicSupabase();
-    const { data: payload, error } = await supabase.rpc(
-      "lookup_lobby_member_cadastro" as never,
-      { _token: data.token, _demolay_id: data.demolayId } as never,
-    );
-    if (error) throwPublicRpcError(error, "lookupLobbyMemberCadastro");
-    return payload as {
-      member: CadastroLookupMember;
-      guardians: CadastroLookupGuardian[];
-    };
-  });
-
-/** Submit de cadastro escopado ao capítulo do lobby. */
-export const submitLobbyMemberCadastro = createServerFn({ method: "POST" })
-  .inputValidator((raw) =>
-    z
-      .object({
-        token: tokenInput,
-        demolayId: z.string().trim().min(3).max(40),
-        phone: z.string().optional().nullable(),
-        email: z.string().optional().nullable(),
-        address: addressSchema.optional().nullable(),
-        cpf: z.string().optional().nullable(),
-        rg: z.string().optional().nullable(),
-        guardians: z.array(guardianUpdateSchema).optional().nullable(),
-      })
-      .parse(raw),
-  )
-  .handler(async ({ data }) => {
-    const supabase = getPublicSupabase();
-    const { data: payload, error } = await supabase.rpc(
-      "submit_lobby_member_cadastro" as never,
-      {
-        _token: data.token,
-        _demolay_id: data.demolayId,
-        _phone: data.phone ?? null,
-        _email: data.email ?? null,
-        _address: data.address ?? null,
-        _cpf: data.cpf ?? null,
-        _rg: data.rg ?? null,
-        _guardians: data.guardians ?? null,
-      } as never,
-    );
-    if (error) throwPublicRpcError(error, "submitLobbyMemberCadastro");
-    return payload as { ok: boolean; changed: boolean; member_id: string };
   });

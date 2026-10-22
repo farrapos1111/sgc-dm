@@ -1,20 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Banknote, Check, Loader2, LogOut, Receipt, Search } from "lucide-react";
+import { Banknote, Loader2, LogOut, Receipt, Search } from "lucide-react";
 import { LobbyBackLink, usePublicLobby } from "@/context/PublicLobbyContext";
 import {
   getPublicMemberPortal,
   lobbyMemberStorageKey,
-  lookupLobbyMemberCadastro,
-  submitLobbyMemberCadastro,
 } from "@/lib/lobby-share.functions";
-import type {
-  CadastroLookupGuardian,
-  CadastroLookupMember,
-} from "@/lib/cadastro.functions";
-import { Field, GUARDIAN_RELATIONSHIPS } from "@/components/members/MemberFields";
 import {
   MONTH_SHORT,
   autoDueExemptTip,
@@ -23,19 +16,12 @@ import {
 } from "@/lib/dues-rules";
 import type { DueMemberLite } from "@/lib/dues-rules";
 import {
-  digitsOnly,
   formatBRL,
-  formatCpfMask,
   formatDateBR,
   formatDateTimeBR,
-  formatRgMask,
-  isUnder21,
   kindLabel,
-  maskCpfInput,
-  maskPhoneInput,
   statusLabel,
 } from "@/lib/format";
-import { lookupCep, maskCepInput, createCepLookupSeq } from "@/lib/cep";
 import { typeLabel } from "@/lib/calendar-types";
 import { currentYearMonthInAppTz } from "@/lib/timezone";
 import { Button } from "@/components/ui/button";
@@ -60,16 +46,6 @@ export const Route = createFileRoute("/c/$token/eu")({
   }),
   component: LobbyMemberPortalPage,
 });
-
-type EditableGuardian = {
-  id: string;
-  full_name: string;
-  relationship: string;
-  cpf: string;
-  phone: string;
-  email: string;
-  cpf_last2: string | null;
-};
 
 export function LobbyMemberPortalPage() {
   const { token, chapter } = usePublicLobby();
@@ -215,7 +191,7 @@ export function LobbyMemberPortalPage() {
           />
         </TabsContent>
         <TabsContent value="cadastro" className="mt-0">
-          <MemberCadastroTab token={token} demolayId={unlockedId} accent={accent} />
+          <MemberCadastroTab accent={accent} />
         </TabsContent>
         {showFrequency ? (
           <TabsContent value="frequencia" className="mt-0">
@@ -704,386 +680,18 @@ function MemberFrequencyTab({
   );
 }
 
-function MemberCadastroTab({
-  token,
-  demolayId,
-  accent,
-}: {
-  token: string;
-  demolayId: string;
-  accent: string;
-}) {
-  const [member, setMember] = useState<CadastroLookupMember | null>(null);
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [rg, setRg] = useState("");
-  const [address, setAddress] = useState({
-    zip: "",
-    street: "",
-    number: "",
-    complement: "",
-    neighborhood: "",
-    city: "",
-    state: "",
-    country: "Brasil",
-  });
-  const [guardians, setGuardians] = useState<EditableGuardian[]>([]);
-  const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "error" | "ok">("idle");
-  const [cepError, setCepError] = useState("");
-  const lastLookedUp = useRef("");
-  const cepSeq = useRef(createCepLookupSeq()).current;
-  const [done, setDone] = useState(false);
-
-  const lookup = useMutation({
-    mutationFn: () =>
-      lookupLobbyMemberCadastro({ data: { token, demolayId } }),
-    onSuccess: (data) => {
-      setDone(false);
-      setMember(data.member);
-      setPhone(data.member.phone ?? "");
-      setEmail(data.member.email ?? "");
-      setCpf("");
-      setRg("");
-      const addr = (data.member.address ?? {}) as Record<string, string>;
-      setAddress({
-        zip: maskCepInput(addr.zip ?? ""),
-        street: addr.street ?? "",
-        number: addr.number ?? "",
-        complement: addr.complement ?? "",
-        neighborhood: addr.neighborhood ?? "",
-        city: addr.city ?? "",
-        state: addr.state ?? "",
-        country: addr.country ?? "Brasil",
-      });
-      setGuardians(
-        isUnder21(data.member.birth_date)
-          ? (data.guardians ?? []).slice(0, 2).map((g: CadastroLookupGuardian) => ({
-              id: g.id,
-              full_name: g.full_name,
-              relationship: g.relationship ?? "",
-              cpf: "",
-              phone: g.phone ?? "",
-              email: g.email ?? "",
-              cpf_last2: g.cpf_last2,
-            }))
-          : [],
-      );
-    },
-    onError: (e: Error) => toast.error(e.message || "Não foi possível carregar o cadastro"),
-  });
-
-  useEffect(() => {
-    lookup.mutate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, demolayId]);
-
-  const save = useMutation({
-    mutationFn: () => {
-      if (!member) throw new Error("Cadastro não carregado");
-      return submitLobbyMemberCadastro({
-        data: {
-          token,
-          demolayId: member.demolay_id || demolayId,
-          phone,
-          email,
-          address,
-          cpf,
-          rg,
-          guardians: isUnder21(member.birth_date)
-            ? guardians.map((g) => ({
-                id: g.id,
-                relationship: g.relationship,
-                cpf: g.cpf,
-                phone: g.phone,
-                email: g.email,
-              }))
-            : [],
-        },
-      });
-    },
-    onSuccess: (res) => {
-      setDone(true);
-      if (res.changed) toast.success("Cadastro atualizado");
-      else toast.message("Nenhuma alteração detectada.");
-    },
-    onError: (e: Error) => toast.error(e.message || "Erro ao salvar"),
-  });
-
-  async function doLookupCep(raw: string) {
-    const cep = digitsOnly(raw);
-    if (cep.length !== 8 || cep === lastLookedUp.current) return;
-    lastLookedUp.current = cep;
-    const reqId = cepSeq.begin();
-    setCepStatus("loading");
-    setCepError("");
-    try {
-      const data = await lookupCep(raw);
-      if (!cepSeq.isCurrent(reqId)) return;
-      setAddress((a) => ({
-        ...a,
-        zip: data.zip,
-        street: data.street,
-        neighborhood: data.neighborhood,
-        city: data.city,
-        state: data.state,
-        country: data.country,
-      }));
-      setCepStatus("ok");
-    } catch (e) {
-      if (!cepSeq.isCurrent(reqId)) return;
-      setCepStatus("error");
-      setCepError(
-        e instanceof Error ? e.message : "Não foi possível buscar o CEP",
-      );
-    }
-  }
-
-  function handleCepChange(raw: string) {
-    const masked = maskCepInput(raw);
-    setDone(false);
-    setAddress((a) => ({ ...a, zip: masked }));
-    const digits = digitsOnly(masked);
-    if (digits.length < 8) {
-      cepSeq.invalidate();
-      lastLookedUp.current = "";
-      setCepStatus("idle");
-      setCepError("");
-      return;
-    }
-    void doLookupCep(masked);
-  }
-
-  function patchGuardian(id: string, patch: Partial<EditableGuardian>) {
-    setDone(false);
-    setGuardians((list) => list.map((g) => (g.id === id ? { ...g, ...patch } : g)));
-  }
-
-  function editPhone(value: string) {
-    setDone(false);
-    setPhone(value);
-  }
-  function editEmail(value: string) {
-    setDone(false);
-    setEmail(value);
-  }
-  function editCpf(value: string) {
-    setDone(false);
-    setCpf(value);
-  }
-  function editRg(value: string) {
-    setDone(false);
-    setRg(value);
-  }
-  function editAddress(patch: Partial<typeof address>) {
-    setDone(false);
-    setAddress((a) => ({ ...a, ...patch }));
-  }
-
-  if (lookup.isPending && !member) {
-    return (
-      <div className="flex justify-center py-10 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!member) {
-    return (
-      <Card className="p-6 text-center text-sm text-muted-foreground">
-        Não foi possível carregar o cadastro.
-      </Card>
-    );
-  }
-
+function MemberCadastroTab({ accent }: { accent: string }) {
   return (
-    <div className="space-y-4">
-      <Card className="space-y-3 rounded-[12px] p-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h3 className="font-semibold">{member.full_name}</h3>
-            <p className="text-sm text-muted-foreground">ID {member.demolay_id}</p>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            <Badge variant="outline">{kindLabel(member.kind)}</Badge>
-            <Badge variant="secondary">{statusLabel(member.status)}</Badge>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="space-y-4 rounded-[12px] p-4">
-        <h3 className="text-sm font-semibold text-muted-foreground">Dados editáveis</h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Telefone">
-            <Input
-              value={phone}
-              placeholder="(00) 00000-0000"
-              onChange={(e) => editPhone(maskPhoneInput(e.target.value))}
-            />
-          </Field>
-          <Field label="Email">
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => editEmail(e.target.value)}
-            />
-          </Field>
-          <Field label="CPF">
-            <Input
-              value={cpf}
-              placeholder={formatCpfMask(member.cpf_last2)}
-              onChange={(e) => editCpf(maskCpfInput(e.target.value))}
-            />
-          </Field>
-          <Field label="RG">
-            <Input
-              value={rg}
-              placeholder={formatRgMask(member.rg_last2)}
-              onChange={(e) => editRg(e.target.value.slice(0, 20))}
-            />
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="CEP">
-            <div className="relative">
-              <Input
-                value={address.zip}
-                placeholder="00000-000"
-                inputMode="numeric"
-                onChange={(e) => handleCepChange(e.target.value)}
-                onBlur={() => void doLookupCep(address.zip)}
-              />
-              {cepStatus === "loading" && (
-                <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-              )}
-            </div>
-          </Field>
-          <Field label="Endereço">
-            <Input
-              value={address.street}
-              onChange={(e) => editAddress({ street: e.target.value })}
-            />
-          </Field>
-          <Field label="Número">
-            <Input
-              value={address.number}
-              onChange={(e) => editAddress({ number: e.target.value })}
-            />
-          </Field>
-          <Field label="Complemento">
-            <Input
-              value={address.complement}
-              onChange={(e) => editAddress({ complement: e.target.value })}
-            />
-          </Field>
-          <Field label="Bairro">
-            <Input
-              value={address.neighborhood}
-              onChange={(e) => editAddress({ neighborhood: e.target.value })}
-            />
-          </Field>
-          <Field label="Cidade">
-            <Input
-              value={address.city}
-              onChange={(e) => editAddress({ city: e.target.value })}
-            />
-          </Field>
-          <Field label="UF">
-            <Input
-              maxLength={2}
-              value={address.state}
-              onChange={(e) =>
-                editAddress({ state: e.target.value.toUpperCase() })
-              }
-            />
-          </Field>
-          <Field label="País">
-            <Input
-              value={address.country}
-              onChange={(e) => editAddress({ country: e.target.value })}
-            />
-          </Field>
-        </div>
-        {cepError ? <p className="text-xs text-destructive">{cepError}</p> : null}
-      </Card>
-
-      {isUnder21(member.birth_date) &&
-        guardians.map((g, idx) => (
-          <Card key={g.id} className="space-y-4 rounded-[12px] p-4">
-            <h3 className="text-sm font-semibold">
-              Responsável {idx + 1}
-              <span className="ml-2 font-normal text-muted-foreground">{g.full_name}</span>
-            </h3>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Parentesco">
-                <Select
-                  value={g.relationship || undefined}
-                  onValueChange={(v) => patchGuardian(g.id, { relationship: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(GUARDIAN_RELATIONSHIPS as readonly string[])
-                      .concat(
-                        g.relationship &&
-                          !(GUARDIAN_RELATIONSHIPS as readonly string[]).includes(g.relationship)
-                          ? [g.relationship]
-                          : [],
-                      )
-                      .map((opt) => (
-                        <SelectItem key={opt} value={opt}>
-                          {opt}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="CPF">
-                <Input
-                  value={g.cpf}
-                  placeholder={formatCpfMask(g.cpf_last2)}
-                  onChange={(e) => patchGuardian(g.id, { cpf: maskCpfInput(e.target.value) })}
-                />
-              </Field>
-              <Field label="Telefone">
-                <Input
-                  value={g.phone}
-                  placeholder="(00) 00000-0000"
-                  onChange={(e) =>
-                    patchGuardian(g.id, { phone: maskPhoneInput(e.target.value) })
-                  }
-                />
-              </Field>
-              <Field label="Email">
-                <Input
-                  type="email"
-                  value={g.email}
-                  onChange={(e) => patchGuardian(g.id, { email: e.target.value })}
-                />
-              </Field>
-            </div>
-          </Card>
-        ))}
-
-      <Button
-        type="button"
-        className="w-full"
-        style={{ backgroundColor: accent }}
-        disabled={save.isPending || done}
-        onClick={() => save.mutate()}
-      >
-        {save.isPending ? (
-          "Salvando…"
-        ) : done ? (
-          <>
-            <Check className="mr-2 h-4 w-4" /> Enviado
-          </>
-        ) : (
-          "Salvar atualização"
-        )}
+    <Card className="space-y-3 rounded-[12px] p-5">
+      <h3 className="text-sm font-semibold">Atualizar cadastro</h3>
+      <p className="text-sm text-muted-foreground">
+        Por segurança, telefone, e-mail, endereço e dados dos responsáveis só
+        podem ser alterados com login. Entre na sua conta e acesse{" "}
+        <strong>Perfil → Cadastro</strong>.
+      </p>
+      <Button asChild style={{ backgroundColor: accent }}>
+        <a href="/auth">Entrar na minha conta</a>
       </Button>
-    </div>
+    </Card>
   );
 }

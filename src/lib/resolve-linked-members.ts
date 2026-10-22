@@ -49,50 +49,27 @@ async function filterMembersVisibleInChapter(
 
 /**
  * IDs de membros vinculados ao usuário e visíveis no capítulo informado.
- * 1) members.user_id = userId
- * 2) fallback: members.email = email (exato), sem full_name
- * 3) filtra por originário OU afiliação ativa no chapterId
+ * 1) members.user_id = userId (único vínculo aceito — e-mail é editável e não
+ *    prova titularidade)
+ * 2) filtra por originário OU afiliação ativa no chapterId
  */
 export async function resolveLinkedMemberIdsForChapter(
   supabase: SupabaseLike,
   opts: {
     userId: string;
     chapterId: string;
-    email?: string | null;
   },
 ): Promise<string[]> {
-  const { userId, chapterId, email } = opts;
-
-  const { data: byUser, error: userErr } = await supabase
-    .from("members")
-    .select("id")
-    .eq("user_id", userId);
-  if (userErr) throw new Error(userErr.message);
-
-  let ids = (byUser ?? []).map((m: { id: string }) => m.id as string);
-
-  if (ids.length === 0 && email) {
-    const normalized = email.trim().toLowerCase();
-    if (normalized) {
-      const { data: byEmail, error: emailErr } = await supabase
-        .from("members")
-        .select("id")
-        .eq("email", normalized);
-      if (emailErr) throw new Error(emailErr.message);
-      ids = (byEmail ?? []).map((m: { id: string }) => m.id as string);
-    }
-  }
-
-  return filterMembersVisibleInChapter(supabase, ids, chapterId);
+  const ids = await resolveLinkedMemberIdsGlobal(supabase, opts);
+  return filterMembersVisibleInChapter(supabase, ids, opts.chapterId);
 }
 
 /**
- * Todos os member_ids ligados ao user (sem filtro de capítulo).
- * Preferir user_id; fallback só por e-mail (sem nome).
+ * Todos os member_ids ligados ao user (sem filtro de capítulo), via user_id.
  */
 export async function resolveLinkedMemberIdsGlobal(
   supabase: SupabaseLike,
-  opts: { userId: string; email?: string | null },
+  opts: { userId: string },
 ): Promise<string[]> {
   const { data: byUser, error: userErr } = await supabase
     .from("members")
@@ -100,16 +77,5 @@ export async function resolveLinkedMemberIdsGlobal(
     .eq("user_id", opts.userId);
   if (userErr) throw new Error(userErr.message);
 
-  let ids = (byUser ?? []).map((m: { id: string }) => m.id as string);
-  if (ids.length > 0) return [...new Set(ids)];
-
-  const email = opts.email?.trim().toLowerCase();
-  if (!email) return [];
-
-  const { data: byEmail, error: emailErr } = await supabase
-    .from("members")
-    .select("id")
-    .eq("email", email);
-  if (emailErr) throw new Error(emailErr.message);
-  return [...new Set((byEmail ?? []).map((m: { id: string }) => m.id as string))];
+  return [...new Set((byUser ?? []).map((m: { id: string }) => m.id as string))];
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Lock, Save } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -9,7 +9,10 @@ import { Label } from "@/components/ui/label";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { canManageMinutePasswordsAccess } from "@/lib/permissions";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
-import { updateMinutePasswords } from "@/lib/chapter.functions";
+import {
+  getMinutePasswords,
+  updateMinutePasswords,
+} from "@/lib/chapter.functions";
 import {
   MINUTE_KINDS,
   MINUTE_KIND_LABELS,
@@ -19,13 +22,16 @@ import {
 
 /** Senhas do link público da ata, por tipo — só Escrivão, PCC e MC. */
 export function MinutePasswordsCard() {
-  const { active, refetch } = useActiveChapter();
+  const { active } = useActiveChapter();
   const { ctx } = useChapterAccess();
   const allowed = canManageMinutePasswordsAccess(ctx);
-  const saved = parseMinutePasswords(
-    (active?.chapter as { settings?: Record<string, unknown> } | undefined)
-      ?.settings,
-  );
+  const chapterId = active?.chapter_id;
+  const passwordsQ = useQuery({
+    queryKey: ["minute-passwords", chapterId],
+    enabled: allowed && Boolean(chapterId),
+    queryFn: () => getMinutePasswords({ data: { chapter_id: chapterId! } }),
+  });
+  const saved = parseMinutePasswords(passwordsQ.data);
   const [passwords, setPasswords] = useState<MinutePasswords>(saved);
 
   useEffect(() => {
@@ -50,7 +56,7 @@ export function MinutePasswordsCard() {
       }),
     onSuccess: async () => {
       toast.success("Senhas das atas salvas");
-      await refetch();
+      await passwordsQ.refetch();
     },
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Erro ao salvar"),
@@ -65,7 +71,7 @@ export function MinutePasswordsCard() {
       </div>
       <p className="text-sm text-muted-foreground">
         Senhas do link público por tipo de ata (visitantes e feedback).
-        Membros com grau adequado entram com ID DeMolay, sem senha. Visível
+        Membros com grau adequado entram com a própria conta, sem senha. Visível
         apenas para Escrivão, Presidente do Conselho e Mestre Conselheiro.
       </p>
       <div className="grid gap-3 sm:grid-cols-3">
