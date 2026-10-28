@@ -39,6 +39,8 @@ import {
 import { exportSindicanciaQuestionnairePdf } from "@/lib/sindicancia-questionnaire-pdf";
 import { useCommissionAccess } from "@/hooks/useCommissionAccess";
 import { useSindicanciaVotingRealtime } from "@/hooks/useSindicanciaVotingRealtime";
+import { EMPTY_LIST } from "@/lib/utils";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 
 export type AtaFormMode = "roteiro" | "ata" | "votacao";
 
@@ -100,7 +102,9 @@ export function SindicanciaAtaForm({
   const { canManage } = useCommissionAccess();
   const canFinalize = canManage("sindicancias");
   const qc = useQueryClient();
-  const ageBand: AgeBand = ageBandFromBirthDate(
+  const { confirm, dialog } = useConfirmDialog();
+  // Faixa pela idade de hoje: só vale enquanto a ata ainda não foi criada.
+  const ageBandToday: AgeBand = ageBandFromBirthDate(
     row.file?.candidate_birth_date ?? null,
   );
   const isRoteiro = mode === "roteiro";
@@ -133,8 +137,12 @@ export function SindicanciaAtaForm({
       getSindicanciaMinute({
         data: { calendarEventId: row.calendar_event_id },
       }),
-    enabled: !isRoteiro,
+    // Também no roteiro: a faixa etária gravada na ata define o modelo.
   });
+
+  // Ata criada: o modelo fica na faixa gravada, mesmo que o indicado faça
+  // aniversário durante o processo (o banco também impede a troca).
+  const ageBand: AgeBand = minute?.age_band ?? ageBandToday;
 
   const { data: voting } = useQuery({
     queryKey: ["sindicancia-voting", row.calendar_event_id],
@@ -148,7 +156,7 @@ export function SindicanciaAtaForm({
       }),
   });
 
-  const blocks: AtaBlock[] = templates?.[ageBand]?.blocks ?? [];
+  const blocks: AtaBlock[] = templates?.[ageBand]?.blocks ?? EMPTY_LIST;
 
   const [answers, setAnswers] = useState<
     Record<string, string | boolean | null>
@@ -462,6 +470,7 @@ export function SindicanciaAtaForm({
 
   return (
     <div className="space-y-6">
+      {dialog}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
@@ -826,13 +835,16 @@ export function SindicanciaAtaForm({
               size="sm"
               variant="outline"
               disabled={reopenMut.isPending}
-              onClick={() => {
+              onClick={async () => {
                 const inVoting = row.status === "votacao_comissao";
-                const ok = window.confirm(
-                  inVoting
-                    ? "Reabrir a ata? A sindicância volta para Em andamento e os votos da comissão serão apagados."
-                    : "Reabrir a ata para correção?",
-                );
+                const ok = await confirm({
+                  title: "Reabrir a ata?",
+                  description: inVoting
+                    ? "A sindicância volta para Em andamento e os votos da comissão serão apagados."
+                    : "A ata volta para edição, para correção.",
+                  confirmLabel: "Reabrir",
+                  destructive: inVoting,
+                });
                 if (ok) reopenMut.mutate();
               }}
             >

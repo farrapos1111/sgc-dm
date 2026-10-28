@@ -59,7 +59,7 @@ import {
   termOptions,
   type Term,
 } from "@/lib/terms";
-import { matchesLooseSearch } from "@/lib/utils";
+import { matchesLooseSearch, EMPTY_LIST } from "@/lib/utils";
 import { FileText, Plus, Download, Search, X, Trash2, RotateCcw } from "lucide-react";
 import {
   DocumentTemplatesPanel,
@@ -185,7 +185,7 @@ function StatusBadge({ status }: { status: string }) {
   const st = STATUS_STYLE[status] ?? STATUS_STYLE.rascunho;
   return (
     <span
-      className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
+      className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
       style={{ backgroundColor: st.bg, color: st.color }}
     >
       {MINUTE_STATUS_LABELS[status] ?? status}
@@ -209,7 +209,7 @@ function MinuteCard({ minute }: { minute: MinuteRow }) {
             </h3>
             <StatusBadge status={minute.status} />
             {minute.kind ? (
-              <Badge variant="outline" className="text-[11px] font-normal">
+              <Badge variant="outline" className="text-xs font-normal">
                 {MINUTE_KIND_LABELS[minute.kind as MinuteKind] ?? minute.kind}
               </Badge>
             ) : null}
@@ -513,7 +513,7 @@ function AtasPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
 
-  const rows = (minutes as MinuteRow[]) ?? [];
+  const rows = (minutes as MinuteRow[]) ?? EMPTY_LIST;
   const deletedRows = (deletedQ.data as MinuteRow[] | undefined) ?? [];
 
   const years = useMemo(() => {
@@ -673,7 +673,7 @@ function AtasPage() {
                         {m.kind ? (
                           <Badge
                             variant="outline"
-                            className="text-[11px] font-normal"
+                            className="text-xs font-normal"
                           >
                             {MINUTE_KIND_LABELS[m.kind as MinuteKind] ?? m.kind}
                           </Badge>
@@ -736,7 +736,7 @@ function AtasPage() {
                             {m.kind ? (
                               <Badge
                                 variant="outline"
-                                className="text-[11px] font-normal"
+                                className="text-xs font-normal"
                               >
                                 {MINUTE_KIND_LABELS[m.kind as MinuteKind] ??
                                   m.kind}

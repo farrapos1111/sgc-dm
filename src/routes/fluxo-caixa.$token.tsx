@@ -39,6 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EMPTY_LIST } from "@/lib/utils";
 
 export const Route = createFileRoute("/fluxo-caixa/$token")({
   ssr: false,
@@ -95,7 +96,7 @@ export function PublicCashFlowView({
     retry: false,
   });
 
-  const entries = data?.entries ?? [];
+  const entries = data?.entries ?? EMPTY_LIST;
   const opening = data?.opening ?? { balance: 0, previousYear: year - 1 };
   const openingBalance = centsToMoney(moneyCents(opening.balance));
   const bank = data?.bank ?? { income: 0, expense: 0, balance: 0 };

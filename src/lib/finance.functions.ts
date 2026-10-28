@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { moneyNonNegative, moneyPositive } from "@/lib/validation";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   cashEntryMatchesCharge,
@@ -582,12 +583,12 @@ export const createCashEntry = createServerFn({ method: "POST" })
     chapterInput
       .extend({
         kind: z.enum(["entrada", "saida"]),
-        category: z.string().min(1).default("Outras"),
+        category: z.string().min(1).max(300).default("Outras"),
         subcategoryId: z.string().uuid().nullable().default(null),
         eventId: z.string().uuid().nullable().default(null),
-        description: z.string().min(1, "Informe a descrição"),
-        amount: z.number().nonnegative(),
-        entry_date: z.string().min(1),
+        description: z.string().min(1, "Informe a descrição").max(20_000),
+        amount: moneyNonNegative(),
+        entry_date: z.string().min(1).max(40),
         qty: z.number().int().positive().nullable().optional(),
       })
       .parse(raw),
@@ -645,12 +646,12 @@ export const updateCashEntry = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid(),
         kind: z.enum(["entrada", "saida"]),
-        category: z.string().min(1),
+        category: z.string().min(1).max(300),
         subcategoryId: z.string().uuid().nullable().default(null),
         eventId: z.string().uuid().nullable().default(null),
-        description: z.string().min(1),
-        amount: z.number().nonnegative(),
-        entry_date: z.string().min(1),
+        description: z.string().min(1).max(20_000),
+        amount: moneyNonNegative(),
+        entry_date: z.string().min(1).max(40),
         qty: z.number().int().positive().nullable().optional(),
       })
       .parse(raw),
@@ -891,10 +892,10 @@ export const importCashEntries = createServerFn({ method: "POST" })
           .array(
             z.object({
               kind: z.enum(["entrada", "saida"]),
-              category: z.string().min(1),
-              description: z.string().min(1),
-              amount: z.number().nonnegative(),
-              entry_date: z.string().min(1),
+              category: z.string().min(1).max(300),
+              description: z.string().min(1).max(20_000),
+              amount: moneyNonNegative(),
+              entry_date: z.string().min(1).max(40),
             }),
           )
           .min(1)
@@ -1091,7 +1092,7 @@ async function readDuesEnabled(
 export const saveDefaultDuesAmount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) =>
-    chapterInput.extend({ amount: z.number().nonnegative() }).parse(raw),
+    chapterInput.extend({ amount: moneyNonNegative() }).parse(raw),
   )
   .handler(async ({ data, context }) => {
     const { data: amount, error } = await context.supabase.rpc(
@@ -1721,9 +1722,9 @@ export const upsertDue = createServerFn({ method: "POST" })
         memberId: z.string().uuid(),
         year: z.number().int(),
         month: z.number().int().min(1).max(12),
-        amount: z.number().nonnegative(),
+        amount: moneyNonNegative(),
         status: z.enum(["em_aberto", "pago", "isento", "desligado"]),
-        paidAt: z.string().optional(),
+        paidAt: z.string().max(40).optional(),
         /** Se true, marca pago sem criar lançamento no fluxo de caixa. */
         skipCashEntry: z.boolean().optional().default(false),
       })
@@ -1826,8 +1827,8 @@ export const bulkYearDuesAction = createServerFn({ method: "POST" })
           "open_all",
           "exempt_all",
         ]),
-        amount: z.number().nonnegative().optional(),
-        paidAt: z.string().optional(),
+        amount: moneyNonNegative().optional(),
+        paidAt: z.string().max(40).optional(),
         skipCashEntry: z.boolean().optional().default(false),
       })
       .parse(raw),
@@ -1845,7 +1846,7 @@ export const bulkYearDuesAction = createServerFn({ method: "POST" })
     if (data.action === "pay_all" || data.action === "pay_except_jan_dec") {
       if (maxMonth === 0) return { updated: 0, action: data.action };
 
-      let q = context.supabase
+      const q = context.supabase
         .from("member_dues")
         .select(
           "id, member_id, competence_month, cash_entry_id, members(full_name)",
@@ -1951,7 +1952,7 @@ export const generateDues = createServerFn({ method: "POST" })
       .extend({
         year: z.number().int(),
         month: z.number().int().min(1).max(12).optional(),
-        amount: z.number().nonnegative().optional(),
+        amount: moneyNonNegative().optional(),
       })
       .parse(raw),
   )
@@ -2092,8 +2093,8 @@ export const createManualDuesEntry = createServerFn({ method: "POST" })
           )
           .min(1, "Selecione ao menos uma competência")
           .max(24),
-        amount: z.number().nonnegative(),
-        entry_date: z.string().min(1),
+        amount: moneyNonNegative(),
+        entry_date: z.string().min(1).max(40),
         notes: z.string().trim().max(300).optional(),
       })
       .parse(raw),
@@ -2291,8 +2292,8 @@ export const addChargePayment = createServerFn({ method: "POST" })
     chapterInput
       .extend({
         chargeId: z.string().uuid(),
-        amount: z.number().positive(),
-        paidAt: z.string().min(1),
+        amount: moneyPositive(),
+        paidAt: z.string().min(1).max(40),
         notes: z.string().trim().max(300).optional(),
       })
       .parse(raw),
@@ -2437,8 +2438,8 @@ export const updateChargePayment = createServerFn({ method: "POST" })
     chapterInput
       .extend({
         paymentId: z.string().uuid(),
-        amount: z.number().positive(),
-        paidAt: z.string().min(1),
+        amount: moneyPositive(),
+        paidAt: z.string().min(1).max(40),
         notes: z.string().trim().max(300).optional(),
       })
       .parse(raw),
@@ -2590,13 +2591,13 @@ export const upsertMemberCharge = createServerFn({ method: "POST" })
         id: z.string().uuid().optional(),
         memberId: z.string().uuid(),
         kind: z.enum(["entrada", "saida"]).default("entrada"),
-        category: z.string().min(1).default("Outras"),
-        subcategory: z.string().nullable().optional().default(null),
-        description: z.string().min(1),
+        category: z.string().min(1).max(300).default("Outras"),
+        subcategory: z.string().max(300).nullable().optional().default(null),
+        description: z.string().min(1).max(20_000),
         amount: memberChargeAmountSchema,
-        dueDate: z.string().min(1),
+        dueDate: z.string().min(1).max(300),
         status: z.enum(["em_aberto", "pago", "isento"]).default("em_aberto"),
-        paidAt: z.string().optional(),
+        paidAt: z.string().max(40).optional(),
         notes: z.string().trim().max(300).optional(),
       })
       .parse(raw),

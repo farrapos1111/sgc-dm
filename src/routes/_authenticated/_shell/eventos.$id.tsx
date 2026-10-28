@@ -1100,7 +1100,7 @@ function TicketsList({
                 key={key}
                 type="button"
                 onClick={() => setStatusFilter(key)}
-                className="cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors"
+                className="cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-colors"
                 style={
                   statusFilter === key
                     ? {
@@ -1116,7 +1116,7 @@ function TicketsList({
             ))}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {statusCounts.presente} presentes · {statusCounts.ausente}{" "}
               ausentes · {statusCounts.pago} pagos · {statusCounts.parcial}{" "}
               parciais · {statusCounts.aberto} em aberto
@@ -1874,7 +1874,7 @@ function SellTicketCard({
                           setPrice(Number(e.target.value));
                         }}
                       />
-                      <p className="mt-1 text-[11px] text-muted-foreground">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         Por padrão usa o preço do tipo
                         {catalogUnit != null
                           ? ` (${formatBRL(catalogUnit)})`
@@ -2359,7 +2359,7 @@ function TablesMap({
                             {s.seat_number}
                           </div>
                           <div
-                            className={`w-full truncate text-center text-[10px] ${
+                            className={`w-full truncate text-center text-xs ${
                               taken && !dimmed
                                 ? "font-medium text-foreground"
                                 : "text-muted-foreground"
@@ -2409,7 +2409,7 @@ function TablesMap({
           >
             <PlusCircle className="mr-2 h-4 w-4" /> Criar mesa
           </Button>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Toque em um assento para alocar quem já fez check-in, ou liberar o
             lugar. Use o filtro de vendedor para destacar quem cada um vendeu.
           </p>
@@ -2444,7 +2444,7 @@ function TablesMap({
                 value={editCap}
                 onChange={(e) => setEditCap(Number(e.target.value))}
               />
-              <p className="mt-1.5 text-[11px] text-muted-foreground">
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 Ao reduzir, só remove assentos livres no final. Libere
                 convidados dos assentos extras antes de diminuir.
               </p>
@@ -2512,7 +2512,7 @@ function TablesMap({
                   ) : null}
                 </span>
                 <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
                     assigningGuest.settlement === "paid"
                       ? "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
                       : "bg-amber-500/15 text-amber-900 dark:text-amber-200"

@@ -524,7 +524,7 @@ export function MinutesPanel({
             {minutes.rejection_note}
           </p>
           {minutes.rejected_at ? (
-            <p className="mt-1 text-[11px] opacity-70">
+            <p className="mt-1 text-xs opacity-70">
               {formatDateTimeBR(minutes.rejected_at)}
             </p>
           ) : null}
@@ -536,16 +536,16 @@ export function MinutesPanel({
           <FileText className="h-4 w-4 shrink-0" />
           <span>Ata da sessão</span>
           <span
-            className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+            className="rounded-full px-2 py-0.5 text-xs font-medium"
             style={{ backgroundColor: st.bg, color: st.color }}
           >
             {MINUTE_STATUS_LABELS[status] ?? status}
           </span>
-          <Badge variant="outline" className="text-[11px] font-normal">
+          <Badge variant="outline" className="text-xs font-normal">
             Nível {minuteKindToLevel(kind)} · {MINUTE_KIND_LABELS[kind]}
           </Badge>
           {dirty ? (
-            <span className="text-[11px] font-normal text-amber-600 dark:text-amber-400">
+            <span className="text-xs font-normal text-amber-600 dark:text-amber-400">
               Não salvo
             </span>
           ) : null}
@@ -602,7 +602,7 @@ export function MinutesPanel({
         <div className="min-w-0 flex-1">
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <Label className="text-xs">Tipo da ata</Label>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               1 Pública · 2 Iniciático · 3 DeMolay
             </span>
           </div>
@@ -615,7 +615,7 @@ export function MinutesPanel({
             onValueChange={(v) => setKind(minuteKindFromLevel(v[0] ?? 1))}
             aria-label="Tipo da ata"
           />
-          <div className="mt-1.5 grid grid-cols-3 gap-1 text-[11px] text-muted-foreground">
+          <div className="mt-1.5 grid grid-cols-3 gap-1 text-xs text-muted-foreground">
             {MINUTE_KINDS.map((k) => {
               const activeKind = k === kind;
               return (
@@ -760,7 +760,7 @@ export function MinutesPanel({
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
             <MessageSquareText className="h-4 w-4" /> Feedback público
             {votes.length > 0 && (
-              <Badge variant="secondary" className="text-[11px]">
+              <Badge variant="secondary" className="text-xs">
                 {votes.length}
               </Badge>
             )}
@@ -795,7 +795,7 @@ export function MinutesPanel({
                       {v.justification}
                     </p>
                   )}
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {formatDateTimeBR(v.updated_at)}
                   </p>
                 </li>

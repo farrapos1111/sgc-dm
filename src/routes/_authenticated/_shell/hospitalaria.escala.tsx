@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -32,6 +33,7 @@ function Escala() {
   const writable = canManage("hospitalaria");
   const deletable = canDelete("hospitalaria");
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     member_id: "",
@@ -76,6 +78,7 @@ function Escala() {
 
   return (
     <div>
+      {dialog}
       <PageHeader
         title="Escala de Serviço"
         subtitle="Distribuição das funções da hospitalaria."
@@ -153,7 +156,13 @@ function Escala() {
                   </div>
                 </div>
                 {deletable && (
-                  <Button variant="ghost" size="icon" onClick={() => remove.mutate(d.id)}>
+                  <Button aria-label="Excluir escala" variant="ghost" size="icon" onClick={async () => {
+                      const ok = await confirm({
+                        title: "Excluir escala?",
+                        description: `Excluir a escala de ${formatDateBR(d.duty_date)}?`,
+                      });
+                      if (ok) remove.mutate(d.id);
+                    }}>
                     <Trash2 className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 )}

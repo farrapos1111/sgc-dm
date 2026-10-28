@@ -62,6 +62,7 @@ import {
   occursOnDay,
   type SharedCalendarItem,
 } from "@/components/calendar/CalendarViews";
+import { EMPTY_LIST } from "@/lib/utils";
 
 export const Route = createFileRoute(
   "/_authenticated/_shell/regional/calendario",
@@ -121,7 +122,7 @@ function CalendarContent() {
         data: { scopeType: scope.type, scopeId: scope.id },
       }),
   });
-  const chapterList = chapters ?? [];
+  const chapterList = chapters ?? EMPTY_LIST;
   const chapterIds = useMemo(
     () => chapterList.map((c) => c.id),
     [chapterList],
@@ -470,7 +471,7 @@ function RegionalDetail({
       <DialogHeader>
         <DialogTitle className="flex flex-wrap items-center gap-2">
           <span
-            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+            className="rounded-full px-2 py-0.5 text-[11px] font-medium"
             style={{ backgroundColor: meta.bg, color: meta.color }}
           >
             {meta.label}

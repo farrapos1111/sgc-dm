@@ -143,7 +143,7 @@ function NovaSenhaPage() {
               ) : null}
               <button
                 type="submit"
-                disabled={submitting || (Boolean(error) && error.includes("Link"))}
+                disabled={submitting || Boolean(error?.includes("Link"))}
                 className="w-full py-2.5 rounded-lg font-semibold text-white disabled:opacity-60"
                 style={{ backgroundColor: "#9E1B32" }}
               >

@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +33,7 @@ function Cardapios() {
   const writable = canManage("hospitalaria");
   const deletable = canDelete("hospitalaria");
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -78,6 +80,7 @@ function Cardapios() {
 
   return (
     <div>
+      {dialog}
       <PageHeader
         title="Cardápios"
         subtitle="Planejamento das refeições e custos estimados."
@@ -146,7 +149,13 @@ function Cardapios() {
                   <div className="text-xs text-muted-foreground">{formatDateBR(m.menu_date)}</div>
                 </div>
                 {deletable && (
-                  <Button variant="ghost" size="icon" onClick={() => remove.mutate(m.id)}>
+                  <Button aria-label={`Excluir cardápio ${m.title}`} variant="ghost" size="icon" onClick={async () => {
+                      const ok = await confirm({
+                        title: "Excluir cardápio?",
+                        description: `Excluir o cardápio “${m.title}”?`,
+                      });
+                      if (ok) remove.mutate(m.id);
+                    }}>
                     <Trash2 className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 )}

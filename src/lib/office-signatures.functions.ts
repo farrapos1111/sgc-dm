@@ -626,7 +626,7 @@ export const canSignAsOffice = createServerFn({ method: "POST" })
     z
       .object({
         chapterId: z.string().uuid(),
-        positionCode: z.string().min(1),
+        positionCode: z.string().min(1).max(300),
       })
       .parse(raw),
   )

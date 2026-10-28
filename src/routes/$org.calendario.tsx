@@ -55,7 +55,7 @@ import {
 } from "@/lib/org-mandatory-dates.functions";
 import { formatDateTimeBR } from "@/lib/format";
 import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from "@/lib/ics";
-import { matchesLooseSearch } from "@/lib/utils";
+import { matchesLooseSearch, EMPTY_LIST } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
@@ -137,7 +137,7 @@ function PublicCalendarPage() {
       }),
     [data?.chapter.calendar_type_labels],
   );
-  const categories = data?.categories ?? [];
+  const categories = data?.categories ?? EMPTY_LIST;
   const customCatIdsKey = categories.map((c) => c.id).join(",");
 
   useEffect(() => {
@@ -496,7 +496,7 @@ function PublicCalendarPage() {
                         >
                           <span className="text-sm font-medium">{it.title}</span>
                           <span
-                            className="ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                            className="ml-2 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
                             style={{ backgroundColor: meta.bg, color: meta.color }}
                           >
                             {meta.label}
@@ -517,7 +517,7 @@ function PublicCalendarPage() {
               <DialogHeader>
                 <DialogTitle className="flex flex-wrap items-center gap-2">
                   <span
-                    className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                    className="rounded-full px-2 py-0.5 text-[11px] font-medium"
                     style={{
                       backgroundColor: resolveTypeMeta(detail.event_type, typeLabels).bg,
                       color: resolveTypeMeta(detail.event_type, typeLabels).color,
@@ -526,7 +526,7 @@ function PublicCalendarPage() {
                     {resolveTypeMeta(detail.event_type, typeLabels).label}
                   </span>
                   <span
-                    className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                    className="rounded-full px-2 py-0.5 text-[11px] font-medium"
                     style={
                       detail.mandatory
                         ? { backgroundColor: "#FEE2E2", color: "#B91C1C" }

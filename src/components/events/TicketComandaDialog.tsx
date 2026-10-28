@@ -24,7 +24,7 @@ import {
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { formatBRL } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { cn, EMPTY_LIST } from "@/lib/utils";
 import { useChapterLogo } from "@/lib/chapter-logo";
 import { useTicketComandaRealtime } from "@/hooks/useTicketComandaRealtime";
 import {
@@ -311,16 +311,16 @@ function ComandaReceiptBody({
             {ticketPaid ? (
               <Badge
                 variant="secondary"
-                className="font-sans text-[10px] no-underline"
+                className="font-sans text-xs no-underline"
               >
                 Pago
               </Badge>
             ) : data.charge && data.charge.amount_paid > 0 ? (
-              <Badge variant="outline" className="font-sans text-[10px]">
+              <Badge variant="outline" className="font-sans text-xs">
                 Pago parcial
               </Badge>
             ) : (
-              <Badge variant="outline" className="font-sans text-[10px]">
+              <Badge variant="outline" className="font-sans text-xs">
                 Em aberto
               </Badge>
             )}
@@ -520,7 +520,7 @@ export function TicketComandaDialog({
   const lines = linesQ.data ?? [];
   const unpaidLines = lines.filter((l) => !l.paid);
 
-  const categories = financeQ.data?.categories ?? [];
+  const categories = financeQ.data?.categories ?? EMPTY_LIST;
   const items = (financeQ.data?.items ?? []).filter(
     (i) =>
       i.active &&
@@ -910,14 +910,14 @@ export function TicketComandaDialog({
                               {l.paid ? (
                                 <Badge
                                   variant="secondary"
-                                  className="shrink-0 text-[10px]"
+                                  className="shrink-0 text-xs"
                                 >
                                   Pago
                                 </Badge>
                               ) : (
                                 <Badge
                                   variant="outline"
-                                  className="shrink-0 text-[10px]"
+                                  className="shrink-0 text-xs"
                                 >
                                   Em aberto
                                 </Badge>
@@ -1059,7 +1059,7 @@ export function TicketComandaDialog({
                           />
                         </div>
                       ) : null}
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         Itens ficam em aberto até a baixa. Só então entram no
                         fluxo de caixa (Eventos). Estoque, se houver, é
                         decrementado ao adicionar.
@@ -1229,7 +1229,7 @@ export function TicketComandaDialog({
               {editing?.item_name ?? "Item"}
             </div>
             {editing?.paid ? (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Item já baixado: a alteração atualiza o lançamento correspondente
                 no fluxo de caixa.
               </p>
@@ -1262,7 +1262,7 @@ export function TicketComandaDialog({
                 />
               </div>
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Só itens em aberto podem ser editados. Ajuste o estoque se o item
               controlar quantidade.
             </p>

@@ -273,7 +273,7 @@ function AccentColorSection() {
               borderColor: "color-mix(in srgb, currentColor 12%, transparent)",
             }}
           >
-            <div className="text-[10px] font-medium uppercase tracking-wide opacity-70">
+            <div className="text-xs font-medium uppercase tracking-wide opacity-70">
               Sidebar
             </div>
             <div
@@ -1280,7 +1280,7 @@ function LodgesCard() {
                   {l.name}
                   {l.is_primary && (
                     <span
-                      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                      className="rounded-full px-2 py-0.5 text-xs font-medium"
                       style={{ backgroundColor: "var(--muted)", color: "var(--chapter-primary)" }}
                     >
                       Principal

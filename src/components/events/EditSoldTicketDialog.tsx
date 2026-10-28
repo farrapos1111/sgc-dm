@@ -196,12 +196,12 @@ export function EditSoldTicketDialog({
               disabled={sellersQ.isLoading || sellerLocked}
             />
             {sellerLocked ? (
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Não é possível trocar o vendedor após pagamento da cobrança.
               </p>
             ) : null}
             {ticket?.seller_charge_paid ? (
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Ingresso já baixado: alterar o valor atualiza o lançamento
                 existente no fluxo de caixa (não cria outro). Zerar o preço ou
                 usar tipo “Custo” (R$ 0) não remove o caixa — estorne pelo fluxo
@@ -262,7 +262,7 @@ export function EditSoldTicketDialog({
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                   />
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Por padrão usa o preço do tipo. Altere só se a venda for
                     diferente.
                   </p>
@@ -272,7 +272,7 @@ export function EditSoldTicketDialog({
           </Collapsible>
 
           {typeChanged || priceChanged ? (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {ticket?.seller_charge_paid
                 ? `O lançamento no fluxo de caixa será ajustado para ${formatBRL(Number.isFinite(parsedPrice) ? parsedPrice : 0)}.`
                 : `A cobrança do vendedor será sincronizada com o novo valor (${formatBRL(Number.isFinite(parsedPrice) ? parsedPrice : 0)}).`}

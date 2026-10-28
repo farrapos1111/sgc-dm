@@ -772,6 +772,7 @@ function MembroPerfil() {
                           </span>
                           {canEditOrg && (
                             <Button
+                              aria-label="Remover cargo"
                               size="icon"
                               variant="ghost"
                               onClick={() => delPos.mutate(p.id)}
@@ -858,6 +859,7 @@ function MembroPerfil() {
                             {termLabel(c.term_year, c.term_semester)}
                             {canEditOrg && (
                               <Button
+                                aria-label="Remover da comissão"
                                 size="icon"
                                 variant="ghost"
                                 onClick={() => delCom.mutate(c.id)}
@@ -926,7 +928,7 @@ function MembroPerfil() {
                             </span>
                             {meta && (
                               <span
-                                className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                className="rounded-full px-1.5 py-0.5 text-xs font-medium"
                                 style={{
                                   backgroundColor: meta.bg,
                                   color: meta.color,
@@ -1208,7 +1210,7 @@ function MemberFinanceTab({
                   <div className="text-xs font-medium">
                     {MONTH_SHORT[d.month - 1] ?? d.month}
                   </div>
-                  <div className="text-[11px] opacity-80">{statusLabel}</div>
+                  <div className="text-xs opacity-80">{statusLabel}</div>
                   <div className="mt-0.5 text-xs font-semibold">
                     {formatBRL(d.amount)}
                   </div>
@@ -1341,6 +1343,7 @@ function NewPositionForms({
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-medium">Novo Cargo</span>
             <Button
+              aria-label="Remover cargo"
               size="icon"
               variant="ghost"
               onClick={() => removeRow(row.key)}

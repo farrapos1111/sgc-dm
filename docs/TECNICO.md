@@ -341,13 +341,14 @@ Esta é a parte que quebra se mexida sem cuidado ([src/lib/finance.functions.ts]
 | `SUPABASE_URL`                                     | [auth-middleware.ts](../src/integrations/supabase/auth-middleware.ts)              | sim                               | cliente por requisição no SSR                                                                                                                             |
 | `SUPABASE_PUBLISHABLE_KEY`                         | [auth-middleware.ts](../src/integrations/supabase/auth-middleware.ts)              | sim                               | idem                                                                                                                                                      |
 | `VITE_SUPABASE_PROJECT_ID` / `SUPABASE_PROJECT_ID` | `.env`, `supabase/config.toml`                                                     | sim                               | referência do projeto                                                                                                                                     |
-| `SUPABASE_SERVICE_ROLE_KEY`                        | [client.server.ts](../src/integrations/supabase/client.server.ts)                  | **não está no `.env`**            | **ignora RLS** — injetar apenas no ambiente de deploy, jamais no cliente ou no repositório; usada em `accounts.functions.ts` para criar/vincular usuários |
+| `SUPABASE_SERVICE_ROLE_KEY`                        | [client.server.ts](../src/integrations/supabase/client.server.ts)                  | **sim** (só servidor)             | **ignora RLS** — injetar apenas como secret do deploy, jamais no cliente ou no repositório; usada em contas (login por ID DeMolay, provisão, reset), uploads públicos de sindicância, rate limit e organização |
 | `AI_API_KEY` / `OPENAI_API_KEY`                    | [ai.functions.ts](../src/lib/ai.functions.ts)                                      | **não está no `.env`**            | sem ela, as funções de IA lançam `"IA indisponível"`. Opcional: `AI_BASE_URL`, `AI_MODEL`                                                                 |
 | `VITE_APP_URL` / `APP_URL`                         | [accounts.functions.ts](../src/lib/accounts.functions.ts) (`requestPasswordReset`, `generateLink`) | recomendada em produção           | origem do login e do `redirectTo` de recuperação (`/auth/nova-senha`); fallback `http://localhost:8080`                                                   |
 | `RESEND_API_KEY`                                   | [email.ts](../src/lib/email.ts) e Edge Function `send-email`                       | não (sem ela o envio do app é _skipped_) | API key do Resend; **só servidor**; nunca no cliente. No app: Worker/Cloudflare. Na hook: secret da Edge Function. |
 | `EMAIL_FROM`                                       | [email.ts](../src/lib/email.ts) e Edge Function `send-email`                       | junto com `RESEND_API_KEY`        | remetente no formato `Nome <email@dominio-verificado>`; domínio precisa estar Verified no Resend                                                          |
 | `SEND_EMAIL_HOOK_SECRET`                           | Edge Function `send-email`                                                         | se a hook estiver ligada          | gerado em Authentication → Hooks → Send Email (`v1,whsec_…`); **não** vai no Worker do app                                                                |
 | `TECH_COMMISSION_EMAILS`                           | [tech-commission.ts](../src/lib/tech-commission.ts)                                | não                               | CSV de e-mails que recebem notificações (ex.: solicitação de organização)                                                                                 |
+| `EDGE_CLIENT_IP_HEADER`                            | [trusted-client-ip.ts](../src/lib/trusted-client-ip.ts)                            | recomendada em produção           | header de IP confiável da borda (`cloudflare` → `cf-connecting-ip`). Sem ela, os limites de tentativa por IP caem para limite por link/identificador |
 | `TECH_COMMISSION_CONTACTS_JSON`                    | [tech-commission.ts](../src/lib/tech-commission.ts)                                | não                               | alternativa/complemento em JSON; se `TECH_COMMISSION_EMAILS` existir, ela tem prioridade                                                                  |
 
 Modelo versionado: [`.env.example`](../.env.example). Os `.env` / `.env.*` locais estão no `.gitignore`.
@@ -371,7 +372,7 @@ Detalhe passo a passo: [`supabase/functions/send-email/README.md`](../supabase/f
 | `tsconfig.json`                         | strict, ES2022, `@/*` → `./src/*`, `noEmit`                                                                                                                                                                                                     |
 | `components.json`                       | configuração do shadcn/ui (estilo new-york, base slate)                                                                                                                                                                                         |
 | [eslint.config.js](../eslint.config.js) | flat config; proíbe `server-only`; Prettier como regra                                                                                                                                                                                          |
-| `.prettierrc`                           | `printWidth: 100`, aspas duplas, vírgula final                                                                                                                                                                                                  |
+| `.prettierrc.json`                      | `printWidth: 100`, `endOfLine: auto` (demais opções no padrão do Prettier 3)                                                                                                                                                                                                  |
 | `bunfig.toml`                           | `minimumReleaseAge` de 24h                                                                                                                                                                                      |
 | `supabase/config.toml`                  | project ref + `[functions.send-email] verify_jwt = false` (deploy da function é manual no dashboard)                                                                               |
 
@@ -387,6 +388,9 @@ Detalhe passo a passo: [`supabase/functions/send-email/README.md`](../supabase/f
 | `preview`   | `vite preview`                  | serve o build local           |
 | `lint`      | `eslint .`                      | lint + Prettier               |
 | `format`    | `prettier --write .`            | formata                       |
+| `typecheck` | `tsc --noEmit -p .`             | checagem de tipos             |
+| `test`      | `node scripts/run-tests.mjs`    | roda `src/**/*.test.ts`       |
+| `check`     | typecheck + test                | o que o CI exige              |
 
 **Build:** gera um bundle Nitro com preset `cloudflare-module` (`nodeCompat: true`) em `.output/`.
 
@@ -398,29 +402,32 @@ Detalhe passo a passo: [`supabase/functions/send-email/README.md`](../supabase/f
 
 ## 12. Estado atual e lacunas conhecidas
 
-Registrado aqui de propósito, para ninguém descobrir do jeito difícil:
+Registrado aqui de propósito, para ninguém descobrir do jeito difícil. Atualizado após a auditoria técnica de 28/10/2026.
 
-- **Não há framework de testes dedicado.** Sem Vitest, Jest ou Playwright instalados; há alguns `*.test.ts` de helpers puros (ex.: `src/lib/cash-totals.test.ts`) rodados pontualmente, sem suíte/CI.
-- **Não há CI.** Não existe `.github/`, Makefile nem Dockerfile.
-- **Não há script de `typecheck`.** Com `noEmit` no tsconfig e sem script dedicado, erros de tipo só aparecem no editor ou no build.
-- **O lint não passa hoje.** `eslint .` reporta ~2.535 erros em 70 arquivos:
+**Qualidade e verificação**
 
-  | Regra                                  | Ocorrências | Natureza                                                       |
-  | -------------------------------------- | ----------- | -------------------------------------------------------------- |
-  | `prettier/prettier`                    | 2.377       | só formatação — o Prettier nunca foi aplicado ao código gerado |
-  | `@typescript-eslint/no-explicit-any`   | 149         | tipagem frouxa                                                 |
-  | `react-hooks/exhaustive-deps`          | 12          | possíveis bugs de dependência de efeito                        |
-  | `react-refresh/only-export-components` | 12          | atrapalha o hot reload                                         |
-  | `react-hooks/rules-of-hooks`           | 9           | **bug real em potencial** — hook chamado condicionalmente      |
+- **Typecheck limpo e obrigatório:** `npm run typecheck` (0 erros). Até out/2026 o `types.ts` tinha um caractere inválido no fim, que escondia 74 erros de tipo; todos foram corrigidos, inclusive dois bugs de execução (`active` indefinido no `OficioEditor` e `data` redeclarado em `removePlatformAccessRoleFromOrgType`).
+- **Testes:** `npm test` roda todos os `src/**/*.test.ts` com `tsx` (asserts de `node:assert`, sem framework). Inclui `permissions-sql-parity.test.ts`, que **falha se a matriz de `permissions.ts` divergir de `has_permission` no SQL**.
+- **CI:** [.github/workflows/ci.yml](../.github/workflows/ci.yml) roda typecheck, testes, lint dos arquivos alterados no PR (sem regra de formatação e com `any` como aviso) e `npm audit --audit-level=critical`. Dependabot semanal em [.github/dependabot.yml](../.github/dependabot.yml).
+- **Lint:** `eslint .` reporta ~8.300 problemas, quase todos `prettier/prettier` em código que nunca foi formatado. Os 84 mil avisos anteriores vinham de CRLF (Windows); [.prettierrc.json](../.prettierrc.json) usa `endOfLine: auto` e [.gitattributes](../.gitattributes) normaliza para LF. **Não há mais `rules-of-hooks`.** Rodar `prettier --write .` reformataria ~230 arquivos — faça em um commit isolado, combinado com a equipe.
+- Restam 160 `no-explicit-any` e ~340 casts `as never` nas chamadas ao Supabase; remova-os aos poucos, agora que o `types.ts` está correto.
 
-  Consequência prática: **o lint não funciona como barreira de qualidade**, já que ninguém consegue distinguir o erro novo do ruído de fundo. E rodar `prettier --write .` de uma vez reformataria 70 arquivos — ver o aviso em [OPEN-SOURCE.md](./OPEN-SOURCE.md#padrões-de-código) antes de fazer isso. Os 9 `rules-of-hooks` merecem investigação individual: são os únicos que apontam para defeito de execução, não de estilo.
+**Segurança — o que depende de ação manual no painel do Supabase**
 
+- **Auth Hook de membro irregular:** a migration `20261028120000_audit_followups.sql` cria `public.custom_access_token_hook`. Ative em _Authentication → Hooks → Customize Access Token_ apontando para essa função. Sem isso, membro irregular ainda consegue sessão chamando a API do Supabase Auth direto (a checagem do app só vale para o login pela tela).
+- **Inventário de SECURITY DEFINER:** rode [supabase/tests/secdef_inventory.sql](../supabase/tests/secdef_inventory.sql) em produção após cada migration e revogue o `EXECUTE` de `authenticated` nas funções internas que não validam `auth.uid()`.
+- Rode também [supabase/tests/security_audit_regression.sql](../supabase/tests/security_audit_regression.sql) e os _Database Advisors_.
+
+**Pendências conhecidas**
+
+- Tokens de link público (lobby, mensalidades, fluxo de caixa) ainda ficam em `chapters.settings`, legíveis por qualquer membro do capítulo. O ideal é uma tabela própria com hash e expiração.
+- Valor padrão de mensalidade sem configuração: **R$ 20** no app (`DEFAULT_DUES_AMOUNT`) e **R$ 50** nas RPCs públicas (`get_public_year_dues`, `get_public_member_portal`). Só afeta capítulos que nunca salvaram o valor; defina qual é o correto e alinhe as duas pontas.
+- `zod` 3 tem um aviso alto do `npm audit` (consumo de memória com coleções muito grandes) corrigido apenas no zod 4 (mudança incompatível). Os schemas têm `.max()` em textos e listas, o que limita o impacto.
+- `bun.lock` não foi regenerado nesta rodada (sem bun no ambiente); o lockfile de referência é o `package-lock.json`.
+- Telas e serviços muito grandes (`calendario.tsx`, `eventos.$id.tsx`, `investigations.functions.ts`, `finance.functions.ts`) — dividir por seção/subdomínio ao mexer neles.
+- O histórico de migrations tem nomes UUID e funções redefinidas várias vezes; novas migrations seguem `AAAAMMDDHHMMSS_descricao.sql`. Um _baseline_ (squash) só deve ser feito em conjunto com o histórico de produção (`supabase migration repair`).
 - `improveText` em [src/lib/ai.functions.ts](../src/lib/ai.functions.ts) está exportada mas nenhuma tela a chama.
-- `supabaseAdmin` em [src/integrations/supabase/client.server.ts](../src/integrations/supabase/client.server.ts) está definida mas nunca importada — daí `SUPABASE_SERVICE_ROLE_KEY` ainda não ser necessária na prática.
-- **A tela de login exibe credenciais de teste** ([src/routes/auth.tsx](../src/routes/auth.tsx)). Precisa sair antes de qualquer uso real.
-- Revisar histórico do git por `.env` legado com segredos (ver seção 10).
-- `package.json.name` ainda é `tanstack_start_ts`, herdado do template.
-- O histórico de commits não serve como documentação: a maioria são commits automáticos com a mensagem "Changes".
+- Commits: use mensagens descritivas no imperativo (ex.: `Corrige cálculo de atraso no fuso de Brasília`), não "Ajustes"/"Update X".
 
 ---
 

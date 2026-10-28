@@ -97,6 +97,7 @@ import {
   isChapterDuesEnabled,
   type DueMemberLite,
 } from "@/lib/dues-rules";
+import { EMPTY_LIST } from "@/lib/utils";
 
 export const Route = createFileRoute(
   "/_authenticated/_shell/tesouraria/mensalidades",
@@ -291,8 +292,8 @@ const StatusCell = memo(function StatusCell({
         month,
       )} ${overdue ? "ring-1 ring-rose-500" : ""}`}
     >
-      <div className="text-[10px] opacity-70">{MONTH_SHORT[month - 1]}</div>
-      <div className="text-[10px] font-semibold uppercase">
+      <div className="text-xs opacity-70">{MONTH_SHORT[month - 1]}</div>
+      <div className="text-xs font-semibold uppercase">
         {future && status === "em_aberto"
           ? "Fut"
           : status === "desligado"
@@ -328,7 +329,7 @@ const StatusCell = memo(function StatusCell({
         <TooltipContent side="top" className="max-w-[260px] text-center">
           <p>{label}</p>
           {writable ? (
-            <p className="mt-0.5 text-[10px] opacity-80">Clique para alterar</p>
+            <p className="mt-0.5 text-xs opacity-80">Clique para alterar</p>
           ) : null}
         </TooltipContent>
       </Tooltip>
@@ -343,11 +344,11 @@ const StatusCell = memo(function StatusCell({
       <DropdownMenuContent align="center" className="w-44">
         <DropdownMenuLabel className="font-normal">
           <div className="truncate text-xs font-medium">{memberName}</div>
-          <div className="text-[11px] text-muted-foreground">
+          <div className="text-xs text-muted-foreground">
             {MONTH_LONG[month - 1]} · {formatBRL(defaultAmount)}
           </div>
           {exemptTip ? (
-            <div className="mt-1 text-[11px] leading-snug text-muted-foreground">
+            <div className="mt-1 text-xs leading-snug text-muted-foreground">
               {exemptTip}
             </div>
           ) : null}
@@ -472,8 +473,8 @@ function Mensalidades() {
     }
   }, [chapterId, year, data, availableYears, qc]);
 
-  const members = (data?.members ?? []) as DueMemberLite[];
-  const dues = (data?.dues ?? []) as DueRow[];
+  const members = (data?.members ?? EMPTY_LIST) as DueMemberLite[];
+  const dues = (data?.dues ?? EMPTY_LIST) as DueRow[];
 
   const dueMap = useMemo(() => {
     const map = new Map<string, DueRow>();
@@ -843,7 +844,7 @@ function Mensalidades() {
       }>,
   });
 
-  const includeCandidates = includeData?.candidates ?? [];
+  const includeCandidates = includeData?.candidates ?? EMPTY_LIST;
 
   const filteredIncludeCandidates = useMemo(() => {
     const q = includeSearch.trim().toLowerCase();
@@ -1282,7 +1283,7 @@ function Mensalidades() {
                           onClick={() => toggleSort("name")}
                         >
                           Membro
-                          <span className="text-[10px] opacity-70">
+                          <span className="text-xs opacity-70">
                             {sortKey === "name"
                               ? sortDir === "asc"
                                 ? "↑"
@@ -1311,7 +1312,7 @@ function Mensalidades() {
                               onClick={() => toggleSort(key)}
                             >
                               {label}
-                              <span className="text-[9px] opacity-70">
+                              <span className="text-xs opacity-70">
                                 {activeSort
                                   ? sortDir === "asc"
                                     ? "↑"
@@ -1333,7 +1334,7 @@ function Mensalidades() {
                           onClick={() => toggleSort("open_count")}
                         >
                           Abertos
-                          <span className="text-[10px] opacity-70">
+                          <span className="text-xs opacity-70">
                             {sortKey === "open_count"
                               ? sortDir === "asc"
                                 ? "↑"
@@ -1353,7 +1354,7 @@ function Mensalidades() {
                           onClick={() => toggleSort("open_total")}
                         >
                           Total em aberto
-                          <span className="text-[10px] opacity-70">
+                          <span className="text-xs opacity-70">
                             {sortKey === "open_total"
                               ? sortDir === "asc"
                                 ? "↑"
@@ -1382,7 +1383,7 @@ function Mensalidades() {
                             <div className="flex items-center gap-1.5">
                               <span className="truncate">{m.full_name}</span>
                               {m.manualInclude ? (
-                                <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] font-normal text-muted-foreground">
+                                <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-xs font-normal text-muted-foreground">
                                   manual
                                 </span>
                               ) : null}
@@ -1491,13 +1492,13 @@ function Mensalidades() {
                         <div className="text-sm font-medium">{m.full_name}</div>
                         {m.manualInclude ? (
                           <div className="mt-0.5 flex items-center gap-2">
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-xs text-muted-foreground">
                               Inclusão manual
                             </span>
                             {writable ? (
                               <button
                                 type="button"
-                                className="text-[10px] text-destructive underline"
+                                className="text-xs text-destructive underline"
                                 disabled={removeManual.isPending}
                                 onClick={async () => {
                                   const ok = await confirm({

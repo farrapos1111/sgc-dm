@@ -42,7 +42,7 @@ import {
   listChapterTicketsForCheckin,
   previewTicketByQr,
 } from "@/lib/events.functions";
-import { matchesLooseSearch } from "@/lib/utils";
+import { matchesLooseSearch, EMPTY_LIST } from "@/lib/utils";
 import { useEventCheckinRealtime } from "@/hooks/useEventCheckinRealtime";
 
 export const Route = createFileRoute("/_authenticated/_shell/eventos/checkins")(
@@ -152,8 +152,8 @@ function Checkins() {
       listChapterTicketsForCheckin({ data: { chapterId: active!.chapter_id } }),
   });
 
-  const events = ticketsQ.data?.events ?? [];
-  const tickets = ticketsQ.data?.tickets ?? [];
+  const events = ticketsQ.data?.events ?? EMPTY_LIST;
+  const tickets = ticketsQ.data?.tickets ?? EMPTY_LIST;
   const ticketsTruncated = Boolean(ticketsQ.data?.truncated);
 
   // Default: evento mais próximo da data atual; mantém seleção se ainda existir.
@@ -488,7 +488,7 @@ function Checkins() {
                 key={key}
                 type="button"
                 onClick={() => setCheckinFilter(key)}
-                className="cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-medium"
+                className="cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium"
                 style={
                   checkinFilter === key
                     ? {
@@ -559,11 +559,11 @@ function Checkins() {
                             {formatBRL(row.price_paid)}
                           </div>
                           {row.already_checked_in ? (
-                            <Badge variant="secondary" className="text-[10px]">
+                            <Badge variant="secondary" className="text-xs">
                               Presente
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-[10px]">
+                            <Badge variant="outline" className="text-xs">
                               Em aberto
                             </Badge>
                           )}

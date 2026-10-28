@@ -1,6 +1,7 @@
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
+import { isControlFlowError, userFacingMessage } from "./lib/error-sanitize";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 import { getDevRealmOverride, resolveRealmFromHost } from "@/lib/realm";
 
@@ -18,6 +19,22 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
     });
   }
 });
+
+// Erros técnicos do banco não chegam crus ao navegador: o original vai para o
+// log do servidor e o cliente recebe uma mensagem acionável.
+const sanitizeErrorsMiddleware = createMiddleware({ type: "function" }).server(
+  async ({ next }) => {
+    try {
+      return await next();
+    } catch (error) {
+      if (isControlFlowError(error)) throw error;
+      const friendly = userFacingMessage(error);
+      if (!friendly) throw error;
+      console.error("[serverFn]", error);
+      throw new Error(friendly);
+    }
+  },
+);
 
 // Start installs this automatically when src/start.ts is absent; defining the
 // file opts out, so re-add it explicitly to keep server functions protected
@@ -46,6 +63,6 @@ const realmHostMiddleware = createMiddleware().server(async ({ next, request }) 
 });
 
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
+  functionMiddleware: [attachSupabaseAuth, sanitizeErrorsMiddleware],
   requestMiddleware: [errorMiddleware, csrfMiddleware, realmHostMiddleware],
 }));

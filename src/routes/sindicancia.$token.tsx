@@ -76,7 +76,7 @@ function PublicSindicanciaPage() {
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Comissão de Sindicâncias
             </p>
             <h1 className="text-lg font-semibold">

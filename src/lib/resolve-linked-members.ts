@@ -77,5 +77,5 @@ export async function resolveLinkedMemberIdsGlobal(
     .eq("user_id", opts.userId);
   if (userErr) throw new Error(userErr.message);
 
-  return [...new Set((byUser ?? []).map((m: { id: string }) => m.id as string))];
+  return [...new Set((byUser ?? []).map((m: { id: string }) => m.id))] as string[];
 }

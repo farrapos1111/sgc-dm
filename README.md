@@ -48,8 +48,11 @@ Toda a documentação vive em [`docs/`](./docs/) e também no visualizador do ap
 | `bun run preview` | serve o build localmente |
 | `bun run lint` | ESLint + Prettier |
 | `bun run format` | formata o código |
+| `bun run typecheck` | checagem de tipos |
+| `bun run test` | testes (`src/**/*.test.ts`) |
+| `bun run check` | typecheck + testes (o que o CI roda) |
 
-> Não há testes automatizados nem CI, e o `lint` acusa erros pré-existentes no código herdado — **rode lint e format apenas nos arquivos que você editar**. As lacunas conhecidas estão em [docs/TECNICO.md](./docs/TECNICO.md#12-estado-atual-e-lacunas-conhecidas) e o que fazer a respeito, no [roadmap](./docs/OPEN-SOURCE.md#roadmap--onde-ajudar).
+> Antes de abrir PR, rode `npm run check` (typecheck + testes) — é o mesmo que o CI exige. O `lint` ainda acusa formatação pré-existente no código herdado — **rode lint e format apenas nos arquivos que você editar**. As lacunas conhecidas estão em [docs/TECNICO.md](./docs/TECNICO.md#12-estado-atual-e-lacunas-conhecidas) e o que fazer a respeito, no [roadmap](./docs/OPEN-SOURCE.md#roadmap--onde-ajudar).
 
 ## Licença
 

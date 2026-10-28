@@ -517,7 +517,7 @@ export function PresencasChartsTab({
               <ul className="mt-3 grid grid-cols-3 gap-2 text-center">
                 {pieData.map((d) => (
                   <li key={d.key} className="min-w-0">
-                    <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
                       <span
                         className="h-2 w-2 shrink-0 rounded-full"
                         style={{ backgroundColor: d.fill }}
@@ -666,7 +666,7 @@ function Kpi({
         {value}
       </div>
       {hint ? (
-        <div className="mt-0.5 text-[11px] text-muted-foreground">{hint}</div>
+        <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>
       ) : null}
     </Card>
   );
@@ -1039,7 +1039,7 @@ export function PresencasOverviewTab({
                     <div className="text-sm font-semibold tabular-nums">
                       {row.pct === null ? "—" : `${row.pct}%`}
                     </div>
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       {row.present}/{row.total}
                     </div>
                   </div>
@@ -1059,7 +1059,7 @@ export function PresencasOverviewTab({
                           to="/ongoing/$id"
                           params={{ id: cell.eventId }}
                           search={{ tab: "chamada" }}
-                          className={`flex items-center justify-center gap-1 text-[10px] hover:text-foreground ${
+                          className={`flex items-center justify-center gap-1 text-xs hover:text-foreground ${
                             cell.counts
                               ? "text-muted-foreground"
                               : "text-zinc-400"
@@ -1139,7 +1139,7 @@ export function PresencasOverviewTab({
                       return (
                         <th
                           key={ev.id}
-                          className={`min-w-[3rem] px-0.5 py-3 text-center text-[10px] font-medium ${
+                          className={`min-w-[3rem] px-0.5 py-3 text-center text-xs font-medium ${
                             counts
                               ? "text-muted-foreground"
                               : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800/60"
@@ -1273,7 +1273,7 @@ function LegendDot({
   return (
     <span className="inline-flex items-center gap-1.5">
       <span
-        className={`inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-semibold ${className}`}
+        className={`inline-flex h-5 w-5 items-center justify-center rounded text-xs font-semibold ${className}`}
       >
         {letter}
       </span>

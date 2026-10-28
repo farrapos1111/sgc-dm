@@ -29,6 +29,7 @@ import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { formatDateTimeBR } from "@/lib/format";
 import { useOngoingRealtime } from "@/hooks/useOngoingRealtime";
 import { ArrowLeft, Check, Plus, Radio, Search, X } from "lucide-react";
+import { EMPTY_LIST } from "@/lib/utils";
 
 type SessionMinute = {
   id: string;
@@ -90,7 +91,7 @@ function OngoingPage() {
   const qc = useQueryClient();
   const { data } = useSuspenseQuery(ongoingQO(id));
   const [search, setSearch] = useState("");
-  const minutesList = (data.minutes as SessionMinute[]) ?? [];
+  const minutesList = (data.minutes as SessionMinute[]) ?? EMPTY_LIST;
   const canEditAtas = canScreen("atas", "edit");
   const [selectedMinuteKey, setSelectedMinuteKey] = useState<string>(() => {
     if (searchMinute && minutesList.some((m) => m.id === searchMinute)) {
@@ -323,7 +324,7 @@ function OngoingPage() {
           <div className="flex flex-wrap items-center gap-2">
             {live ? (
               <span
-                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
                 title="Presenças e ata sincronizam em tempo real"
               >
                 <Radio className="h-3 w-3 animate-pulse" />

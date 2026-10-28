@@ -113,7 +113,7 @@ export const setAttendance = createServerFn({ method: "POST" })
         memberId: z.string().uuid(),
         /** null = desmarca (remove o registro). */
         status: z.enum(["presente", "ausente"]).nullable(),
-        justification: z.string().nullable().optional(),
+        justification: z.string().max(20_000).nullable().optional(),
       })
       .parse(raw),
   )
@@ -183,13 +183,13 @@ export const saveMinutes = createServerFn({ method: "POST" })
       .object({
         chapterId: z.string().uuid(),
         calendarEventId: z.string().uuid(),
-        content: z.string(),
+        content: z.string().max(200_000),
         kind: z.enum(["publica", "grau_iniciatico", "grau_demolay"]).optional(),
         /** Se informado, atualiza a ata existente; senão cria uma nova. */
         id: z.string().uuid().optional(),
         /** Chave estável por instância de “Nova ata” (dedupe atômico). */
         clientDraftKey: z.string().uuid().optional(),
-        title: z.string().nullable().optional(),
+        title: z.string().max(300).nullable().optional(),
       })
       .parse(raw),
   )

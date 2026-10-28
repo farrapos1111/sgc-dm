@@ -163,7 +163,7 @@ export const ensureMinutePublicShare = createServerFn({ method: "POST" })
       { _minute_id: data.minuteId } as never,
     );
     if (pwErr) throw new Error(pwErr.message);
-    const password = typeof stored === "string" ? stored.trim() : "";
+    const password = String((stored as unknown) ?? "").trim();
     if (!password) {
       throw new Error(
         "Configure a senha deste tipo de ata em Configurações → Secretaria",

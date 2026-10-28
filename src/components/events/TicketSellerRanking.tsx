@@ -249,7 +249,7 @@ export function TicketSellerRanking({
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="border-t border-border bg-muted/20 px-4 py-2 sm:pl-14">
-                      <div className="mb-1 hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:grid">
+                      <div className="mb-1 hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] gap-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:grid">
                         <span>Comprador</span>
                         <span>Tipo</span>
                         <span className="text-right">Valor</span>

@@ -39,6 +39,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { todayYmd } from "@/lib/timezone";
+
 export const Route = createFileRoute("/c/$token/eu")({
   ssr: false,
   head: () => ({
@@ -52,6 +54,7 @@ export function LobbyMemberPortalPage() {
   const qc = useQueryClient();
   const accent = chapter.primary_color || "#9E1B32";
   const storageKey = lobbyMemberStorageKey(token);
+  const birthStorageKey = `${storageKey}:nasc`;
 
   const [demolayId, setDemolayId] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -61,14 +64,27 @@ export function LobbyMemberPortalPage() {
     if (typeof window === "undefined") return "";
     return sessionStorage.getItem(storageKey) ?? "";
   });
+  const [birthDate, setBirthDate] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return sessionStorage.getItem(birthStorageKey) ?? "";
+  });
+  const [unlockedBirth, setUnlockedBirth] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return sessionStorage.getItem(birthStorageKey) ?? "";
+  });
   const [year, setYear] = useState(new Date().getFullYear());
   const [tab, setTab] = useState("cobrancas");
 
   const portalQ = useQuery({
-    queryKey: ["public-member-portal", token, unlockedId, year],
+    queryKey: ["public-member-portal", token, unlockedId, unlockedBirth, year],
     queryFn: () =>
       getPublicMemberPortal({
-        data: { token, demolayId: unlockedId, year },
+        data: {
+          token,
+          demolayId: unlockedId,
+          birthDate: unlockedBirth || undefined,
+          year,
+        },
       }),
     enabled: Boolean(unlockedId),
     retry: false,
@@ -84,26 +100,34 @@ export function LobbyMemberPortalPage() {
   }, [showFrequency, tab]);
 
   const unlock = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, birth }: { id: string; birth: string }) => {
       const portal = await getPublicMemberPortal({
-        data: { token, demolayId: id, year },
+        data: { token, demolayId: id, birthDate: birth || undefined, year },
       });
       return portal;
     },
-    onSuccess: (portal, id) => {
-      qc.setQueryData(["public-member-portal", token, id, year], portal);
+    onSuccess: (portal, { id, birth }) => {
+      qc.setQueryData(["public-member-portal", token, id, birth, year], portal);
       sessionStorage.setItem(storageKey, id);
+      sessionStorage.setItem(birthStorageKey, birth);
+      setUnlockedBirth(birth);
       setUnlockedId(id);
       toast.success("Acesso liberado nesta sessão");
     },
-    onError: (e: Error) => toast.error(e.message || "ID não encontrado neste capítulo"),
+    onError: (e: Error) =>
+      toast.error(e.message || "ID DeMolay ou data de nascimento não conferem"),
   });
 
   function logout() {
     sessionStorage.removeItem(storageKey);
+    sessionStorage.removeItem(birthStorageKey);
     setUnlockedId("");
+    setUnlockedBirth("");
     setDemolayId("");
+    setBirthDate("");
   }
+
+  const canUnlock = demolayId.trim().length >= 3;
 
   if (!unlockedId) {
     return (
@@ -112,40 +136,63 @@ export function LobbyMemberPortalPage() {
         <div className="mb-4">
           <h2 className="text-lg font-semibold">Área do membro</h2>
           <p className="text-sm text-muted-foreground">
-            Informe seu ID DeMolay deste capítulo.
+            Informe seu ID DeMolay deste capítulo e sua data de nascimento. A data
+            protege seus dados: sem ela, qualquer pessoa com o link veria suas
+            cobranças e presenças.
           </p>
         </div>
         <Card className="space-y-4 rounded-[12px] p-5">
-          <div>
-            <Label className="mb-1.5 block text-sm">ID DeMolay</Label>
-            <div className="flex gap-2">
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (canUnlock) unlock.mutate({ id: demolayId.trim(), birth: birthDate });
+            }}
+          >
+            <div>
+              <Label htmlFor="lobby-demolay-id" className="mb-1.5 block text-sm">
+                ID DeMolay
+              </Label>
               <Input
+                id="lobby-demolay-id"
                 value={demolayId}
+                inputMode="numeric"
+                autoComplete="off"
                 placeholder="Ex.: 123456"
                 onChange={(e) => setDemolayId(e.target.value.slice(0, 40))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (demolayId.trim().length >= 3) unlock.mutate(demolayId.trim());
-                  }
-                }}
               />
-              <Button
-                type="button"
-                style={{ backgroundColor: accent }}
-                disabled={unlock.isPending || demolayId.trim().length < 3}
-                onClick={() => unlock.mutate(demolayId.trim())}
-              >
-                {unlock.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <Search className="mr-2 h-4 w-4" /> Entrar
-                  </>
-                )}
-              </Button>
             </div>
-          </div>
+            <div>
+              <Label htmlFor="lobby-birth-date" className="mb-1.5 block text-sm">
+                Data de nascimento
+              </Label>
+              <Input
+                id="lobby-birth-date"
+                type="date"
+                value={birthDate}
+                max={todayYmd()}
+                onChange={(e) => setBirthDate(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Se a secretaria ainda não cadastrou sua data de nascimento, deixe em
+                branco.
+              </p>
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
+              style={{ backgroundColor: accent }}
+              disabled={unlock.isPending || !canUnlock}
+            >
+              {unlock.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Search className="mr-2 h-4 w-4" /> Entrar
+                </>
+              )}
+            </Button>
+          </form>
         </Card>
       </div>
     );
@@ -454,7 +501,7 @@ function MemberChargesTab({
                           {MONTH_SHORT[d.competence_month - 1] ??
                             d.competence_month}
                         </div>
-                        <div className="text-[11px] opacity-80">{cellLabel}</div>
+                        <div className="text-xs opacity-80">{cellLabel}</div>
                         <div className="mt-0.5 text-xs font-semibold">
                           {formatBRL(Number(d.amount))}
                         </div>

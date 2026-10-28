@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Testes
+        run: npm test
+
+      # O código herdado ainda tem erros de lint; só os arquivos alterados no
+      # PR são cobrados, para o lint voltar a funcionar como barreira.
+      - name: Lint (arquivos alterados)
+        if: github.event_name == 'pull_request'
+        run: |
+          files=$(git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" -- '*.ts' '*.tsx' | grep -v '^src/components/ui/' | grep -v 'routeTree.gen.ts' | grep -v 'supabase/types.ts' || true)
+          # Formatação e `any` herdados não bloqueiam; erros de lógica (hooks etc.) sim.
+          if [ -n "$files" ]; then npx eslint --rule 'prettier/prettier: off' --rule '@typescript-eslint/no-explicit-any: warn' $files; else echo "Nenhum arquivo TS alterado"; fi
+
+      - name: Dependências (falha em vulnerabilidade crítica)
+        run: npm audit --audit-level=critical

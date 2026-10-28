@@ -303,7 +303,7 @@ function LeadershipsContent() {
                   {row.region_name ? ` · ${row.region_name}` : ""}
                 </div>
                 {row.starts_on && row.ends_on && (
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       Vigência:{" "}
                       {row.starts_on.split("-").reverse().join("/")} –{" "}
                       {row.ends_on.split("-").reverse().join("/")}

@@ -570,7 +570,7 @@ function Cobrancas() {
                   {c.status !== "isento" && (
                     <div className="max-w-xs space-y-1">
                       <Progress value={pct} className="h-1.5" />
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         {pct}% quitado
                       </div>
                     </div>

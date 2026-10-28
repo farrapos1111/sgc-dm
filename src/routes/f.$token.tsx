@@ -71,7 +71,7 @@ function PublicShell({
       >
         <div className="mx-auto flex max-w-2xl items-start justify-between gap-3 px-4 py-4 sm:px-6 md:max-w-4xl lg:max-w-6xl">
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Comissão de Sindicâncias
             </p>
             {title ? (

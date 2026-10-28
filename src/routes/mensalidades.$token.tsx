@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EMPTY_LIST } from "@/lib/utils";
 
 export const Route = createFileRoute("/mensalidades/$token")({
   ssr: false,
@@ -122,8 +123,8 @@ export function PublicMensalidadesView({
 
   const chapter = data?.chapter;
   const defaultAmount = data?.defaultAmount ?? 20;
-  const members = (data?.members ?? []) as DueMemberLite[];
-  const dues = data?.dues ?? [];
+  const members = (data?.members ?? EMPTY_LIST) as DueMemberLite[];
+  const dues = data?.dues ?? EMPTY_LIST;
 
   const availableYears = useMemo(() => {
     const founded = chapter?.founded_at;
@@ -379,7 +380,7 @@ export function PublicMensalidadesView({
                         onClick={() => toggleSort("name")}
                       >
                         Membro
-                        <span className="text-[10px] opacity-70">
+                        <span className="text-xs opacity-70">
                           {sortKey === "name" ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
                         </span>
                       </button>
@@ -397,7 +398,7 @@ export function PublicMensalidadesView({
                             onClick={() => toggleSort(key)}
                           >
                             {label}
-                            <span className="text-[9px] opacity-70">
+                            <span className="text-xs opacity-70">
                               {activeSort ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
                             </span>
                           </button>
@@ -413,7 +414,7 @@ export function PublicMensalidadesView({
                         onClick={() => toggleSort("open_count")}
                       >
                         Abertos
-                        <span className="text-[10px] opacity-70">
+                        <span className="text-xs opacity-70">
                           {sortKey === "open_count" ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
                         </span>
                       </button>
@@ -427,7 +428,7 @@ export function PublicMensalidadesView({
                         onClick={() => toggleSort("open_total")}
                       >
                         Total em aberto
-                        <span className="text-[10px] opacity-70">
+                        <span className="text-xs opacity-70">
                           {sortKey === "open_total" ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
                         </span>
                       </button>
@@ -521,8 +522,8 @@ export function PublicMensalidadesView({
                               month,
                             )} ${overdue ? "ring-1 ring-rose-500 dark:ring-rose-400/70" : ""}`}
                           >
-                            <div className="text-[10px] opacity-70">{MONTH_SHORT[i]}</div>
-                            <div className="text-[10px] font-semibold uppercase">
+                            <div className="text-xs opacity-70">{MONTH_SHORT[i]}</div>
+                            <div className="text-xs font-semibold uppercase">
                               {future && status === "em_aberto"
                                 ? "Fut"
                                 : status === "pago"

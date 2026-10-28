@@ -4,10 +4,10 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { todayYmd } from "@/lib/timezone";
 
 const changeItemSchema = z.object({
-  field: z.string().min(1),
-  label: z.string().min(1),
-  before: z.string().nullable(),
-  after: z.string().nullable(),
+  field: z.string().min(1).max(300),
+  label: z.string().min(1).max(300),
+  before: z.string().max(5_000).nullable(),
+  after: z.string().max(5_000).nullable(),
 });
 
 const MASTER_FIELDS = new Set([
@@ -207,7 +207,7 @@ export const reviewMemberChangeRequest = createServerFn({ method: "POST" })
       .object({
         requestId: z.string().uuid(),
         decision: z.enum(["approved", "rejected"]),
-        reviewNote: z.string().optional().default(""),
+        reviewNote: z.string().max(20_000).optional().default(""),
       })
       .parse(raw),
   )
@@ -443,7 +443,7 @@ export const reviewMemberAffiliationRequest = createServerFn({ method: "POST" })
       .object({
         requestId: z.string().uuid(),
         decision: z.enum(["approved", "rejected"]),
-        reviewNote: z.string().optional().default(""),
+        reviewNote: z.string().max(20_000).optional().default(""),
       })
       .parse(raw),
   )

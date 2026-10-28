@@ -188,7 +188,7 @@ export function LobbyPresencasPage() {
                     <div className="text-sm font-semibold tabular-nums">
                       {row.pct == null ? "—" : `${row.pct}%`}
                     </div>
-                    <div className="text-[10px] text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       {row.present}/{row.total}
                     </div>
                   </div>
@@ -199,7 +199,7 @@ export function LobbyPresencasPage() {
                     return (
                       <div key={cell.eventId} className="min-w-0 space-y-1">
                         <div
-                          className="truncate text-center text-[10px] text-muted-foreground"
+                          className="truncate text-center text-xs text-muted-foreground"
                           title={
                             ev
                               ? `${ev.title} · ${formatDateBR(ev.starts_at)} · ${typeLabel(ev.event_type)}`
@@ -235,7 +235,7 @@ export function LobbyPresencasPage() {
                     {semesterEvents.map((ev) => (
                       <th
                         key={ev.id}
-                        className="min-w-[3rem] px-0.5 py-2 text-center text-[10px] font-medium text-muted-foreground"
+                        className="min-w-[3rem] px-0.5 py-2 text-center text-xs font-medium text-muted-foreground"
                         title={`${ev.title} · ${typeLabel(ev.event_type)} · ${formatDateBR(ev.starts_at)}`}
                       >
                         {shortDate(ev.starts_at)}
@@ -261,7 +261,7 @@ export function LobbyPresencasPage() {
                       {row.cells.map((cell) => (
                         <td key={cell.eventId} className="px-0.5 py-1.5 text-center">
                           <span
-                            className={`inline-flex h-8 w-full items-center justify-center rounded-md text-[10px] font-semibold ${attendanceCellClass(cell.status)}`}
+                            className={`inline-flex h-8 w-full items-center justify-center rounded-md text-xs font-semibold ${attendanceCellClass(cell.status)}`}
                           >
                             {attendanceCellLetter(cell.status)}
                           </span>

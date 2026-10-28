@@ -903,6 +903,7 @@ export function MonthView({
         <div className="text-sm font-semibold capitalize">{monthLabel}</div>
         <div className="flex items-center gap-1">
           <Button
+            aria-label="Mês anterior"
             size="icon"
             variant="ghost"
             onClick={() => setCursor(new Date(year, month - 1, 1))}
@@ -922,6 +923,7 @@ export function MonthView({
             Hoje
           </Button>
           <Button
+            aria-label="Próximo mês"
             size="icon"
             variant="ghost"
             onClick={() => setCursor(new Date(year, month + 1, 1))}
@@ -995,7 +997,7 @@ export function MonthView({
                 {visible.map((it) => (
                   <span
                     key={it.id}
-                    className="truncate rounded px-1 py-0.5 text-[10px]"
+                    className="truncate rounded px-1 py-0.5 text-[11px]"
                     style={{
                       backgroundColor: resolveTypeMeta(
                         it.event_type,
@@ -1008,7 +1010,7 @@ export function MonthView({
                   </span>
                 ))}
                 {extra > 0 && (
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground">
                     +{extra} mais
                   </span>
                 )}
@@ -1129,7 +1131,7 @@ function ItemRow({
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">{item.title}</span>
           <span
-            className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+            className="rounded-full px-1.5 py-0.5 text-[11px] font-medium"
             style={{ backgroundColor: meta.bg, color: meta.color }}
           >
             {meta.label}
@@ -1208,13 +1210,13 @@ function DetailContent({
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <span
-            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+            className="rounded-full px-2 py-0.5 text-[11px] font-medium"
             style={{ backgroundColor: meta.bg, color: meta.color }}
           >
             {meta.label}
           </span>
           <span
-            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+            className="rounded-full px-2 py-0.5 text-[11px] font-medium"
             style={
               item.mandatory
                 ? { backgroundColor: "#FEE2E2", color: "#B91C1C" }
@@ -1228,7 +1230,7 @@ function DetailContent({
           </span>
           {item.public_open && (
             <span
-              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+              className="rounded-full px-2 py-0.5 text-[11px] font-medium"
               style={{ backgroundColor: "#DCFCE7", color: "#15803D" }}
             >
               Aberto ao público

@@ -54,7 +54,7 @@ export const getChapterPublicSlug = createServerFn({ method: "POST" })
       { _chapter_id: data.chapterId } as never,
     );
     if (error) throw new Error(error.message);
-    const value = typeof slug === "string" ? slug.trim() : "";
+    const value = String((slug as unknown) ?? "").trim();
     if (!value) throw new Error("Não foi possível montar o link público");
     return { slug: value };
   });
@@ -70,7 +70,7 @@ export const publicOrgSlugForToken = createServerFn({ method: "POST" })
       { _token: data.token } as never,
     );
     if (error) throwPublicRpcError(error, "publicOrgSlugForToken");
-    const value = typeof slug === "string" ? slug.trim() : "";
+    const value = String((slug as unknown) ?? "").trim();
     if (!value) throw new Error("Link indisponível");
     return { slug: value };
   });

@@ -692,7 +692,7 @@ function GestaoContent({ active }: { active: Membership }) {
                           ) : null}
                         </div>
                         {moduleLabel ? (
-                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          <p className="mt-0.5 text-xs text-muted-foreground">
                             Módulo:{" "}
                             {modulePath ? (
                               <Link
@@ -778,6 +778,7 @@ function GestaoContent({ active }: { active: Membership }) {
                               {canEditCommissions &&
                                 !(r as { virtual?: boolean }).virtual && (
                                 <Button
+                                  aria-label={`Remover ${r.member?.full_name ?? "membro"} da comissão`}
                                   size="icon"
                                   variant="ghost"
                                   onClick={() => delCom.mutate(r.id)}
@@ -858,7 +859,7 @@ function GestaoContent({ active }: { active: Membership }) {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                <p className="mt-1.5 text-xs text-muted-foreground">
                   Participantes desta comissão passam a ver o módulo escolhido
                   (conforme o cargo na comissão).
                 </p>

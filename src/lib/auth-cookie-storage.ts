@@ -2,6 +2,10 @@
 
 const CHUNK_SIZE = 3500;
 
+// 30 dias: cada refresh do token (≈1h de uso) renova o cookie; sessão
+// abandonada expira sozinha em vez de durar 400 dias.
+const MAX_AGE_SEC = 60 * 60 * 24 * 30;
+
 function cookieDomain(): string | undefined {
   if (typeof window === "undefined") return undefined;
   const host = window.location.hostname;
@@ -71,7 +75,7 @@ export const supabaseAuthCookieStorage = {
   setItem(key: string, value: string) {
     const existingChunks = Number(readCookie(`${key}.chunks`) ?? "0");
     if (value.length <= CHUNK_SIZE) {
-      writeCookie(key, value, 60 * 60 * 24 * 400);
+      writeCookie(key, value, MAX_AGE_SEC);
       deleteCookie(`${key}.chunks`);
       for (let i = 0; i < Math.max(existingChunks, 1); i++) {
         deleteCookie(`${key}.${i}`);
@@ -80,12 +84,12 @@ export const supabaseAuthCookieStorage = {
     }
     const n = Math.ceil(value.length / CHUNK_SIZE);
     deleteCookie(key);
-    writeCookie(`${key}.chunks`, String(n), 60 * 60 * 24 * 400);
+    writeCookie(`${key}.chunks`, String(n), MAX_AGE_SEC);
     for (let i = 0; i < n; i++) {
       writeCookie(
         `${key}.${i}`,
         value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
-        60 * 60 * 24 * 400,
+        MAX_AGE_SEC,
       );
     }
     for (let i = n; i < existingChunks; i++) {

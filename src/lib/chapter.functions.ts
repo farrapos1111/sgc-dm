@@ -23,8 +23,8 @@ export const saveLodge = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid().optional(),
         chapter_id: z.string().uuid(),
-        name: z.string().min(1),
-        address: z.string().nullable().optional(),
+        name: z.string().min(1).max(300),
+        address: z.string().max(300).nullable().optional(),
         is_primary: z.boolean().optional(),
       })
       .parse(raw),
@@ -84,9 +84,9 @@ export const updateChapterProfile = createServerFn({ method: "POST" })
     z
       .object({
         chapter_id: z.string().uuid(),
-        name: z.string().min(1),
-        number: z.string().min(1),
-        city: z.string().nullable().optional(),
+        name: z.string().min(1).max(300),
+        number: z.string().min(1).max(300),
+        city: z.string().max(300).nullable().optional(),
         founded_at: z
           .string()
           .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida")

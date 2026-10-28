@@ -245,7 +245,7 @@ function SindicanciaConfigPage() {
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="h-7 text-[11px]"
+                  className="h-7 text-xs"
                   onClick={() => insertChaveVar(v)}
                 >
                   [{v}]

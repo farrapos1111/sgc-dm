@@ -63,7 +63,7 @@ import {
   type OrgTypeUi,
   type RoleGroup,
 } from "@/lib/org-types";
-import { cn } from "@/lib/utils";
+import { cn, EMPTY_LIST } from "@/lib/utils";
 
 export const Route = createFileRoute(
   "/_authenticated/_shell/configuracoes-globais/cargos",
@@ -97,7 +97,7 @@ function CargosGlobaisPage() {
     queryFn: () => listPositionCatalog(),
   });
 
-  const positions = catalogQ.data?.positions ?? [];
+  const positions = catalogQ.data?.positions ?? EMPTY_LIST;
   const positionOrgTypes = catalogQ.data?.positionOrgTypes ?? [];
 
   const positionById = useMemo(() => {
@@ -375,7 +375,7 @@ function CargosGlobaisPage() {
                 onChange={(e) => setFormLabel(e.target.value)}
                 placeholder="ex.: Mestre de Cerimônias"
               />
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 O código interno é gerado automaticamente a partir do nome.
               </p>
             </div>

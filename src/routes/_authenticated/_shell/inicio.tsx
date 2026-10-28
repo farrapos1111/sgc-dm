@@ -265,7 +265,7 @@ function InicioContent({ active }: { active: Membership }) {
                       </div>
                     </div>
                     <span
-                      className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                      className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
                       style={{ backgroundColor: meta?.bg, color: meta?.color }}
                     >
                       {meta?.label ?? it.event_type}
@@ -582,7 +582,7 @@ function NextItemCard({ chapterId }: { chapterId: string }) {
           Próximo compromisso
         </div>
         <span
-          className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+          className="rounded-full px-2 py-0.5 text-xs font-medium"
           style={{ backgroundColor: meta?.bg, color: meta?.color }}
         >
           {meta?.label ?? next.event_type}
