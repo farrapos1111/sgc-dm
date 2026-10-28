@@ -6,6 +6,7 @@ import { currentTerm } from "@/lib/terms";
 import { normalizeDemolayId } from "@/lib/member-identity";
 import { matchesLooseSearch } from "@/lib/utils";
 import { ORG_TYPES } from "@/lib/org-types";
+import type { Database } from "@/integrations/supabase/types";
 
 const orgRoleEnum = z.enum(["gme", "mce", "mcr", "oe"]);
 
@@ -240,7 +241,7 @@ export const listScopeMembers = createServerFn({ method: "POST" })
     z
       .object({
         chapterIds: z.array(z.string().uuid()).min(1),
-        search: z.string().optional().default(""),
+        search: z.string().max(300).optional().default(""),
         status: z
           .enum(["regular", "irregular", "all"])
           .optional()
@@ -255,10 +256,16 @@ export const listScopeMembers = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const term = currentTerm();
     const search = data.search.trim();
+    type RegionalMemberRow = Pick<
+      Database["public"]["Tables"]["members"]["Row"],
+      | "id" | "chapter_id" | "full_name" | "birth_date" | "status" | "kind" | "phone"
+      | "email" | "user_id" | "cpf_last2" | "exam_grau_iniciatico" | "exam_grau_demolay"
+      | "iniciacao_ordem" | "iniciacao_grau_demolay"
+    >;
     const memberSelect =
       "id, chapter_id, full_name, birth_date, status, kind, phone, email, user_id, cpf_last2, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay";
 
-    function applyMemberFilters<T extends { eq: Function; ilike?: Function }>(
+    function applyMemberFilters<T extends { eq: (column: string, value: string) => unknown }>(
       q: T,
     ): T {
       let next = q;
@@ -374,12 +381,13 @@ export const listScopeMembers = createServerFn({ method: "POST" })
     }
 
     return rows.map((r) => {
-      const id = r.id as string;
+      const row = r as unknown as RegionalMemberRow;
+      const id = row.id;
       const positions = (byMember.get(id) ?? []).sort(
         (a, b) => a.sort_order - b.sort_order,
       );
       return {
-        ...r,
+        ...row,
         current_positions: positions.map(({ code, label }) => ({
           code,
           label,
@@ -468,7 +476,7 @@ export const updateRegionVisual = createServerFn({ method: "POST" })
           .string()
           .regex(/^#[0-9A-Fa-f]{6}$/)
           .optional(),
-        logo_url: z.string().nullable().optional(),
+        logo_url: z.string().max(2_048).nullable().optional(),
       })
       .parse(raw),
   )
@@ -500,7 +508,7 @@ export const updateRegionVisual = createServerFn({ method: "POST" })
       throw new Error("Sem permissão para alterar a aparência desta região");
     }
 
-    const patch: Record<string, unknown> = {};
+    const patch: { primary_color?: string; logo_url?: string | null } = {};
     if (data.primary_color !== undefined)
       patch.primary_color = data.primary_color;
     if (data.logo_url !== undefined) patch.logo_url = data.logo_url;
@@ -521,8 +529,8 @@ export const saveRegion = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid().optional(),
         state_id: z.string().uuid(),
-        name: z.string().min(1),
-        code: z.string().nullable().optional(),
+        name: z.string().min(1).max(300),
+        code: z.string().max(300).nullable().optional(),
       })
       .parse(raw),
   )
@@ -568,9 +576,9 @@ export const saveChapter = createServerFn({ method: "POST" })
         id: z.string().uuid().optional(),
         state_id: z.string().uuid(),
         region_id: z.string().uuid().nullable().optional(),
-        name: z.string().min(1),
-        number: z.string().min(1),
-        city: z.string().nullable().optional(),
+        name: z.string().min(1).max(300),
+        number: z.string().min(1).max(300),
+        city: z.string().max(300).nullable().optional(),
         org_type: z.enum(ORG_TYPES).optional(),
         active: z.boolean().optional(),
       })
@@ -631,7 +639,7 @@ export const setScopeMemberStatus = createServerFn({ method: "POST" })
       .object({
         memberId: z.string().uuid(),
         status: z.enum(["regular", "irregular"]),
-        effectiveOn: z.string().optional(),
+        effectiveOn: z.string().max(300).optional(),
       })
       .parse(raw),
   )
@@ -652,7 +660,7 @@ export const setScopeMemberStatus = createServerFn({ method: "POST" })
     if (prevStatus === nextStatus) return { ok: true };
 
     const effectiveOn =
-      data.effectiveOn || new Date().toISOString().slice(0, 10);
+      data.effectiveOn || todayYmd();
 
     const { error } = await context.supabase.rpc(
       "update_member_with_pii" as never,
@@ -722,8 +730,8 @@ export const createScopeMember = createServerFn({ method: "POST" })
       .object({
         chapterId: z.string().uuid(),
         fullName: z.string().trim().min(2),
-        demolayId: z.string().trim().optional().nullable(),
-        birthDate: z.string().optional().nullable(),
+        demolayId: z.string().trim().max(300).optional().nullable(),
+        birthDate: z.string().max(300).optional().nullable(),
         email: z.string().trim().email().optional().nullable(),
         /** Se true e houver e-mail, cria conta e envia convite. */
         sendInvite: z.boolean().optional().default(false),
@@ -781,7 +789,7 @@ export const ensureScopeChapterPublicLink = createServerFn({ method: "POST" })
       { _chapter_id: data.chapterId } as never,
     );
     if (slugErr) throw new Error(slugErr.message);
-    const slugValue = typeof slug === "string" ? slug.trim() : "";
+    const slugValue = String((slug as unknown) ?? "").trim();
     if (!slugValue) throw new Error("Não foi possível montar o link público");
 
     const { data: chapter, error: chErr } = await context.supabase
@@ -1041,7 +1049,7 @@ export const lookupRegionMemberByDemolay = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
     z
       .object({
-        demolayId: z.string().trim().min(1),
+        demolayId: z.string().trim().min(1).max(300),
         regionId: z.string().uuid(),
       })
       .parse(raw),

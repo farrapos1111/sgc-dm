@@ -76,7 +76,7 @@ O painel de abertura. Cumprimenta pelo **primeiro nome** do perfil e mostra, de 
 
 **Membros.** O cadastro completo do capítulo. O formulário é um passo a passo — se o candidato for menor de idade, ele ganha uma etapa a mais para os dados dos responsáveis (até dois, com um definido como principal) e a coleta do consentimento de dados. Cada membro tem sua ficha com histórico de cargos, presenças e graus. O **Mestre Conselheiro** (ou Administrador Total) pode **emitir, ver e revogar** a carteirinha de proficiência CR80 na ficha do membro; o titular a encontra também em **Perfil**.
 
-Na mesma ficha, o MC/Admin Total vê o painel **Acesso ao sistema**: com o e-mail já preenchido na ficha, ele **cria a conta** ou **vincula** uma conta existente. Na criação, o membro recebe um **e-mail com link para definir a senha** (a senha não vai no e-mail). A senha temporária ainda aparece uma vez na tela, caso o MC precise repassar por outro canal. O jovem entra depois com e-mail **ou ID DeMolay** e, no primeiro acesso com senha temporária, redefine a senha.
+Na mesma ficha, o MC/Admin Total vê o painel **Acesso ao sistema**: com o e-mail já preenchido na ficha, ele **cria a conta** ou **vincula** uma conta existente. Na criação, o membro recebe um **e-mail com link para definir a senha** (a senha não vai no e-mail). A senha temporária ainda aparece uma vez na tela, caso o MC precise repassar por outro canal. O jovem entra depois com e-mail **ou ID DeMolay** e, no primeiro acesso com senha temporária, redefine a senha. Por segurança, o MC **não** consegue trocar a senha de quem tem cargo fora do capítulo (liderança regional/estadual ou cargo em outro capítulo): nesse caso a pessoa usa "Esqueci minha senha", ou um Administrador Total faz a troca.
 
 **Atas.** Em **Secretaria → Atas**, a aba **Atual** lista cards das atas em andamento (rascunho ou em revisão): nome da sessão, data, situação, assinaturas, PDF e **Acessar ata**. A redação e a aprovação acontecem **só na sessão** (não no hub). Use **Criar nova ata** para escolher uma sessão recente sem registro e ir direto à aba Ata. As atas seguem **rascunho → em revisão → aprovada**. Ainda no rascunho, dá para **compartilhar uma visão pública** (link + senha) para os membros lerem e registrarem *aprovada* ou *reprovada* — reprovação **exige justificativa**. Esse feedback **não substitui** as três assinaturas oficiais (Presidente do Conselho, Mestre Conselheiro e Escrivão). Há modelos editáveis por capítulo e exportação em PDF.
 
@@ -112,6 +112,9 @@ Para os eventos de arrecadação. Cria-se o evento, define-se a **arte de fundo 
 ### Comissão de Sindicâncias
 
 **Fichas** dos candidatos e **processos** de sindicância, com acompanhamento do andamento (aberta, em andamento, aprovada, reprovada ou arquivada) e registro dos pareceres.
+
+- **Modelo da ata:** as perguntas seguem a faixa etária do indicado (12 a 14, 15 a 17 ou 18+) **no dia em que a ata é criada**. Se ele fizer aniversário durante o processo, o modelo e as respostas não mudam.
+- **Votação:** votam os membros da comissão de sindicâncias, o Conselho Consultivo e os conselheiros (Mestre Conselheiro, 1º e 2º Conselheiro) do semestre vigente. É preciso ter conta vinculada a uma ficha do capítulo (de origem ou afiliado). Reabrir a ata durante a votação apaga todos os votos.
 
 ### Hospitalaria
 

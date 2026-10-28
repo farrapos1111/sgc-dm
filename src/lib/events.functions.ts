@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { moneyNonNegative } from "@/lib/validation";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { todayYmd } from "@/lib/timezone";
 import {
@@ -195,9 +196,9 @@ export const createEvent = createServerFn({ method: "POST" })
         name: z.string().min(2).max(120),
         description: z.string().max(2000).optional().default(""),
         location: z.string().max(200).optional().default(""),
-        starts_at: z.string(),
-        ends_at: z.string().optional().nullable(),
-        goal_amount: z.number().min(0).default(0),
+        starts_at: z.string().max(40),
+        ends_at: z.string().max(40).optional().nullable(),
+        goal_amount: moneyNonNegative().default(0),
         status: z
           .enum(["rascunho", "publicado", "encerrado"])
           .default("rascunho"),
@@ -470,9 +471,9 @@ export const updateEvent = createServerFn({ method: "POST" })
         name: z.string().min(2).max(120),
         description: z.string().max(2000).optional().default(""),
         location: z.string().max(200).optional().default(""),
-        starts_at: z.string().min(1),
-        ends_at: z.string().nullable().optional(),
-        goal_amount: z.number().min(0).default(0),
+        starts_at: z.string().min(1).max(40),
+        ends_at: z.string().max(40).nullable().optional(),
+        goal_amount: moneyNonNegative().default(0),
         status: z.enum(["rascunho", "publicado", "encerrado"]),
       })
       .parse(raw),
@@ -782,7 +783,7 @@ export const sellTicket = createServerFn({ method: "POST" })
           .optional()
           .or(z.literal(""))
           .default(""),
-        price_paid: z.number().min(0),
+        price_paid: moneyNonNegative(),
         quantity: z.number().int().min(1).max(50).default(1),
       })
       .parse(raw),
@@ -841,7 +842,7 @@ export const updateSoldTicket = createServerFn({ method: "POST" })
         buyerName: z.string().min(2).max(120),
         sellerMemberId: z.string().uuid().nullable(),
         ticketTypeId: z.string().uuid().nullable(),
-        pricePaid: z.number().min(0).optional(),
+        pricePaid: moneyNonNegative().optional(),
       })
       .parse(raw),
   )
@@ -851,8 +852,9 @@ export const updateSoldTicket = createServerFn({ method: "POST" })
       {
         _ticket_id: data.ticketId,
         _buyer_name: data.buyerName,
-        _seller_member_id: data.sellerMemberId,
-        _ticket_type_id: data.ticketTypeId,
+        // null limpa o vínculo; os tipos gerados não marcam o parâmetro como nullable.
+        _seller_member_id: data.sellerMemberId as string,
+        _ticket_type_id: data.ticketTypeId as string,
         _price_paid: data.pricePaid,
       },
     );
@@ -1025,7 +1027,7 @@ export const previewTicketByQr = createServerFn({ method: "POST" })
     z
       .object({
         chapterId: z.string().uuid(),
-        qr: z.string().min(1),
+        qr: z.string().min(1).max(300),
       })
       .parse(raw),
   )
@@ -1097,7 +1099,7 @@ export const checkinTicket = createServerFn({ method: "POST" })
     z
       .object({
         event_id: z.string().uuid(),
-        qr: z.string().optional(),
+        qr: z.string().max(300).optional(),
         ticket_id: z.string().uuid().optional(),
         method: z.enum(["qr", "nome"]).default("qr"),
       })

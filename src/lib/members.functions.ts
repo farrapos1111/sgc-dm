@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { optionalBirthDate, optionalCep, optionalCpf, optionalEmail, optionalPhone } from "@/lib/validation";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 import { is21OrOlder, isUnder21 } from "@/lib/format";
 import { normalizeDemolayId } from "@/lib/member-identity";
 import { todayYmd } from "@/lib/timezone";
@@ -25,13 +27,36 @@ function resolveAutoKind(
 
 const listInput = z.object({
   chapterId: z.string().uuid(),
-  search: z.string().optional().default(""),
+  search: z.string().max(300).optional().default(""),
   status: z.enum(["regular", "irregular", "all"]).optional().default("all"),
   kind: z.enum(["demolay_ativo", "senior", "macom", "all"]).optional().default("all"),
 });
 
 const MEMBER_LIST_FIELDS =
   "id, full_name, birth_date, status, kind, exam_grau_iniciatico, exam_grau_demolay, iniciacao_ordem, iniciacao_grau_demolay, demolay_id, masonic_id, chapter_id, initiation_chapter_id, created_at, phone, email, cpf_last2, rg_last2" as const;
+
+type MemberRow = Database["public"]["Tables"]["members"]["Row"];
+type MemberListPii = "phone" | "email" | "cpf_last2" | "rg_last2";
+
+/** Linha da lista de membros; PII só vem para secretaria/admin/conselho. */
+export type MemberListRow = Pick<
+    MemberRow,
+    | "id"
+    | "full_name"
+    | "birth_date"
+    | "status"
+    | "kind"
+    | "exam_grau_iniciatico"
+    | "exam_grau_demolay"
+    | "iniciacao_ordem"
+    | "iniciacao_grau_demolay"
+    | "demolay_id"
+    | "masonic_id"
+    | "chapter_id"
+    | "initiation_chapter_id"
+  | "created_at"
+> &
+  Partial<Pick<MemberRow, MemberListPii>>;
 
 function stripMemberListPii<T extends Record<string, unknown>>(row: T): T {
   const {
@@ -78,10 +103,10 @@ export const listMembers = createServerFn({ method: "POST" })
 
     // Prefer afiliações ativas; fallback para chapter_id originário se a tabela ainda não existir
     const { data: affRows, error: affErr } = await context.supabase
-      .from("member_chapter_affiliations" as "members")
+      .from("member_chapter_affiliations")
       .select(`member:members(${MEMBER_LIST_FIELDS})`)
-      .eq("chapter_id" as never, data.chapterId)
-      .eq("active" as never, true);
+      .eq("chapter_id", data.chapterId)
+      .eq("active", true);
 
     if (!affErr && affRows) {
       let rows = (affRows as unknown as { member: Record<string, unknown> | null }[])
@@ -108,7 +133,7 @@ export const listMembers = createServerFn({ method: "POST" })
       if (!canSeePii) {
         rows = rows.map((m) => stripMemberListPii(m));
       }
-      return rows as never;
+      return rows as unknown as MemberListRow[];
     }
 
     // Fallback legado (pré-migration)
@@ -123,7 +148,7 @@ export const listMembers = createServerFn({ method: "POST" })
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     const list = (rows ?? []) as Record<string, unknown>[];
-    return (canSeePii ? list : list.map((m) => stripMemberListPii(m))) as never;
+    return (canSeePii ? list : list.map((m) => stripMemberListPii(m))) as unknown as MemberListRow[];
   });
 
 export const listChaptersForSelect = createServerFn({ method: "POST" })
@@ -158,7 +183,7 @@ export const lookupMemberByDemolayId = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
     z
       .object({
-        demolayId: z.string().trim().min(1),
+        demolayId: z.string().trim().min(1).max(300),
         chapterId: z.string().uuid(),
       })
       .parse(raw),
@@ -262,12 +287,12 @@ export const getMember = createServerFn({ method: "POST" })
           .eq("member_id", data.id)
           .order("started_on", { ascending: false }),
         context.supabase
-          .from("member_chapter_affiliations" as "members")
+          .from("member_chapter_affiliations")
           .select(
             "id, chapter_id, active, joined_at, left_at, chapter:chapters(id, name, number)",
           )
-          .eq("member_id" as never, data.id)
-          .order("joined_at" as never, { ascending: false }),
+          .eq("member_id", data.id)
+          .order("joined_at", { ascending: false }),
         (member as { initiation_chapter_id?: string | null }).initiation_chapter_id
           ? context.supabase
               .from("chapters")
@@ -303,23 +328,23 @@ export const getMember = createServerFn({ method: "POST" })
   });
 
 const guardianSchema = z.object({
-  full_name: z.string().min(1),
-  relationship: z.string().optional().default(""),
-  cpf: z.string().optional().default(""),
-  phone: z.string().optional().default(""),
-  email: z.string().optional().default(""),
+  full_name: z.string().min(1).max(300),
+  relationship: z.string().max(300).optional().default(""),
+  cpf: optionalCpf,
+  phone: optionalPhone,
+  email: optionalEmail,
 });
 
 const addressSchema = z
   .object({
-    zip: z.string().optional().default(""),
-    street: z.string().optional().default(""),
-    number: z.string().optional().default(""),
-    complement: z.string().optional().default(""),
-    neighborhood: z.string().optional().default(""),
-    city: z.string().optional().default(""),
-    state: z.string().optional().default(""),
-    country: z.string().optional().default("Brasil"),
+    zip: optionalCep,
+    street: z.string().max(300).optional().default(""),
+    number: z.string().max(300).optional().default(""),
+    complement: z.string().max(300).optional().default(""),
+    neighborhood: z.string().max(300).optional().default(""),
+    city: z.string().max(300).optional().default(""),
+    state: z.string().max(300).optional().default(""),
+    country: z.string().max(300).optional().default("Brasil"),
   })
   .default({
     zip: "",
@@ -336,11 +361,11 @@ const createInput = z.object({
   chapter_id: z.string().uuid(),
   initiation_chapter_id: z.string().uuid().optional().nullable(),
   full_name: z.string().trim().min(2).max(120),
-  birth_date: z.string().optional().nullable(),
-  exam_grau_iniciatico: z.string().optional().nullable(),
-  exam_grau_demolay: z.string().optional().nullable(),
-  iniciacao_ordem: z.string().optional().nullable(),
-  iniciacao_grau_demolay: z.string().optional().nullable(),
+  birth_date: optionalBirthDate,
+  exam_grau_iniciatico: z.string().max(300).optional().nullable(),
+  exam_grau_demolay: z.string().max(300).optional().nullable(),
+  iniciacao_ordem: z.string().max(300).optional().nullable(),
+  iniciacao_grau_demolay: z.string().max(300).optional().nullable(),
   demolay_id: z
     .union([z.string(), z.null()])
     .optional()
@@ -349,16 +374,16 @@ const createInput = z.object({
     .union([z.string(), z.null()])
     .optional()
     .transform((v) => v ?? ""),
-  cpf: z.string().optional().default(""),
-  rg: z.string().optional().default(""),
-  phone: z.string().optional().default(""),
+  cpf: optionalCpf,
+  rg: z.string().max(20).optional().default(""),
+  phone: optionalPhone,
   email: z.string().email().optional().or(z.literal("")).default(""),
   address: addressSchema,
   status: statusEnum.default("regular"),
   kind: kindEnum.default("demolay_ativo"),
-  status_effective_on: z.string().optional().nullable(),
+  status_effective_on: z.string().max(40).optional().nullable(),
   guardians: z.array(guardianSchema).max(2).optional().default([]),
-  consent_text_version: z.string().default("v1-2026-07"),
+  consent_text_version: z.string().max(300).default("v1-2026-07"),
 });
 
 export const createMember = createServerFn({ method: "POST" })
@@ -419,11 +444,11 @@ export const createMember = createServerFn({ method: "POST" })
 const updateInput = z.object({
   id: z.string().uuid(),
   full_name: z.string().trim().min(2).max(120),
-  birth_date: z.string().optional().nullable(),
-  exam_grau_iniciatico: z.string().optional().nullable(),
-  exam_grau_demolay: z.string().optional().nullable(),
-  iniciacao_ordem: z.string().optional().nullable(),
-  iniciacao_grau_demolay: z.string().optional().nullable(),
+  birth_date: optionalBirthDate,
+  exam_grau_iniciatico: z.string().max(300).optional().nullable(),
+  exam_grau_demolay: z.string().max(300).optional().nullable(),
+  iniciacao_ordem: z.string().max(300).optional().nullable(),
+  iniciacao_grau_demolay: z.string().max(300).optional().nullable(),
   demolay_id: z
     .union([z.string(), z.null()])
     .optional()
@@ -433,14 +458,14 @@ const updateInput = z.object({
     .optional()
     .transform((v) => v ?? ""),
   initiation_chapter_id: z.string().uuid().optional().nullable(),
-  cpf: z.string().optional().default(""),
-  rg: z.string().optional().default(""),
-  phone: z.string().optional().default(""),
+  cpf: optionalCpf,
+  rg: z.string().max(20).optional().default(""),
+  phone: optionalPhone,
   email: z.string().email().optional().or(z.literal("")).default(""),
   address: addressSchema,
   status: statusEnum,
   kind: kindEnum,
-  status_effective_on: z.string().optional().nullable(),
+  status_effective_on: z.string().max(40).optional().nullable(),
   guardians: z.array(guardianSchema).max(2).optional().default([]),
 });
 

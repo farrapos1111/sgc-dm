@@ -28,7 +28,7 @@ import {
   type MinuteVarMatch,
 } from "@/lib/minute-vars";
 import { kindLabel } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { cn, EMPTY_LIST } from "@/lib/utils";
 
 const AUTOCOMPLETE_STORAGE_KEY = "sgc-dm:minute-autocomplete";
 
@@ -219,7 +219,7 @@ export function MinuteBodyEditor({
     staleTime: 60_000,
   });
 
-  const members = (membersQ.data ?? []) as MinuteMentionMember[];
+  const members = (membersQ.data ?? EMPTY_LIST) as MinuteMentionMember[];
 
   const before = value.slice(0, caret);
 
@@ -486,7 +486,7 @@ export function MinuteBodyEditor({
             )}
             style={balloonStyle}
           >
-            <div className="border-b border-border/70 bg-muted/40 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+            <div className="border-b border-border/70 bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
               Variável · ↑↓ · Enter
             </div>
             {varSuggestions.length > 0 ? (
@@ -531,7 +531,7 @@ export function MinuteBodyEditor({
             )}
             style={balloonStyle}
           >
-            <div className="border-b border-border/70 bg-muted/40 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+            <div className="border-b border-border/70 bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
               {active.match.title} · ↑↓ · Enter
             </div>
 
@@ -554,7 +554,7 @@ export function MinuteBodyEditor({
                       onMouseEnter={() => setActiveIdx(i)}
                     >
                       <span className="truncate font-medium">{m.full_name}</span>
-                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                      <span className="shrink-0 text-xs text-muted-foreground">
                         {kindLabel(m.kind)}
                       </span>
                     </button>

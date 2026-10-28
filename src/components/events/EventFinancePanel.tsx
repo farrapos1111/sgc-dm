@@ -57,6 +57,7 @@ import {
   type EventFinanceCategory,
   type EventFinanceItem,
 } from "@/lib/event-finance.functions";
+import { EMPTY_LIST } from "@/lib/utils";
 
 function mutationErrorMessage(e: unknown, fallback: string) {
   return e instanceof Error ? e.message : fallback;
@@ -212,7 +213,7 @@ export function EventFinancePanel({
   const categories = (financeQ.data?.categories ?? []).filter(
     (c) => !isBudgetCategoryName(c.name),
   );
-  const items = financeQ.data?.items ?? [];
+  const items = financeQ.data?.items ?? EMPTY_LIST;
   const totals = totalsQ.data;
   const editableCategories = categories.filter((c) => !c.is_system);
   const budgetRows = budgetQ.data ?? [];
@@ -799,7 +800,7 @@ export function EventFinancePanel({
                       <div className="flex flex-wrap items-center gap-2 truncate font-medium">
                         {c.name}
                         {isSystem && (
-                          <Badge variant="secondary" className="text-[10px]">
+                          <Badge variant="secondary" className="text-xs">
                             automático
                           </Badge>
                         )}
@@ -876,7 +877,7 @@ export function EventFinancePanel({
                                   {!it.active && (
                                     <Badge
                                       variant="secondary"
-                                      className="ml-2 text-[10px]"
+                                      className="ml-2 text-xs"
                                     >
                                       inativo
                                     </Badge>

@@ -548,7 +548,7 @@ function PresencasPage() {
                           </span>
                           <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                             <span
-                              className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                              className="rounded-full px-1.5 py-0.5 text-xs font-medium"
                               style={{
                                 backgroundColor: meta?.bg,
                                 color: meta?.color,

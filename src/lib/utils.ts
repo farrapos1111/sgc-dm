@@ -1,6 +1,13 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+/**
+ * Lista vazia estável para fallback de dados de query (`data ?? EMPTY_LIST`).
+ * `?? []` cria um array novo a cada render e invalida useMemo/useEffect.
+ * Não mutar.
+ */
+export const EMPTY_LIST: never[] = [];
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

@@ -12,6 +12,7 @@ import {
   isOrgLeader,
   type AccessContext,
 } from "@/lib/permissions";
+import { EMPTY_LIST } from "@/lib/utils";
 
 export type CommissionAccess = {
   commissions: MyCommission[];
@@ -73,7 +74,7 @@ export function useCommissionAccess(): CommissionAccess {
       fetchSindAccess({ data: { chapterId: active!.chapter_id } }),
   });
 
-  const commissions = data ?? [];
+  const commissions = data ?? EMPTY_LIST;
   const role = active?.role.name ?? null;
 
   const ctx: AccessContext = useMemo(

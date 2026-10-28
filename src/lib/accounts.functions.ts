@@ -157,6 +157,80 @@ async function assertChapterAdmin(
   if (!ok) throw new Error("Sem permissão para gerenciar contas neste capítulo");
 }
 
+/**
+ * Impede que o admin de um capítulo troque a senha de uma conta com poder fora
+ * dele (liderança regional/estadual, admin_total ou cargo em outro capítulo).
+ * Só admin_total pode fazer isso; para os demais casos, o dono usa
+ * "esqueci minha senha".
+ */
+async function assertCanSetPasswordFor(
+  supabase: {
+    rpc: (
+      fn: never,
+      args: never,
+    ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  },
+  targetUserId: string,
+  chapterId: string,
+) {
+  const { data: isAdminTotal, error: atErr } = await supabase.rpc(
+    "is_admin_total" as never,
+    {} as never,
+  );
+  if (atErr) throw new Error(atErr.message);
+  if (isAdminTotal) return;
+
+  const { supabaseAdmin } = await import(
+    "@/integrations/supabase/client.server"
+  );
+
+  const { data: leaderships, error: lErr } = await supabaseAdmin
+    .from("org_leaderships")
+    .select("id")
+    .eq("user_id", targetUserId)
+    .eq("active", true)
+    .limit(1);
+  if (lErr) throw new Error(lErr.message);
+
+  const { data: memberships, error: mErr } = await supabaseAdmin
+    .from("chapter_members")
+    .select("chapter_id, roles(name)")
+    .eq("user_id", targetUserId)
+    .eq("active", true);
+  if (mErr) throw new Error(mErr.message);
+
+  const elevatedElsewhere = (memberships ?? []).some((m) => {
+    const role = (m as { roles: { name: string } | null }).roles?.name ?? "membro";
+    if (role === "admin_total") return true;
+    return m.chapter_id !== chapterId && role !== "membro";
+  });
+
+  if ((leaderships ?? []).length > 0 || elevatedElsewhere) {
+    throw new Error(
+      "Esta conta tem cargo fora deste capítulo. A senha só pode ser redefinida pelo próprio titular (\"Esqueci minha senha\") ou por um Administrador Total.",
+    );
+  }
+}
+
+async function logPasswordChange(
+  chapterId: string,
+  actorUserId: string,
+  memberId: string,
+  action: "member_password_set" | "member_password_reset",
+) {
+  const { supabaseAdmin } = await import(
+    "@/integrations/supabase/client.server"
+  );
+  const { error } = await supabaseAdmin.from("audit_logs").insert({
+    chapter_id: chapterId,
+    user_id: actorUserId,
+    action,
+    table_name: "members",
+    record_id: memberId,
+  });
+  if (error) console.error("[accounts] audit log falhou:", error.message);
+}
+
 /** Admin do capítulo ou gestor regional (GME/MCR/OE) do escopo. */
 async function assertCanManageMemberAccounts(
   supabase: {
@@ -268,9 +342,7 @@ async function sendMemberInviteEmail(input: {
 }
 
 async function findAuthUserByEmail(
-  admin: Awaited<
-    ReturnType<typeof import("@/integrations/supabase/client.server")>
-  >["supabaseAdmin"],
+  admin: (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"],
   email: string,
 ): Promise<{ id: string; email?: string } | null> {
   const normalized = email.trim().toLowerCase();
@@ -288,9 +360,7 @@ async function findAuthUserByEmail(
 }
 
 async function ensureChapterMembership(
-  admin: Awaited<
-    ReturnType<typeof import("@/integrations/supabase/client.server")>
-  >["supabaseAdmin"],
+  admin: (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"],
   userId: string,
   chapterId: string,
   roleName: RoleName = "membro",
@@ -746,6 +816,11 @@ export const setMemberPassword = createServerFn({ method: "POST" })
     if (!member.user_id) throw new Error("Membro sem conta vinculada");
 
     await assertChapterAdmin(context.supabase, member.chapter_id);
+    await assertCanSetPasswordFor(
+      context.supabase,
+      member.user_id,
+      member.chapter_id,
+    );
 
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
@@ -775,6 +850,12 @@ export const setMemberPassword = createServerFn({ method: "POST" })
       member.user_id,
       member.chapter_id,
       "membro",
+    );
+    await logPasswordChange(
+      member.chapter_id,
+      context.userId,
+      member.id,
+      "member_password_set",
     );
 
     return {
@@ -806,6 +887,11 @@ export const resetMemberTemporaryPassword = createServerFn({ method: "POST" })
     if (!member.user_id) throw new Error("Membro sem conta vinculada");
 
     await assertChapterAdmin(context.supabase, member.chapter_id);
+    await assertCanSetPasswordFor(
+      context.supabase,
+      member.user_id,
+      member.chapter_id,
+    );
 
     const generated = !data.password;
     const temporaryPassword = data.password ?? randomPassword();
@@ -835,6 +921,12 @@ export const resetMemberTemporaryPassword = createServerFn({ method: "POST" })
       .update({ must_change_password: mustChange })
       .eq("id", member.user_id);
     if (profileErr) throw new Error(profileErr.message);
+    await logPasswordChange(
+      member.chapter_id,
+      context.userId,
+      member.id,
+      "member_password_reset",
+    );
 
     return { temporaryPassword, mustChangePassword: mustChange };
   });
@@ -1038,9 +1130,7 @@ async function clearLoginFailures(
   }
 }
 
-type AdminClient = Awaited<
-  ReturnType<typeof import("@/integrations/supabase/client.server")>
->["supabaseAdmin"];
+type AdminClient = (typeof import("@/integrations/supabase/client.server"))["supabaseAdmin"];
 
 /**
  * Resolve conta por ID DeMolay ou ID maçônico.

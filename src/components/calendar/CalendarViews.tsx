@@ -95,6 +95,7 @@ export function CalendarMonthView({
         <div className="text-sm font-semibold capitalize">{monthLabel}</div>
         <div className="flex items-center gap-1">
           <Button
+            aria-label="Mês anterior"
             size="icon"
             variant="ghost"
             onClick={() => setCursor(new Date(year, month - 1, 1))}
@@ -114,6 +115,7 @@ export function CalendarMonthView({
             Hoje
           </Button>
           <Button
+            aria-label="Próximo mês"
             size="icon"
             variant="ghost"
             onClick={() => setCursor(new Date(year, month + 1, 1))}
@@ -180,7 +182,7 @@ export function CalendarMonthView({
                 {visible.map((it) => (
                   <span
                     key={it.id}
-                    className="truncate rounded px-1 py-0.5 text-[10px]"
+                    className="truncate rounded px-1 py-0.5 text-[11px]"
                     style={{
                       backgroundColor: TYPE_META[it.event_type].bg,
                       color: TYPE_META[it.event_type].color,
@@ -190,7 +192,7 @@ export function CalendarMonthView({
                   </span>
                 ))}
                 {extra > 0 && (
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground">
                     +{extra} mais
                   </span>
                 )}
@@ -285,7 +287,7 @@ export function CalendarAgendaView({
                                   {it.title}
                                 </span>
                                 <span
-                                  className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                  className="rounded-full px-1.5 py-0.5 text-[11px] font-medium"
                                   style={{
                                     backgroundColor: meta.bg,
                                     color: meta.color,

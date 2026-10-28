@@ -85,7 +85,7 @@ function Field({
       </label>
       {children}
       {error ? (
-        <p className="mt-0.5 text-[11px] text-destructive">{error}</p>
+        <p className="mt-0.5 text-xs text-destructive">{error}</p>
       ) : null}
     </div>
   );
@@ -406,7 +406,7 @@ function AdicionarOrganizacaoPage() {
                         )}
                       </select>
                       {noLodgePotencias ? (
-                        <p className="mt-0.5 text-[11px] text-destructive">
+                        <p className="mt-0.5 text-xs text-destructive">
                           Nenhuma potência disponível para loja.
                         </p>
                       ) : null}
@@ -496,7 +496,7 @@ function AdicionarOrganizacaoPage() {
                 </div>
 
                 <div>
-                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Membros ativos *
                   </p>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -530,7 +530,7 @@ function AdicionarOrganizacaoPage() {
                 </div>
 
                 <div className="rounded-xl border border-border/80 bg-muted/20 p-3">
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Endereço completo *
                   </p>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
@@ -563,13 +563,13 @@ function AdicionarOrganizacaoPage() {
                           required
                         />
                         {cepStatus === "loading" ? (
-                          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">
+                          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                             Buscando…
                           </span>
                         ) : null}
                       </div>
                       {cepError ? (
-                        <p className="mt-0.5 text-[11px] text-destructive">
+                        <p className="mt-0.5 text-xs text-destructive">
                           {cepError}
                         </p>
                       ) : null}
@@ -665,7 +665,7 @@ function AdicionarOrganizacaoPage() {
                 </div>
 
                 <div className="rounded-xl border border-border/80 p-3">
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Responsável
                   </p>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

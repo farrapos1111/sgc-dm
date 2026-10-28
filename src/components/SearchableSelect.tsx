@@ -74,7 +74,9 @@ export function SearchableSelect({
       list.push(o);
       map.set(o.group, list);
     }
-    const result = [...map.entries()].map(([heading, items]) => ({
+    const result: Array<{ heading: string | undefined; items: typeof ungrouped }> = [
+      ...map.entries(),
+    ].map(([heading, items]) => ({
       heading,
       items,
     }));

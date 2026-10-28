@@ -208,7 +208,7 @@ export function buildSimpleEventExpenseLines(
 export function buildSimpleEventIncomeLines(
   totals: EventFinanceTotals,
 ): Array<{ label: string; amount: number; qty?: number }> {
-  const lines = (totals.byItem ?? [])
+  const lines: Array<{ label: string; amount: number; qty?: number }> = (totals.byItem ?? [])
     .filter((i) => i.income > 0.001)
     .map((i) => ({
       label: i.name,

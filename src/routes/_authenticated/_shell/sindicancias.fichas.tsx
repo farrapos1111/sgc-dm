@@ -656,6 +656,7 @@ function Fichas() {
                     )}
                     {writable && (
                       <Button
+                        aria-label="Excluir ficha"
                         size="icon"
                         variant="ghost"
                         onClick={async () => {

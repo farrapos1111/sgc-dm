@@ -22,11 +22,11 @@ export const createMenu = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
     chapterInput
       .extend({
-        title: z.string().min(1, "Informe o título"),
-        menu_date: z.string().min(1),
-        items: z.string().nullable().optional(),
+        title: z.string().min(1, "Informe o título").max(300),
+        menu_date: z.string().min(1).max(40),
+        items: z.string().max(20_000).nullable().optional(),
         estimated_cost: z.number().nonnegative().default(0),
-        notes: z.string().nullable().optional(),
+        notes: z.string().max(20_000).nullable().optional(),
       })
       .parse(raw),
   )
@@ -77,9 +77,9 @@ export const createDuty = createServerFn({ method: "POST" })
     chapterInput
       .extend({
         member_id: z.string().uuid(),
-        duty_date: z.string().min(1),
-        role_label: z.string().min(1).default("Serviço"),
-        notes: z.string().nullable().optional(),
+        duty_date: z.string().min(1).max(300),
+        role_label: z.string().min(1).max(300).default("Serviço"),
+        notes: z.string().max(20_000).nullable().optional(),
       })
       .parse(raw),
   )

@@ -87,10 +87,17 @@ const membersQO = (chapterId: string, search: string, status: StatusFilter, kind
     queryFn: () => listMembers({ data: { chapterId, search, status, kind } }),
   });
 
+type ActiveChapter = NonNullable<ReturnType<typeof useActiveChapter>["active"]>;
+
+// Hooks só no filho: o capítulo ativo pode estar nulo no primeiro render.
 function MembrosList() {
   const { active } = useActiveChapter();
-  const { can, canScreen } = useChapterAccess();
   if (!active) return null;
+  return <MembrosListContent key={active.chapter_id} active={active} />;
+}
+
+function MembrosListContent({ active }: { active: ActiveChapter }) {
+  const { can, canScreen } = useChapterAccess();
 
   const chapterId = active.chapter_id;
   const [filters, setFilters] = useState<MembrosFilters>(() => loadFilters(chapterId));

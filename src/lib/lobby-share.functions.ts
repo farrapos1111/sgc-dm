@@ -56,7 +56,6 @@ export type PublicAttendanceMember = {
   full_name: string;
   status: string;
   kind: string;
-  birth_date: string | null;
   iniciacao_ordem: string | null;
 };
 
@@ -195,18 +194,41 @@ export const getPublicAttendance = createServerFn({ method: "POST" })
     return payload as PublicAttendanceOverview;
   });
 
-/** Área pessoal do membro no lobby (ID DeMolay). */
+const PORTAL_MAX_FAILURES = 10;
+const PORTAL_WINDOW_MS = 15 * 60 * 1000;
+const PORTAL_NOT_FOUND =
+  "ID DeMolay ou data de nascimento não conferem. Confira os dados ou procure a secretaria.";
+const PORTAL_LOCKED =
+  "Muitas tentativas com dados incorretos. Aguarde 15 minutos e tente de novo.";
+
+/** Área pessoal do membro no lobby (ID DeMolay + data de nascimento). */
 export const getPublicMemberPortal = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
     z
       .object({
         token: tokenInput,
         demolayId: z.string().trim().min(3).max(40),
+        birthDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/, "Data de nascimento inválida")
+          .optional(),
         year: z.number().int().min(1900).max(2100),
       })
       .parse(raw),
   )
   .handler(async ({ data }) => {
+    // Throttle por link (+ IP de borda, quando configurado): impede enumerar
+    // IDs DeMolay e datas de nascimento.
+    const { resolveTrustedClientIp } = await import("@/lib/trusted-client-ip");
+    const { hashQuotaKey, isQuotaLocked, recordQuotaFailure } = await import(
+      "@/lib/rate-limit.server"
+    );
+    const ip = await resolveTrustedClientIp();
+    const throttleKey = hashQuotaKey(`${data.token}|${ip ?? "*"}`);
+    if (await isQuotaLocked("lobby_portal", throttleKey)) {
+      throw new Error(PORTAL_LOCKED);
+    }
+
     const supabase = getPublicSupabase();
     const { data: payload, error } = await supabase.rpc(
       "get_public_member_portal" as never,
@@ -214,9 +236,21 @@ export const getPublicMemberPortal = createServerFn({ method: "POST" })
         _token: data.token,
         _demolay_id: data.demolayId,
         _year: data.year,
+        _birth_date: data.birthDate ?? null,
       } as never,
     );
-    if (error) throwPublicRpcError(error, "getPublicMemberPortal");
+    if (error) {
+      if ((error as { code?: string }).code === "P0002") {
+        await recordQuotaFailure(
+          "lobby_portal",
+          throttleKey,
+          PORTAL_MAX_FAILURES,
+          PORTAL_WINDOW_MS,
+        );
+        throw new Error(PORTAL_NOT_FOUND);
+      }
+      throwPublicRpcError(error, "getPublicMemberPortal");
+    }
     const raw = payload as PublicMemberPortal;
     const parsedDefault = Number(raw?.defaultAmount);
     const defaultAmount = Number.isFinite(parsedDefault) ? parsedDefault : 20;

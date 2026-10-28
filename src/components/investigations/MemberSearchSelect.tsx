@@ -57,6 +57,7 @@ export function MemberSearchSelect({
             {selected.full_name}
           </span>
           <Button
+            aria-label="Limpar seleção"
             type="button"
             size="icon"
             variant="ghost"
@@ -70,7 +71,7 @@ export function MemberSearchSelect({
           </Button>
         </div>
         {hint ? (
-          <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
         ) : null}
       </div>
     );
@@ -95,7 +96,7 @@ export function MemberSearchSelect({
         onFocus={() => setOpen(true)}
       />
       {hint ? (
-        <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
       ) : null}
       {open && (
         <ul className="mt-1 max-h-40 overflow-auto rounded-md border border-border bg-popover text-sm shadow-sm">

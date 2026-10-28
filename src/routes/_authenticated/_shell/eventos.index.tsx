@@ -64,9 +64,16 @@ function gestaoShort(term: Term) {
   return `${term.year}/${term.semester}`;
 }
 
+type ActiveChapter = NonNullable<ReturnType<typeof useActiveChapter>["active"]>;
+
+// Hooks só no filho: o capítulo ativo pode estar nulo no primeiro render.
 function EventosList() {
   const { active } = useActiveChapter();
   if (!active) return null;
+  return <EventosListContent key={active.chapter_id} active={active} />;
+}
+
+function EventosListContent({ active }: { active: ActiveChapter }) {
   const { data: events } = useSuspenseQuery(eventsQO(active.chapter_id));
 
   const cur = currentTerm();

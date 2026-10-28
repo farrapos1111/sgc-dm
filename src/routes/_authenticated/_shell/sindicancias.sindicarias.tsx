@@ -790,6 +790,7 @@ function SindicariasPage() {
                     )}
                     {writable && (
                       <Button
+                        aria-label="Excluir sindicância"
                         size="icon"
                         variant="ghost"
                         onClick={async () => {

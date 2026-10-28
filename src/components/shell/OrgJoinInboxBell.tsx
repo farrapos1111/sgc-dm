@@ -55,7 +55,7 @@ export function OrgJoinInboxBell({ className }: { className?: string }) {
         >
           <Bell className="h-5 w-5" />
           {count > 0 ? (
-            <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
+            <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[11px] font-bold leading-none text-destructive-foreground">
               {count > 99 ? "99+" : count}
             </span>
           ) : null}

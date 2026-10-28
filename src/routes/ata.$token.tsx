@@ -22,6 +22,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SESSION_EXPIRED_MESSAGE } from "@/lib/error-sanitize";
 
 const MEMBER_LOGIN_REQUIRED =
   "Entre na sua conta do Templo Virtual (nesta mesma aba) e tente de novo.";
@@ -97,7 +98,10 @@ function PublicAtaPage() {
       try {
         return await getPublicMinuteByMember({ data: { token } });
       } catch (e) {
-        if (e instanceof Error && e.message.startsWith("Unauthorized")) {
+        if (
+          e instanceof Error &&
+          (e.message.startsWith("Unauthorized") || e.message === SESSION_EXPIRED_MESSAGE)
+        ) {
           throw new Error(MEMBER_LOGIN_REQUIRED);
         }
         throw e;
@@ -420,7 +424,7 @@ function PublicAtaPage() {
           <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
             {minute.content || "—"}
           </div>
-          <p className="mt-4 text-[11px] text-muted-foreground">
+          <p className="mt-4 text-xs text-muted-foreground">
             Atualizada em {formatDateTimeBR(minute.updated_at)}
           </p>
         </Card>
@@ -520,7 +524,7 @@ function PublicAtaPage() {
           )}
         </Card>
 
-        <p className="pb-6 text-center text-[11px] text-muted-foreground">
+        <p className="pb-6 text-center text-xs text-muted-foreground">
           Templo Virtual · visão pública da ata
         </p>
       </main>

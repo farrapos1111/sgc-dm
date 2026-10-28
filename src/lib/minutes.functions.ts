@@ -38,8 +38,8 @@ export const saveTemplate = createServerFn({ method: "POST" })
     z
       .object({
         id: z.string().uuid(),
-        name: z.string().min(1),
-        body: z.string().min(1),
+        name: z.string().min(1).max(300),
+        body: z.string().min(1).max(200_000),
       })
       .parse(raw),
   )
@@ -59,8 +59,8 @@ export const createTemplate = createServerFn({ method: "POST" })
     z
       .object({
         chapterId: z.string().uuid(),
-        name: z.string().min(1),
-        body: z.string().default(""),
+        name: z.string().min(1).max(300),
+        body: z.string().max(200_000).default(""),
       })
       .parse(raw),
   )

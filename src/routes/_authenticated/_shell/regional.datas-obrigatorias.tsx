@@ -293,6 +293,7 @@ function MandatoryDatesContent() {
                 </div>
                 <div className="flex items-center gap-1">
                   <Button
+                    aria-label="Editar data obrigatória"
                     size="icon"
                     variant="ghost"
                     onClick={() => setDraft(fromRow(row))}

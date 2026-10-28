@@ -19,7 +19,7 @@ import {
   compareOrgNumbers,
   normalizeOrgType,
 } from "@/lib/org-types";
-import { matchesLooseSearch } from "@/lib/utils";
+import { matchesLooseSearch, EMPTY_LIST } from "@/lib/utils";
 import { ChapterLogoAvatar } from "@/components/ChapterLogoAvatar";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -95,7 +95,7 @@ function PanoramaContent() {
       }),
   });
 
-  const chapters = data ?? [];
+  const chapters = data ?? EMPTY_LIST;
   const totalActive = chapters.reduce((s, c) => s + c.active_members, 0);
 
   const visible = useMemo(() => {
@@ -254,7 +254,7 @@ function PanoramaContent() {
                       {c.name}
                     </span>
                     {!c.active && (
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                         Inativo
                       </span>
                     )}
@@ -273,7 +273,7 @@ function PanoramaContent() {
                   {c.next_item ? (
                     <div className="mt-2 flex items-center gap-2 text-xs">
                       <span
-                        className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                        className="rounded-full px-2 py-0.5 text-xs font-medium"
                         style={{
                           backgroundColor:
                             TYPE_META[c.next_item.event_type as CalendarType]

@@ -82,6 +82,7 @@ import {
   getCashShareToken,
   revokeCashShareToken,
 } from "@/lib/cash-share.functions";
+import { EMPTY_LIST } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/_shell/tesouraria/fluxo")({
   head: () => ({
@@ -226,7 +227,7 @@ function FluxoCaixa() {
     queryFn: () => listCashEntries({ data: { chapterId: active!.chapter_id, year, month } }),
   });
 
-  const entries = data?.entries ?? [];
+  const entries = data?.entries ?? EMPTY_LIST;
   const opening = data?.opening ?? { balance: 0, previousYear: year - 1 };
   const openingBalance = centsToMoney(moneyCents(opening.balance));
   const bank = data?.bank ?? { income: 0, expense: 0, balance: 0 };
@@ -237,7 +238,7 @@ function FluxoCaixa() {
     enabled: !!active,
     queryFn: () => listCashCategories({ data: { chapterId: active!.chapter_id } }),
   });
-  const categories = catData?.categories ?? [];
+  const categories = catData?.categories ?? EMPTY_LIST;
   const eventOptions = catData?.operationalEvents?.length
     ? catData.operationalEvents
     : (catData?.events ?? []);
@@ -1958,7 +1959,7 @@ function CashEntriesTable({
           onClick={() => onSort(column)}
         >
           {label}
-          <span className="text-[10px] opacity-70">{active ? (sortDir === "asc" ? "↑" : "↓") : "↕"}</span>
+          <span className="text-xs opacity-70">{active ? (sortDir === "asc" ? "↑" : "↓") : "↕"}</span>
         </button>
       </th>
     );

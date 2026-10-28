@@ -78,6 +78,7 @@ export function OficioDraftPanel({
   onIssued,
 }: DraftProps) {
   const qc = useQueryClient();
+  const { active } = useActiveChapter();
   const term = currentTerm();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -172,7 +173,7 @@ export function OficioDraftPanel({
           <FileText className="h-4 w-4 shrink-0" />
           <span>Redação do ofício</span>
           {preview ? (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
               Próximo {preview.label}
               {preview.seriesResets ? " · nova série" : ""}
             </span>
@@ -318,7 +319,7 @@ function OficioDocumentHeader({
           className="mx-auto mb-2 h-16 w-auto object-contain"
         />
       ) : null}
-      <p className="text-[11px] font-bold tracking-wide text-foreground">
+      <p className="text-xs font-bold tracking-wide text-foreground">
         SUPREMO CONSELHO DEMOLAY BRASIL
       </p>
       <p className="mt-1 text-sm font-semibold text-foreground">
@@ -358,7 +359,7 @@ export function OficioViewPanel({ oficio }: ViewProps) {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
           <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
             Expedido
           </span>
           <span className="text-xs text-muted-foreground">

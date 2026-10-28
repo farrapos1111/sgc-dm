@@ -178,7 +178,7 @@ export function DocumentTemplatesPanel({
                   key={v}
                   type="button"
                   onClick={() => copyVar(v)}
-                  className="rounded-md border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground hover:border-[color:var(--chapter-primary)] hover:text-[color:var(--chapter-primary)]"
+                  className="rounded-md border border-border bg-background px-2 py-1 font-mono text-xs text-foreground hover:border-[color:var(--chapter-primary)] hover:text-[color:var(--chapter-primary)]"
                   title={`Copiar ${v}`}
                 >
                   {v}
@@ -397,7 +397,7 @@ function TemplateEditorCard({
                 {previewSnippet(template.body)}
               </p>
             ) : null}
-            <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+            <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
               <span>Atualizado {formatDateTimeBR(template.updated_at)}</span>
               {vars > 0 ? (
                 <span>
@@ -456,12 +456,12 @@ function TemplateEditorCard({
                   key={v}
                   type="button"
                   onClick={() => insertVarAtCursor(v)}
-                  className="rounded-md border border-dashed border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:border-[color:var(--chapter-primary)] hover:text-foreground"
+                  className="rounded-md border border-dashed border-border px-1.5 py-0.5 font-mono text-xs text-muted-foreground hover:border-[color:var(--chapter-primary)] hover:text-foreground"
                 >
                   {v}
                 </button>
               ))}
-              <span className="self-center text-[10px] text-muted-foreground">
+              <span className="self-center text-xs text-muted-foreground">
                 + digite [ no texto
               </span>
             </div>

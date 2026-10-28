@@ -195,7 +195,7 @@ export function MyFinancePanel({
                   <div className="text-xs font-medium">
                     {MONTH_SHORT[d.month - 1] ?? d.month}
                   </div>
-                  <div className="text-[11px] opacity-80">{statusLabelTxt}</div>
+                  <div className="text-xs opacity-80">{statusLabelTxt}</div>
                   <div className="mt-0.5 text-xs font-semibold">
                     {formatBRL(d.amount)}
                   </div>

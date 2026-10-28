@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { optionalCpf, optionalEmail, optionalPhone, requiredBirthDate, requiredCep, requiredCpf, requiredEmail, requiredPhone } from "@/lib/validation";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { buildSindicanciaChave } from "@/lib/chave-do-dia";
@@ -48,60 +49,52 @@ const statusEnum = z.enum([
 ]);
 
 /** Cargos da gestão vigente com direito a voto na sindicância. */
-export const SINDICANCIA_VOTE_POSITION_CODES = [
-  "mestre_conselheiro",
-  "primeiro_conselheiro",
-  "segundo_conselheiro",
-  "presidente_conselho_consultivo",
-  "conselheiro_consultor",
-] as const;
-
 const addressSchema = z.object({
-  zip: z.string().min(1),
-  street: z.string().min(1),
-  number: z.string().min(1),
-  complement: z.string().optional().default(""),
-  neighborhood: z.string().min(1),
-  city: z.string().min(1),
-  state: z.string().min(1),
-  country: z.string().optional().default("Brasil"),
+  zip: requiredCep,
+  street: z.string().min(1).max(300),
+  number: z.string().min(1).max(300),
+  complement: z.string().max(300).optional().default(""),
+  neighborhood: z.string().min(1).max(300),
+  city: z.string().min(1).max(300),
+  state: z.string().min(1).max(300),
+  country: z.string().max(300).optional().default("Brasil"),
 });
 
 const guardianSchema = z.object({
-  full_name: z.string().optional().default(""),
-  relationship: z.string().optional().default(""),
-  cpf: z.string().optional().default(""),
-  phone: z.string().optional().default(""),
-  email: z.string().optional().default(""),
+  full_name: z.string().max(300).optional().default(""),
+  relationship: z.string().max(300).optional().default(""),
+  cpf: optionalCpf,
+  phone: optionalPhone,
+  email: optionalEmail,
 });
 
 const docsSchema = z.object({
-  rg_front: z.string().min(1),
-  rg_back: z.string().min(1),
+  rg_front: z.string().min(1).max(300),
+  rg_back: z.string().min(1).max(300),
 });
 
 const fileFieldsBase = z.object({
-  candidate_name: z.string().min(1, "Informe o nome do candidato"),
-  candidate_birth_date: z.string().min(1, "Informe a data de nascimento"),
-  cpf: z.string().min(1, "Informe o CPF"),
-  rg: z.string().min(1, "Informe o RG"),
-  candidate_email: z.string().min(1, "Informe o e-mail"),
-  candidate_phone: z.string().min(1, "Informe o telefone"),
-  celular: z.string().min(1, "Informe o celular"),
+  candidate_name: z.string().min(1, "Informe o nome do candidato").max(300),
+  candidate_birth_date: requiredBirthDate,
+  cpf: requiredCpf,
+  rg: z.string().min(1, "Informe o RG").max(20),
+  candidate_email: requiredEmail,
+  candidate_phone: requiredPhone("Informe o telefone"),
+  celular: requiredPhone("Informe o celular"),
   address: addressSchema,
   guardians: z.array(guardianSchema).min(1).max(2),
   sponsor_member_id: z.string().uuid().nullable().optional(),
-  sponsor_text: z.string().nullable().optional(),
-  sponsor_phone: z.string().nullable().optional(),
+  sponsor_text: z.string().max(20_000).nullable().optional(),
+  sponsor_phone: z.string().max(30).nullable().optional(),
   has_demolay_relative: z.boolean().optional().default(false),
-  demolay_relative_name: z.string().nullable().optional(),
-  demolay_relative_chapter: z.string().nullable().optional(),
+  demolay_relative_name: z.string().max(300).nullable().optional(),
+  demolay_relative_chapter: z.string().max(300).nullable().optional(),
   has_mason_relative: z.boolean().optional().default(false),
-  mason_relative_name: z.string().nullable().optional(),
-  mason_relative_lodge: z.string().nullable().optional(),
-  notes: z.string().nullable().optional(),
+  mason_relative_name: z.string().max(300).nullable().optional(),
+  mason_relative_lodge: z.string().max(300).nullable().optional(),
+  notes: z.string().max(20_000).nullable().optional(),
   docs: docsSchema,
-  opinion: z.string().nullable().optional(),
+  opinion: z.string().max(20_000).nullable().optional(),
 });
 
 function refineFileFields(
@@ -517,7 +510,7 @@ export const updateFile = createServerFn({ method: "POST" })
       .partial()
       .extend({
         id: z.string().uuid(),
-        candidate_name: z.string().min(1),
+        candidate_name: z.string().min(1).max(300),
         keep_cpf: z.boolean().optional(),
         keep_rg: z.boolean().optional(),
         keep_docs: z
@@ -719,14 +712,29 @@ const ALLOWED_IMAGE_MIMES = new Set([
   "image/jpg",
   "image/png",
   "image/webp",
-  "image/gif",
 ]);
+
+/** Base64 de 3 MB ≈ 4 MB de texto; corta antes de decodificar. */
+const MAX_IMAGE_BASE64_LENGTH = 4_200_000;
+
+/** Confere a assinatura do arquivo — o content-type vem do cliente. */
+function assertImageMagicBytes(bytes: Uint8Array, mime: string) {
+  const startsWith = (sig: number[], offset = 0) =>
+    sig.every((b, i) => bytes[offset + i] === b);
+  const ok =
+    mime === "image/png"
+      ? startsWith([0x89, 0x50, 0x4e, 0x47])
+      : mime === "image/webp"
+        ? startsWith([0x52, 0x49, 0x46, 0x46]) && startsWith([0x57, 0x45, 0x42, 0x50], 8)
+        : startsWith([0xff, 0xd8, 0xff]);
+  if (!ok) throw new Error("O arquivo enviado não é uma imagem válida.");
+}
 
 function assertAllowedImageMime(contentType: string): string {
   const mime = contentType.toLowerCase().split(";")[0]?.trim() ?? "";
   if (!ALLOWED_IMAGE_MIMES.has(mime)) {
     throw new Error(
-      "Tipo de arquivo não permitido. Use JPEG, PNG, WebP ou GIF.",
+      "Tipo de arquivo não permitido. Use JPEG, PNG ou WebP.",
     );
   }
   return mime;
@@ -745,17 +753,15 @@ async function createAnonClient() {
   return createClient(url, key);
 }
 
-async function clientIpFromRequest(): Promise<string> {
-  const { getRequest } = await import("@tanstack/react-start/server");
-  const request = getRequest();
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-  throw new Error("Não foi possível validar a origem da requisição");
+/**
+ * Chave de remetente para o rate limit público: IP do header de borda
+ * configurado (nunca x-forwarded-for, que o cliente forja). Sem IP confiável,
+ * cai para o próprio token — o limite passa a valer por link.
+ */
+async function publicSenderKey(token: string): Promise<string> {
+  const { resolveTrustedClientIp } = await import("@/lib/trusted-client-ip");
+  const ip = await resolveTrustedClientIp();
+  return ip ?? `token:${token}`;
 }
 
 export const uploadInvestigationDoc = createServerFn({ method: "POST" })
@@ -765,9 +771,9 @@ export const uploadInvestigationDoc = createServerFn({ method: "POST" })
       .object({
         chapterId: z.string().uuid(),
         kind: z.enum(["rg_front", "rg_back"]),
-        fileName: z.string().min(1),
-        contentType: z.string().min(1),
-        base64: z.string().min(1),
+        fileName: z.string().min(1).max(300),
+        contentType: z.string().min(1).max(300),
+        base64: z.string().min(1).max(MAX_IMAGE_BASE64_LENGTH, "Imagem maior que 3 MB"),
         tempId: z.string().uuid().optional(),
       })
       .parse(raw),
@@ -776,6 +782,7 @@ export const uploadInvestigationDoc = createServerFn({ method: "POST" })
     const contentType = assertAllowedImageMime(data.contentType);
     const bytes = Buffer.from(data.base64, "base64");
     if (bytes.length > 3 * 1024 * 1024) throw new Error("Imagem maior que 3 MB");
+    assertImageMagicBytes(bytes, contentType);
     const ext = extFromMime(contentType);
     const tempId = data.tempId ?? crypto.randomUUID();
     const path = investigationDocPath(
@@ -798,8 +805,8 @@ export const uploadInvestigationDocPublic = createServerFn({ method: "POST" })
       .object({
         token: z.string().min(8),
         kind: z.enum(["rg_front", "rg_back"]),
-        contentType: z.string().min(1),
-        base64: z.string().min(1),
+        contentType: z.string().min(1).max(300),
+        base64: z.string().min(1).max(MAX_IMAGE_BASE64_LENGTH, "Imagem maior que 3 MB"),
         tempId: z.string().uuid().optional(),
       })
       .parse(raw),
@@ -818,7 +825,7 @@ export const uploadInvestigationDocPublic = createServerFn({ method: "POST" })
     if (!chapter?.id) throw new Error("Link inválido ou expirado");
 
     const tempId = data.tempId ?? crypto.randomUUID();
-    const clientIp = await clientIpFromRequest();
+    const clientIp = await publicSenderKey(data.token);
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
@@ -828,7 +835,7 @@ export const uploadInvestigationDocPublic = createServerFn({ method: "POST" })
         _token: data.token,
         _kind: "upload",
         _client_ip: clientIp,
-        _cpf: null,
+        _cpf: undefined,
         _chapter_limit: PUBLIC_UPLOAD_RATE_LIMIT,
         _sender_limit: 10,
         _window_minutes: PUBLIC_UPLOAD_RATE_WINDOW_MINUTES,
@@ -838,6 +845,7 @@ export const uploadInvestigationDocPublic = createServerFn({ method: "POST" })
 
     const bytes = Buffer.from(data.base64, "base64");
     if (bytes.length > 3 * 1024 * 1024) throw new Error("Imagem maior que 3 MB");
+    assertImageMagicBytes(bytes, contentType);
     const ext = extFromMime(contentType);
     const path = investigationDocPath(
       chapter.id,
@@ -1100,7 +1108,11 @@ export const listSindicancias = createServerFn({ method: "POST" })
       data.chapterId,
       (rows as unknown as SindicanciaListItem[]) ?? [],
     );
-    return attachMinuteAccess(context.supabase, data.chapterId, withCouncil);
+    return attachMinuteAccess(
+      context.supabase as unknown as Parameters<typeof attachMinuteAccess>[0],
+      data.chapterId,
+      withCouncil,
+    );
   });
 
 export const getSindicancia = createServerFn({ method: "POST" })
@@ -1122,7 +1134,7 @@ export const getSindicancia = createServerFn({ method: "POST" })
       [row as unknown as SindicanciaListItem],
     );
     const [withMinute] = await attachMinuteAccess(
-      context.supabase,
+      context.supabase as unknown as Parameters<typeof attachMinuteAccess>[0],
       withCouncil!.chapter_id,
       [withCouncil!],
     );
@@ -1190,21 +1202,21 @@ async function attachSeniorCouncil(
 
 const sindicanciaInput = z.object({
   chapterId: z.string().uuid(),
-  title: z.string().min(1),
+  title: z.string().min(1).max(300),
   start_at: z.string().datetime(),
   end_at: z.string().datetime().nullable().optional(),
-  location: z.string().nullable().optional(),
-  address: z.string().nullable().optional(),
-  description: z.string().nullable().optional(),
+  location: z.string().max(300).nullable().optional(),
+  address: z.string().max(300).nullable().optional(),
+  description: z.string().max(20_000).nullable().optional(),
   file_id: z.string().uuid().nullable().optional(),
-  nominee_name: z.string().min(1),
+  nominee_name: z.string().min(1).max(300),
   senior_member_id: z.string().uuid().nullable().optional(),
-  senior_text: z.string().nullable().optional(),
+  senior_text: z.string().max(20_000).nullable().optional(),
   investigator_member_id: z.string().uuid().nullable().optional(),
-  investigator_text: z.string().nullable().optional(),
+  investigator_text: z.string().max(20_000).nullable().optional(),
   clerk_member_id: z.string().uuid().nullable().optional(),
-  clerk_text: z.string().nullable().optional(),
-  opinion: z.string().nullable().optional(),
+  clerk_text: z.string().max(20_000).nullable().optional(),
+  opinion: z.string().max(20_000).nullable().optional(),
   status: statusEnum.optional(),
 });
 
@@ -1269,13 +1281,13 @@ export const createSindicanciaFromFile = createServerFn({ method: "POST" })
         fileId: z.string().uuid(),
         start_at: z.string().datetime(),
         end_at: z.string().datetime().nullable().optional(),
-        location: z.string().nullable().optional(),
+        location: z.string().max(300).nullable().optional(),
         senior_member_id: z.string().uuid().nullable().optional(),
-        senior_text: z.string().nullable().optional(),
+        senior_text: z.string().max(20_000).nullable().optional(),
         investigator_member_id: z.string().uuid().nullable().optional(),
-        investigator_text: z.string().nullable().optional(),
+        investigator_text: z.string().max(20_000).nullable().optional(),
         clerk_member_id: z.string().uuid().nullable().optional(),
-        clerk_text: z.string().nullable().optional(),
+        clerk_text: z.string().max(20_000).nullable().optional(),
       })
       .parse(raw),
   )
@@ -1352,21 +1364,21 @@ export const updateSindicancia = createServerFn({ method: "POST" })
     z
       .object({
         calendar_event_id: z.string().uuid(),
-        title: z.string().min(1).optional(),
+        title: z.string().min(1).max(300).optional(),
         start_at: z.string().datetime().optional(),
         end_at: z.string().datetime().nullable().optional(),
-        location: z.string().nullable().optional(),
-        address: z.string().nullable().optional(),
-        description: z.string().nullable().optional(),
+        location: z.string().max(300).nullable().optional(),
+        address: z.string().max(300).nullable().optional(),
+        description: z.string().max(20_000).nullable().optional(),
         file_id: z.string().uuid().nullable().optional(),
-        nominee_name: z.string().min(1).optional(),
+        nominee_name: z.string().min(1).max(300).optional(),
         senior_member_id: z.string().uuid().nullable().optional(),
-        senior_text: z.string().nullable().optional(),
+        senior_text: z.string().max(20_000).nullable().optional(),
         investigator_member_id: z.string().uuid().nullable().optional(),
-        investigator_text: z.string().nullable().optional(),
+        investigator_text: z.string().max(20_000).nullable().optional(),
         clerk_member_id: z.string().uuid().nullable().optional(),
-        clerk_text: z.string().nullable().optional(),
-        opinion: z.string().nullable().optional(),
+        clerk_text: z.string().max(20_000).nullable().optional(),
+        opinion: z.string().max(20_000).nullable().optional(),
         status: statusEnum.optional(),
       })
       .parse(raw),
@@ -1657,9 +1669,13 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
 
     const { data: existingMinute } = await context.supabase
       .from("sindicancia_minutes" as never)
-      .select("signatures, completed_at")
+      .select("signatures, completed_at, age_band")
       .eq("calendar_event_id", data.calendarEventId)
       .maybeSingle();
+    // A faixa etária (modelo de perguntas) é fixada na criação da ata; o
+    // trigger sindicancia_minutes_freeze_age_band garante o mesmo no banco.
+    const storedAgeBand = (existingMinute as { age_band?: AgeBand } | null)
+      ?.age_band;
     const existingSigs =
       (
         existingMinute as {
@@ -1710,7 +1726,7 @@ export const saveSindicanciaMinute = createServerFn({ method: "POST" })
     const payload: Record<string, unknown> = {
       calendar_event_id: data.calendarEventId,
       chapter_id: data.chapterId,
-      age_band: data.age_band,
+      age_band: storedAgeBand ?? data.age_band,
       answers: data.answers,
       signatures,
     };
@@ -1765,60 +1781,49 @@ async function resolveLinkedMemberIds(
   });
 }
 
+/**
+ * Quem vota na comissão de sindicâncias (termo vigente): membros da comissão,
+ * Conselho Consultivo (cargo ou conta) e conselheiros (MC, 1º e 2º).
+ * A regra vive só no banco (can_cast_sindicancia_vote), que também é usada
+ * pelas policies de sindicancia_votes — app e RLS não divergem.
+ */
 async function userCanVoteSindicancia(
-  supabase: { from: (t: string) => any },
-  opts: {
-    userId: string;
-    chapterId: string;
-    year: number;
-    semester: 1 | 2;
+  supabase: {
+    rpc: (
+      fn: never,
+      args: never,
+    ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
   },
+  opts: { chapterId: string },
 ): Promise<{ canVote: boolean; memberIds: string[]; reason?: string }> {
-  const memberIds = await resolveLinkedMemberIds(
-    supabase,
-    opts.userId,
-    opts.chapterId,
-  );
+  const [{ data: memberId, error: mErr }, { data: allowed, error: cErr }] =
+    await Promise.all([
+      supabase.rpc(
+        "auth_vote_member_id" as never,
+        { _chapter_id: opts.chapterId } as never,
+      ),
+      supabase.rpc(
+        "can_cast_sindicancia_vote" as never,
+        { _chapter_id: opts.chapterId } as never,
+      ),
+    ]);
+  if (mErr) throw new Error(mErr.message);
+  if (cErr) throw new Error(cErr.message);
+
+  const memberIds = typeof memberId === "string" ? [memberId] : [];
   if (memberIds.length === 0) {
-    return { canVote: false, memberIds, reason: "Membro não vinculado" };
+    return {
+      canVote: false,
+      memberIds,
+      reason: "Sua conta não está vinculada a uma ficha de membro deste capítulo",
+    };
   }
-
-  const { data: positions } = await supabase
-    .from("member_positions")
-    .select("member_id, position:positions(code)")
-    .eq("chapter_id", opts.chapterId)
-    .eq("term_year", opts.year)
-    .eq("term_semester", opts.semester)
-    .in("member_id", memberIds);
-
-  const hasPosition = (positions ?? []).some((p: {
-    position: { code: string } | null;
-  }) =>
-    SINDICANCIA_VOTE_POSITION_CODES.includes(
-      (p.position?.code ?? "") as (typeof SINDICANCIA_VOTE_POSITION_CODES)[number],
-    ),
-  );
-
-  const { data: commissions } = await supabase
-    .from("commission_members")
-    .select("id, commission:commissions(code)")
-    .eq("chapter_id", opts.chapterId)
-    .eq("term_year", opts.year)
-    .eq("term_semester", opts.semester)
-    .in("member_id", memberIds);
-
-  const onCommission = (commissions ?? []).some(
-    (c: { commission: { code: string } | null }) =>
-      c.commission?.code === "sindicancias",
-  );
-
-  if (hasPosition || onCommission) {
-    return { canVote: true, memberIds };
-  }
+  if (allowed === true) return { canVote: true, memberIds };
   return {
     canVote: false,
     memberIds,
-    reason: "Sem direito a voto nesta sindicância",
+    reason:
+      "Votam os membros da comissão de sindicâncias, o Conselho Consultivo e os conselheiros (MC, 1º e 2º)",
   };
 }
 
@@ -1840,14 +1845,10 @@ export const getSindicanciaVoting = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { currentTerm } = await import("@/lib/terms");
-    const term = currentTerm();
-    const eligibility = await userCanVoteSindicancia(context.supabase, {
-      userId: context.userId,
-      chapterId: data.chapterId,
-      year: term.year,
-      semester: term.semester,
-    });
+    const eligibility = await userCanVoteSindicancia(
+      context.supabase as unknown as Parameters<typeof userCanVoteSindicancia>[0],
+      { chapterId: data.chapterId },
+    );
 
     const { data: rows, error } = await context.supabase
       .from("sindicancia_votes" as never)
@@ -1903,8 +1904,6 @@ export const castSindicanciaVote = createServerFn({ method: "POST" })
       .parse(raw),
   )
   .handler(async ({ data, context }) => {
-    const { currentTerm } = await import("@/lib/terms");
-    const term = currentTerm();
 
     const { data: detail, error: dErr } = await context.supabase
       .from("sindicancia_details" as never)
@@ -1921,12 +1920,10 @@ export const castSindicanciaVote = createServerFn({ method: "POST" })
       throw new Error("Votação disponível apenas no status Votação Comissão");
     }
 
-    const eligibility = await userCanVoteSindicancia(context.supabase, {
-      userId: context.userId,
-      chapterId: d.chapter_id,
-      year: term.year,
-      semester: term.semester,
-    });
+    const eligibility = await userCanVoteSindicancia(
+      context.supabase as unknown as Parameters<typeof userCanVoteSindicancia>[0],
+      { chapterId: d.chapter_id },
+    );
     if (!eligibility.canVote || !eligibility.memberIds[0]) {
       throw new Error(eligibility.reason || "Sem direito a voto");
     }
@@ -2021,14 +2018,10 @@ export const getMySindicanciaAccess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => chapterInput.parse(raw))
   .handler(async ({ data, context }) => {
-    const { currentTerm } = await import("@/lib/terms");
-    const term = currentTerm();
-    const eligibility = await userCanVoteSindicancia(context.supabase, {
-      userId: context.userId,
-      chapterId: data.chapterId,
-      year: term.year,
-      semester: term.semester,
-    });
+    const eligibility = await userCanVoteSindicancia(
+      context.supabase as unknown as Parameters<typeof userCanVoteSindicancia>[0],
+      { chapterId: data.chapterId },
+    );
     return {
       canAccess: eligibility.canVote,
       canVote: eligibility.canVote,
@@ -2041,14 +2034,10 @@ export const listOpenSindicanciasForMe = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => chapterInput.parse(raw))
   .handler(async ({ data, context }) => {
-    const { currentTerm } = await import("@/lib/terms");
-    const term = currentTerm();
-    const eligibility = await userCanVoteSindicancia(context.supabase, {
-      userId: context.userId,
-      chapterId: data.chapterId,
-      year: term.year,
-      semester: term.semester,
-    });
+    const eligibility = await userCanVoteSindicancia(
+      context.supabase as unknown as Parameters<typeof userCanVoteSindicancia>[0],
+      { chapterId: data.chapterId },
+    );
     if (!eligibility.canVote) return [];
 
     const { data: rows, error } = await context.supabase
@@ -2194,8 +2183,8 @@ export const updateSindicanciaTemplates = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
     chapterInput
       .extend({
-        chave: z.string().nullable().optional(),
-        parecer: z.string().nullable().optional(),
+        chave: z.string().max(20_000).nullable().optional(),
+        parecer: z.string().max(20_000).nullable().optional(),
       })
       .parse(raw),
   )
@@ -2321,7 +2310,7 @@ export const submitInvestigationSignup = createServerFn({ method: "POST" })
       .object({
         token: z.string().min(8),
         tempId: z.string().uuid(),
-        lgpd_consent_text_version: z.string().min(1),
+        lgpd_consent_text_version: z.string().min(1).max(300),
       })
       .and(fileFieldsSchema)
       .parse(raw),

@@ -68,6 +68,7 @@ import {
   type ReminderChargeLine,
   type ReminderMemberSummary,
 } from "@/lib/dues-reminder";
+import { EMPTY_LIST } from "@/lib/utils";
 
 export const Route = createFileRoute(
   "/_authenticated/_shell/tesouraria/atrasados",
@@ -256,8 +257,8 @@ function Atrasados() {
     signers.find((s) => s.role === "Tesoureiro")?.name?.trim() || "";
 
   const defaultAmount = data?.defaultAmount ?? defaultFromSettings;
-  const members = (data?.members ?? []) as DueMemberLite[];
-  const dues = (data?.dues ?? []) as DueRow[];
+  const members = (data?.members ?? EMPTY_LIST) as DueMemberLite[];
+  const dues = (data?.dues ?? EMPTY_LIST) as DueRow[];
 
   const openChargesByMember = useMemo(
     () => classifyOpenChargesByMember(charges),
@@ -942,7 +943,7 @@ function Atrasados() {
                         <MessageCircle className="mr-1.5 h-4 w-4" />
                         WhatsApp
                         {!hasPhone && hasOpen ? (
-                          <span className="ml-1 text-[10px] opacity-70">
+                          <span className="ml-1 text-xs opacity-70">
                             s/ nº
                           </span>
                         ) : null}

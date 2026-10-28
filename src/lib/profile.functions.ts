@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { optionalCep, optionalCpf, optionalEmail, optionalPhone } from "@/lib/validation";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { CarteirinhaDados } from "@/components/proficiency/types";
 import { grauOf } from "@/lib/format";
+import { currentYearMonthInAppTz } from "@/lib/timezone";
 
 export type LinkedMemberSummary = {
   id: string;
@@ -362,14 +364,14 @@ export const issueProficiencyCard = createServerFn({ method: "POST" })
       .object({
         chapterId: z.string().uuid(),
         memberId: z.string().uuid(),
-        registroScdb: z.string().optional().nullable(),
-        profIniciatico: z.string().optional().nullable(),
-        profDemolay: z.string().optional().nullable(),
-        validUntil: z.string().optional().nullable(),
-        photoUrl: z.string().optional().nullable(),
-        memberSignatureUrl: z.string().optional().nullable(),
-        consultorSignatureUrl: z.string().optional().nullable(),
-        note: z.string().optional().nullable(),
+        registroScdb: z.string().max(300).optional().nullable(),
+        profIniciatico: z.string().max(300).optional().nullable(),
+        profDemolay: z.string().max(300).optional().nullable(),
+        validUntil: z.string().max(40).optional().nullable(),
+        photoUrl: z.string().max(2_000_000).optional().nullable(),
+        memberSignatureUrl: z.string().max(2_000_000).optional().nullable(),
+        consultorSignatureUrl: z.string().max(2_000_000).optional().nullable(),
+        note: z.string().max(20_000).optional().nullable(),
       })
       .parse(raw),
   )
@@ -395,7 +397,7 @@ export const issueProficiencyCard = createServerFn({ method: "POST" })
     if (chapterError) throw new Error(chapterError.message);
     if (!chapter) throw new Error("Capítulo não encontrado");
 
-    const year = new Date().getFullYear();
+    const { year } = currentYearMonthInAppTz();
     const chapterNum = String(chapter.number || "CAP").replace(/\s+/g, "");
     const verificationCode = `${chapterNum}-${year}-${randomSuffix(4)}`;
 
@@ -482,22 +484,22 @@ async function assertOwnMemberId(
 }
 
 const addressSchema = z.object({
-  zip: z.string().optional().default(""),
-  street: z.string().optional().default(""),
-  number: z.string().optional().default(""),
-  complement: z.string().optional().default(""),
-  neighborhood: z.string().optional().default(""),
-  city: z.string().optional().default(""),
-  state: z.string().optional().default(""),
-  country: z.string().optional().default("Brasil"),
+  zip: optionalCep,
+  street: z.string().max(300).optional().default(""),
+  number: z.string().max(300).optional().default(""),
+  complement: z.string().max(300).optional().default(""),
+  neighborhood: z.string().max(300).optional().default(""),
+  city: z.string().max(300).optional().default(""),
+  state: z.string().max(300).optional().default(""),
+  country: z.string().max(300).optional().default("Brasil"),
 });
 
 const guardianUpdateSchema = z.object({
   id: z.string().uuid(),
-  relationship: z.string().optional().default(""),
-  cpf: z.string().optional().default(""),
-  phone: z.string().optional().default(""),
-  email: z.string().optional().default(""),
+  relationship: z.string().max(300).optional().default(""),
+  cpf: optionalCpf,
+  phone: optionalPhone,
+  email: optionalEmail,
 });
 
 export type MyCadastroMember = {
@@ -624,11 +626,11 @@ export const updateMyMemberCadastro = createServerFn({ method: "POST" })
     z
       .object({
         memberId: z.string().uuid(),
-        phone: z.string().optional().default(""),
-        email: z.string().optional().default(""),
+        phone: optionalPhone,
+        email: optionalEmail,
         address: addressSchema,
-        cpf: z.string().optional().default(""),
-        rg: z.string().optional().default(""),
+        cpf: optionalCpf,
+        rg: z.string().max(20).optional().default(""),
         guardians: z.array(guardianUpdateSchema).max(2).optional().default([]),
       })
       .strict()

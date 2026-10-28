@@ -58,8 +58,8 @@ export const createOficioTemplate = createServerFn({ method: "POST" })
     z
       .object({
         chapterId: z.string().uuid(),
-        name: z.string().trim().min(1),
-        body: z.string().default(""),
+        name: z.string().trim().min(1).max(300),
+        body: z.string().max(200_000).default(""),
       })
       .parse(raw),
   )
@@ -83,8 +83,8 @@ export const saveOficioTemplate = createServerFn({ method: "POST" })
     z
       .object({
         id: z.string().uuid(),
-        name: z.string().trim().min(1),
-        body: z.string().min(1),
+        name: z.string().trim().min(1).max(300),
+        body: z.string().min(1).max(200_000),
       })
       .parse(raw),
   )
@@ -291,8 +291,8 @@ export const issueOficio = createServerFn({ method: "POST" })
     z
       .object({
         chapterId: z.string().uuid(),
-        title: z.string().trim().min(1, "Informe o título"),
-        body: z.string().default(""),
+        title: z.string().trim().min(1, "Informe o título").max(300),
+        body: z.string().max(200_000).default(""),
         templateId: z.string().uuid().optional().nullable(),
       })
       .parse(raw),

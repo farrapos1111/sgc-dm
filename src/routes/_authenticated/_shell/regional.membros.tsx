@@ -46,6 +46,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EMPTY_LIST } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/_shell/regional/membros")({
   component: RegionalMembers,
@@ -131,7 +132,7 @@ function MembersContent() {
         data: { scopeType: scope.type, scopeId: scope.id },
       }),
   });
-  const chapterList = chapters ?? [];
+  const chapterList = chapters ?? EMPTY_LIST;
   const chapterIds = useMemo(
     () => chapterList.map((c) => c.id),
     [chapterList],
@@ -429,7 +430,7 @@ function MembersContent() {
                       <Badge
                         key={p.code}
                         variant="outline"
-                        className="shrink-0 text-[10px] font-medium"
+                        className="shrink-0 text-xs font-medium"
                         style={{
                           borderColor: chapter?.primary_color || undefined,
                           color: chapter?.primary_color || undefined,

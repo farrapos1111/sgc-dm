@@ -569,6 +569,7 @@ function NovoMembro() {
                   </div>
                   <div className="flex items-end">
                     <Button
+                      aria-label="Remover cargo"
                       size="icon"
                       variant="ghost"
                       onClick={() =>
@@ -661,6 +662,7 @@ function NovoMembro() {
                   </div>
                   <div className="flex items-end">
                     <Button
+                      aria-label="Remover comissão"
                       size="icon"
                       variant="ghost"
                       onClick={() =>

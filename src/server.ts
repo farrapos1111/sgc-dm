@@ -1,7 +1,10 @@
 import "./lib/error-capture";
 import { APP_TIMEZONE } from "./lib/timezone";
 
-// Horário padrão do RS (America/Sao_Paulo) para Date no servidor Node.
+// Horário padrão do RS para Date no Node (dev/preview). No Cloudflare Workers
+// TZ é ignorado e o runtime fica em UTC: datas de calendário devem usar os
+// helpers de src/lib/timezone.ts (todayYmd, datePartsInAppTz), nunca
+// getFullYear()/toISOString().slice(0, 10).
 if (typeof process !== "undefined" && process.env) {
   process.env.TZ = APP_TIMEZONE;
 }
@@ -47,7 +50,8 @@ const SECURITY_HEADERS: Record<string, string> = {
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
-  "Content-Security-Policy": "frame-ancestors 'none'",
+  "Content-Security-Policy":
+    "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy": "camera=(self), microphone=(), geolocation=()",
 };

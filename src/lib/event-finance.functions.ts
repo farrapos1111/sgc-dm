@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { moneyNonNegative, moneyPositive } from "@/lib/validation";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { classifyAuditSeverity, type AuditSeverity } from "@/lib/audit-log";
 import { ymdRangeIso } from "@/lib/audit.functions";
@@ -264,8 +265,8 @@ export const getEventFinanceTotals = createServerFn({ method: "POST" })
   .inputValidator((raw) =>
     eventIdInput
       .extend({
-        from: z.string().optional().nullable(),
-        until: z.string().optional().nullable(),
+        from: z.string().max(40).optional().nullable(),
+        until: z.string().max(40).optional().nullable(),
       })
       .parse(raw),
   )
@@ -715,6 +716,8 @@ export const upsertEventFinanceCategory = createServerFn({ method: "POST" })
           event_id: data.eventId,
           chapter_id: data.chapterId,
           name: data.name,
+          // Recalculado pelo trigger tg_set_finance_name_key.
+          name_key: data.name,
           sort_order: data.sort_order,
         });
       if (error) throw new Error(error.message);
@@ -762,7 +765,7 @@ export const upsertEventFinanceItem = createServerFn({ method: "POST" })
         chapterId: z.string().uuid(),
         categoryId: z.string().uuid(),
         name: z.string().trim().min(1).max(80),
-        unit_price: z.number().nonnegative().nullable().default(null),
+        unit_price: moneyNonNegative().nullable().default(null),
         track_stock: z.boolean().default(false),
         stock_qty: z.number().int().nonnegative().nullable().default(null),
         active: z.boolean().default(true),
@@ -805,6 +808,8 @@ export const upsertEventFinanceItem = createServerFn({ method: "POST" })
         .from("event_finance_items")
         .insert({
           ...payload,
+          // Recalculado pelo trigger tg_set_finance_name_key.
+          name_key: payload.name,
           event_id: data.eventId,
           chapter_id: data.chapterId,
         });
@@ -972,7 +977,7 @@ export const addEventBudgetExpense = createServerFn({ method: "POST" })
         eventId: z.string().uuid(),
         chapterId: z.string().uuid(),
         name: z.string().trim().min(1).max(80),
-        amount: z.number().positive(),
+        amount: moneyPositive(),
         entry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       })
       .parse(raw),
@@ -1019,7 +1024,7 @@ export const updateEventBudgetExpense = createServerFn({ method: "POST" })
         id: z.string().uuid(),
         eventId: z.string().uuid(),
         name: z.string().trim().min(1).max(80),
-        amount: z.number().positive(),
+        amount: moneyPositive(),
         entry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       })
       .parse(raw),
@@ -1193,7 +1198,7 @@ export const addEventTicketItem = createServerFn({ method: "POST" })
         ticketId: z.string().uuid(),
         itemId: z.string().uuid(),
         qty: z.number().int().positive().default(1),
-        unit_price: z.number().nonnegative().nullable().optional(),
+        unit_price: moneyNonNegative().nullable().optional(),
         description: z.string().max(200).optional().nullable(),
       })
       .parse(raw),
@@ -1246,7 +1251,7 @@ export const updateEventTicketItem = createServerFn({ method: "POST" })
       .object({
         lineId: z.string().uuid(),
         qty: z.number().int().positive().optional(),
-        unit_price: z.number().nonnegative().optional(),
+        unit_price: moneyNonNegative().optional(),
       })
       .parse(raw),
   )
@@ -1580,7 +1585,7 @@ export const payEventTicketItem = createServerFn({ method: "POST" })
           .regex(/^\d{4}-\d{2}-\d{2}$/)
           .optional(),
         tender: z.enum(["pix", "dinheiro"]).optional(),
-        amount: z.number().positive().optional(),
+        amount: moneyPositive().optional(),
       })
       .parse(raw),
   )
@@ -1622,7 +1627,7 @@ export const settleEventTicketComanda = createServerFn({ method: "POST" })
       .object({
         eventId: z.string().uuid(),
         ticketId: z.string().uuid(),
-        amount: z.number().positive().optional(),
+        amount: moneyPositive().optional(),
         tender: z.enum(["pix", "dinheiro"]).optional(),
       })
       .parse(raw),
@@ -1667,7 +1672,7 @@ export const checkoutEventTicketComanda = createServerFn({ method: "POST" })
       .object({
         eventId: z.string().uuid(),
         ticketId: z.string().uuid(),
-        amount: z.number().positive().optional(),
+        amount: moneyPositive().optional(),
         tender: z.enum(["pix", "dinheiro"]).optional(),
       })
       .parse(raw),

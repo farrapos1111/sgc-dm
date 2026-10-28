@@ -339,7 +339,7 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
             }}
           />
           {!hasStroke ? (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Assine na área acima (fundo transparente).
             </p>
           ) : null}
@@ -358,7 +358,7 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
               />
             </div>
           ) : (
-            <div className="flex h-28 items-center justify-center rounded-[12px] border border-dashed border-border bg-muted/20 px-3 text-center text-[11px] text-muted-foreground">
+            <div className="flex h-28 items-center justify-center rounded-[12px] border border-dashed border-border bg-muted/20 px-3 text-center text-xs text-muted-foreground">
               Nenhum PNG selecionado
             </div>
           )}
@@ -372,11 +372,11 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
             <ImagePlus className="mr-1.5 h-3.5 w-3.5" />
             {previewSrc ? "Trocar PNG" : "Escolher PNG"}
           </Button>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             PNG com fundo transparente (máx. 2 MB). A transparência é preservada.
           </p>
           {uploadError ? (
-            <p className="text-[11px] text-destructive">{uploadError}</p>
+            <p className="text-xs text-destructive">{uploadError}</p>
           ) : null}
         </div>
       ) : (
@@ -423,11 +423,11 @@ export function SignaturePad({ label, value, disabled, onChange }: Props) {
               </Button>
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Aponte a câmera para a assinatura em papel e capture a foto.
           </p>
           {cameraError ? (
-            <p className="text-[11px] text-destructive">{cameraError}</p>
+            <p className="text-xs text-destructive">{cameraError}</p>
           ) : null}
         </div>
       )}

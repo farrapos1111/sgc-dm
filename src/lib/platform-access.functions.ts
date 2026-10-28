@@ -500,19 +500,20 @@ export const removePlatformAccessRoleFromOrgType = createServerFn({
     );
     const db = await adminDb();
 
-    const { data, error } = await db.rpc("set_platform_access_role_org_type", {
+    // `data` já é a entrada validada; redeclarar aqui dava ReferenceError (TDZ).
+    const { data: rpcResult, error } = await db.rpc("set_platform_access_role_org_type", {
       _role_id: data.roleId,
       _org_type: data.orgType,
       _enabled: false,
       _role_group: null,
     });
     if (error) throw new Error(error.message);
-    const result = data as { deletedRole?: boolean } | null;
+    const result = rpcResult as { deletedRole?: boolean } | null;
     return { deletedRole: Boolean(result?.deletedRole) };
   });
 
 const grantRowSchema = z.object({
-  screen_id: z.string().min(1),
+  screen_id: z.string().min(1).max(300),
   can_view: z.boolean(),
   can_edit: z.boolean(),
   can_create: z.boolean(),

@@ -6,6 +6,7 @@ import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
 import { formatDateTimeBR } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EMPTY_LIST } from "@/lib/utils";
 
 export function MyAttendancePanel({ memberId }: { memberId: string }) {
   const { data, isLoading, error } = useQuery({
@@ -14,7 +15,7 @@ export function MyAttendancePanel({ memberId }: { memberId: string }) {
     enabled: !!memberId,
   });
 
-  const attendance = data ?? [];
+  const attendance = data ?? EMPTY_LIST;
 
   const { mandatoryRecs, mandatoryPresent, mandatoryPct, rows } = useMemo(() => {
     const mandatory = attendance.filter(
@@ -95,7 +96,7 @@ export function MyAttendancePanel({ memberId }: { memberId: string }) {
                     </span>
                     {meta ? (
                       <span
-                        className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                        className="rounded-full px-1.5 py-0.5 text-xs font-medium"
                         style={{
                           backgroundColor: meta.bg,
                           color: meta.color,
