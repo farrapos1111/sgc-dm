@@ -1810,7 +1810,7 @@ async function userCanVoteSindicancia(
   if (mErr) throw new Error(mErr.message);
   if (cErr) throw new Error(cErr.message);
 
-  const memberIds = typeof memberId === "string" ? [memberId] : [];
+  const memberIds = typeof memberId === "string" && memberId ? [memberId] : [];
   if (memberIds.length === 0) {
     return {
       canVote: false,
@@ -1818,7 +1818,8 @@ async function userCanVoteSindicancia(
       reason: "Sua conta não está vinculada a uma ficha de membro deste capítulo",
     };
   }
-  if (allowed === true) return { canVote: true, memberIds };
+  // PostgREST devolve boolean JSON; Boolean() cobre true/"true" sem falso negativo.
+  if (allowed === true || allowed === "true") return { canVote: true, memberIds };
   return {
     canVote: false,
     memberIds,
