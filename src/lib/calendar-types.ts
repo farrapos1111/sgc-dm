@@ -41,8 +41,15 @@ export const NO_MINUTES_TYPES: CalendarType[] = [
   "sindicancia",
 ];
 
-/** Tipos sem chamada de presença (não são reuniões). */
-export const NO_ATTENDANCE_TYPES: CalendarType[] = ["sindicancia"];
+/**
+ * Únicos tipos com chamada de presença. Os demais (evento, entretenimento,
+ * sindicância) não têm chamada nem contam na frequência, mesmo obrigatórios.
+ */
+export const ATTENDANCE_TYPES: CalendarType[] = [
+  "sessao_ritualistica",
+  "sessao_administrativa",
+  "filantropia",
+];
 
 export function isSessionType(t: string): boolean {
   return SESSION_TYPES.includes(t as CalendarType);
@@ -54,14 +61,28 @@ export function supportsMinutes(t: string): boolean {
 }
 
 export function supportsAttendance(t: string): boolean {
-  return !NO_ATTENDANCE_TYPES.includes(t as CalendarType);
+  return ATTENDANCE_TYPES.includes(t as CalendarType);
 }
 
-/** Facultativo fica fora da porcentagem. A chamada P/A continua. */
+/**
+ * Entra na porcentagem de frequência: tipo com chamada E obrigatório.
+ * Facultativo continua com chamada P/A, mas fica fora da porcentagem.
+ */
 export function eventCountsForAttendance(event: {
+  event_type?: string | null;
   mandatory?: boolean | null;
 }): boolean {
-  return event.mandatory !== false;
+  return supportsAttendance(event.event_type ?? "") && event.mandatory === true;
+}
+
+/** Rótulo curto de como o item entra (ou não) na frequência. */
+export function attendanceCountLabel(event: {
+  event_type?: string | null;
+  mandatory?: boolean | null;
+}): string {
+  if (eventCountsForAttendance(event)) return "Contabilizável";
+  if (supportsAttendance(event.event_type ?? "")) return "Facultativo";
+  return "Não conta";
 }
 
 export type CalendarTypeLabels = Partial<Record<CalendarType, string>>;

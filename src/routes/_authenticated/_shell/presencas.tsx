@@ -17,7 +17,8 @@ import { listAttendanceOverview } from "@/lib/attendance.functions";
 import { attendanceOverviewKey } from "@/lib/query-keys";
 import {
   TYPE_META,
-  CALENDAR_TYPES,
+  ATTENDANCE_TYPES,
+  eventCountsForAttendance,
   type CalendarType,
 } from "@/lib/calendar-types";
 import { canViewAttendanceAccess } from "@/lib/permissions";
@@ -116,7 +117,7 @@ function loadFilters(chapterId: string): PresencasFilters {
     const typeFilter =
       typeof parsed.typeFilter === "string" &&
       (parsed.typeFilter === "all" ||
-        (CALENDAR_TYPES as readonly string[]).includes(parsed.typeFilter))
+        (ATTENDANCE_TYPES as readonly string[]).includes(parsed.typeFilter))
         ? parsed.typeFilter
         : "all";
     const freqRaw = typeof parsed.freq === "string" ? parsed.freq : "";
@@ -189,7 +190,7 @@ function PresencasFrequencyTab({
   const frequency = useMemo(() => {
     const range = parseFrequencyRange(effectiveFreq);
     const mandatoryItems = items.filter((i) => {
-      if (!i.mandatory) return false;
+      if (!eventCountsForAttendance(i)) return false;
       const start = new Date(i.start_at);
       if (Number.isNaN(start.getTime())) return false;
       if (range.kind === "year") return start.getFullYear() === range.year;
@@ -210,9 +211,14 @@ function PresencasFrequencyTab({
         let total = 0;
         let present = 0;
         for (const ev of mandatoryItems) {
+          // Antes da iniciação (ou depois de virar Senior) o item não existe
+          // para o membro: quem iniciou há pouco é medido só desde a iniciação.
           if (!memberEligibleForAttendance(m, ev.start_at)) continue;
+          const st = recordByKey.get(`${m.id}:${ev.id}`);
+          // Sem marcação = indefinido: não conta como presença nem como falta.
+          if (st !== "presente" && st !== "ausente") continue;
           total += 1;
-          if (recordByKey.get(`${m.id}:${ev.id}`) === "presente") present += 1;
+          if (st === "presente") present += 1;
         }
         return {
           ...m,
@@ -297,7 +303,7 @@ function PresencasFrequencyTab({
               </Link>
               <div className="flex shrink-0 items-center gap-3">
                 <span className="text-xs text-muted-foreground">
-                  {m.present}/{m.total} obrigatórios
+                  {m.present}/{m.total} marcadas
                 </span>
                 <span
                   className="text-sm font-semibold"
@@ -322,13 +328,16 @@ function PresencasFrequencyTab({
           <>
             Aptos a voto: DeMolay ativo regular, exames de Grau Iniciático e
             Grau DeMolay apresentados, e frequência ≥ 50% nos últimos 6 meses
-            (itens obrigatórios em que era elegível).
+            (sessões e filantropias obrigatórias com presença ou falta marcada,
+            contadas a partir da iniciação).
           </>
         ) : (
           <>
-            Frequência ({rangeLabel}): apenas itens obrigatórios em que o membro
-            era elegível (após a iniciação e até virar Senior no aniversário de
-            21 anos). Facultativos ficam registrados, mas fora da porcentagem.
+            Frequência ({rangeLabel}): só sessões ritualísticas, administrativas
+            e filantropias obrigatórias em que o membro era elegível (após a
+            iniciação e até virar Senior no aniversário de 21 anos). Sem marcação
+            é indefinido e não entra na conta. Facultativos ficam registrados,
+            mas fora da porcentagem.
           </>
         )}
       </p>
@@ -471,7 +480,7 @@ function PresencasPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os tipos</SelectItem>
-                {CALENDAR_TYPES.map((t) => (
+                {ATTENDANCE_TYPES.map((t) => (
                   <SelectItem key={t} value={t}>
                     {TYPE_META[t].label}
                   </SelectItem>

@@ -115,7 +115,7 @@ const CELL_LETTER: Record<CellStatus, string> = {
 const CELL_LABEL: Record<Exclude<CellStatus, "na">, string> = {
   presente: "Presente",
   ausente: "Ausente",
-  pendente: "Pendente",
+  pendente: "Indefinido",
 };
 
 function buildRecordMap(records: AttendanceRec[]) {
@@ -141,7 +141,7 @@ function cellStatus(
 const byTypeConfig = {
   presentes: { label: "Presentes", color: "#047857" },
   ausentes: { label: "Ausentes", color: "#B91C1C" },
-  pendentes: { label: "Pendentes", color: "#D97706" },
+  pendentes: { label: "Indefinidos", color: "#D97706" },
 } satisfies ChartConfig;
 
 const rateConfig = {
@@ -151,7 +151,7 @@ const rateConfig = {
 const pieConfig = {
   presentes: { label: "Presentes", color: "#047857" },
   ausentes: { label: "Ausentes", color: "#B91C1C" },
-  pendentes: { label: "Pendentes", color: "#D97706" },
+  pendentes: { label: "Indefinidos", color: "#D97706" },
 } satisfies ChartConfig;
 
 export function PresencasChartsTab({
@@ -174,7 +174,7 @@ export function PresencasChartsTab({
       items
         .filter(
           (i) =>
-            i.mandatory && eventYear(i.start_at) === year,
+            eventCountsForAttendance(i) && eventYear(i.start_at) === year,
         )
         .sort((a, b) => a.start_at.localeCompare(b.start_at)),
     [items, year],
@@ -243,29 +243,32 @@ export function PresencasChartsTab({
       for (const mem of eligibleMembers) {
         const st = cellStatus(mem, ev, recordByKey);
         if (st === "na") continue;
+        // Sem marcação = indefinido: não é presença nem falta, fica fora da taxa.
+        if (st === "pendente") {
+          pendentes += 1;
+          typeRow.pendentes += 1;
+          continue;
+        }
         typeRow.total += 1;
         if (monthRow) monthRow.total += 1;
         if (st === "presente") {
           presentes += 1;
           typeRow.presentes += 1;
           if (monthRow) monthRow.presentes += 1;
-        } else if (st === "ausente") {
+        } else {
           ausentes += 1;
           typeRow.ausentes += 1;
           const rec = recordByKey.get(`${mem.id}:${ev.id}`);
           if (rec?.justification) justified += 1;
-        } else {
-          pendentes += 1;
-          typeRow.pendentes += 1;
         }
       }
     }
 
     const byTypeRows = [...byType.values()]
-      .filter((r) => r.total > 0)
+      .filter((r) => r.total + r.pendentes > 0)
       .map((r) => ({
         ...r,
-        pct: Math.round((r.presentes / r.total) * 100),
+        pct: r.total > 0 ? Math.round((r.presentes / r.total) * 100) : 0,
       }))
       .sort((a, b) => b.total - a.total);
 
@@ -278,7 +281,9 @@ export function PresencasChartsTab({
       }));
 
     const total = presentes + ausentes + pendentes;
-    const overallPct = total > 0 ? Math.round((presentes / total) * 100) : null;
+    const marked = presentes + ausentes;
+    const overallPct =
+      marked > 0 ? Math.round((presentes / marked) * 100) : null;
 
     const memberFreq = eligibleMembers
       .map((m) => {
@@ -286,7 +291,7 @@ export function PresencasChartsTab({
         let presentM = 0;
         for (const ev of yearItems) {
           const st = cellStatus(m, ev, recordByKey);
-          if (st === "na") continue;
+          if (st === "na" || st === "pendente") continue;
           totalM += 1;
           if (st === "presente") presentM += 1;
         }
@@ -335,7 +340,7 @@ export function PresencasChartsTab({
     },
     {
       key: "pendentes",
-      name: "Pendentes",
+      name: "Indefinidos",
       value: stats.pendentes,
       fill: "#D97706",
     },
@@ -360,7 +365,7 @@ export function PresencasChartsTab({
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          Somente eventos obrigatórios · {stats.events} chamada
+          Somente sessões e filantropias obrigatórias · {stats.events} chamada
           {stats.events === 1 ? "" : "s"}
         </p>
       </div>
@@ -379,7 +384,7 @@ export function PresencasChartsTab({
         <Kpi
           label="Justificadas"
           value={String(stats.justified)}
-          hint={`${stats.pendentes} pendente${stats.pendentes === 1 ? "" : "s"}`}
+          hint={`${stats.pendentes} sem marcação (indefinido${stats.pendentes === 1 ? "" : "s"})`}
         />
       </div>
 
@@ -393,7 +398,7 @@ export function PresencasChartsTab({
             <Card className="rounded-[12px] p-4">
               <h3 className="mb-1 text-sm font-medium">Presença por pauta</h3>
               <p className="mb-3 text-xs text-muted-foreground">
-                Presentes, ausentes e pendentes por tipo de evento
+                Presentes, ausentes e indefinidos (sem marcação) por tipo
               </p>
               <ChartContainer
                 config={byTypeConfig}
@@ -539,7 +544,7 @@ export function PresencasChartsTab({
               Taxa mensal de presença
             </h3>
             <p className="mb-3 text-xs text-muted-foreground">
-              % de presentes sobre o total elegível em cada mês
+              % de presentes entre as marcações (P + A) de cada mês
             </p>
             {stats.byMonthRows.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -703,7 +708,7 @@ function OverviewAttendanceCell({
       ? "Não elegível"
       : status === "ausente" && justification
         ? `Ausente · ${justification} · clique para ciclar`
-        : `${statusLabel} · clique: P → A → Pendente`;
+        : `${statusLabel} · clique: P → A → Indefinido`;
 
   return (
     <button
@@ -841,7 +846,11 @@ export function PresencasOverviewTab({
             justification: rec?.justification ?? null,
           };
         });
-        const countable = cells.filter((c) => c.counts && c.status !== "na");
+        // Indefinido (sem marcação) não é presença nem falta: fica fora da taxa.
+        const countable = cells.filter(
+          (c) =>
+            c.counts && (c.status === "presente" || c.status === "ausente"),
+        );
         const present = countable.filter((c) => c.status === "presente").length;
         const visible = cells.some((c) => c.status !== "na");
         return {
@@ -1110,7 +1119,7 @@ export function PresencasOverviewTab({
               <LegendDot
                 className={CELL_STYLE.pendente}
                 letter="·"
-                label="Pendente"
+                label="Indefinido"
               />
               <LegendDot
                 className={CELL_STYLE.na}
@@ -1236,7 +1245,7 @@ export function PresencasOverviewTab({
               <LegendDot
                 className={CELL_STYLE.pendente}
                 letter="·"
-                label="Pendente"
+                label="Indefinido"
               />
               <LegendDot
                 className={CELL_STYLE.na}
@@ -1253,9 +1262,11 @@ export function PresencasOverviewTab({
       )}
 
       <p className="text-xs text-muted-foreground">
-        Clique na célula para ciclar: Presente → Ausente → Pendente. Clique na
-        data para abrir a chamada. Colunas em cinza são facultativas e ficam
-        fora da porcentagem. 1º semestre = jan–jun · 2º = jul–dez.
+        Clique na célula para ciclar: Presente → Ausente → Indefinido. Clique na
+        data para abrir a chamada. Só sessões e filantropias têm chamada; colunas
+        em cinza são facultativas e ficam fora da porcentagem. Indefinido (sem
+        marcação) não conta como presença nem como falta. 1º semestre = jan–jun
+        · 2º = jul–dez.
       </p>
     </div>
   );

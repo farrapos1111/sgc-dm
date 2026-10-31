@@ -8,7 +8,7 @@ import {
   memberEligibleForAttendance,
   type DueMemberLite,
 } from "@/lib/dues-rules";
-import { typeLabel } from "@/lib/calendar-types";
+import { eventCountsForAttendance, typeLabel } from "@/lib/calendar-types";
 import { formatDateBR } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import {
@@ -81,7 +81,10 @@ export function LobbyPresencasPage() {
   const semesterEvents = useMemo(() => {
     const events = data?.events ?? [];
     return events
-      .filter((e) => eventSemester(e.starts_at) === semester)
+      .filter(
+        (e) =>
+          eventCountsForAttendance(e) && eventSemester(e.starts_at) === semester,
+      )
       .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   }, [data?.events, semester]);
 
@@ -122,7 +125,7 @@ export function LobbyPresencasPage() {
       <div className="mb-4">
         <h2 className="text-lg font-semibold">Presenças e frequência</h2>
         <p className="text-sm text-muted-foreground">
-          Eventos obrigatórios · somente leitura
+          Sessões e filantropias obrigatórias · somente leitura
         </p>
       </div>
 

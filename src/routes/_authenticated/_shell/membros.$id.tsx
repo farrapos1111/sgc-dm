@@ -28,7 +28,12 @@ import {
 import { TermSelect } from "@/components/TermSelect";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { getMemberAttendance } from "@/lib/attendance.functions";
-import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
+import {
+  TYPE_META,
+  attendanceCountLabel,
+  eventCountsForAttendance,
+  type CalendarType,
+} from "@/lib/calendar-types";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { getMemberFinance } from "@/lib/finance.functions";
 import {
@@ -205,8 +210,8 @@ function MembroPerfil() {
     } | null;
   };
   const attendanceRows = attendance as MemberAttendanceRow[];
-  const mandatoryRecs = attendanceRows.filter(
-    (r) => r.calendar_event?.mandatory,
+  const mandatoryRecs = attendanceRows.filter((r) =>
+    eventCountsForAttendance(r.calendar_event ?? {}),
   );
   const mandatoryPresent = mandatoryRecs.filter(
     (r) => r.status === "presente",
@@ -938,9 +943,13 @@ function MembroPerfil() {
                               </span>
                             )}
                             <Badge
-                              variant={ev?.mandatory ? "default" : "secondary"}
+                              variant={
+                                eventCountsForAttendance(ev ?? {})
+                                  ? "default"
+                                  : "secondary"
+                              }
                             >
-                              {ev?.mandatory ? "Contabilizável" : "Facultativo"}
+                              {attendanceCountLabel(ev ?? {})}
                             </Badge>
                             <span
                               className="ml-auto text-xs font-semibold"

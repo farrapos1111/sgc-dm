@@ -1,6 +1,10 @@
 /** Regras de elegibilidade e isenção de mensalidades. */
 
-import { currentYearMonthInAppTz, datePartsInAppTz } from "@/lib/timezone";
+import {
+  currentYearMonthInAppTz,
+  datePartsInAppTz,
+  todayYmd,
+} from "@/lib/timezone";
 
 export type AwayPeriod = {
   started_on: string;
@@ -142,6 +146,14 @@ export function memberInYearTable(m: DueMemberLite, year: number): boolean {
  * - Ainda não era Senior no início do ano do evento (21º aniversário neste ano ou depois)
  * - Se completa 21 no ano do evento: aparece até a data do aniversário (inclusive)
  */
+/** YYYY-MM-DD no fuso do app. Data pura ("2026-05-10") é mantida como está. */
+function ymdInAppTz(value: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value.slice(0, 10);
+  return todayYmd(d);
+}
+
 export function memberEligibleForAttendance(
   m: DueMemberLite,
   eventDateIso: string,
@@ -150,8 +162,9 @@ export function memberEligibleForAttendance(
   if (m.kind === "macom") return false;
   if (m.kind !== "demolay_ativo" && m.kind !== "senior") return false;
 
-  // Prefixo ISO YYYY-MM-DD — evita fuso local (cliente vs servidor)
-  const event = parseYmd(eventDateIso.slice(0, 10));
+  // Data do evento no fuso do app (São Paulo), igual no cliente e no servidor.
+  // Não usar o prefixo do ISO: ele é UTC e joga sessões das 21h+ para o dia seguinte.
+  const event = parseYmd(ymdInAppTz(eventDateIso));
   if (!event) return false;
 
   const init = initiationOn(m);

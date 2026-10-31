@@ -33,7 +33,7 @@ export type DayAgendaItem = {
 };
 
 /** Soma `delta` dias a uma chave YYYY-MM-DD (aritmética de calendário, sem fuso). */
-export function shiftDayKey(ymd: string, delta: number): string {
+function shiftDayKey(ymd: string, delta: number): string {
   const [y, m, d] = ymd.split("-").map(Number);
   const next = new Date(Date.UTC(y, m - 1, d + delta));
   const pad = (n: number) => String(n).padStart(2, "0");

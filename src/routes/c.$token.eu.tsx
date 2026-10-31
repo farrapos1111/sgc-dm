@@ -22,7 +22,7 @@ import {
   kindLabel,
   statusLabel,
 } from "@/lib/format";
-import { typeLabel } from "@/lib/calendar-types";
+import { eventCountsForAttendance, typeLabel } from "@/lib/calendar-types";
 import { currentYearMonthInAppTz } from "@/lib/timezone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -602,7 +602,10 @@ function MemberFrequencyTab({
   }, [data?.attendance]);
 
   const events = useMemo(
-    () => [...(data?.events ?? [])].sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
+    () =>
+      [...(data?.events ?? [])]
+        .filter((ev) => eventCountsForAttendance(ev))
+        .sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
     [data?.events],
   );
 

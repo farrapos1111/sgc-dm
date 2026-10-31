@@ -126,6 +126,12 @@ function OngoingPage() {
   const [tab, setTab] = useState<"chamada" | "ata">(() =>
     hasAta && searchTab === "ata" ? "ata" : "chamada",
   );
+  // Só sessões e filantropia têm chamada; os demais itens com ata abrem na ata.
+  const effectiveTab: "chamada" | "ata" = !hasAttendance
+    ? "ata"
+    : hasAta
+      ? tab
+      : "chamada";
   const flushAtaSaveRef = useRef<(() => Promise<void>) | null>(null);
 
   async function flushAtaBeforeLeave() {
@@ -148,7 +154,7 @@ function OngoingPage() {
   }
 
   async function leaveWithAtaFlush(to: "/atas" | "/presencas") {
-    if (tab === "ata") {
+    if (effectiveTab === "ata") {
       const ok = await flushAtaBeforeLeave();
       if (!ok) return;
     }
@@ -255,6 +261,27 @@ function OngoingPage() {
   });
 
   if (!hasAttendance && !hasAta) {
+    if (item.event_type !== "sindicancia") {
+      return (
+        <div>
+          <PageHeader
+            title={item.title}
+            subtitle={`${TYPE_META[item.event_type as CalendarType]?.label ?? item.event_type} — sem chamada de presença nem ata de sessão.`}
+            actions={
+              <Button asChild variant="outline" size="sm">
+                <Link to="/calendario">
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao calendário
+                </Link>
+              </Button>
+            }
+          />
+          <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+            Só sessões ritualísticas, sessões administrativas e filantropias
+            têm chamada de presença.
+          </Card>
+        </div>
+      );
+    }
     return (
       <div>
         <PageHeader
@@ -335,18 +362,18 @@ function OngoingPage() {
               variant="outline"
               onClick={() =>
                 void leaveWithAtaFlush(
-                  tab === "ata" && hasAta ? "/atas" : "/presencas",
+                  effectiveTab === "ata" ? "/atas" : "/presencas",
                 )
               }
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              {tab === "ata" && hasAta ? "Atas" : "Presenças"}
+              {effectiveTab === "ata" ? "Atas" : "Presenças"}
             </Button>
           </div>
         }
       />
 
-      {tab !== "ata" ? (
+      {effectiveTab !== "ata" ? (
         <div className="mb-4 grid grid-cols-3 gap-2">
           <Counter label="Presentes" value={presentes} color="#047857" />
           <Counter label="Ausentes" value={ausentes} color="#B91C1C" />
@@ -359,7 +386,7 @@ function OngoingPage() {
       ) : null}
 
       <Tabs
-        value={hasAta ? tab : "chamada"}
+        value={effectiveTab}
         onValueChange={(v) => {
           if (v !== "ata" && v !== "chamada") return;
           if (tab === "ata" && v === "chamada") {
@@ -374,10 +401,13 @@ function OngoingPage() {
         }}
       >
         <TabsList className="mb-4">
-          <TabsTrigger value="chamada">Chamada</TabsTrigger>
+          {hasAttendance ? (
+            <TabsTrigger value="chamada">Chamada</TabsTrigger>
+          ) : null}
           {hasAta ? <TabsTrigger value="ata">Ata</TabsTrigger> : null}
         </TabsList>
 
+        {hasAttendance ? (
         <TabsContent value="chamada">
           <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -525,6 +555,7 @@ function OngoingPage() {
             </p>
           )}
         </TabsContent>
+        ) : null}
 
         {hasAta ? (
           <TabsContent value="ata">
@@ -603,7 +634,7 @@ function OngoingPage() {
       </Tabs>
 
       <div className="mt-4 text-xs text-muted-foreground">
-        {tab === "ata" && hasAta ? (
+        {effectiveTab === "ata" ? (
           <Link
             to="/atas"
             style={{ color: "var(--chapter-primary)" }}

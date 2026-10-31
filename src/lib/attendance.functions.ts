@@ -13,7 +13,7 @@ const EVENT_SELECT =
 const MEMBER_ATTENDANCE_SELECT =
   "id, full_name, status, kind, birth_date, iniciacao_ordem, exam_grau_iniciatico, exam_grau_demolay";
 
-/** Itens do calendário que já começaram e ainda não terminaram (ou começaram há < 6h). */
+/** Itens com chamada ou ata que já começaram e ainda não terminaram. */
 export const listOngoingItems = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ chapterId: z.string().uuid() }).parse(raw))
@@ -30,7 +30,8 @@ export const listOngoingItems = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return (rows ?? []).filter(
       (r: { end_at?: string | null; event_type?: string }) =>
-        supportsAttendance(r.event_type ?? "") &&
+        (supportsAttendance(r.event_type ?? "") ||
+          supportsMinutes(r.event_type ?? "")) &&
         (!r.end_at || new Date(r.end_at) >= now),
     );
   });
@@ -126,10 +127,6 @@ export const setAttendance = createServerFn({ method: "POST" })
       .maybeSingle();
     if (metaErr) throw new Error(metaErr.message);
     if (!eventMeta) throw new Error("Evento não encontrado");
-    if (!supportsAttendance(eventMeta.event_type)) {
-      throw new Error("Sindicância não possui chamada de presença.");
-    }
-
     if (data.status === null) {
       const { error } = await context.supabase
         .from("attendance_records")
@@ -139,6 +136,12 @@ export const setAttendance = createServerFn({ method: "POST" })
         .eq("chapter_id", data.chapterId);
       if (error) throw new Error(error.message);
       return { ok: true, cleared: true };
+    }
+
+    if (!supportsAttendance(eventMeta.event_type)) {
+      throw new Error(
+        "Só sessões ritualísticas, sessões administrativas e filantropias têm chamada de presença.",
+      );
     }
 
     const { data: member, error: mErr } = await context.supabase

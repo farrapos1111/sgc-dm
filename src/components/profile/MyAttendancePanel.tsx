@@ -2,7 +2,12 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { getMyMemberAttendance } from "@/lib/profile.functions";
-import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
+import {
+  TYPE_META,
+  attendanceCountLabel,
+  eventCountsForAttendance,
+  type CalendarType,
+} from "@/lib/calendar-types";
 import { formatDateTimeBR } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +23,8 @@ export function MyAttendancePanel({ memberId }: { memberId: string }) {
   const attendance = data ?? EMPTY_LIST;
 
   const { mandatoryRecs, mandatoryPresent, mandatoryPct, rows } = useMemo(() => {
-    const mandatory = attendance.filter(
-      (r: any) => r.calendar_event?.mandatory,
+    const mandatory = attendance.filter((r: any) =>
+      eventCountsForAttendance(r.calendar_event ?? {}),
     );
     const present = mandatory.filter((r: any) => r.status === "presente").length;
     const pct =
@@ -105,8 +110,14 @@ export function MyAttendancePanel({ memberId }: { memberId: string }) {
                         {meta.label}
                       </span>
                     ) : null}
-                    <Badge variant={ev?.mandatory ? "default" : "secondary"}>
-                      {ev?.mandatory ? "Contabilizável" : "Facultativo"}
+                    <Badge
+                      variant={
+                        eventCountsForAttendance(ev ?? {})
+                          ? "default"
+                          : "secondary"
+                      }
+                    >
+                      {attendanceCountLabel(ev ?? {})}
                     </Badge>
                     <span
                       className="ml-auto text-xs font-semibold"

@@ -97,6 +97,8 @@ import {
   CALENDAR_TYPES,
   isSessionType,
   parseCalendarTypeLabels,
+  supportsAttendance,
+  supportsMinutes,
   resolveTypeMeta,
   type CalendarType,
   type CalendarTypeLabels,
@@ -110,6 +112,7 @@ import {
 } from "@/components/ui/accordion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DayAgendaDialog } from "@/components/calendar/DayAgendaDialog";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 
 export const Route = createFileRoute("/_authenticated/_shell/calendario")({
   head: () => ({
@@ -1159,6 +1162,7 @@ function DetailContent({
   const linkedMandatory = item.org_mandatory_date_id
     ? mandatoryDatesForDetail.find((d) => d.id === item.org_mandatory_date_id)
     : undefined;
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const del = useMutation({
     mutationFn: () => deleteCalendarItem({ data: { id: item.id } }),
     onSuccess: () => {
@@ -1329,26 +1333,46 @@ function DetailContent({
             <LinkIcon className="h-4 w-4" /> Ver evento
           </Link>
         )}
-        {canDelete && (
-          <div>
-            <Link
-              to="/ongoing/$id"
-              params={{ id: item.id }}
-              search={{ tab: "chamada" }}
-              className="inline-flex items-center gap-1 text-sm font-medium"
-              style={{ color: "var(--chapter-primary)" }}
-            >
-              <LinkIcon className="h-4 w-4" /> Abrir chamada e ata
-            </Link>
-          </div>
-        )}
+        {canDelete &&
+          (supportsAttendance(item.event_type) ||
+            supportsMinutes(item.event_type)) && (
+            <div>
+              <Link
+                to="/ongoing/$id"
+                params={{ id: item.id }}
+                search={{
+                  tab: supportsAttendance(item.event_type) ? "chamada" : "ata",
+                }}
+                className="inline-flex items-center gap-1 text-sm font-medium"
+                style={{ color: "var(--chapter-primary)" }}
+              >
+                <LinkIcon className="h-4 w-4" />
+                {supportsAttendance(item.event_type)
+                  ? supportsMinutes(item.event_type)
+                    ? "Abrir chamada e ata"
+                    : "Abrir chamada"
+                  : "Abrir ata"}
+              </Link>
+            </div>
+          )}
       </div>
       {canDelete && (
         <DialogFooter className="sm:justify-between">
           <Button
             variant="ghost"
             className="text-destructive"
-            onClick={() => del.mutate()}
+            onClick={async () => {
+              const ok = await confirm({
+                title: "Excluir este item do calendário?",
+                description:
+                  supportsAttendance(item.event_type) ||
+                  supportsMinutes(item.event_type)
+                  ? `"${item.title}" será removido. Itens que já têm chamada de presença ou ata registrada não podem ser excluídos.`
+                  : `"${item.title}" será removido do calendário.`,
+                confirmLabel: "Excluir item",
+              });
+              if (ok) del.mutate();
+            }}
             disabled={del.isPending}
           >
             <Trash2 className="mr-2 h-4 w-4" /> Excluir
@@ -1361,6 +1385,7 @@ function DetailContent({
           </Button>
         </DialogFooter>
       )}
+      {confirmDialog}
     </>
   );
 }
