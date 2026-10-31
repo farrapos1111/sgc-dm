@@ -109,6 +109,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { DayAgendaDialog } from "@/components/calendar/DayAgendaDialog";
 
 export const Route = createFileRoute("/_authenticated/_shell/calendario")({
   head: () => ({
@@ -705,73 +706,35 @@ function CalendarioPage() {
       )}
 
       {/* Day list dialog (month view) */}
-      <Dialog
-        open={!!selectedDay}
+      <DayAgendaDialog
+        dayKey={selectedDay}
+        items={
+          selectedDay
+            ? filtered.filter((it) => occursOnDay(it, selectedDay))
+            : []
+        }
+        typeLabels={typeLabels}
+        chapterNameMap={chapterNameMap}
+        showChapter={memberships.length > 1}
+        canCreate={canCreate}
         onOpenChange={(o) => !o && setSelectedDay(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {selectedDay &&
-                new Date(selectedDay + "T00:00:00").toLocaleDateString(
-                  "pt-BR",
-                  {
-                    weekday: "long",
-                    day: "2-digit",
-                    month: "long",
-                    year: "numeric",
-                  },
-                )}
-            </DialogTitle>
-          </DialogHeader>
-          <ul className="space-y-2">
-            {selectedDay &&
-              filtered.filter((it) => occursOnDay(it, selectedDay)).length ===
-                0 && (
-                <li className="text-sm text-muted-foreground">
-                  Nenhum item neste dia.
-                </li>
-              )}
-            {selectedDay &&
-              filtered
-                .filter((it) => occursOnDay(it, selectedDay))
-                .sort((a, b) => a.start_at.localeCompare(b.start_at))
-                .map((it) => (
-                  <li key={it.id}>
-                    <button
-                      className="w-full rounded-[8px] border border-border p-3 text-left hover:bg-muted"
-                      onClick={() => {
-                        setDetail(it);
-                        setSelectedDay(null);
-                      }}
-                    >
-                      <ItemRow
-                        item={it}
-                        typeLabels={typeLabels}
-                        chapterName={chapterNameMap.get(it.chapter_id)}
-                        showChapter={memberships.length > 1}
-                      />
-                    </button>
-                  </li>
-                ))}
-          </ul>
-          {canCreate && selectedDay && (
-            <DialogFooter>
-              <Button
-                className="w-full sm:w-auto"
-                style={{ backgroundColor: "var(--chapter-primary)" }}
-                onClick={() => {
-                  setCreateDate(selectedDay);
-                  setSelectedDay(null);
-                  setCreateOpen(true);
-                }}
-              >
-                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar neste dia
-              </Button>
-            </DialogFooter>
-          )}
-        </DialogContent>
-      </Dialog>
+        onNavigate={(key) => {
+          setSelectedDay(key);
+          const [y, m] = key.split("-").map(Number);
+          if (y !== cursor.getFullYear() || m - 1 !== cursor.getMonth()) {
+            setCursor(new Date(y, m - 1, 1));
+          }
+        }}
+        onSelect={(it) => {
+          setDetail(it as CalendarItem);
+          setSelectedDay(null);
+        }}
+        onCreate={(key) => {
+          setCreateDate(key);
+          setSelectedDay(null);
+          setCreateOpen(true);
+        }}
+      />
 
       {/* Detail dialog */}
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
