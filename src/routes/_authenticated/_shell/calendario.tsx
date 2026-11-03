@@ -47,6 +47,9 @@ import {
 import {
   AlertTriangle,
   CalendarDays,
+  Clock,
+  Shirt,
+  Users,
   ChevronLeft,
   ChevronRight,
   List,
@@ -1172,18 +1175,54 @@ function DetailContent({
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
 
+  const startKey = todayYmd(item.start_at);
+  const endKey = item.end_at ? todayYmd(item.end_at) : startKey;
+  const multiDay = endKey !== startKey;
+  const longDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("pt-BR", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      timeZone: APP_TIMEZONE,
+    });
+  const hasAttendanceLink =
+    canDelete &&
+    (supportsAttendance(item.event_type) || supportsMinutes(item.event_type));
+
+  function copyChave() {
+    try {
+      if (!chaveText) throw new Error("Aguarde o carregamento da chave.");
+      const isSindicancia = item.event_type === "sindicancia";
+      void navigator.clipboard.writeText(chaveText).then(
+        () =>
+          toast.success(
+            isSindicancia
+              ? "Chave de sindicância copiada!"
+              : "Chave do dia copiada!",
+          ),
+        (e: unknown) =>
+          toast.error(
+            e instanceof Error ? e.message : "Não foi possível copiar.",
+          ),
+      );
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível copiar.");
+    }
+  }
+
   return (
     <>
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
+      <DialogHeader className="space-y-3 pr-6 text-left">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span
-            className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+            className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
             style={{ backgroundColor: meta.bg, color: meta.color }}
           >
             {meta.label}
           </span>
           <span
-            className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+            className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
             style={
               item.mandatory
                 ? { backgroundColor: "#FEE2E2", color: "#B91C1C" }
@@ -1197,56 +1236,87 @@ function DetailContent({
           </span>
           {item.public_open && (
             <span
-              className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+              className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
               style={{ backgroundColor: "#DCFCE7", color: "#15803D" }}
             >
               Aberto ao público
             </span>
           )}
-          <span>{item.title}</span>
-        </DialogTitle>
-      </DialogHeader>
-      <div className="space-y-3 text-sm">
-        <div>
-          <div className="text-xs text-muted-foreground">Início</div>
-          <div>{formatDateTimeBR(item.start_at)}</div>
         </div>
-        {item.end_at && (
-          <div>
-            <div className="text-xs text-muted-foreground">Término</div>
-            <div>{formatDateTimeBR(item.end_at)}</div>
+        <div className="flex items-stretch gap-3">
+          <span
+            aria-hidden
+            className="w-1 shrink-0 rounded-full"
+            style={{ backgroundColor: meta.color }}
+          />
+          <DialogTitle className="text-xl leading-snug">
+            {item.title}
+          </DialogTitle>
+        </div>
+      </DialogHeader>
+
+      <div className="space-y-4 text-sm">
+        <div className="flex items-start gap-3 rounded-[12px] border border-border bg-muted/30 p-3">
+          <CalendarDays
+            className="mt-0.5 h-4 w-4 shrink-0"
+            style={{ color: "var(--chapter-primary)" }}
+          />
+          <div className="min-w-0">
+            {multiDay ? (
+              <>
+                <div className="font-medium">
+                  {capitalizeFirst(longDate(item.start_at))} ·{" "}
+                  {formatTimeInAppTz(item.start_at)}
+                </div>
+                <div className="text-muted-foreground">
+                  até {longDate(item.end_at!)} · {formatTimeInAppTz(item.end_at!)}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="font-medium">
+                  {capitalizeFirst(longDate(item.start_at))}
+                </div>
+                <div className="text-muted-foreground">
+                  {formatTimeInAppTz(item.start_at)}
+                  {item.end_at && ` – ${formatTimeInAppTz(item.end_at)}`}
+                </div>
+              </>
+            )}
           </div>
+        </div>
+
+        {(item.location ||
+          item.dress_code ||
+          item.address ||
+          (showChapter && chapterName)) && (
+          <dl className="grid gap-3 sm:grid-cols-2">
+            {item.location && (
+              <InfoRow icon={MapPin} label="Local" value={item.location} />
+            )}
+            {item.dress_code && (
+              <InfoRow icon={Shirt} label="Traje" value={item.dress_code} />
+            )}
+            {item.address && (
+              <InfoRow
+                icon={MapPin}
+                label="Endereço"
+                value={item.address}
+                className="sm:col-span-2"
+              />
+            )}
+            {showChapter && chapterName && (
+              <InfoRow icon={Users} label="Capítulo" value={chapterName} />
+            )}
+          </dl>
         )}
-        {item.location && (
-          <div>
-            <div className="text-xs text-muted-foreground">Local</div>
-            <div>{item.location}</div>
-          </div>
-        )}
-        {item.dress_code && (
-          <div>
-            <div className="text-xs text-muted-foreground">Traje</div>
-            <div>{item.dress_code}</div>
-          </div>
-        )}
-        {item.address && (
-          <div>
-            <div className="text-xs text-muted-foreground">Endereço</div>
-            <div>{item.address}</div>
-          </div>
-        )}
-        {showChapter && chapterName && (
-          <div>
-            <div className="text-xs text-muted-foreground">Capítulo</div>
-            <div>{chapterName}</div>
-          </div>
-        )}
+
         {linkedMandatory && (
-          <div>
+          <div className="rounded-[10px] border border-border p-3">
             <div className="text-xs text-muted-foreground">
               Data Obrigatória vinculada
             </div>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
               <span>
                 {linkedMandatory.title}
                 {" · "}
@@ -1262,113 +1332,112 @@ function DetailContent({
             </div>
           </div>
         )}
+
         {item.description && (
           <div>
-            <div className="text-xs text-muted-foreground">Descrição</div>
-            <div className="whitespace-pre-wrap">{item.description}</div>
+            <div className="mb-1 text-xs font-medium text-muted-foreground">
+              Descrição
+            </div>
+            <div className="whitespace-pre-wrap leading-relaxed">
+              {item.description}
+            </div>
           </div>
         )}
-        <div className="flex flex-wrap gap-2 pt-1">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!chaveText}
-            onClick={() => {
-              try {
-                if (!chaveText) {
-                  throw new Error("Aguarde o carregamento da chave.");
-                }
-                const isSindicancia = item.event_type === "sindicancia";
-                void navigator.clipboard.writeText(chaveText).then(
-                  () =>
-                    toast.success(
-                      isSindicancia
-                        ? "Chave de sindicância copiada!"
-                        : "Chave do dia copiada!",
-                    ),
-                  (e: unknown) =>
-                    toast.error(
-                      e instanceof Error
-                        ? e.message
-                        : "Não foi possível copiar.",
-                    ),
-                );
-              } catch (e: unknown) {
-                toast.error(
-                  e instanceof Error ? e.message : "Não foi possível copiar.",
-                );
-              }
-            }}
-          >
-            <Copy className="mr-2 h-3.5 w-3.5" />{" "}
-            {item.event_type === "sindicancia"
-              ? "Chave de sindicância"
-              : "Chave do dia"}
-          </Button>
-          <Button size="sm" variant="outline" asChild>
-            <a href={googleCalendarUrl(item)} target="_blank" rel="noreferrer">
-              <ExternalLink className="mr-2 h-3.5 w-3.5" /> Google Agenda
-            </a>
-          </Button>
-          <Button size="sm" variant="outline" asChild>
-            <a href={outlookCalendarUrl(item)} target="_blank" rel="noreferrer">
-              <ExternalLink className="mr-2 h-3.5 w-3.5" /> Outlook / Teams
-            </a>
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => downloadIcs([item], item.title)}
-          >
-            <Download className="mr-2 h-3.5 w-3.5" /> .ics (Apple)
-          </Button>
-        </div>
-        {item.related_event_id && (
-          <Link
-            to="/eventos/$id"
-            params={{ id: item.related_event_id }}
-            className="inline-flex items-center gap-1 text-sm font-medium"
-            style={{ color: "var(--chapter-primary)" }}
-          >
-            <LinkIcon className="h-4 w-4" /> Ver evento
-          </Link>
-        )}
-        {canDelete &&
-          (supportsAttendance(item.event_type) ||
-            supportsMinutes(item.event_type)) && (
-            <div>
+
+        {(item.related_event_id || hasAttendanceLink) && (
+          <div className="flex flex-col gap-2">
+            {hasAttendanceLink && (
               <Link
                 to="/ongoing/$id"
                 params={{ id: item.id }}
                 search={{
                   tab: supportsAttendance(item.event_type) ? "chamada" : "ata",
                 }}
-                className="inline-flex items-center gap-1 text-sm font-medium"
+                className="flex items-center justify-between rounded-[10px] border border-border px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
                 style={{ color: "var(--chapter-primary)" }}
               >
-                <LinkIcon className="h-4 w-4" />
-                {supportsAttendance(item.event_type)
-                  ? supportsMinutes(item.event_type)
-                    ? "Abrir chamada e ata"
-                    : "Abrir chamada"
-                  : "Abrir ata"}
+                <span className="inline-flex items-center gap-2">
+                  <LinkIcon className="h-4 w-4" />
+                  {supportsAttendance(item.event_type)
+                    ? supportsMinutes(item.event_type)
+                      ? "Abrir chamada e ata"
+                      : "Abrir chamada"
+                    : "Abrir ata"}
+                </span>
+                <ChevronRight className="h-4 w-4" />
               </Link>
-            </div>
-          )}
+            )}
+            {item.related_event_id && (
+              <Link
+                to="/eventos/$id"
+                params={{ id: item.related_event_id }}
+                className="flex items-center justify-between rounded-[10px] border border-border px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
+                style={{ color: "var(--chapter-primary)" }}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <LinkIcon className="h-4 w-4" /> Ver evento
+                </span>
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            )}
+          </div>
+        )}
+
+        <div className="space-y-2 border-t border-border pt-4">
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            disabled={!chaveText}
+            onClick={copyChave}
+          >
+            <Copy className="mr-2 h-3.5 w-3.5" />
+            {item.event_type === "sindicancia"
+              ? "Copiar chave de sindicância"
+              : "Copiar chave do dia"}
+          </Button>
+          <div className="grid grid-cols-3 gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <a
+                href={googleCalendarUrl(item)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Google
+              </a>
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <a
+                href={outlookCalendarUrl(item)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Outlook
+              </a>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => downloadIcs([item], item.title)}
+            >
+              <Download className="mr-1.5 h-3.5 w-3.5" /> .ics
+            </Button>
+          </div>
+        </div>
       </div>
       {canDelete && (
-        <DialogFooter className="sm:justify-between">
+        <DialogFooter className="border-t border-border pt-4 sm:justify-between">
           <Button
             variant="ghost"
-            className="text-destructive"
+            className="text-destructive hover:text-destructive"
             onClick={async () => {
               const ok = await confirm({
                 title: "Excluir este item do calendário?",
                 description:
                   supportsAttendance(item.event_type) ||
                   supportsMinutes(item.event_type)
-                  ? `"${item.title}" será removido. Itens que já têm chamada de presença ou ata registrada não podem ser excluídos.`
-                  : `"${item.title}" será removido do calendário.`,
+                    ? `"${item.title}" será removido. Itens que já têm chamada de presença ou ata registrada não podem ser excluídos.`
+                    : `"${item.title}" será removido do calendário.`,
                 confirmLabel: "Excluir item",
               });
               if (ok) del.mutate();
@@ -1390,6 +1459,32 @@ function DetailContent({
   );
 }
 
+function capitalizeFirst(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+  className = "",
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  className?: string;
+}) {
+  return (
+    <div className={`flex items-start gap-2.5 ${className}`}>
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">{label}</dt>
+        <dd className="break-words font-medium">{value}</dd>
+      </div>
+    </div>
+  );
+}
+
 function toLocalDateTimeInput(d: Date): string {
   return toAppTzDateTimeLocal(d);
 }
@@ -1402,6 +1497,55 @@ function appTzDateAt(ymd: string, hour: number, minute: number): Date {
 }
 
 const DRESS_CODES = ["Informal", "Formal"] as const;
+
+/** Duração legível entre dois valores de datetime-local; null se inválida. */
+function durationLabel(startAt: string, endAt: string): string | null {
+  if (!startAt || !endAt) return null;
+  const ms = new Date(endAt).getTime() - new Date(startAt).getTime();
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const totalMin = Math.round(ms / 60000);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const min = totalMin % 60;
+  const parts: string[] = [];
+  if (days) parts.push(`${days} ${days === 1 ? "dia" : "dias"}`);
+  if (hours) parts.push(`${hours}h`);
+  if (min) parts.push(`${min}min`);
+  return parts.join(" ");
+}
+
+function FormSection({
+  icon: Icon,
+  title,
+  className = "",
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className={`space-y-3 rounded-[12px] border border-border bg-muted/20 p-4 ${className}`}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className="flex h-6 w-6 items-center justify-center rounded-[6px]"
+          style={{
+            color: "var(--chapter-primary)",
+            backgroundColor:
+              "color-mix(in srgb, var(--chapter-primary) 12%, transparent)",
+          }}
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        <SectionTitle>{title}</SectionTitle>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -2156,6 +2300,13 @@ function CreateDialog({
 
       </div>
 
+      {durationLabel(startAt, endAt) && (
+        <p className="flex items-center gap-1.5 rounded-[8px] bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+          <Clock className="h-3.5 w-3.5 shrink-0" />
+          Duração: {durationLabel(startAt, endAt)}
+        </p>
+      )}
+
     </div>
 
   );
@@ -2256,7 +2407,7 @@ function CreateDialog({
 
         <div>
 
-          <Label className="mb-1.5 block text-xs">Traje</Label>
+          <Label className="mb-1 block text-xs">Traje</Label>
 
           <Select
 
@@ -2604,48 +2755,30 @@ function CreateDialog({
 
         ) : (
 
-          <div className="grid gap-x-6 gap-y-5 md:grid-cols-2">
-
-            <section className="space-y-3">
-
-              <SectionTitle>Identificação</SectionTitle>
-
-              {identificacao}
-
-            </section>
-
-            <section className="space-y-3">
-
-              <SectionTitle>Quando</SectionTitle>
-
-              {quandoBloco}
-
-            </section>
-
-            <section className="space-y-3">
-
-              <SectionTitle>Onde e traje</SectionTitle>
-
-              {ondeTraje}
-
-            </section>
-
-            <section className="space-y-3">
-
-              <SectionTitle>Vínculos e flags</SectionTitle>
-
-              {vinculosFlags}
-
-            </section>
-
-            <section className="space-y-3 md:col-span-2">
-
-              <SectionTitle>Detalhes</SectionTitle>
-
+          <div className="grid gap-4 md:grid-cols-2 md:items-start">
+            <div className="space-y-4">
+              <FormSection icon={Tags} title="Identificação">
+                {identificacao}
+              </FormSection>
+              <FormSection icon={MapPin} title="Onde e traje">
+                {ondeTraje}
+              </FormSection>
+            </div>
+            <div className="space-y-4">
+              <FormSection icon={CalendarDays} title="Quando">
+                {quandoBloco}
+              </FormSection>
+              <FormSection icon={LinkIcon} title="Vínculos e flags">
+                {vinculosFlags}
+              </FormSection>
+            </div>
+            <FormSection
+              icon={Sparkles}
+              title="Detalhes"
+              className="md:col-span-2"
+            >
               {descricaoBloco}
-
-            </section>
-
+            </FormSection>
           </div>
 
         )}

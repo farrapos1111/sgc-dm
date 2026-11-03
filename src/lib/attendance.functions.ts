@@ -311,19 +311,25 @@ export const listAttendanceOverview = createServerFn({ method: "POST" })
       status: string;
       justification: string | null;
     };
-    let records: { data: AttendanceRow[] | null; error: { message: string } | null };
-
-    if (eventIds.length === 0) {
-      records = { data: [], error: null };
-    } else {
-      records = await context.supabase
-        .from("attendance_records")
-        .select("id, calendar_event_id, member_id, status, justification")
-        .eq("chapter_id", data.chapterId)
-        .in("calendar_event_id", eventIds);
+    // O PostgREST corta respostas em 1000 linhas; 200 itens x ~35 membros passa
+    // disso e deixava a maioria das chamadas zerada. Pagina até acabar.
+    const PAGE = 1000;
+    const records: AttendanceRow[] = [];
+    if (eventIds.length > 0) {
+      for (let from = 0; ; from += PAGE) {
+        const { data: page, error } = await context.supabase
+          .from("attendance_records")
+          .select("id, calendar_event_id, member_id, status, justification")
+          .eq("chapter_id", data.chapterId)
+          .in("calendar_event_id", eventIds)
+          .order("id")
+          .range(from, from + PAGE - 1);
+        if (error) throw new Error(error.message);
+        records.push(...((page ?? []) as AttendanceRow[]));
+        if (!page || page.length < PAGE) break;
+      }
     }
-    if (records.error) throw new Error(records.error.message);
-    return { items: eventRows, members: members.data ?? [], records: records.data ?? [] };
+    return { items: eventRows, members: members.data ?? [], records };
   });
 
 /** Histórico de presença de um membro. */
