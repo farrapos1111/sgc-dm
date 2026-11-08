@@ -305,7 +305,8 @@ export function visibleGroups(
       to === "/configuracoes-globais/cargos" ||
       to === "/configuracoes-globais/inbox"
     ) {
-      return isAdminTotal;
+      // Movido para o Console da plataforma (console.templovirtual.app).
+      return false;
     }
     const commissionCode = commissionCodeForPath(to);
     if (commissionCode && canViewCommission(commissionCode)) {

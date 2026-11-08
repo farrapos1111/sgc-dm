@@ -25,7 +25,6 @@ import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { OrgJoinInboxBell, OrgJoinInboxRealtimeBridge } from "@/components/shell/OrgJoinInboxBell";
 import { formatClockInAppTz } from "@/lib/timezone";
 import { useChapterLogo } from "@/lib/chapter-logo";
 import {
@@ -315,7 +314,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <OrgJoinInboxRealtimeBridge enabled={isAdminTotal} />
       {/* Sidebar (desktop) */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
         <div className="flex items-center gap-3 border-b border-border px-5 py-5">
@@ -390,7 +388,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             )}
             {roleSwitchButton}
-            {isAdminTotal ? <OrgJoinInboxBell className="shrink-0" /> : null}
             <ThemeToggle className="shrink-0" />
           </div>
           <Button
@@ -422,7 +419,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
           </div>
           {roleSwitchButton}
-          {isAdminTotal ? <OrgJoinInboxBell className="h-9 w-9 shrink-0" /> : null}
           <ThemeToggle className="shrink-0" />
         </header>
 
