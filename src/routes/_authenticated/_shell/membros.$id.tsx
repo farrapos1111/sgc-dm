@@ -1,4 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { getRealmForOrgType } from "@/lib/realm";
+import { FdjMemberDetail } from "@/components/fdj/FdjMembers";
 import {
   useSuspenseQuery,
   useQuery,
@@ -124,6 +126,15 @@ const attendanceQO = (memberId: string) =>
   });
 
 function MembroPerfil() {
+  const { id } = Route.useParams();
+  const { active } = useActiveChapter();
+  if (active && getRealmForOrgType(active.chapter.org_type) === "fdj") {
+    return <FdjMemberDetail key={id} id={id} />;
+  }
+  return <MembroPerfilOdm />;
+}
+
+function MembroPerfilOdm() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState("dados");

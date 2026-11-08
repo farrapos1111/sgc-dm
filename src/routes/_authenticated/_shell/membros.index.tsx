@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { getRealmForOrgType } from "@/lib/realm";
+import { FdjMembersList } from "@/components/fdj/FdjMembers";
 import { keepPreviousData, useQuery, queryOptions } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
@@ -93,6 +95,10 @@ type ActiveChapter = NonNullable<ReturnType<typeof useActiveChapter>["active"]>;
 function MembrosList() {
   const { active } = useActiveChapter();
   if (!active) return null;
+  // Bethel (FDJ) usa fichas próprias em fdj_members.
+  if (getRealmForOrgType(active.chapter.org_type) === "fdj") {
+    return <FdjMembersList key={active.chapter_id} chapterId={active.chapter_id} />;
+  }
   return <MembrosListContent key={active.chapter_id} active={active} />;
 }
 
