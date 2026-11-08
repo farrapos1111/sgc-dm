@@ -14,6 +14,7 @@ import { Route as OrgRouteImport } from './routes/$org'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AtualizarCadastroRouteImport } from './routes/atualizar-cadastro'
 import { Route as AuthRouteRouteImport } from './routes/auth/route'
+import { Route as ConsoleRouteRouteImport } from './routes/console/route'
 import { Route as DocumentacaoRouteRouteImport } from './routes/documentacao/route'
 import { Route as OrgIndexRouteImport } from './routes/$org.index'
 import { Route as OrgCalendarioRouteImport } from './routes/$org.calendario'
@@ -32,6 +33,8 @@ import { Route as AuthNovaSenhaRouteImport } from './routes/auth/nova-senha'
 import { Route as AuthRecuperarSenhaRouteImport } from './routes/auth/recuperar-senha'
 import { Route as AuthRedefinirSenhaRouteImport } from './routes/auth/redefinir-senha'
 import { Route as CTokenRouteImport } from './routes/c.$token'
+import { Route as ConsoleAppRouteRouteImport } from './routes/console/_app/route'
+import { Route as ConsoleEntrarRouteImport } from './routes/console/entrar'
 import { Route as DocumentacaoIndexRouteImport } from './routes/documentacao/index'
 import { Route as DocumentacaoGuiaRouteImport } from './routes/documentacao/guia'
 import { Route as DocumentacaoOpenSourceRouteImport } from './routes/documentacao/open-source'
@@ -55,6 +58,10 @@ import { Route as CTokenEuRouteImport } from './routes/c.$token.eu'
 import { Route as CTokenFluxoRouteImport } from './routes/c.$token.fluxo'
 import { Route as CTokenMensalidadesRouteImport } from './routes/c.$token.mensalidades'
 import { Route as CTokenPresencasRouteImport } from './routes/c.$token.presencas'
+import { Route as ConsoleAppIndexRouteImport } from './routes/console/_app/index'
+import { Route as ConsoleAppAuditoriaRouteImport } from './routes/console/_app/auditoria'
+import { Route as ConsoleAppCargosRouteImport } from './routes/console/_app/cargos'
+import { Route as ConsoleAppPedidosRouteImport } from './routes/console/_app/pedidos'
 import { Route as AuthenticatedShellConfiguracoesGlobaisCargosRouteImport } from './routes/_authenticated/_shell/configuracoes-globais.cargos'
 import { Route as AuthenticatedShellConfiguracoesGlobaisInboxRouteImport } from './routes/_authenticated/_shell/configuracoes-globais.inbox'
 import { Route as AuthenticatedShellEventosIndexRouteImport } from './routes/_authenticated/_shell/eventos.index'
@@ -88,6 +95,10 @@ import { Route as AuthenticatedShellTesourariaAtrasadosRouteImport } from './rou
 import { Route as AuthenticatedShellTesourariaCobrancasRouteImport } from './routes/_authenticated/_shell/tesouraria.cobrancas'
 import { Route as AuthenticatedShellTesourariaFluxoRouteImport } from './routes/_authenticated/_shell/tesouraria.fluxo'
 import { Route as AuthenticatedShellTesourariaMensalidadesRouteImport } from './routes/_authenticated/_shell/tesouraria.mensalidades'
+import { Route as ConsoleAppInstituicoesIndexRouteImport } from './routes/console/_app/instituicoes.index'
+import { Route as ConsoleAppInstituicoesIdRouteImport } from './routes/console/_app/instituicoes.$id'
+import { Route as ConsoleAppPessoasIndexRouteImport } from './routes/console/_app/pessoas.index'
+import { Route as ConsoleAppPessoasUserIdRouteImport } from './routes/console/_app/pessoas.$userId'
 import { Route as AuthenticatedShellMembrosIdEditarRouteImport } from './routes/_authenticated/_shell/membros.$id_.editar'
 import { Route as AuthenticatedShellSindicanciasSindicariasEventIdRouteImport } from './routes/_authenticated/_shell/sindicancias.sindicarias_.$eventId'
 
@@ -113,6 +124,11 @@ const AtualizarCadastroRoute = AtualizarCadastroRouteImport.update({
 const AuthRouteRoute = AuthRouteRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsoleRouteRoute = ConsoleRouteRouteImport.update({
+  id: '/console',
+  path: '/console',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocumentacaoRouteRoute = DocumentacaoRouteRouteImport.update({
@@ -205,6 +221,15 @@ const CTokenRoute = CTokenRouteImport.update({
   id: '/c/$token',
   path: '/c/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ConsoleAppRouteRoute = ConsoleAppRouteRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => ConsoleRouteRoute,
+} as any)
+const ConsoleEntrarRoute = ConsoleEntrarRouteImport.update({
+  id: '/entrar',
+  path: '/entrar',
+  getParentRoute: () => ConsoleRouteRoute,
 } as any)
 const DocumentacaoIndexRoute = DocumentacaoIndexRouteImport.update({
   id: '/',
@@ -328,6 +353,26 @@ const CTokenPresencasRoute = CTokenPresencasRouteImport.update({
   id: '/presencas',
   path: '/presencas',
   getParentRoute: () => CTokenRoute,
+} as any)
+const ConsoleAppIndexRoute = ConsoleAppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ConsoleAppRouteRoute,
+} as any)
+const ConsoleAppAuditoriaRoute = ConsoleAppAuditoriaRouteImport.update({
+  id: '/auditoria',
+  path: '/auditoria',
+  getParentRoute: () => ConsoleAppRouteRoute,
+} as any)
+const ConsoleAppCargosRoute = ConsoleAppCargosRouteImport.update({
+  id: '/cargos',
+  path: '/cargos',
+  getParentRoute: () => ConsoleAppRouteRoute,
+} as any)
+const ConsoleAppPedidosRoute = ConsoleAppPedidosRouteImport.update({
+  id: '/pedidos',
+  path: '/pedidos',
+  getParentRoute: () => ConsoleAppRouteRoute,
 } as any)
 const AuthenticatedShellConfiguracoesGlobaisCargosRoute =
   AuthenticatedShellConfiguracoesGlobaisCargosRouteImport.update({
@@ -527,6 +572,28 @@ const AuthenticatedShellTesourariaMensalidadesRoute =
     path: '/tesouraria/mensalidades',
     getParentRoute: () => AuthenticatedShellRouteRoute,
   } as any)
+const ConsoleAppInstituicoesIndexRoute =
+  ConsoleAppInstituicoesIndexRouteImport.update({
+    id: '/instituicoes/',
+    path: '/instituicoes/',
+    getParentRoute: () => ConsoleAppRouteRoute,
+  } as any)
+const ConsoleAppInstituicoesIdRoute =
+  ConsoleAppInstituicoesIdRouteImport.update({
+    id: '/instituicoes/$id',
+    path: '/instituicoes/$id',
+    getParentRoute: () => ConsoleAppRouteRoute,
+  } as any)
+const ConsoleAppPessoasIndexRoute = ConsoleAppPessoasIndexRouteImport.update({
+  id: '/pessoas/',
+  path: '/pessoas/',
+  getParentRoute: () => ConsoleAppRouteRoute,
+} as any)
+const ConsoleAppPessoasUserIdRoute = ConsoleAppPessoasUserIdRouteImport.update({
+  id: '/pessoas/$userId',
+  path: '/pessoas/$userId',
+  getParentRoute: () => ConsoleAppRouteRoute,
+} as any)
 const AuthenticatedShellMembrosIdEditarRoute =
   AuthenticatedShellMembrosIdEditarRouteImport.update({
     id: '/membros/$id_/editar',
@@ -543,6 +610,7 @@ const AuthenticatedShellSindicanciasSindicariasEventIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
+  '/console': typeof ConsoleRouteRouteWithChildren
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
   '/$org': typeof OrgRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
@@ -560,6 +628,7 @@ export interface FileRoutesByFullPath {
   '/auth/recuperar-senha': typeof AuthRecuperarSenhaRoute
   '/auth/redefinir-senha': typeof AuthRedefinirSenhaRoute
   '/c/$token': typeof CTokenRouteWithChildren
+  '/console/entrar': typeof ConsoleEntrarRoute
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
@@ -584,7 +653,11 @@ export interface FileRoutesByFullPath {
   '/c/$token/fluxo': typeof CTokenFluxoRoute
   '/c/$token/mensalidades': typeof CTokenMensalidadesRoute
   '/c/$token/presencas': typeof CTokenPresencasRoute
+  '/console/auditoria': typeof ConsoleAppAuditoriaRoute
+  '/console/cargos': typeof ConsoleAppCargosRoute
+  '/console/pedidos': typeof ConsoleAppPedidosRoute
   '/c/$token/': typeof CTokenIndexRoute
+  '/console/': typeof ConsoleAppIndexRoute
   '/configuracoes-globais/cargos': typeof AuthenticatedShellConfiguracoesGlobaisCargosRoute
   '/configuracoes-globais/inbox': typeof AuthenticatedShellConfiguracoesGlobaisInboxRoute
   '/eventos/$id': typeof AuthenticatedShellEventosIdRoute
@@ -614,15 +687,20 @@ export interface FileRoutesByFullPath {
   '/tesouraria/cobrancas': typeof AuthenticatedShellTesourariaCobrancasRoute
   '/tesouraria/fluxo': typeof AuthenticatedShellTesourariaFluxoRoute
   '/tesouraria/mensalidades': typeof AuthenticatedShellTesourariaMensalidadesRoute
+  '/console/instituicoes/$id': typeof ConsoleAppInstituicoesIdRoute
+  '/console/pessoas/$userId': typeof ConsoleAppPessoasUserIdRoute
   '/eventos/': typeof AuthenticatedShellEventosIndexRoute
   '/membros/': typeof AuthenticatedShellMembrosIndexRoute
   '/oficios/': typeof AuthenticatedShellOficiosIndexRoute
   '/regional/': typeof AuthenticatedShellRegionalIndexRoute
+  '/console/instituicoes/': typeof ConsoleAppInstituicoesIndexRoute
+  '/console/pessoas/': typeof ConsoleAppPessoasIndexRoute
   '/membros/$id/editar': typeof AuthenticatedShellMembrosIdEditarRoute
   '/sindicancias/sindicarias/$eventId': typeof AuthenticatedShellSindicanciasSindicariasEventIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/console': typeof ConsoleAppIndexRoute
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
   '/$org/calendario': typeof OrgCalendarioRoute
   '/$org/fluxo': typeof OrgFluxoRoute
@@ -637,6 +715,7 @@ export interface FileRoutesByTo {
   '/auth/nova-senha': typeof AuthNovaSenhaRoute
   '/auth/recuperar-senha': typeof AuthRecuperarSenhaRoute
   '/auth/redefinir-senha': typeof AuthRedefinirSenhaRoute
+  '/console/entrar': typeof ConsoleEntrarRoute
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
@@ -661,6 +740,9 @@ export interface FileRoutesByTo {
   '/c/$token/fluxo': typeof CTokenFluxoRoute
   '/c/$token/mensalidades': typeof CTokenMensalidadesRoute
   '/c/$token/presencas': typeof CTokenPresencasRoute
+  '/console/auditoria': typeof ConsoleAppAuditoriaRoute
+  '/console/cargos': typeof ConsoleAppCargosRoute
+  '/console/pedidos': typeof ConsoleAppPedidosRoute
   '/c/$token': typeof CTokenIndexRoute
   '/configuracoes-globais/cargos': typeof AuthenticatedShellConfiguracoesGlobaisCargosRoute
   '/configuracoes-globais/inbox': typeof AuthenticatedShellConfiguracoesGlobaisInboxRoute
@@ -691,10 +773,14 @@ export interface FileRoutesByTo {
   '/tesouraria/cobrancas': typeof AuthenticatedShellTesourariaCobrancasRoute
   '/tesouraria/fluxo': typeof AuthenticatedShellTesourariaFluxoRoute
   '/tesouraria/mensalidades': typeof AuthenticatedShellTesourariaMensalidadesRoute
+  '/console/instituicoes/$id': typeof ConsoleAppInstituicoesIdRoute
+  '/console/pessoas/$userId': typeof ConsoleAppPessoasUserIdRoute
   '/eventos': typeof AuthenticatedShellEventosIndexRoute
   '/membros': typeof AuthenticatedShellMembrosIndexRoute
   '/oficios': typeof AuthenticatedShellOficiosIndexRoute
   '/regional': typeof AuthenticatedShellRegionalIndexRoute
+  '/console/instituicoes': typeof ConsoleAppInstituicoesIndexRoute
+  '/console/pessoas': typeof ConsoleAppPessoasIndexRoute
   '/membros/$id/editar': typeof AuthenticatedShellMembrosIdEditarRoute
   '/sindicancias/sindicarias/$eventId': typeof AuthenticatedShellSindicanciasSindicariasEventIdRoute
 }
@@ -703,10 +789,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRouteRouteWithChildren
+  '/console': typeof ConsoleRouteRouteWithChildren
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
   '/$org': typeof OrgRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
   '/_authenticated/_shell': typeof AuthenticatedShellRouteRouteWithChildren
+  '/console/_app': typeof ConsoleAppRouteRouteWithChildren
   '/$org/calendario': typeof OrgCalendarioRoute
   '/$org/fluxo': typeof OrgFluxoRoute
   '/$org/frequencia': typeof OrgFrequenciaRoute
@@ -721,6 +809,7 @@ export interface FileRoutesById {
   '/auth/recuperar-senha': typeof AuthRecuperarSenhaRoute
   '/auth/redefinir-senha': typeof AuthRedefinirSenhaRoute
   '/c/$token': typeof CTokenRouteWithChildren
+  '/console/entrar': typeof ConsoleEntrarRoute
   '/documentacao/guia': typeof DocumentacaoGuiaRoute
   '/documentacao/open-source': typeof DocumentacaoOpenSourceRoute
   '/documentacao/tecnica': typeof DocumentacaoTecnicaRoute
@@ -745,7 +834,11 @@ export interface FileRoutesById {
   '/c/$token/fluxo': typeof CTokenFluxoRoute
   '/c/$token/mensalidades': typeof CTokenMensalidadesRoute
   '/c/$token/presencas': typeof CTokenPresencasRoute
+  '/console/_app/auditoria': typeof ConsoleAppAuditoriaRoute
+  '/console/_app/cargos': typeof ConsoleAppCargosRoute
+  '/console/_app/pedidos': typeof ConsoleAppPedidosRoute
   '/c/$token/': typeof CTokenIndexRoute
+  '/console/_app/': typeof ConsoleAppIndexRoute
   '/_authenticated/_shell/configuracoes-globais/cargos': typeof AuthenticatedShellConfiguracoesGlobaisCargosRoute
   '/_authenticated/_shell/configuracoes-globais/inbox': typeof AuthenticatedShellConfiguracoesGlobaisInboxRoute
   '/_authenticated/_shell/eventos/$id': typeof AuthenticatedShellEventosIdRoute
@@ -775,10 +868,14 @@ export interface FileRoutesById {
   '/_authenticated/_shell/tesouraria/cobrancas': typeof AuthenticatedShellTesourariaCobrancasRoute
   '/_authenticated/_shell/tesouraria/fluxo': typeof AuthenticatedShellTesourariaFluxoRoute
   '/_authenticated/_shell/tesouraria/mensalidades': typeof AuthenticatedShellTesourariaMensalidadesRoute
+  '/console/_app/instituicoes/$id': typeof ConsoleAppInstituicoesIdRoute
+  '/console/_app/pessoas/$userId': typeof ConsoleAppPessoasUserIdRoute
   '/_authenticated/_shell/eventos/': typeof AuthenticatedShellEventosIndexRoute
   '/_authenticated/_shell/membros/': typeof AuthenticatedShellMembrosIndexRoute
   '/_authenticated/_shell/oficios/': typeof AuthenticatedShellOficiosIndexRoute
   '/_authenticated/_shell/regional/': typeof AuthenticatedShellRegionalIndexRoute
+  '/console/_app/instituicoes/': typeof ConsoleAppInstituicoesIndexRoute
+  '/console/_app/pessoas/': typeof ConsoleAppPessoasIndexRoute
   '/_authenticated/_shell/membros/$id_/editar': typeof AuthenticatedShellMembrosIdEditarRoute
   '/_authenticated/_shell/sindicancias/sindicarias_/$eventId': typeof AuthenticatedShellSindicanciasSindicariasEventIdRoute
 }
@@ -787,6 +884,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/console'
     | '/documentacao'
     | '/$org'
     | '/atualizar-cadastro'
@@ -804,6 +902,7 @@ export interface FileRouteTypes {
     | '/auth/recuperar-senha'
     | '/auth/redefinir-senha'
     | '/c/$token'
+    | '/console/entrar'
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
@@ -828,7 +927,11 @@ export interface FileRouteTypes {
     | '/c/$token/fluxo'
     | '/c/$token/mensalidades'
     | '/c/$token/presencas'
+    | '/console/auditoria'
+    | '/console/cargos'
+    | '/console/pedidos'
     | '/c/$token/'
+    | '/console/'
     | '/configuracoes-globais/cargos'
     | '/configuracoes-globais/inbox'
     | '/eventos/$id'
@@ -858,15 +961,20 @@ export interface FileRouteTypes {
     | '/tesouraria/cobrancas'
     | '/tesouraria/fluxo'
     | '/tesouraria/mensalidades'
+    | '/console/instituicoes/$id'
+    | '/console/pessoas/$userId'
     | '/eventos/'
     | '/membros/'
     | '/oficios/'
     | '/regional/'
+    | '/console/instituicoes/'
+    | '/console/pessoas/'
     | '/membros/$id/editar'
     | '/sindicancias/sindicarias/$eventId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/console'
     | '/atualizar-cadastro'
     | '/$org/calendario'
     | '/$org/fluxo'
@@ -881,6 +989,7 @@ export interface FileRouteTypes {
     | '/auth/nova-senha'
     | '/auth/recuperar-senha'
     | '/auth/redefinir-senha'
+    | '/console/entrar'
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
@@ -905,6 +1014,9 @@ export interface FileRouteTypes {
     | '/c/$token/fluxo'
     | '/c/$token/mensalidades'
     | '/c/$token/presencas'
+    | '/console/auditoria'
+    | '/console/cargos'
+    | '/console/pedidos'
     | '/c/$token'
     | '/configuracoes-globais/cargos'
     | '/configuracoes-globais/inbox'
@@ -935,10 +1047,14 @@ export interface FileRouteTypes {
     | '/tesouraria/cobrancas'
     | '/tesouraria/fluxo'
     | '/tesouraria/mensalidades'
+    | '/console/instituicoes/$id'
+    | '/console/pessoas/$userId'
     | '/eventos'
     | '/membros'
     | '/oficios'
     | '/regional'
+    | '/console/instituicoes'
+    | '/console/pessoas'
     | '/membros/$id/editar'
     | '/sindicancias/sindicarias/$eventId'
   id:
@@ -946,10 +1062,12 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/console'
     | '/documentacao'
     | '/$org'
     | '/atualizar-cadastro'
     | '/_authenticated/_shell'
+    | '/console/_app'
     | '/$org/calendario'
     | '/$org/fluxo'
     | '/$org/frequencia'
@@ -964,6 +1082,7 @@ export interface FileRouteTypes {
     | '/auth/recuperar-senha'
     | '/auth/redefinir-senha'
     | '/c/$token'
+    | '/console/entrar'
     | '/documentacao/guia'
     | '/documentacao/open-source'
     | '/documentacao/tecnica'
@@ -988,7 +1107,11 @@ export interface FileRouteTypes {
     | '/c/$token/fluxo'
     | '/c/$token/mensalidades'
     | '/c/$token/presencas'
+    | '/console/_app/auditoria'
+    | '/console/_app/cargos'
+    | '/console/_app/pedidos'
     | '/c/$token/'
+    | '/console/_app/'
     | '/_authenticated/_shell/configuracoes-globais/cargos'
     | '/_authenticated/_shell/configuracoes-globais/inbox'
     | '/_authenticated/_shell/eventos/$id'
@@ -1018,10 +1141,14 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/tesouraria/cobrancas'
     | '/_authenticated/_shell/tesouraria/fluxo'
     | '/_authenticated/_shell/tesouraria/mensalidades'
+    | '/console/_app/instituicoes/$id'
+    | '/console/_app/pessoas/$userId'
     | '/_authenticated/_shell/eventos/'
     | '/_authenticated/_shell/membros/'
     | '/_authenticated/_shell/oficios/'
     | '/_authenticated/_shell/regional/'
+    | '/console/_app/instituicoes/'
+    | '/console/_app/pessoas/'
     | '/_authenticated/_shell/membros/$id_/editar'
     | '/_authenticated/_shell/sindicancias/sindicarias_/$eventId'
   fileRoutesById: FileRoutesById
@@ -1030,6 +1157,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRouteRoute: typeof AuthRouteRouteWithChildren
+  ConsoleRouteRoute: typeof ConsoleRouteRouteWithChildren
   DocumentacaoRouteRoute: typeof DocumentacaoRouteRouteWithChildren
   OrgRoute: typeof OrgRouteWithChildren
   AtualizarCadastroRoute: typeof AtualizarCadastroRoute
@@ -1076,6 +1204,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/console': {
+      id: '/console'
+      path: '/console'
+      fullPath: '/console'
+      preLoaderRoute: typeof ConsoleRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/documentacao': {
@@ -1203,6 +1338,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/c/$token'
       preLoaderRoute: typeof CTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/console/_app': {
+      id: '/console/_app'
+      path: ''
+      fullPath: '/console'
+      preLoaderRoute: typeof ConsoleAppRouteRouteImport
+      parentRoute: typeof ConsoleRouteRoute
+    }
+    '/console/entrar': {
+      id: '/console/entrar'
+      path: '/entrar'
+      fullPath: '/console/entrar'
+      preLoaderRoute: typeof ConsoleEntrarRouteImport
+      parentRoute: typeof ConsoleRouteRoute
     }
     '/documentacao/': {
       id: '/documentacao/'
@@ -1364,6 +1513,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/c/$token/presencas'
       preLoaderRoute: typeof CTokenPresencasRouteImport
       parentRoute: typeof CTokenRoute
+    }
+    '/console/_app/': {
+      id: '/console/_app/'
+      path: '/'
+      fullPath: '/console/'
+      preLoaderRoute: typeof ConsoleAppIndexRouteImport
+      parentRoute: typeof ConsoleAppRouteRoute
+    }
+    '/console/_app/auditoria': {
+      id: '/console/_app/auditoria'
+      path: '/auditoria'
+      fullPath: '/console/auditoria'
+      preLoaderRoute: typeof ConsoleAppAuditoriaRouteImport
+      parentRoute: typeof ConsoleAppRouteRoute
+    }
+    '/console/_app/cargos': {
+      id: '/console/_app/cargos'
+      path: '/cargos'
+      fullPath: '/console/cargos'
+      preLoaderRoute: typeof ConsoleAppCargosRouteImport
+      parentRoute: typeof ConsoleAppRouteRoute
+    }
+    '/console/_app/pedidos': {
+      id: '/console/_app/pedidos'
+      path: '/pedidos'
+      fullPath: '/console/pedidos'
+      preLoaderRoute: typeof ConsoleAppPedidosRouteImport
+      parentRoute: typeof ConsoleAppRouteRoute
     }
     '/_authenticated/_shell/configuracoes-globais/cargos': {
       id: '/_authenticated/_shell/configuracoes-globais/cargos'
@@ -1596,6 +1773,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellTesourariaMensalidadesRouteImport
       parentRoute: typeof AuthenticatedShellRouteRoute
     }
+    '/console/_app/instituicoes/': {
+      id: '/console/_app/instituicoes/'
+      path: '/instituicoes'
+      fullPath: '/console/instituicoes/'
+      preLoaderRoute: typeof ConsoleAppInstituicoesIndexRouteImport
+      parentRoute: typeof ConsoleAppRouteRoute
+    }
+    '/console/_app/instituicoes/$id': {
+      id: '/console/_app/instituicoes/$id'
+      path: '/instituicoes/$id'
+      fullPath: '/console/instituicoes/$id'
+      preLoaderRoute: typeof ConsoleAppInstituicoesIdRouteImport
+      parentRoute: typeof ConsoleAppRouteRoute
+    }
+    '/console/_app/pessoas/': {
+      id: '/console/_app/pessoas/'
+      path: '/pessoas'
+      fullPath: '/console/pessoas/'
+      preLoaderRoute: typeof ConsoleAppPessoasIndexRouteImport
+      parentRoute: typeof ConsoleAppRouteRoute
+    }
+    '/console/_app/pessoas/$userId': {
+      id: '/console/_app/pessoas/$userId'
+      path: '/pessoas/$userId'
+      fullPath: '/console/pessoas/$userId'
+      preLoaderRoute: typeof ConsoleAppPessoasUserIdRouteImport
+      parentRoute: typeof ConsoleAppRouteRoute
+    }
     '/_authenticated/_shell/membros/$id_/editar': {
       id: '/_authenticated/_shell/membros/$id_/editar'
       path: '/membros/$id/editar'
@@ -1774,6 +1979,46 @@ const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(
   AuthRouteRouteChildren,
 )
 
+interface ConsoleAppRouteRouteChildren {
+  ConsoleAppAuditoriaRoute: typeof ConsoleAppAuditoriaRoute
+  ConsoleAppCargosRoute: typeof ConsoleAppCargosRoute
+  ConsoleAppPedidosRoute: typeof ConsoleAppPedidosRoute
+  ConsoleAppIndexRoute: typeof ConsoleAppIndexRoute
+  ConsoleAppInstituicoesIdRoute: typeof ConsoleAppInstituicoesIdRoute
+  ConsoleAppPessoasUserIdRoute: typeof ConsoleAppPessoasUserIdRoute
+  ConsoleAppInstituicoesIndexRoute: typeof ConsoleAppInstituicoesIndexRoute
+  ConsoleAppPessoasIndexRoute: typeof ConsoleAppPessoasIndexRoute
+}
+
+const ConsoleAppRouteRouteChildren: ConsoleAppRouteRouteChildren = {
+  ConsoleAppAuditoriaRoute: ConsoleAppAuditoriaRoute,
+  ConsoleAppCargosRoute: ConsoleAppCargosRoute,
+  ConsoleAppPedidosRoute: ConsoleAppPedidosRoute,
+  ConsoleAppIndexRoute: ConsoleAppIndexRoute,
+  ConsoleAppInstituicoesIdRoute: ConsoleAppInstituicoesIdRoute,
+  ConsoleAppPessoasUserIdRoute: ConsoleAppPessoasUserIdRoute,
+  ConsoleAppInstituicoesIndexRoute: ConsoleAppInstituicoesIndexRoute,
+  ConsoleAppPessoasIndexRoute: ConsoleAppPessoasIndexRoute,
+}
+
+const ConsoleAppRouteRouteWithChildren = ConsoleAppRouteRoute._addFileChildren(
+  ConsoleAppRouteRouteChildren,
+)
+
+interface ConsoleRouteRouteChildren {
+  ConsoleAppRouteRoute: typeof ConsoleAppRouteRouteWithChildren
+  ConsoleEntrarRoute: typeof ConsoleEntrarRoute
+}
+
+const ConsoleRouteRouteChildren: ConsoleRouteRouteChildren = {
+  ConsoleAppRouteRoute: ConsoleAppRouteRouteWithChildren,
+  ConsoleEntrarRoute: ConsoleEntrarRoute,
+}
+
+const ConsoleRouteRouteWithChildren = ConsoleRouteRoute._addFileChildren(
+  ConsoleRouteRouteChildren,
+)
+
 interface DocumentacaoRouteRouteChildren {
   DocumentacaoGuiaRoute: typeof DocumentacaoGuiaRoute
   DocumentacaoOpenSourceRoute: typeof DocumentacaoOpenSourceRoute
@@ -1836,6 +2081,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRouteRoute: AuthRouteRouteWithChildren,
+  ConsoleRouteRoute: ConsoleRouteRouteWithChildren,
   DocumentacaoRouteRoute: DocumentacaoRouteRouteWithChildren,
   OrgRoute: OrgRouteWithChildren,
   AtualizarCadastroRoute: AtualizarCadastroRoute,

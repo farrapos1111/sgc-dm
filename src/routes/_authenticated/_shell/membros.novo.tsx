@@ -1,4 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { getRealmForOrgType } from "@/lib/realm";
+import { FdjMemberCreate } from "@/components/fdj/FdjMembers";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
@@ -91,6 +93,14 @@ type PendingCommission = {
 };
 
 function NovoMembro() {
+  const { active } = useActiveChapter();
+  if (active && getRealmForOrgType(active.chapter.org_type) === "fdj") {
+    return <FdjMemberCreate key={active.chapter_id} chapterId={active.chapter_id} />;
+  }
+  return <NovoMembroOdm />;
+}
+
+function NovoMembroOdm() {
   const { active } = useActiveChapter();
   const navigate = useNavigate();
   const qc = useQueryClient();

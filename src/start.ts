@@ -3,7 +3,7 @@ import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/r
 import { renderErrorPage } from "./lib/error-page";
 import { isControlFlowError, userFacingMessage } from "./lib/error-sanitize";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
-import { getDevRealmOverride, resolveRealmFromHost } from "@/lib/realm";
+import { getDevRealmOverride, isConsoleHostname, resolveRealmFromHost } from "@/lib/realm";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -49,6 +49,23 @@ const realmHostMiddleware = createMiddleware().server(async ({ next, request }) 
     url.hostname,
     request.headers.get("x-dev-realm") || getDevRealmOverride(),
   );
+  // console.* serve só o Console; o app das instituições não abre lá.
+  if (isConsoleHostname(url.hostname)) {
+    const p = url.pathname;
+    const allowed =
+      p.startsWith("/console") || p.startsWith("/_") || p.startsWith("/assets") || /\.[a-z0-9]+$/i.test(p);
+    if (!allowed) {
+      return new Response(null, { status: 307, headers: { Location: "/console" } });
+    }
+    return next({ context: { realm: null } });
+  }
+  // /console fora do host do Console: manda para console.<apex> em produção.
+  if (url.pathname.startsWith("/console") && url.hostname.endsWith("templovirtual.app")) {
+    return new Response(null, {
+      status: 307,
+      headers: { Location: `https://console.templovirtual.app${url.pathname}${url.search}` },
+    });
+  }
   // Host de esfera (odm/fdj/loja) não serve o hub em `/` — evita loop SSR/cliente.
   if (realm && (url.pathname === "/" || url.pathname === "")) {
     const location = `/inicio${url.search}`;

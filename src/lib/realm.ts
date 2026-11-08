@@ -132,7 +132,7 @@ function apexFromHostname(hostname: string): string {
   if (h === "localhost" || h === "127.0.0.1" || h === "[::1]") {
     return "localhost";
   }
-  return h.replace(/^(www|odm|fdj|loja|lodge)\./, "");
+  return h.replace(/^(www|odm|fdj|loja|lodge|console)\./, "");
 }
 
 /** Origem absoluta do hub (apex). */
@@ -179,4 +179,22 @@ export function realmEntryUrl(realm: Realm, fromHostname?: string): string {
 
 export function orgTypeDisplayLabel(orgType: string | null | undefined): string {
   return ORG_TYPE_LABELS[normalizeOrgType(orgType)];
+}
+
+/** Host do Console da plataforma (console.templovirtual.app). */
+export function isConsoleHostname(host: string): boolean {
+  const hostname = hostnameWithoutPort(host);
+  return hostname.startsWith("console.") && hostname.includes(".");
+}
+
+/** Origem absoluta do Console. Em localhost fica no mesmo origin (/console). */
+export function consoleAbsoluteUrl(path = "/console", fromHostname?: string): string {
+  if (typeof window !== "undefined") {
+    const hostname = fromHostname ?? window.location.hostname;
+    const port = window.location.port ? `:${window.location.port}` : "";
+    const apex = apexFromHostname(hostname);
+    if (apex === "localhost") return path;
+    return `${window.location.protocol}//console.${apex}${port}${path}`;
+  }
+  return `https://console.templovirtual.app${path}`;
 }

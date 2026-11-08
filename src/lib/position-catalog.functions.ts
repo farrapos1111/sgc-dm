@@ -32,18 +32,19 @@ export type PositionOrgTypeRow = {
   sort_order: number;
 };
 
+/** Catálogos globais e pedidos: só administradores da plataforma com 2FA (Console). */
 async function assertAdminTotal(
   supabase: AnyClient,
-  userId: string,
+  _userId: string,
 ): Promise<void> {
-  const { data, error } = await supabase
-    .from("chapter_members")
-    .select("id, role:roles(name), active")
-    .eq("user_id", userId)
-    .eq("active", true);
+  const rpcClient = supabase as unknown as {
+    rpc: (fn: string) => Promise<{ data: unknown; error: { message: string } | null }>;
+  };
+  const { data, error } = await rpcClient.rpc("is_console_admin");
   if (error) throw new Error(error.message);
-  const ok = (data ?? []).some((row: any) => row.role?.name === "admin_total");
-  if (!ok) throw new Error("Apenas Administrador Total pode gerenciar cargos globais.");
+  if (!data) {
+    throw new Error("Disponível apenas no Console da plataforma (console.templovirtual.app).");
+  }
 }
 
 async function adminDb(): Promise<AnyClient> {

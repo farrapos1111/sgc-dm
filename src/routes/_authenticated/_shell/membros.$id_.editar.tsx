@@ -1,4 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { getRealmForOrgType } from "@/lib/realm";
+import { FdjMemberEdit } from "@/components/fdj/FdjMembers";
 import {
   useSuspenseQuery,
   useMutation,
@@ -61,6 +63,15 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 function EditarMembro() {
+  const { id } = Route.useParams();
+  const { active } = useActiveChapter();
+  if (active && getRealmForOrgType(active.chapter.org_type) === "fdj") {
+    return <FdjMemberEdit key={id} id={id} />;
+  }
+  return <EditarMembroOdm />;
+}
+
+function EditarMembroOdm() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
