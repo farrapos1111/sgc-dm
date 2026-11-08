@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { canManageMinutePasswordsAccess } from "@/lib/permissions";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
+import { getRealmForOrgType } from "@/lib/realm";
 import {
   getMinutePasswords,
   updateMinutePasswords,
@@ -63,6 +64,9 @@ export function MinutePasswordsCard() {
   });
 
   if (!allowed) return null;
+
+  // Tipos de ata por grau (Iniciático/DeMolay) são do ODM.
+  if (getRealmForOrgType(active?.chapter.org_type) !== "odm") return null;
 
   return (
     <Card className="rounded-[12px] p-5 space-y-4">

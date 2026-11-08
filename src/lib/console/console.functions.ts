@@ -1035,3 +1035,40 @@ export const consoleAccountAction = createServerFn({ method: "POST" })
     await audit(ctx, `conta.${data.action}`, { type: "user", id: data.userId });
     return { ok: true, temporaryPassword };
   });
+
+/** Cria (ou vincula) a conta de acesso de uma ficha ODM ou FDJ. */
+export const consoleProvisionFichaAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        esfera: z.enum(["odm", "fdj"]),
+        fichaId: z.string().uuid(),
+        email: z.string().trim().email().optional(),
+        sendEmail: z.boolean().default(true),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const ctx = await gate(context);
+    const { linkFichaAccount } = await import("@/lib/member-accounts.server");
+    const res = await linkFichaAccount({
+      table: data.esfera === "fdj" ? "fdj_members" : "members",
+      fichaId: data.fichaId,
+      actorId: ctx.actorId,
+      email: data.email ?? null,
+      sendEmail: data.sendEmail,
+    });
+    await audit(
+      ctx,
+      "ficha.criar_acesso",
+      { type: "user", id: res.userId },
+      {
+        esfera: data.esfera,
+        ficha_id: data.fichaId,
+        account_created: res.created,
+        email_status: res.emailStatus,
+      },
+    );
+    return res;
+  });

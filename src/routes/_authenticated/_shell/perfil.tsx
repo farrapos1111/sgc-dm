@@ -36,7 +36,9 @@ import {
   type ProficiencyCardView,
 } from "@/lib/profile.functions";
 import { getMyCrossRealmFichas } from "@/lib/sphere-members.functions";
-import { REALM_LABELS, getClientRealm } from "@/lib/realm";
+import { REALM_LABELS, getClientRealm, getRealmForOrgType } from "@/lib/realm";
+import { useActiveChapter } from "@/context/ActiveChapterContext";
+import { FdjMyProfile } from "@/components/fdj/FdjMembers";
 import { affiliatedOrgsHeading } from "@/lib/org-types";
 import { formatDateBR, kindLabel, statusLabel } from "@/lib/format";
 import {
@@ -61,6 +63,26 @@ const profileQO = () =>
   });
 
 function PerfilPage() {
+  const { active } = useActiveChapter();
+  if (active && getRealmForOrgType(active.chapter.org_type) === "fdj") {
+    return <FdjPerfil chapterId={active.chapter_id} />;
+  }
+  return <PerfilOdm />;
+}
+
+/** Bethel: ficha em fdj_members; sem carteirinha/financeiro ODM. */
+function FdjPerfil({ chapterId }: { chapterId: string }) {
+  const { data } = useSuspenseQuery(profileQO());
+  return (
+    <FdjMyProfile
+      chapterId={chapterId}
+      header={{ fullName: data.profile.fullName, email: data.profile.email }}
+      passwordPanel={<MyPasswordPanel />}
+    />
+  );
+}
+
+function PerfilOdm() {
   const { data } = useSuspenseQuery(profileQO());
   const { data: crossRealm } = useQuery({
     queryKey: ["my-cross-realm-fichas"],
