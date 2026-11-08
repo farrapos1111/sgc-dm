@@ -19,10 +19,14 @@ import {
   visibleGroups,
   visibleMobileTabs,
   visibleOrgGroups,
+  filterGroupsForFdj,
+  isPathAllowedForFdj,
   type NavGroup,
 } from "@/lib/nav";
+import { getRealmForOrgType } from "@/lib/realm";
 import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { formatClockInAppTz } from "@/lib/timezone";
@@ -77,6 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const duesEnabled = isChapterDuesEnabled(
     active?.chapter as { settings?: Record<string, unknown> } | undefined,
   );
+  const isFdj = getRealmForOrgType(active?.chapter?.org_type) === "fdj";
   const groups = useMemo(() => {
     const raw = activeScope
       ? visibleOrgGroups({
@@ -88,6 +93,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           canScreen,
           isAdminTotal,
         });
+    if (!activeScope && isFdj) return filterGroupsForFdj(raw);
     if (activeScope || duesEnabled) return raw;
     return raw.map((g) => ({
       ...g,
@@ -104,6 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     canScreen,
     isAdminTotal,
     duesEnabled,
+    isFdj,
   ]);
   const tabs = useMemo(
     () => visibleMobileTabs(Boolean(activeScope)),
@@ -446,7 +453,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                 : "max-w-6xl"
             }`}
           >
-            {children}
+            {isFdj && !activeScope && !isPathAllowedForFdj(pathname) ? (
+              <EmptyState
+                title="Ainda não disponível no Bethel"
+                description="Esta parte do sistema está sendo adaptada para as Filhas de Jó. Use o menu ao lado para as funções já liberadas."
+              />
+            ) : (
+              children
+            )}
           </div>
         </main>
 
