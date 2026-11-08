@@ -1,4 +1,4 @@
-import { jsPDF } from "jspdf";
+import type { jsPDF } from "jspdf";
 import { loadLogoDataUrl } from "@/lib/chapter-logo";
 import { formatDateBR } from "@/lib/format";
 
@@ -91,7 +91,9 @@ function line(
 
 /** PDF da ficha de sindicância com logo e identificação do capítulo. */
 export async function exportInvestigationFilePdf(input: InvestigationPdfInput) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  // jsPDF (~300 KB) só é baixado quando alguém exporta.
+  const { jsPDF: JsPDF } = await import("jspdf");
+  const doc = new JsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 

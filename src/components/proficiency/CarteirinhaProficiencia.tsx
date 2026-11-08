@@ -1,5 +1,19 @@
 import "./carteirinha.css";
 import { useEffect, useState } from "react";
+
+const CARD_FONTS_HREF =
+  "https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap";
+
+/** Fontes da carteirinha só carregam quando ela aparece (não em todo o app). */
+function useCardFonts() {
+  useEffect(() => {
+    if (document.querySelector(`link[href="${CARD_FONTS_HREF}"]`)) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = CARD_FONTS_HREF;
+    document.head.appendChild(link);
+  }, []);
+}
 import { Button } from "@/components/ui/button";
 import { Printer, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -210,6 +224,7 @@ export function CarteirinhaProficiencia({
   showPrintButton = true,
   className,
 }: Props) {
+  useCardFonts();
   const [flipped, setFlipped] = useState(false);
 
   useEffect(() => {

@@ -1,4 +1,10 @@
-import * as XLSX from "xlsx";
+// xlsx (~420 KB) só é baixado quando alguém importa ou exporta planilha.
+type Xlsx = typeof import("xlsx");
+let xlsxPromise: Promise<Xlsx> | null = null;
+function loadXlsx(): Promise<Xlsx> {
+  xlsxPromise ??= import("xlsx");
+  return xlsxPromise;
+}
 import { sumCashByKind } from "@/lib/cash-totals";
 
 export type SheetRow = {
@@ -11,7 +17,7 @@ export type SheetRow = {
 
 export type ParsedRow = SheetRow & { line: number; error?: string };
 
-function toISODate(value: unknown): string | null {
+function toISODate(XLSX: Xlsx, value: unknown): string | null {
   if (value == null || value === "") return null;
   if (value instanceof Date) return value.toISOString().slice(0, 10);
   if (typeof value === "number") {
@@ -52,14 +58,14 @@ function pick(row: Record<string, unknown>, keys: string[]) {
 
 /** Lê a planilha (Data | Tipo | Valor | Categoria | Descrição) e valida linha a linha. */
 export async function parseCashSheet(file: File): Promise<ParsedRow[]> {
-  const buffer = await file.arrayBuffer();
+  const [buffer, XLSX] = await Promise.all([file.arrayBuffer(), loadXlsx()]);
   const wb = XLSX.read(buffer, { type: "array", cellDates: true });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
 
   return json.map((row, index) => {
     const line = index + 2;
-    const date = toISODate(pick(row, ["data", "date"]));
+    const date = toISODate(XLSX, pick(row, ["data", "date"]));
     const rawKind = String(pick(row, ["tipo", "kind"]) ?? "")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
@@ -90,7 +96,8 @@ export async function parseCashSheet(file: File): Promise<ParsedRow[]> {
 }
 
 /** Modelo de planilha para importação. */
-export function downloadCashTemplate() {
+export async function downloadCashTemplate() {
+  const XLSX = await loadXlsx();
   const ws = XLSX.utils.aoa_to_sheet([
     ["Data", "Tipo", "Valor", "Categoria", "Descrição"],
     ["01/01/2026", "Entrada", 50, "Mensalidades", "Mensalidade - Exemplo - Janeiro/2026"],
@@ -101,7 +108,7 @@ export function downloadCashTemplate() {
   XLSX.writeFile(wb, "modelo-fluxo-de-caixa.xlsx");
 }
 
-export function exportCashXlsx(
+export async function exportCashXlsx(
   entries: Array<{
     entry_date: string;
     kind: string;
@@ -123,6 +130,7 @@ export function exportCashXlsx(
     cashBalanceLabel?: string;
   },
 ) {
+  const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
 
   if (options?.opening || options?.totals || options?.cashBalance != null) {

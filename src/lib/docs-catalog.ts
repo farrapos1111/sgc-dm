@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { BookOpen, Code2, HeartHandshake } from "lucide-react";
+import { DOCS_META } from "@/lib/docs-meta";
 
 import tecnicoMd from "../../docs/TECNICO.md?raw";
 import guiaMd from "../../docs/GUIA-DO-USUARIO.md?raw";
@@ -23,11 +24,10 @@ export const DOCS_CATEGORIES: DocsCategory[] = [
   {
     slug: "tecnica",
     to: "/documentacao/tecnica",
-    label: "Documentação técnica",
+    label: DOCS_META["tecnica"].label,
     shortLabel: "Técnica",
     audience: "Desenvolvedores e operadores",
-    description:
-      "Stack, arquitetura, modelo de dados, permissões, variáveis de ambiente, build e deploy.",
+    description: DOCS_META["tecnica"].description,
     icon: Code2,
     content: tecnicoMd,
     title: "Documentação técnica — Templo Virtual",
@@ -35,11 +35,10 @@ export const DOCS_CATEGORIES: DocsCategory[] = [
   {
     slug: "guia",
     to: "/documentacao/guia",
-    label: "Guia do usuário",
+    label: DOCS_META["guia"].label,
     shortLabel: "Guia",
     audience: "Membros do capítulo",
-    description:
-      "O que o sistema faz, tela por tela, em linguagem simples — ideal para apresentar o Templo Virtual.",
+    description: DOCS_META["guia"].description,
     icon: BookOpen,
     content: guiaMd,
     title: "Guia do Usuário — Templo Virtual",
@@ -47,11 +46,10 @@ export const DOCS_CATEGORIES: DocsCategory[] = [
   {
     slug: "open-source",
     to: "/documentacao/open-source",
-    label: "Open source e contribuição",
+    label: DOCS_META["open-source"].label,
     shortLabel: "Contribuir",
     audience: "Quem quer contribuir",
-    description:
-      "Setup local, tutorial passo a passo de fork e pull request, padrões de código e segurança.",
+    description: DOCS_META["open-source"].description,
     icon: HeartHandshake,
     content: openSourceMd,
     title: "Projeto aberto e contribuição — Templo Virtual",

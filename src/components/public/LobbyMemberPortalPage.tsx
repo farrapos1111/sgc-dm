@@ -1,0 +1,739 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Banknote, Loader2, LogOut, Receipt, Search } from "lucide-react";
+import { LobbyBackLink, usePublicLobby } from "@/context/PublicLobbyContext";
+import {
+  getPublicMemberPortal,
+  lobbyMemberStorageKey,
+} from "@/lib/lobby-share.functions";
+import {
+  MONTH_SHORT,
+  autoDueExemptTip,
+  isDueOverdue,
+  isFutureMonth,
+} from "@/lib/dues-rules";
+import type { DueMemberLite } from "@/lib/dues-rules";
+import {
+  formatBRL,
+  formatDateBR,
+  formatDateTimeBR,
+  kindLabel,
+  statusLabel,
+} from "@/lib/format";
+import { eventCountsForAttendance, typeLabel } from "@/lib/calendar-types";
+import { currentYearMonthInAppTz } from "@/lib/timezone";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import { todayYmd } from "@/lib/timezone";
+
+
+export function LobbyMemberPortalPage() {
+  const { token, chapter } = usePublicLobby();
+  const qc = useQueryClient();
+  const accent = chapter.primary_color || "#9E1B32";
+  const storageKey = lobbyMemberStorageKey(token);
+  const birthStorageKey = `${storageKey}:nasc`;
+
+  const [demolayId, setDemolayId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return sessionStorage.getItem(storageKey) ?? "";
+  });
+  const [unlockedId, setUnlockedId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return sessionStorage.getItem(storageKey) ?? "";
+  });
+  const [birthDate, setBirthDate] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return sessionStorage.getItem(birthStorageKey) ?? "";
+  });
+  const [unlockedBirth, setUnlockedBirth] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return sessionStorage.getItem(birthStorageKey) ?? "";
+  });
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [tab, setTab] = useState("cobrancas");
+
+  const portalQ = useQuery({
+    queryKey: ["public-member-portal", token, unlockedId, unlockedBirth, year],
+    queryFn: () =>
+      getPublicMemberPortal({
+        data: {
+          token,
+          demolayId: unlockedId,
+          birthDate: unlockedBirth || undefined,
+          year,
+        },
+      }),
+    enabled: Boolean(unlockedId),
+    retry: false,
+  });
+
+  const memberKind = portalQ.data?.member.kind ?? "";
+  const showFrequency = memberKind === "demolay_ativo";
+  const showMensalidades =
+    memberKind === "demolay_ativo" || memberKind === "senior";
+
+  useEffect(() => {
+    if (!showFrequency && tab === "frequencia") setTab("cobrancas");
+  }, [showFrequency, tab]);
+
+  const unlock = useMutation({
+    mutationFn: async ({ id, birth }: { id: string; birth: string }) => {
+      const portal = await getPublicMemberPortal({
+        data: { token, demolayId: id, birthDate: birth || undefined, year },
+      });
+      return portal;
+    },
+    onSuccess: (portal, { id, birth }) => {
+      qc.setQueryData(["public-member-portal", token, id, birth, year], portal);
+      sessionStorage.setItem(storageKey, id);
+      sessionStorage.setItem(birthStorageKey, birth);
+      setUnlockedBirth(birth);
+      setUnlockedId(id);
+      toast.success("Acesso liberado nesta sessão");
+    },
+    onError: (e: Error) =>
+      toast.error(e.message || "ID DeMolay ou data de nascimento não conferem"),
+  });
+
+  function logout() {
+    sessionStorage.removeItem(storageKey);
+    sessionStorage.removeItem(birthStorageKey);
+    setUnlockedId("");
+    setUnlockedBirth("");
+    setDemolayId("");
+    setBirthDate("");
+  }
+
+  const canUnlock = demolayId.trim().length >= 3;
+
+  if (!unlockedId) {
+    return (
+      <div className="mx-auto max-w-lg">
+        <LobbyBackLink />
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold">Área do membro</h2>
+          <p className="text-sm text-muted-foreground">
+            Informe seu ID DeMolay deste capítulo e sua data de nascimento. A data
+            protege seus dados: sem ela, qualquer pessoa com o link veria suas
+            cobranças e presenças.
+          </p>
+        </div>
+        <Card className="space-y-4 rounded-[12px] p-5">
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (canUnlock) unlock.mutate({ id: demolayId.trim(), birth: birthDate });
+            }}
+          >
+            <div>
+              <Label htmlFor="lobby-demolay-id" className="mb-1.5 block text-sm">
+                ID DeMolay
+              </Label>
+              <Input
+                id="lobby-demolay-id"
+                value={demolayId}
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="Ex.: 123456"
+                onChange={(e) => setDemolayId(e.target.value.slice(0, 40))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="lobby-birth-date" className="mb-1.5 block text-sm">
+                Data de nascimento
+              </Label>
+              <Input
+                id="lobby-birth-date"
+                type="date"
+                value={birthDate}
+                max={todayYmd()}
+                onChange={(e) => setBirthDate(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Se a secretaria ainda não cadastrou sua data de nascimento, deixe em
+                branco.
+              </p>
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
+              style={{ backgroundColor: accent }}
+              disabled={unlock.isPending || !canUnlock}
+            >
+              {unlock.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Search className="mr-2 h-4 w-4" /> Entrar
+                </>
+              )}
+            </Button>
+          </form>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-lg">
+      <LobbyBackLink />
+      <div className="mb-4 flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-semibold">Área do membro</h2>
+          <p className="text-sm text-muted-foreground">ID {unlockedId}</p>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={logout}>
+          <LogOut className="mr-1.5 h-3.5 w-3.5" /> Sair
+        </Button>
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList
+          className={`grid h-auto w-full ${showFrequency ? "grid-cols-3" : "grid-cols-2"}`}
+        >
+          <TabsTrigger value="cobrancas">Cobranças</TabsTrigger>
+          <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
+          {showFrequency ? (
+            <TabsTrigger value="frequencia">Frequência</TabsTrigger>
+          ) : null}
+        </TabsList>
+
+        <TabsContent value="cobrancas" className="mt-0">
+          <MemberChargesTab
+            token={token}
+            demolayId={unlockedId}
+            year={year}
+            onYearChange={setYear}
+            accent={accent}
+            showMensalidades={showMensalidades}
+            portalData={portalQ.data}
+            isLoading={portalQ.isLoading}
+            error={
+              portalQ.error instanceof Error ? portalQ.error : null
+            }
+          />
+        </TabsContent>
+        <TabsContent value="cadastro" className="mt-0">
+          <MemberCadastroTab accent={accent} />
+        </TabsContent>
+        {showFrequency ? (
+          <TabsContent value="frequencia" className="mt-0">
+            <MemberFrequencyTab
+              token={token}
+              demolayId={unlockedId}
+              year={year}
+              onYearChange={setYear}
+              portalData={portalQ.data}
+              isLoading={portalQ.isLoading}
+              error={
+                portalQ.error instanceof Error ? portalQ.error : null
+              }
+            />
+          </TabsContent>
+        ) : null}
+      </Tabs>
+    </div>
+  );
+}
+
+const DUE_STATUS_LABEL: Record<string, string> = {
+  em_aberto: "Em aberto",
+  pago: "Pago",
+  isento: "Isento",
+  desligado: "Desligado",
+};
+
+function MemberChargesTab({
+  token: _token,
+  demolayId: _demolayId,
+  year,
+  onYearChange,
+  accent: _accent,
+  showMensalidades,
+  portalData,
+  isLoading,
+  error,
+}: {
+  token: string;
+  demolayId: string;
+  year: number;
+  onYearChange: (y: number) => void;
+  accent: string;
+  showMensalidades: boolean;
+  portalData: Awaited<ReturnType<typeof getPublicMemberPortal>> | undefined;
+  isLoading: boolean;
+  error: Error | null;
+}) {
+  const data = portalData;
+
+  const years = useMemo(() => {
+    const y = new Date().getFullYear();
+    return [y + 1, y, y - 1, y - 2];
+  }, []);
+
+  const paidByCharge = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of data?.payments ?? []) {
+      map.set(p.charge_id, (map.get(p.charge_id) ?? 0) + Number(p.amount));
+    }
+    return map;
+  }, [data?.payments]);
+
+  const charges = useMemo(() => {
+    return (data?.charges ?? []).map((c) => {
+      const amount = Number(c.amount) || 0;
+      let amountPaid = paidByCharge.get(c.id) ?? 0;
+      if (amountPaid === 0 && c.status === "pago" && c.cash_entry_id) {
+        amountPaid = amount;
+      }
+      amountPaid = Math.min(amountPaid, amount);
+      return {
+        ...c,
+        amount,
+        amount_paid: amountPaid,
+        remaining: Math.max(0, amount - amountPaid),
+      };
+    });
+  }, [data?.charges, paidByCharge]);
+
+  const parsedDefault = Number(data?.defaultAmount);
+  const defaultAmount = Number.isFinite(parsedDefault) ? parsedDefault : 20;
+
+  const memberLite: DueMemberLite | null = data
+    ? {
+        id: data.member.id,
+        full_name: data.member.full_name,
+        status: data.member.status,
+        kind: data.member.kind,
+        birth_date: data.member.birth_date,
+        iniciacao_ordem: data.member.iniciacao_ordem,
+      }
+    : null;
+
+  const summary = useMemo(() => {
+    const { year: appYear, month: appMonth } = currentYearMonthInAppTz();
+    let duesOpenAmount = 0;
+    let duesOpenCount = 0;
+    for (const d of data?.dues ?? []) {
+      if (d.status !== "em_aberto") continue;
+      if (
+        d.competence_year > appYear ||
+        (d.competence_year === appYear && d.competence_month > appMonth)
+      ) {
+        continue;
+      }
+      duesOpenCount += 1;
+      duesOpenAmount += Number(d.amount) || 0;
+    }
+    let chargesOpenAmount = 0;
+    let chargesOpenCount = 0;
+    for (const c of charges) {
+      if (c.status === "isento") continue;
+      if (c.remaining <= 0) continue;
+      chargesOpenCount += 1;
+      chargesOpenAmount += c.remaining;
+    }
+    return {
+      duesOpenCount,
+      duesOpenAmount,
+      chargesOpenCount,
+      chargesOpenAmount,
+      totalOpen: duesOpenAmount + chargesOpenAmount,
+    };
+  }, [charges, data?.dues]);
+
+  if (error) {
+    return (
+      <Card className="p-6 text-center text-sm text-muted-foreground">
+        {error.message}
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">Situação financeira</p>
+          <p className="text-xs text-muted-foreground">
+            {data
+              ? `${data.member.full_name} · ${kindLabel(data.member.kind)} · ${statusLabel(data.member.status)}`
+              : "Mensalidades e cobranças deste membro"}
+          </p>
+        </div>
+        <Select value={String(year)} onValueChange={(v) => onYearChange(Number(v))}>
+          <SelectTrigger className="w-28">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map((y) => (
+              <SelectItem key={y} value={String(y)}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-10 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Card className="rounded-[12px] p-4">
+              <div className="text-xs text-muted-foreground">Total em aberto</div>
+              <div
+                className={`mt-1 text-xl font-bold ${
+                  (showMensalidades
+                    ? summary.totalOpen
+                    : summary.chargesOpenAmount) > 0
+                    ? "text-amber-600"
+                    : "text-emerald-600"
+                }`}
+              >
+                {formatBRL(
+                  showMensalidades
+                    ? summary.totalOpen
+                    : summary.chargesOpenAmount,
+                )}
+              </div>
+            </Card>
+            <Card className="rounded-[12px] p-4">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Receipt className="h-3.5 w-3.5" /> Mensalidades
+              </div>
+              <div className="mt-1 text-lg font-semibold">
+                {formatBRL(showMensalidades ? summary.duesOpenAmount : 0)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {showMensalidades ? summary.duesOpenCount : 0} competência
+                {(showMensalidades ? summary.duesOpenCount : 0) === 1 ? "" : "s"}
+              </div>
+            </Card>
+            <Card className="rounded-[12px] p-4">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Banknote className="h-3.5 w-3.5" /> Cobranças
+              </div>
+              <div className="mt-1 text-lg font-semibold">
+                {formatBRL(summary.chargesOpenAmount)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {summary.chargesOpenCount} em aberto
+              </div>
+            </Card>
+          </div>
+
+          {showMensalidades ? (
+            <Card className="rounded-[12px] p-5">
+              <h3 className="mb-3 text-sm font-semibold">
+                Mensalidades · {year}
+                <span className="ml-2 font-normal text-muted-foreground">
+                  · padrão {formatBRL(defaultAmount)}
+                </span>
+              </h3>
+              {(data?.dues.length ?? 0) === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma competência registrada neste ano.
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                  {(data?.dues ?? []).map((d) => {
+                    const status = d.status;
+                    const future =
+                      status === "em_aberto" &&
+                      isFutureMonth(year, d.competence_month);
+                    const overdue =
+                      !future &&
+                      isDueOverdue(year, d.competence_month, status);
+                    const style = future
+                      ? "bg-zinc-100 text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400"
+                      : status === "pago"
+                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200"
+                        : status === "isento"
+                          ? "bg-slate-100 text-slate-600 dark:bg-slate-500/20 dark:text-slate-300"
+                          : status === "desligado"
+                            ? "bg-stone-200 text-stone-700 dark:bg-stone-500/20 dark:text-stone-300"
+                            : overdue
+                              ? "bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-200"
+                              : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200";
+                    const cellLabel = future
+                      ? "·"
+                      : overdue
+                        ? "Atrasado"
+                        : (DUE_STATUS_LABEL[status] ?? status);
+                    const exemptTip =
+                      status === "isento" && memberLite
+                        ? autoDueExemptTip(memberLite, year, d.competence_month)
+                        : null;
+                    return (
+                      <div
+                        key={d.id}
+                        title={exemptTip ?? undefined}
+                        className={`rounded-[8px] px-2 py-2 text-center ${style}`}
+                      >
+                        <div className="text-xs font-medium">
+                          {MONTH_SHORT[d.competence_month - 1] ??
+                            d.competence_month}
+                        </div>
+                        <div className="text-xs opacity-80">{cellLabel}</div>
+                        <div className="mt-0.5 text-xs font-semibold">
+                          {formatBRL(Number(d.amount))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          ) : null}
+
+          <Card className="rounded-[12px] p-5">
+            <h3 className="mb-3 text-sm font-semibold">Cobranças</h3>
+            {charges.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma cobrança atribuída a este membro.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {charges.map((c) => {
+                  const pct =
+                    c.amount > 0
+                      ? Math.min(100, Math.round((c.amount_paid / c.amount) * 100))
+                      : 0;
+                  return (
+                    <li
+                      key={c.id}
+                      className="space-y-1.5 py-3 first:pt-0 last:pb-0"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">
+                            {c.description}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {c.category} · venc. {formatDateBR(c.due_date)}
+                          </div>
+                        </div>
+                        <Badge variant="secondary">
+                          {c.remaining <= 0 || c.status === "pago"
+                            ? "Quitada"
+                            : c.amount_paid > 0
+                              ? "Parcial"
+                              : (DUE_STATUS_LABEL[c.status] ?? c.status)}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {formatBRL(c.amount_paid)} de {formatBRL(c.amount)}
+                        </span>
+                        {c.remaining > 0 && c.status !== "isento" ? (
+                          <span className="font-medium text-amber-700 dark:text-amber-400">
+                            resta {formatBRL(c.remaining)}
+                          </span>
+                        ) : null}
+                      </div>
+                      {c.status !== "isento" ? (
+                        <Progress value={pct} className="h-1.5" />
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
+function MemberFrequencyTab({
+  year,
+  onYearChange,
+  portalData,
+  isLoading,
+  error,
+}: {
+  token: string;
+  demolayId: string;
+  year: number;
+  onYearChange: (y: number) => void;
+  portalData: Awaited<ReturnType<typeof getPublicMemberPortal>> | undefined;
+  isLoading: boolean;
+  error: Error | null;
+}) {
+  const data = portalData;
+
+  const years = useMemo(() => {
+    const y = new Date().getFullYear();
+    return [y + 1, y, y - 1, y - 2];
+  }, []);
+
+  const statusByEvent = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of data?.attendance ?? []) map.set(a.event_id, a.status);
+    return map;
+  }, [data?.attendance]);
+
+  const events = useMemo(
+    () =>
+      [...(data?.events ?? [])]
+        .filter((ev) => eventCountsForAttendance(ev))
+        .sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
+    [data?.events],
+  );
+
+  const recorded = useMemo(
+    () => events.filter((ev) => statusByEvent.has(ev.id)),
+    [events, statusByEvent],
+  );
+
+  const stats = useMemo(() => {
+    let present = 0;
+    for (const ev of recorded) {
+      if (statusByEvent.get(ev.id) === "presente") present += 1;
+    }
+    const total = recorded.length;
+    return {
+      present,
+      total,
+      pct: total ? Math.round((present / total) * 100) : null,
+    };
+  }, [recorded, statusByEvent]);
+
+  if (error) {
+    return (
+      <Card className="p-6 text-center text-sm text-muted-foreground">
+        {error.message}
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Chamadas obrigatórias</p>
+        <Select value={String(year)} onValueChange={(v) => onYearChange(Number(v))}>
+          <SelectTrigger className="w-28">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map((y) => (
+              <SelectItem key={y} value={String(y)}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-10 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+      ) : (
+        <>
+          <Card className="rounded-[12px] p-5">
+            <div className="text-sm font-medium text-muted-foreground">
+              Frequência em itens obrigatórios
+            </div>
+            <div className="mt-2 flex items-baseline gap-3">
+              <span
+                className="text-3xl font-bold"
+                style={{
+                  color:
+                    stats.pct === null
+                      ? "var(--muted-foreground)"
+                      : stats.pct >= 75
+                        ? "#047857"
+                        : "#B91C1C",
+                }}
+              >
+                {stats.pct == null ? "—" : `${stats.pct}%`}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                {stats.present} de {stats.total} contabilizáveis
+              </span>
+            </div>
+          </Card>
+          <Card className="rounded-[12px] p-0">
+            {recorded.length === 0 ? (
+              <div className="p-5 text-sm text-muted-foreground">
+                Nenhum registro de presença neste ano.
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {recorded.map((ev) => {
+                  const status = statusByEvent.get(ev.id);
+                  return (
+                    <li key={ev.id} className="p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium">{ev.title}</span>
+                        <Badge variant="secondary">{typeLabel(ev.event_type)}</Badge>
+                        <Badge variant="default">Contabilizável</Badge>
+                        <span
+                          className="ml-auto text-xs font-semibold"
+                          style={{
+                            color:
+                              status === "presente"
+                                ? "#047857"
+                                : status === "pendente"
+                                  ? "#D97706"
+                                  : "#B91C1C",
+                          }}
+                        >
+                          {status === "presente"
+                            ? "Presente"
+                            : status === "pendente"
+                              ? "Pendente"
+                              : "Ausente"}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {formatDateTimeBR(ev.starts_at)}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
+function MemberCadastroTab({ accent }: { accent: string }) {
+  return (
+    <Card className="space-y-3 rounded-[12px] p-5">
+      <h3 className="text-sm font-semibold">Atualizar cadastro</h3>
+      <p className="text-sm text-muted-foreground">
+        Por segurança, telefone, e-mail, endereço e dados dos responsáveis só
+        podem ser alterados com login. Entre na sua conta e acesse{" "}
+        <strong>Perfil → Cadastro</strong>.
+      </p>
+      <Button asChild style={{ backgroundColor: accent }}>
+        <a href="/auth">Entrar na minha conta</a>
+      </Button>
+    </Card>
+  );
+}

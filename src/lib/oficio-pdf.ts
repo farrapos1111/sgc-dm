@@ -1,4 +1,4 @@
-import { jsPDF } from "jspdf";
+import type { jsPDF } from "jspdf";
 import { loadLogoDataUrl } from "@/lib/chapter-logo";
 import { formatOficioNumber } from "@/lib/oficios.functions";
 import { datePartsInAppTz } from "@/lib/timezone";
@@ -224,7 +224,9 @@ function drawOficioHeader(
 
 /** Gera e baixa o PDF do ofício: cabeçalho oficial, corpo e assinaturas PCC · MC · ESC. */
 export async function exportOficioPdf(input: OficioPdfInput) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  // jsPDF (~300 KB) só é baixado quando alguém exporta.
+  const { jsPDF: JsPDF } = await import("jspdf");
+  const doc = new JsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const contentW = pageW - MARGIN * 2;

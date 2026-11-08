@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { DelayedPageSkeleton } from "@/components/PageSkeleton";
 
 const QUERY_STALE_MS = 60_000;
 const QUERY_GC_MS = 30 * 60_000;
@@ -26,6 +27,9 @@ export const getRouter = () => {
     defaultPreloadStaleTime: QUERY_STALE_MS,
     defaultPendingMs: 200,
     defaultPendingMinMs: 0,
+    // Esqueleto padrão enquanto a tela (código + dados em Suspense) carrega,
+    // em vez de área em branco. Só aparece se passar de ~120 ms.
+    defaultPendingComponent: DelayedPageSkeleton,
   });
 
   return router;

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { usePublicLobby } from "@/context/PublicLobbyContext";
-import { PublicCashFlowView } from "./fluxo-caixa.$token";
+import { PublicCashFlowView } from "@/components/public/PublicCashFlowView";
 
 export const Route = createFileRoute("/$org/fluxo")({
   ssr: false,

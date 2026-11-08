@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { LobbyBackLink, usePublicLobby } from "@/context/PublicLobbyContext";
-import { PublicMensalidadesView } from "./mensalidades.$token";
+import { PublicMensalidadesView } from "@/components/public/PublicMensalidadesView";
 import { Card } from "@/components/ui/card";
 
 export const Route = createFileRoute("/c/$token/mensalidades")({

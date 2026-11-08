@@ -1,4 +1,4 @@
-import { jsPDF } from "jspdf";
+import type { jsPDF } from "jspdf";
 import { ensurePdfLogoDataUrl, loadLogoDataUrl } from "@/lib/chapter-logo";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { sumCashByKind } from "@/lib/cash-totals";
@@ -87,7 +87,9 @@ function groupByMonth(entries: Entry[]) {
 
 /** Relatório de fluxo de caixa: logo, período, meses agrupados, totais e assinaturas. */
 export async function exportCashPdf(input: FinancePdfInput) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  // jsPDF (~300 KB) só é baixado quando alguém exporta.
+  const { jsPDF: JsPDF } = await import("jspdf");
+  const doc = new JsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const contentW = pageW - MARGIN * 2;

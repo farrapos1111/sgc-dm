@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -32,11 +32,16 @@ import { chapterFoundedAt } from "@/lib/terms";
 import { ClipboardList, Vote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  PresencasChartsTab,
   PresencasOverviewTab,
   type AttendanceRec,
   type CalItem,
 } from "@/components/presencas/PresencasAnalytics";
+
+const PresencasChartsTab = lazy(() =>
+  import("@/components/presencas/PresencasChartsTab").then((m) => ({
+    default: m.PresencasChartsTab,
+  })),
+);
 
 export const Route = createFileRoute("/_authenticated/_shell/presencas")({
   head: () => ({
@@ -618,14 +623,18 @@ function PresencasPage() {
 
         <TabsContent value="graficos">
           {tab === "graficos" && (
-            <PresencasChartsTab
-              items={data.items as CalItem[]}
-              members={data.members as DueMemberLite[]}
-              records={data.records as AttendanceRec[]}
-              year={year}
-              availableYears={availableYears}
-              onYearChange={(y) => setFilters((f) => ({ ...f, year: y }))}
-            />
+            <Suspense
+              fallback={<div className="h-64 animate-pulse rounded-[12px] bg-muted/60" />}
+            >
+              <PresencasChartsTab
+                items={data.items as CalItem[]}
+                members={data.members as DueMemberLite[]}
+                records={data.records as AttendanceRec[]}
+                year={year}
+                availableYears={availableYears}
+                onYearChange={(y) => setFilters((f) => ({ ...f, year: y }))}
+              />
+            </Suspense>
           )}
         </TabsContent>
       </Tabs>
