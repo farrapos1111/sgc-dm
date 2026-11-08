@@ -113,6 +113,7 @@ const ACTION_LABELS: Record<string, string> = {
   "conta.disable": "Desativou conta",
   "conta.enable": "Reativou conta",
   "pessoa.ver_como": "Abriu raio-x de acesso",
+  "ficha.criar_acesso": "Criou acesso para ficha",
 };
 
 export function actionLabel(action: string): string {

@@ -9,6 +9,7 @@ import {
   consoleGetChapter,
   consoleListAudit,
   consoleSetChapterActive,
+  consoleProvisionFichaAccount,
   consoleUpdateChapterUser,
 } from "@/lib/console/console.functions";
 import { createMember } from "@/lib/members.functions";
@@ -356,6 +357,7 @@ function MembersTab({
   members: Ficha[];
 }) {
   const [adding, setAdding] = useState(false);
+  const [linking, setLinking] = useState<Ficha | null>(null);
   const canAdd = realm === "odm" || realm === "fdj";
   return (
     <Card className="mt-3 p-0">
@@ -386,6 +388,10 @@ function MembersTab({
               <Link to="/console/pessoas/$userId" params={{ userId: m.user_id }}>
                 <Badge variant="outline">com conta</Badge>
               </Link>
+            ) : canAdd ? (
+              <Button size="sm" variant="outline" onClick={() => setLinking(m)}>
+                Criar acesso
+              </Button>
             ) : (
               <Badge variant="outline" className="text-muted-foreground">
                 sem conta
@@ -401,7 +407,112 @@ function MembersTab({
       {adding && (
         <AddMemberDialog chapterId={chapterId} realm={realm} onClose={() => setAdding(false)} />
       )}
+      {linking && (
+        <AccessDialog
+          chapterId={chapterId}
+          esfera={realm === "fdj" ? "fdj" : "odm"}
+          ficha={linking}
+          onClose={() => setLinking(null)}
+        />
+      )}
     </Card>
+  );
+}
+
+type AccountResult = Awaited<ReturnType<typeof consoleProvisionFichaAccount>>;
+
+function AccountResultView({ email, result }: { email: string; result: AccountResult }) {
+  return (
+    <div className="space-y-3 text-sm">
+      <p>
+        {result.created
+          ? `Conta criada para ${email}, vinculada à ficha e à instituição como membro.`
+          : `${email} já tinha conta; foi ligada à ficha e à instituição (papel atual mantido).`}
+      </p>
+      {result.temporaryPassword && <TempPassword value={result.temporaryPassword} />}
+      <p className="text-xs text-muted-foreground">
+        E-mail:{" "}
+        {result.emailStatus === "sent"
+          ? "enviado"
+          : result.emailStatus === "skipped"
+            ? "não enviado"
+            : `falhou (${result.emailError ?? "erro"}) — passe a senha diretamente`}
+      </p>
+    </div>
+  );
+}
+
+function AccessDialog({
+  chapterId,
+  esfera,
+  ficha,
+  onClose,
+}: {
+  chapterId: string;
+  esfera: "odm" | "fdj";
+  ficha: Ficha;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [email, setEmail] = useState(ficha.email ?? "");
+  const [sendEmail, setSendEmail] = useState(true);
+  const [result, setResult] = useState<AccountResult | null>(null);
+  const create = useMutation({
+    mutationFn: () =>
+      consoleProvisionFichaAccount({
+        data: { esfera, fichaId: ficha.id, email: email.trim(), sendEmail },
+      }),
+    onSuccess: (res) => {
+      setResult(res);
+      void qc.invalidateQueries({ queryKey: chapterKey(chapterId) });
+    },
+    onError: (e) => toast.error(errorText(e)),
+  });
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Acesso de {ficha.full_name}</DialogTitle>
+        </DialogHeader>
+        {result ? (
+          <>
+            <AccountResultView email={email} result={result} />
+            <DialogFooter>
+              <Button onClick={onClose}>Fechar</Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              create.mutate();
+            }}
+          >
+            <Field label="E-mail de login">
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </Field>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={sendEmail} onCheckedChange={(v) => setSendEmail(v === true)} />
+              Se a conta for nova, enviar e-mail com senha temporária
+            </label>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={onClose}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={create.isPending}>
+                {create.isPending ? "Criando..." : "Criar acesso"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -421,38 +532,52 @@ function AddMemberDialog({
   const [phone, setPhone] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [kind, setKind] = useState<"demolay_ativo" | "senior" | "macom">("demolay_ativo");
+  const [withAccount, setWithAccount] = useState(true);
+  const [sendEmail, setSendEmail] = useState(true);
+  const [result, setResult] = useState<AccountResult | null>(null);
+  const esfera = realm === "fdj" ? "fdj" : "odm";
 
   const add = useMutation({
     mutationFn: async () => {
-      if (realm === "fdj") {
-        return createFdjMember({
-          data: {
-            chapter_id: chapterId,
-            full_name: fullName,
-            birth_date: birth || null,
-            fdj_id: identifier,
-            email,
-            phone,
-          } as never,
+      const created =
+        esfera === "fdj"
+          ? await createFdjMember({
+              data: {
+                chapter_id: chapterId,
+                full_name: fullName,
+                birth_date: birth || null,
+                fdj_id: identifier,
+                email,
+                phone,
+              } as never,
+            })
+          : await createMember({
+              data: {
+                chapter_id: chapterId,
+                full_name: fullName,
+                birth_date: birth || null,
+                email,
+                phone,
+                demolay_id: identifier || null,
+                kind,
+                status: "regular",
+              } as never,
+            });
+      if (!withAccount || !email.trim()) return null;
+      try {
+        return await consoleProvisionFichaAccount({
+          data: { esfera, fichaId: created.id, email: email.trim(), sendEmail },
         });
+      } catch (e) {
+        toast.error(`Ficha salva, mas o acesso não foi criado: ${errorText(e)}`);
+        return null;
       }
-      return createMember({
-        data: {
-          chapter_id: chapterId,
-          full_name: fullName,
-          birth_date: birth || null,
-          email,
-          phone,
-          demolay_id: identifier || null,
-          kind,
-          status: "regular",
-        } as never,
-      });
     },
-    onSuccess: () => {
+    onSuccess: (account) => {
       void qc.invalidateQueries({ queryKey: chapterKey(chapterId) });
       toast.success("Ficha cadastrada");
-      onClose();
+      if (account) setResult(account);
+      else onClose();
     },
     onError: (e) => toast.error(errorText(e)),
   });
@@ -461,59 +586,88 @@ function AddMemberDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Cadastrar ficha</DialogTitle>
+          <DialogTitle>{result ? "Cadastro concluído" : "Cadastrar membro"}</DialogTitle>
         </DialogHeader>
-        <form
-          className="space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            add.mutate();
-          }}
-        >
-          <Field label="Nome completo">
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Nascimento">
-              <Input type="date" value={birth} onChange={(e) => setBirth(e.target.value)} />
+        {result ? (
+          <>
+            <AccountResultView email={email} result={result} />
+            <DialogFooter>
+              <Button onClick={onClose}>Fechar</Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              add.mutate();
+            }}
+          >
+            <Field label="Nome completo">
+              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
             </Field>
-            <Field label={realm === "fdj" ? "ID FDJ" : "ID DeMolay"}>
-              <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
-            </Field>
-            <Field label="E-mail">
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </Field>
-            <Field label="Telefone">
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
-            </Field>
-          </div>
-          {realm === "odm" && (
-            <Field label="Tipo">
-              <Select value={kind} onValueChange={(v) => setKind(v as typeof kind)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="demolay_ativo">DeMolay ativo</SelectItem>
-                  <SelectItem value="senior">Sênior</SelectItem>
-                  <SelectItem value="macom">Maçom</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Cadastro rápido. Os demais dados (documentos, endereço, responsável) a secretaria
-            completa no app.
-          </p>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={add.isPending}>
-              {add.isPending ? "Salvando..." : "Cadastrar"}
-            </Button>
-          </DialogFooter>
-        </form>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nascimento">
+                <Input type="date" value={birth} onChange={(e) => setBirth(e.target.value)} />
+              </Field>
+              <Field label={esfera === "fdj" ? "ID FDJ" : "ID DeMolay"}>
+                <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
+              </Field>
+              <Field label="E-mail">
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required={withAccount}
+                />
+              </Field>
+              <Field label="Telefone">
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+              </Field>
+            </div>
+            {esfera === "odm" && (
+              <Field label="Tipo">
+                <Select value={kind} onValueChange={(v) => setKind(v as typeof kind)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="demolay_ativo">DeMolay ativo</SelectItem>
+                    <SelectItem value="senior">Sênior</SelectItem>
+                    <SelectItem value="macom">Maçom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={withAccount}
+                  onCheckedChange={(v) => setWithAccount(v === true)}
+                />
+                Criar acesso ao sistema (conta com este e-mail)
+              </label>
+              {withAccount && (
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Checkbox checked={sendEmail} onCheckedChange={(v) => setSendEmail(v === true)} />
+                  Enviar e-mail com a senha temporária
+                </label>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Cadastro rápido. Documentos, endereço e responsável a secretaria completa no app.
+              Cargos de administração se dão na aba Usuários.
+            </p>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={onClose}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={add.isPending}>
+                {add.isPending ? "Salvando..." : "Cadastrar"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

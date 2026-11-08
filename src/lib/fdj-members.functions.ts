@@ -249,3 +249,50 @@ export const deleteFdjMember = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/** Secretaria/admin do Bethel: cria (ou vincula) a conta de acesso da filha. */
+export const provisionFdjMemberAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        email: z.string().trim().email().optional(),
+        sendEmail: z.boolean().optional().default(true),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data, context }) => {
+    const client = context.supabase as LooseClient;
+    const { data: row, error } = await client
+      .from("fdj_members")
+      .select("id, chapter_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error("Ficha não encontrada");
+    if (!(await canManage(client, row.chapter_id as string))) {
+      throw new Error("Sem permissão para criar acessos neste Bethel");
+    }
+    const { linkFichaAccount } = await import("@/lib/member-accounts.server");
+    return linkFichaAccount({
+      table: "fdj_members",
+      fichaId: data.id,
+      actorId: context.userId,
+      email: data.email ?? null,
+      sendEmail: data.sendEmail,
+    });
+  });
+
+/** Fichas do Bethel ligadas à conta logada (perfil). */
+export const getMyFdjFichas = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const client = context.supabase as LooseClient;
+    const { data, error } = await client
+      .from("fdj_members")
+      .select(FDJ_FIELDS)
+      .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { fichas: (data ?? []) as FdjMemberRow[] };
+  });

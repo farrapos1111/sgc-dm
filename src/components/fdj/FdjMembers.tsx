@@ -8,6 +8,8 @@ import {
   deleteFdjMember,
   getFdjMember,
   getFdjMemberPii,
+  getMyFdjFichas,
+  provisionFdjMemberAccount,
   listFdjMembers,
   updateFdjMember,
   type FdjMemberRow,
@@ -49,6 +51,10 @@ const FDJ_CONSENT_TEXT =
   "Autorizo o tratamento dos dados pessoais da filha sob minha responsabilidade pelo Bethel, exclusivamente para fins administrativos, de comunicação e de participação em atividades da Ordem Internacional das Filhas de Jó, conforme a Lei Geral de Proteção de Dados (LGPD, Lei nº 13.709/2018). Este consentimento pode ser revogado a qualquer momento junto à administração do Bethel.";
 
 const MINOR_AGE = 18;
+
+type AccountResult = Awaited<ReturnType<typeof provisionFdjMemberAccount>>;
+/** Resultado do acesso criado junto com a ficha, mostrado uma vez na ficha. */
+const freshAccounts = new Map<string, AccountResult>();
 
 const listKey = (chapterId: string, q: string, status: string) =>
   ["fdj-members", chapterId, q, status] as const;
@@ -212,6 +218,7 @@ type FormState = {
   guardian: { full_name: string; relationship: string; phone: string; email: string };
   notes: string;
   consent: boolean;
+  createAccount: boolean;
 };
 
 const emptyForm: FormState = {
@@ -236,6 +243,7 @@ const emptyForm: FormState = {
   guardian: { full_name: "", relationship: "", phone: "", email: "" },
   notes: "",
   consent: false,
+  createAccount: true,
 };
 
 function formFromRow(m: FdjMemberRow): FormState {
@@ -268,6 +276,7 @@ function formFromRow(m: FdjMemberRow): FormState {
     },
     notes: m.notes ?? "",
     consent: Boolean(m.consent_text_version),
+    createAccount: false,
   };
 }
 
@@ -347,6 +356,16 @@ function FdjMemberForm({
       const res = await createFdjMember({
         data: { chapter_id: chapterId, ...common, cpf: f.cpf, rg: f.rg, consent: f.consent },
       });
+      if (f.createAccount && f.email.trim()) {
+        try {
+          const account = await provisionFdjMemberAccount({ data: { id: res.id } });
+          freshAccounts.set(res.id, account);
+        } catch (e) {
+          toast.error(
+            `Ficha salva, mas o acesso não foi criado: ${e instanceof Error ? zodMessage(e.message) : ""}`,
+          );
+        }
+      }
       return res.id;
     },
     onSuccess: (id) => {
@@ -477,6 +496,15 @@ function FdjMemberForm({
             </Field>
             <Field label="E-mail">
               <Input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} />
+              {!isEdit && f.email.trim() && (
+                <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <Checkbox
+                    checked={f.createAccount}
+                    onCheckedChange={(v) => set("createAccount", v === true)}
+                  />
+                  Criar acesso ao sistema com este e-mail
+                </label>
+              )}
             </Field>
             <Field label="CEP">
               <Input
@@ -619,6 +647,12 @@ export function FdjMemberDetail({ id }: { id: string }) {
     queryFn: () => getFdjMember({ data: { id } }),
   });
 
+  const [account, setAccount] = useState<AccountResult | null>(() => {
+    const fresh = freshAccounts.get(id) ?? null;
+    freshAccounts.delete(id);
+    return fresh;
+  });
+
   const revealMut = useMutation({
     mutationFn: () => getFdjMemberPii({ data: { id } }),
     onSuccess: setPii,
@@ -724,6 +758,17 @@ export function FdjMemberDetail({ id }: { id: string }) {
           )}
         </Section>
 
+        <AccessSection
+          member={m}
+          canManage={canManage}
+          result={account}
+          onCreated={(res) => {
+            setAccount(res);
+            void qc.invalidateQueries({ queryKey: memberKey(id) });
+            void qc.invalidateQueries({ queryKey: ["fdj-members"] });
+          }}
+        />
+
         <Section title="Contato">
           <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             <Item k="Telefone" v={m.phone || "—"} />
@@ -764,6 +809,100 @@ export function FdjMemberDetail({ id }: { id: string }) {
 
       {dialog}
     </div>
+  );
+}
+
+function AccessSection({
+  member,
+  canManage,
+  result,
+  onCreated,
+}: {
+  member: FdjMemberRow;
+  canManage: boolean;
+  result: AccountResult | null;
+  onCreated: (res: AccountResult) => void;
+}) {
+  const [email, setEmail] = useState(member.email ?? "");
+  const create = useMutation({
+    mutationFn: () => provisionFdjMemberAccount({ data: { id: member.id, email: email.trim() } }),
+    onSuccess: (res) => {
+      toast.success(res.created ? "Acesso criado" : "Conta existente vinculada");
+      onCreated(res);
+    },
+    onError: (e) => toast.error(e instanceof Error ? zodMessage(e.message) : "Não foi possível"),
+  });
+
+  if (!member.user_id && !canManage) return null;
+
+  return (
+    <Section
+      title="Acesso ao sistema"
+      aside={
+        member.user_id ? (
+          <Badge variant="secondary">Com acesso</Badge>
+        ) : (
+          <Badge variant="outline">Sem acesso</Badge>
+        )
+      }
+    >
+      {result ? (
+        <div className="space-y-3 text-sm">
+          <p>
+            {result.created
+              ? "Conta criada. A filha entra com o e-mail e a senha temporária abaixo e troca a senha no primeiro acesso."
+              : "Este e-mail já tinha conta; ela foi ligada a esta ficha e ao Bethel com a senha atual."}
+          </p>
+          {result.temporaryPassword && (
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
+              <code className="font-mono">{result.temporaryPassword}</code>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  void navigator.clipboard.writeText(result.temporaryPassword ?? "");
+                  toast.success("Senha copiada");
+                }}
+              >
+                Copiar
+              </Button>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            E-mail de boas-vindas:{" "}
+            {result.emailStatus === "sent"
+              ? "enviado"
+              : result.emailStatus === "skipped"
+                ? "não enviado"
+                : `falhou (${result.emailError ?? "erro"}) — passe a senha diretamente`}
+            . Esta senha não aparece de novo.
+          </p>
+        </div>
+      ) : member.user_id ? (
+        <p className="text-sm text-muted-foreground">
+          Esta filha já entra no sistema com a própria conta ({member.email ?? "e-mail da ficha"}).
+        </p>
+      ) : (
+        <form
+          className="flex flex-col gap-2 sm:flex-row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            create.mutate();
+          }}
+        >
+          <Input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="E-mail da filha"
+          />
+          <Button type="submit" disabled={create.isPending || !email.trim()}>
+            {create.isPending ? "Criando..." : "Criar acesso"}
+          </Button>
+        </form>
+      )}
+    </Section>
   );
 }
 
@@ -862,4 +1001,63 @@ function zodMessage(msg: string): string {
     /* mensagem comum */
   }
   return msg;
+}
+
+/* ------------------------------------------------------------------ */
+/* Perfil da filha (conta logada)                                      */
+/* ------------------------------------------------------------------ */
+
+export function FdjMyProfile({
+  chapterId,
+  header,
+  passwordPanel,
+}: {
+  chapterId: string;
+  header: { fullName: string | null; email: string | null };
+  passwordPanel: ReactNode;
+}) {
+  const { data, isPending } = useQuery({
+    queryKey: ["my-fdj-fichas"],
+    queryFn: () => getMyFdjFichas(),
+  });
+  const fichas = data?.fichas ?? [];
+  const mine = fichas.find((f) => f.chapter_id === chapterId) ?? null;
+
+  return (
+    <div className="mx-auto max-w-3xl">
+      <PageHeader
+        title="Meu perfil"
+        subtitle={
+          header.fullName
+            ? `${header.fullName}${header.email ? ` · ${header.email}` : ""}`
+            : "Seu perfil no Bethel"
+        }
+      />
+      <div className="space-y-5">
+        {isPending ? (
+          <PageSkeleton />
+        ) : mine ? (
+          <Section title="Minha ficha" aside={<StatusBadge status={mine.status} />}>
+            <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+              <Item k="Nome" v={mine.full_name} />
+              <Item k="ID FDJ" v={mine.fdj_id || "—"} />
+              <Item k="Nascimento" v={formatDateBR(mine.birth_date)} />
+              <Item k="Iniciação" v={formatDateBR(mine.initiation_date)} />
+              <Item k="Telefone" v={mine.phone || "—"} />
+              <Item k="E-mail" v={mine.email || "—"} />
+            </dl>
+            <p className="mt-4 text-xs text-muted-foreground">
+              Algum dado errado? Peça à secretaria do Bethel para corrigir.
+            </p>
+          </Section>
+        ) : (
+          <Card className="p-5 text-sm text-muted-foreground">
+            Sua conta ainda não está ligada a uma ficha deste Bethel. Peça à secretaria para abrir a
+            sua ficha e usar “Criar acesso” com o seu e-mail.
+          </Card>
+        )}
+        {passwordPanel}
+      </div>
+    </div>
+  );
 }

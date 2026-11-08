@@ -87,6 +87,8 @@ export async function ensureAccountInChapter(
     fullName: string;
     chapterId: string;
     roleName: string;
+    /** Se já houver vínculo com a instituição, mantém o papel atual (não rebaixa admin). */
+    keepExistingRole?: boolean;
   },
 ): Promise<{ userId: string; created: boolean; temporaryPassword: string | null }> {
   const email = input.email.trim().toLowerCase();
@@ -115,7 +117,7 @@ export async function ensureAccountInChapter(
     if (pErr) throw new Error(pErr.message);
   }
 
-  await setChapterRole(ctx, userId, input.chapterId, input.roleName);
+  await setChapterRole(ctx, userId, input.chapterId, input.roleName, input.keepExistingRole);
   return { userId, created, temporaryPassword };
 }
 
@@ -125,6 +127,7 @@ export async function setChapterRole(
   userId: string,
   chapterId: string,
   roleName: string,
+  keepExistingRole = false,
 ): Promise<void> {
   const { data: role, error: roleErr } = await ctx.admin
     .from("roles")
@@ -142,6 +145,17 @@ export async function setChapterRole(
   if (lErr) throw new Error(lErr.message);
 
   const rows = (links ?? []) as { id: string; role_id: number; active: boolean }[];
+  if (keepExistingRole && rows.length) {
+    const keep = rows.find((r) => r.active) ?? rows[0];
+    if (!keep.active) {
+      const { error } = await ctx.admin
+        .from("chapter_members")
+        .update({ active: true })
+        .eq("id", keep.id);
+      if (error) throw new Error(error.message);
+    }
+    return;
+  }
   const same = rows.find((r) => r.role_id === role.id);
   if (same) {
     if (!same.active) {
