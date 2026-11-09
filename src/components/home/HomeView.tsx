@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ComponentType, ReactElement, ReactNode } from "react";
 import {
+  Bell,
   Cake,
   CalendarDays,
   ChevronDown,
@@ -16,6 +17,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 /* Início — Main.dc.html (mobile) e D-Inicio.dc.html (desktop). Só apresentação. */
 
@@ -62,7 +64,18 @@ export type HomeViewProps = {
     saidas: string;
   } | null;
   financeError?: string | null;
-  dues: { aberto: string; pendentes: number; pendingMembersLabel: string } | null;
+  dues: {
+    aberto: string;
+    atrasado: string | null;
+    pendentes: number;
+    pendingMembersLabel: string;
+    pctRecebido: number | null;
+    year: number;
+  } | null;
+  /** Avisos do sino (o que já existe hoje: ao vivo, votos, solicitações, atrasos). */
+  notices: { id: string; label: string; detail?: string; to: string }[];
+  /** Brasão/logo do capítulo como marca d'água no topo colorido (mobile). */
+  watermarkUrl?: string | null;
   birthdays: {
     id: string;
     initials: string;
@@ -102,9 +115,18 @@ export function HomeView(p: HomeViewProps) {
   return (
     <div className="pb-4">
       {/* ---------- Mobile: hero colorido ---------- */}
-      <section className="-mx-4 -mt-4 bg-tv-primary px-5 pb-[76px] pt-4 text-white sm:-mx-6 sm:px-7 lg:hidden">
-        <div className="flex items-center justify-between gap-2">
+      <section className="relative -mx-4 -mt-4 overflow-hidden bg-tv-primary px-5 pb-[76px] pt-4 text-white sm:-mx-6 sm:px-7 md:hidden">
+        {p.watermarkUrl ? (
+          <img
+            src={p.watermarkUrl}
+            alt=""
+            aria-hidden
+            className="pointer-events-none absolute -right-8 top-10 h-52 w-52 object-contain opacity-[0.09] grayscale"
+          />
+        ) : null}
+        <div className="relative flex items-center justify-between gap-2">
           {p.wrapSwitcher ? p.wrapSwitcher(switchButton) : switchButton}
+          <div className="flex shrink-0 gap-2">
           <button
             type="button"
             onClick={p.onToggleHidden}
@@ -114,17 +136,19 @@ export function HomeView(p: HomeViewProps) {
           >
             <EyeIcon className="h-[22px] w-[22px]" />
           </button>
+          <NoticesBell notices={p.notices} variant="hero" />
+          </div>
         </div>
-        <p className="mt-6 text-base opacity-90">{p.greeting},</p>
-        <h1 className="mt-0.5 font-display text-[30px] font-extrabold tracking-[-0.02em]">
+        <p className="relative mt-6 text-base opacity-90">{p.greeting},</p>
+        <h1 className="relative mt-0.5 font-display text-[30px] font-extrabold tracking-[-0.02em]">
           {p.firstName}
         </h1>
-        <p className="mt-1 text-sm opacity-90">{p.roleLine}</p>
+        <p className="relative mt-1 text-sm opacity-90">{p.roleLine}</p>
       </section>
 
       {/* ---------- Desktop: cabeçalho ---------- */}
-      <div className="hidden lg:block">
-        <div className="flex items-center justify-end">
+      <div className="hidden md:block">
+        <div className="flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={p.onToggleHidden}
@@ -133,6 +157,7 @@ export function HomeView(p: HomeViewProps) {
             <EyeIcon className="h-[18px] w-[18px]" />
             {eyeLabel}
           </button>
+          <NoticesBell notices={p.notices} variant="desktop" />
         </div>
         <h1 className="mt-2 font-display text-[32px] font-extrabold tracking-[-0.02em]">
           {p.greeting}, {p.firstName}
@@ -140,13 +165,13 @@ export function HomeView(p: HomeViewProps) {
         <p className="mt-1 text-[15px] text-tv-text-2">{p.dateLine}</p>
       </div>
 
-      <div className="flex flex-col gap-4 lg:mt-5 lg:gap-5">
+      <div className="flex flex-col gap-4 md:mt-5 md:gap-5">
         {/* Próximo compromisso + Caixa */}
-        <div className="flex flex-col gap-4 lg:flex-row">
+        <div className="flex flex-col gap-4 md:flex-row">
           {p.next ? (
             <NextCard next={p.next} />
           ) : (
-            <div className="relative z-10 -mt-14 rounded-[22px] bg-tv-surface p-[18px] text-[15px] text-tv-text-2 shadow-[0_8px_24px_rgba(20,20,20,0.08)] lg:mt-0 lg:flex-[2] lg:shadow-none">
+            <div className="relative z-10 -mt-14 rounded-[22px] bg-tv-surface p-[18px] text-[15px] text-tv-text-2 shadow-[0_8px_24px_rgba(20,20,20,0.08)] md:mt-0 md:flex-[2] md:shadow-none">
               Nenhum compromisso no calendário.{" "}
               <Link to="/calendario" className="font-semibold text-tv-primary">
                 Abrir calendário
@@ -154,7 +179,7 @@ export function HomeView(p: HomeViewProps) {
             </div>
           )}
           {p.finance ? (
-            <FinanceCard f={p.finance} hidden={p.hidden} className="hidden lg:flex lg:flex-1" />
+            <FinanceCard f={p.finance} hidden={p.hidden} className="hidden md:flex md:flex-1" />
           ) : null}
         </div>
 
@@ -217,7 +242,7 @@ export function HomeView(p: HomeViewProps) {
 
         {/* Acesso rápido */}
         {p.shortcutsMobile.length > 0 && (
-          <section className="pt-2 lg:hidden">
+          <section className="pt-2 md:hidden">
             <h3 className="mb-3 text-[17px] font-bold">Acesso rápido</h3>
             <div className="grid grid-cols-4 gap-x-2 gap-y-3.5">
               {p.shortcutsMobile.map((a) => (
@@ -238,7 +263,7 @@ export function HomeView(p: HomeViewProps) {
           </section>
         )}
         {p.shortcutsDesktop.length > 0 && (
-          <div className="hidden grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 lg:grid">
+          <div className="hidden grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 md:grid">
             {p.shortcutsDesktop.map((a) => (
               <Link
                 key={a.to + a.label}
@@ -255,9 +280,9 @@ export function HomeView(p: HomeViewProps) {
         )}
 
         {/* Cartões */}
-        <div className="grid grid-cols-1 gap-3 pt-2 lg:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] lg:gap-4 lg:pt-0">
+        <div className="grid grid-cols-1 gap-3 pt-2 md:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] md:gap-4 md:pt-0">
           {p.finance ? (
-            <FinanceCard f={p.finance} hidden={p.hidden} className="lg:hidden" />
+            <FinanceCard f={p.finance} hidden={p.hidden} className="md:hidden" />
           ) : p.financeError ? (
             <Card>
               <CardTitle icon={Wallet}>Caixa</CardTitle>
@@ -281,8 +306,31 @@ export function HomeView(p: HomeViewProps) {
               </div>
               <p className="mt-3.5 text-[15px] text-[#3F4249] dark:text-tv-text-2">
                 <strong className="text-tv-text">{money(p.hidden, p.dues.aberto)}</strong> em aberto
-                até este mês
+                {p.dues.atrasado ? (
+                  <>
+                    , sendo{" "}
+                    <strong className="text-[#B42318] dark:text-tv-out">{money(p.hidden, p.dues.atrasado)}</strong>{" "}
+                    atrasados
+                  </>
+                ) : null}
               </p>
+              {p.dues.pctRecebido !== null ? (
+                <>
+                  <div
+                    className="mt-3 h-2.5 overflow-hidden rounded-full bg-[#EEEEEA] dark:bg-tv-line"
+                    role="progressbar"
+                    aria-valuenow={p.dues.pctRecebido}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Mensalidades recebidas no ano"
+                  >
+                    <div className="h-full rounded-full bg-tv-primary" style={{ width: `${p.dues.pctRecebido}%` }} />
+                  </div>
+                  <p className="mt-1.5 text-[13px] text-tv-text-2">
+                    {p.dues.pctRecebido}% das mensalidades de {p.dues.year} recebidas
+                  </p>
+                </>
+              ) : null}
               <Link
                 to="/tesouraria/mensalidades"
                 className="mt-3.5 flex min-h-12 items-center justify-center rounded-[14px] bg-tv-soft text-[15px] font-semibold text-tv-ink"
@@ -334,7 +382,7 @@ export function HomeView(p: HomeViewProps) {
           </Card>
 
           {p.minutes && p.minutes.length > 0 ? (
-            <Card className="hidden lg:block">
+            <Card className="hidden md:block">
               <div className="flex items-center justify-between">
                 <span className="text-[15px] font-semibold">Atas para acompanhar</span>
                 <Link to="/atas" className="text-sm font-semibold text-tv-primary">
@@ -408,7 +456,7 @@ function NextCard({ next }: { next: NonNullable<HomeViewProps["next"]> }) {
   return (
     <>
       {/* Mobile: cartão branco sobre o hero */}
-      <div className="relative z-10 -mt-14 flex flex-col gap-3 rounded-[22px] bg-tv-surface p-[18px] shadow-[0_8px_24px_rgba(20,20,20,0.08)] lg:hidden">
+      <div className="relative z-10 -mt-14 flex flex-col gap-3 rounded-[22px] bg-tv-surface p-[18px] shadow-[0_8px_24px_rgba(20,20,20,0.08)] md:hidden">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[13px] font-semibold uppercase tracking-[0.06em] text-tv-text-2">
             Próximo compromisso
@@ -450,7 +498,7 @@ function NextCard({ next }: { next: NonNullable<HomeViewProps["next"]> }) {
       </div>
 
       {/* Desktop: cartão na cor da marca */}
-      <div className="relative hidden min-w-0 flex-[2] flex-col gap-3.5 overflow-hidden rounded-[22px] bg-tv-primary p-6 text-white lg:flex">
+      <div className="relative hidden min-w-0 flex-[2] flex-col gap-3.5 overflow-hidden rounded-[22px] bg-tv-primary p-6 text-white md:flex">
         <div
           aria-hidden
           className="absolute -bottom-20 -right-[60px] h-[260px] w-[260px] rounded-full border-[36px] border-white/[0.07]"
@@ -522,7 +570,7 @@ function FinanceCard({
     <Link
       to="/tesouraria/fluxo"
       className={cn(
-        "flex min-w-0 flex-col rounded-[20px] bg-tv-surface p-[18px] lg:rounded-[22px] lg:p-[22px]",
+        "flex min-w-0 flex-col rounded-[20px] bg-tv-surface p-[18px] md:rounded-[22px] md:p-[22px]",
         className,
       )}
     >
@@ -534,7 +582,7 @@ function FinanceCard({
         <ChevronRight className="h-5 w-5 text-tv-text-2" />
       </span>
       <span className="mt-3.5 text-[13px] text-tv-text-2">Saldo atual</span>
-      <span className="font-display text-[28px] font-extrabold tracking-[-0.02em] tabular-nums lg:text-[30px]">
+      <span className="font-display text-[28px] font-extrabold tracking-[-0.02em] tabular-nums md:text-[30px]">
         {money(hidden, f.saldo)}
       </span>
       <span className="mt-1 text-sm text-tv-text-2">
@@ -547,13 +595,13 @@ function FinanceCard({
       </span>
       <span className="flex-1" />
       <span className="mt-3.5 grid grid-cols-2 gap-2">
-        <span className="rounded-[14px] bg-tv-in-bg px-3 py-2.5 lg:rounded-[12px]">
+        <span className="rounded-[14px] bg-tv-in-bg px-3 py-2.5 md:rounded-[12px]">
           <span className="block text-xs font-semibold text-[#1B6B44] dark:text-tv-in">
             Entradas
           </span>
           <span className="text-base font-bold text-tv-in">{money(hidden, f.entradas)}</span>
         </span>
-        <span className="rounded-[14px] bg-tv-out-bg px-3 py-2.5 lg:rounded-[12px]">
+        <span className="rounded-[14px] bg-tv-out-bg px-3 py-2.5 md:rounded-[12px]">
           <span className="block text-xs font-semibold text-tv-out">Saídas</span>
           <span className="text-base font-bold text-[#8F1F16] dark:text-tv-out">
             {money(hidden, f.saidas)}
@@ -568,7 +616,7 @@ function Card({ children, className }: { children: ReactNode; className?: string
   return (
     <div
       className={cn(
-        "rounded-[20px] bg-tv-surface p-[18px] lg:rounded-[22px] lg:p-[22px]",
+        "rounded-[20px] bg-tv-surface p-[18px] md:rounded-[22px] md:p-[22px]",
         className,
       )}
     >
@@ -617,5 +665,68 @@ function RowLink({
     <Link to={to} search={search as never} className={cls}>
       {children}
     </Link>
+  );
+}
+
+function NoticesBell({
+  notices,
+  variant,
+}: {
+  notices: HomeViewProps["notices"];
+  variant: "hero" | "desktop";
+}) {
+  const label = notices.length
+    ? `Avisos, ${notices.length} ${notices.length === 1 ? "novo" : "novos"}`
+    : "Avisos, nenhum novo";
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          title={label}
+          className={cn(
+            "relative grid shrink-0 place-items-center",
+            variant === "hero"
+              ? "h-11 w-11 rounded-full bg-white/15 text-white"
+              : "h-[46px] w-[46px] rounded-[12px] border border-tv-border bg-tv-surface text-[#2A2C31] dark:text-tv-text",
+          )}
+        >
+          <Bell className={variant === "hero" ? "h-[22px] w-[22px]" : "h-5 w-5"} />
+          {notices.length > 0 ? (
+            <span
+              className={cn(
+                "absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-[#F5B83D]",
+                variant === "hero" ? "border-2 border-tv-primary" : "border-2 border-tv-surface",
+              )}
+            />
+          ) : null}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        sideOffset={10}
+        className="w-[calc(100vw-32px)] max-w-[340px] rounded-[20px] border-0 bg-tv-surface p-2 text-tv-text shadow-[0_12px_32px_rgba(20,20,20,0.18)]"
+      >
+        <p className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-[0.08em] text-tv-text-2">Avisos</p>
+        {notices.length === 0 ? (
+          <p className="px-3 py-4 text-[15px] text-tv-text-2">Nada pendente por aqui.</p>
+        ) : (
+          <ul>
+            {notices.map((n) => (
+              <li key={n.id}>
+                <Link to={n.to} className="flex min-h-14 items-center gap-3 rounded-[14px] px-3 py-2 hover:bg-tv-bg">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold">{n.label}</span>
+                    {n.detail ? <span className="block text-[13px] text-tv-text-2">{n.detail}</span> : null}
+                  </span>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-tv-text-2" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }

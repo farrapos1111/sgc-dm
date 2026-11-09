@@ -11,6 +11,7 @@ import {
   Mail,
   Plus,
   Receipt,
+  Ticket,
   UserPlus,
   Users,
   Wallet,
@@ -25,14 +26,16 @@ import { listMembers } from "@/lib/members.functions";
 import { listChapterMinutes, MINUTE_STATUS_LABELS } from "@/lib/minutes.functions";
 import { membersListKey } from "@/lib/query-keys";
 import { listOngoingItems } from "@/lib/attendance.functions";
-import { getDashboardFinance } from "@/lib/finance.functions";
+import { getDashboardFinance, listYearDues } from "@/lib/finance.functions";
 import { canViewAttendanceAccess } from "@/lib/permissions";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { useNavGroups } from "@/hooks/useNavGroups";
 import { TYPE_META, type CalendarType } from "@/lib/calendar-types";
 import { formatBRL, formatDateBR, formatDateTimeBR, parseDateOnly } from "@/lib/format";
 import { datePartsInAppTz } from "@/lib/timezone";
-import { MONTH_LONG } from "@/lib/dues-rules";
+import { MONTH_LONG, isDueOverdue, isFutureMonth } from "@/lib/dues-rules";
+
+import { countPendingMemberRequests } from "@/lib/member-change-requests.functions";
 import { STATUS_LABELS } from "@/lib/investigation-labels";
 import { useChapterLogo } from "@/lib/chapter-logo";
 import { HomeView, type HomeShortcut } from "@/components/home/HomeView";
@@ -199,6 +202,42 @@ function InicioContent({ active }: { active: Membership }) {
     staleTime: 60_000,
   });
 
+  const canDues = canFinance && duesEnabled && canSee("/tesouraria/mensalidades");
+  const duesYear = new Date().getFullYear();
+  // Mesma consulta (e cache) da tela de Mensalidades.
+  const { data: yearDues } = useQuery({
+    queryKey: ["dues-year", chapterId, duesYear] as const,
+    queryFn: () =>
+      listYearDues({ data: { chapterId, year: duesYear, ensure: false } }) as Promise<{
+        dues: { competence_year: number; competence_month: number; status: string; member_id: string }[];
+        defaultAmount: number;
+      }>,
+    enabled: canDues,
+    staleTime: 60_000,
+  });
+  const duesTotals = (() => {
+    if (!yearDues) return null;
+    const amount = Number(yearDues.defaultAmount) || 0;
+    let paid = 0;
+    let open = 0;
+    let overdue = 0;
+    for (const d of yearDues.dues) {
+      if (d.status === "pago") paid += amount;
+      else if (d.status === "em_aberto" && !isFutureMonth(d.competence_year, d.competence_month)) {
+        open += amount;
+        if (isDueOverdue(d.competence_year, d.competence_month, d.status)) overdue += amount;
+      }
+    }
+    return { paid, open, overdue, pct: paid + open > 0 ? Math.round((paid / (paid + open)) * 100) : null };
+  })();
+  const canRequests = canSee("/membros") && (can("secretaria") || can("conselho") || can("admin"));
+  const { data: pendingReq } = useQuery({
+    queryKey: ["member-change-requests-count", chapterId],
+    queryFn: () => countPendingMemberRequests({ data: { originChapterId: chapterId } }),
+    enabled: canRequests,
+    refetchInterval: 120_000,
+  });
+
   const next = (nextItems ?? [])[0];
   const { data: chaveText } = useQuery({
     queryKey: ["calendar-chave-text", next?.id, chapterId, next?.dress_code, next?.start_at],
@@ -265,12 +304,12 @@ function InicioContent({ active }: { active: Membership }) {
     shortcut("/membros", "Membros", Users),
     shortcut("/atas", "Atas", FileText),
     shortcut("/tesouraria/fluxo", "Caixa", Wallet),
-    shortcut("/eventos", "Eventos", CalendarDays),
-    shortcut("/oficios", "Ofícios", Mail),
+    shortcut("/calendario", "Agenda", CalendarDays),
+    shortcut("/eventos", "Eventos", Ticket),
   ]
     .filter((x): x is HomeShortcut => x !== null)
     .slice(0, 7);
-  shortcutsMobile.push({ to: "/mais", label: "Mais", icon: LayoutGrid });
+  shortcutsMobile.push({ to: "/mais", label: "Ver tudo", icon: LayoutGrid });
   const shortcutsDesktop = [
     shortcut("/presencas", "Chamada", CheckSquare),
     duesEnabled ? shortcut("/tesouraria/mensalidades", "Mensalidades", Receipt) : null,
@@ -279,6 +318,43 @@ function InicioContent({ active }: { active: Membership }) {
     shortcut("/tesouraria/fluxo", "Lançamento", Plus),
     shortcut("/oficios", "Ofício", Mail),
   ].filter((x): x is HomeShortcut => x !== null);
+
+  const notices: { id: string; label: string; detail?: string; to: string }[] = [
+    ...((ongoing ?? []) as CalItem[]).map((it) => ({
+      id: `live-${it.id}`,
+      label: `Acontecendo agora: ${it.title}`,
+      detail: canAttendance ? "Abrir chamada" : undefined,
+      to: canAttendance ? `/ongoing/${it.id}` : "/calendario",
+    })),
+    ...openSindicancias
+      .filter((x) => x.needsMyVote)
+      .map((x) => ({
+        id: `sind-${x.calendar_event_id}`,
+        label: `Seu voto pendente: ${x.nominee_name}`,
+        detail: "Sindicância",
+        to: "/sindicancias/sindicarias",
+      })),
+    ...((pendingReq?.count ?? 0) > 0
+      ? [
+          {
+            id: "req",
+            label: `${pendingReq!.count} ${pendingReq!.count === 1 ? "solicitação de membro" : "solicitações de membros"}`,
+            detail: "Aguardando aprovação",
+            to: "/membros/solicitacoes",
+          },
+        ]
+      : []),
+    ...(canDues && duesTotals && duesTotals.overdue > 0 && finance
+      ? [
+          {
+            id: "dues",
+            label: `${finance.pendingMembers} ${finance.pendingMembers === 1 ? "membro" : "membros"} com mensalidade em aberto`,
+            detail: "Ver atrasados",
+            to: "/tesouraria/atrasados",
+          },
+        ]
+      : []),
+  ];
 
   const nextMeta = next ? TYPE_META[next.event_type as CalendarType] : null;
   const isSindicancia = next?.event_type === "sindicancia";
@@ -353,14 +429,19 @@ function InicioContent({ active }: { active: Membership }) {
           : null
       }
       dues={
-        canFinance && duesEnabled && finance
+        canDues && finance
           ? {
-              aberto: formatBRL(finance.pendingAmount ?? 0),
+              aberto: formatBRL(duesTotals?.open ?? finance.pendingAmount ?? 0),
+              atrasado: duesTotals && duesTotals.overdue > 0 ? formatBRL(duesTotals.overdue) : null,
               pendentes: finance.pendingMembers ?? 0,
               pendingMembersLabel: `${finance.pendingMembers} ${finance.pendingMembers === 1 ? "pendente" : "pendentes"}`,
+              pctRecebido: duesTotals?.pct ?? null,
+              year: duesYear,
             }
           : null
       }
+      notices={notices}
+      watermarkUrl={logoUrl}
       birthdays={birthdays}
       birthdayMonth={(MONTH_LONG[birthdayMonth1 - 1] ?? "").toLowerCase()}
       nextEvent={

@@ -21,6 +21,8 @@ import {
   Upload,
   Wallet,
   X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
@@ -183,7 +185,31 @@ function formFromCashEntry(e: {
 }
 
 
+const HIDE_KEY = "tv.hideValues";
+function useHiddenValues(): [boolean, () => void] {
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    try {
+      setHidden(window.localStorage.getItem(HIDE_KEY) === "1");
+    } catch {
+      /* sem armazenamento */
+    }
+  }, []);
+  const toggle = () =>
+    setHidden((v) => {
+      try {
+        window.localStorage.setItem(HIDE_KEY, v ? "0" : "1");
+      } catch {
+        /* sem armazenamento */
+      }
+      return !v;
+    });
+  return [hidden, toggle];
+}
+
 function FluxoCaixa() {
+  const [hiddenValues, toggleHiddenValues] = useHiddenValues();
+  const money = (v: number) => (hiddenValues ? "R$ ••••" : formatBRL(v));
   const { active } = useActiveChapter();
   const { data: publicSlug } = useChapterPublicSlug(active?.chapter_id);
   const { can, canScreen } = useChapterAccess();
@@ -210,6 +236,7 @@ function FluxoCaixa() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [kindFilter, setKindFilter] = useState<"all" | "entrada" | "saida">("all");
   const writable =
     canScreen("caixa", "edit") || can("tesouraria");
 
@@ -466,10 +493,15 @@ function FluxoCaixa() {
     ? `Restante ${opening.previousYear} + período`
     : "Soma de todos os lançamentos";
 
+  const listEntries = useMemo(
+    () => (kindFilter === "all" ? filteredEntries : filteredEntries.filter((e) => e.kind === kindFilter)),
+    [filteredEntries, kindFilter],
+  );
+
   const entriesByMonth = useMemo(() => {
     if (month !== null) return null;
-    const groups = new Map<number, typeof filteredEntries>();
-    for (const e of filteredEntries) {
+    const groups = new Map<number, typeof listEntries>();
+    for (const e of listEntries) {
       const parsed = Number(String(e.entry_date).slice(5, 7));
       const m = parsed >= 1 && parsed <= 12 ? parsed : 0;
       const list = groups.get(m) ?? [];
@@ -487,11 +519,11 @@ function FluxoCaixa() {
           expense: totals.expense,
         };
       });
-  }, [filteredEntries, month, monthOrder, sortKey, sortDir]);
+  }, [listEntries, month, monthOrder, sortKey, sortDir]);
 
   const sortedMonthEntries = useMemo(
-    () => (month !== null ? sortCashEntries(filteredEntries, sortKey, sortDir) : filteredEntries),
-    [filteredEntries, month, sortKey, sortDir],
+    () => (month !== null ? sortCashEntries(listEntries, sortKey, sortDir) : listEntries),
+    [listEntries, month, sortKey, sortDir],
   );
 
   // Remove subcategorias selecionadas que deixaram de existir nas opções
@@ -768,6 +800,27 @@ function FluxoCaixa() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao revogar link"),
   });
 
+  function exportExcel() {
+    exportCashXlsx(
+      filteredEntries,
+      `fluxo-de-caixa-${month ? `${year}-${String(month).padStart(2, "0")}` : year}.xlsx`,
+      {
+        periodLabel,
+        cashBalance: cashBalanceValue,
+        cashBalanceLabel,
+        opening: {
+          balance: openingBalance,
+          previousYear: opening.previousYear,
+          title:
+            month === null
+              ? `Saldo remanescente do ano ${opening.previousYear} (caixa transferido)`
+              : `Saldo inicial do período (inclui restante de ${opening.previousYear})`,
+        },
+        totals: periodTotals,
+      },
+    );
+  }
+
   async function copyShareLink() {
     if (!shareUrl) return;
     try {
@@ -795,22 +848,130 @@ function FluxoCaixa() {
   return (
     <div>
       <PageHeader
-        title="Fluxo de Caixa"
+        eyebrow="Tesouraria"
+        title="Fluxo de caixa"
         subtitle="Entradas, saídas e relatórios financeiros do capítulo."
         actions={
-          writable ? (
-            <Button
+          <div className="hidden flex-wrap gap-2 md:flex">
+            <Button variant="outline" onClick={toggleHiddenValues}>
+              {hiddenValues ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+              {hiddenValues ? "Mostrar valores" : "Ocultar valores"}
+            </Button>
+            {writable ? (
+              <Button
+                onClick={() => {
+                  setForm(emptyForm());
+                  setEntryOpen(true);
+                }}
+              >
+                <Plus className="h-[18px] w-[18px]" /> Novo lançamento
+              </Button>
+            ) : null}
+          </div>
+        }
+      />
+
+      {/* Celular: topo na cor do capítulo com saldo e ações (M-Caixa) */}
+      <section className="mb-4 rounded-[22px] bg-tv-primary p-5 text-white md:hidden">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold text-white/80">{cashBalanceLabel}</div>
+            <div className="mt-1 font-display text-[32px] font-extrabold leading-tight tabular-nums">
+              {money(cashBalanceValue)}
+            </div>
+            <div className="mt-0.5 text-[13px] text-white/80">{periodLabel}</div>
+          </div>
+          <button
+            type="button"
+            onClick={toggleHiddenValues}
+            aria-label={hiddenValues ? "Mostrar valores" : "Ocultar valores"}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15"
+          >
+            {hiddenValues ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+          </button>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2.5 text-[13px]">
+          <div className="rounded-[14px] bg-white/12 px-3 py-2.5">
+            <div className="text-white/80">Entradas</div>
+            <div className="text-[15px] font-bold tabular-nums">{money(periodTotals.income)}</div>
+          </div>
+          <div className="rounded-[14px] bg-white/12 px-3 py-2.5">
+            <div className="text-white/80">Saídas</div>
+            <div className="text-[15px] font-bold tabular-nums">{money(periodTotals.expense)}</div>
+          </div>
+        </div>
+        {month === null ? (
+          <div className="mt-2.5 text-[13px] text-white/80">
+            Restante de {opening.previousYear}: {money(openingBalance)}
+          </div>
+        ) : null}
+        <div className="mt-4 grid grid-cols-4 gap-2">
+          {writable ? (
+            <RoundAction
+              label="Novo lançamento"
               onClick={() => {
                 setForm(emptyForm());
                 setEntryOpen(true);
               }}
-              style={{ backgroundColor: active?.chapter.primary_color }}
             >
-              <Plus className="mr-2 h-4 w-4" /> Novo lançamento
-            </Button>
-          ) : null
-        }
-      />
+              <Plus className="h-[22px] w-[22px]" />
+            </RoundAction>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="flex flex-col items-center gap-1.5 text-center">
+                <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-tv-primary">
+                  <Download className="h-[22px] w-[22px]" />
+                </span>
+                <span className="text-xs font-semibold leading-tight">Exportar</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="min-w-[180px] rounded-[16px] p-1.5">
+              <DropdownMenuItem className="min-h-11 gap-2 rounded-[10px] text-[15px]" onSelect={exportExcel}>
+                <FileSpreadsheet className="h-4 w-4" /> Planilha (Excel)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="min-h-11 gap-2 rounded-[10px] text-[15px]"
+                disabled={exportPdf.isPending}
+                onSelect={() => exportPdf.mutate()}
+              >
+                <FileText className="h-4 w-4" /> {exportPdf.isPending ? "Gerando…" : "PDF"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {writable ? (
+            <RoundAction label="Compartilhar" disabled={openShare.isPending} onClick={() => openShare.mutate()}>
+              <Link2 className="h-[22px] w-[22px]" />
+            </RoundAction>
+          ) : null}
+          {writable ? (
+            <RoundAction label="Importar" onClick={() => fileRef.current?.click()}>
+              <Upload className="h-[22px] w-[22px]" />
+            </RoundAction>
+          ) : null}
+        </div>
+      </section>
+
+      {/* Celular: meses em chips */}
+      <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 md:hidden" role="tablist" aria-label="Mês">
+        {[null, ...MONTHS].map((m) => {
+          const on = month === m;
+          return (
+            <button
+              key={m ?? "all"}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => setMonth(m)}
+              className={`min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold first-letter:uppercase ${
+                on ? "bg-tv-text text-tv-surface" : "border border-tv-border bg-tv-surface text-tv-text"
+              }`}
+            >
+              {m === null ? "Ano todo" : monthName(m)}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Filtros e ações */}
       <div className="mb-4 flex flex-col gap-3">
@@ -838,7 +999,7 @@ function FluxoCaixa() {
             value={month === null ? "all" : String(month)}
             onValueChange={(v) => setMonth(v === "all" ? null : Number(v))}
           >
-            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="hidden w-44 md:flex" aria-label="Mês"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Geral (todos)</SelectItem>
               {MONTHS.map((m) => (
@@ -947,7 +1108,34 @@ function FluxoCaixa() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <div className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
+          <div className="inline-flex rounded-full bg-tv-line p-1" role="tablist" aria-label="Tipo de lançamento">
+            {(
+              [
+                ["all", "Tudo"],
+                ["entrada", "Entradas"],
+                ["saida", "Saídas"],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={kindFilter === k}
+                onClick={() => setKindFilter(k)}
+                className={`min-h-9 rounded-full px-4 text-sm font-semibold ${
+                  kindFilter === k ? "bg-tv-surface text-tv-text shadow-sm" : "text-tv-text-2"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {writable ? (
+            <Button variant="outline" className="md:hidden" onClick={() => setCatsOpen(true)}>
+              <Settings2 className="h-4 w-4" /> Categorias
+            </Button>
+          ) : null}
+          <div className="hidden flex-wrap items-center gap-1 rounded-lg border border-border bg-muted/30 p-1 md:inline-flex">
             <Button
               variant="ghost"
               size="sm"
@@ -962,26 +1150,7 @@ function FluxoCaixa() {
               variant="ghost"
               size="sm"
               className="h-8"
-              onClick={() =>
-                exportCashXlsx(
-                  filteredEntries,
-                  `fluxo-de-caixa-${month ? `${year}-${String(month).padStart(2, "0")}` : year}.xlsx`,
-                  {
-                    periodLabel,
-                    cashBalance: cashBalanceValue,
-                    cashBalanceLabel,
-                    opening: {
-                      balance: openingBalance,
-                      previousYear: opening.previousYear,
-                      title:
-                        month === null
-                          ? `Saldo remanescente do ano ${opening.previousYear} (caixa transferido)`
-                          : `Saldo inicial do período (inclui restante de ${opening.previousYear})`,
-                    },
-                    totals: periodTotals,
-                  },
-                )
-              }
+              onClick={exportExcel}
             >
               <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Excel
             </Button>
@@ -1031,43 +1200,43 @@ function FluxoCaixa() {
 
       {/* Indicadores */}
       <div
-        className={`mb-6 grid grid-cols-2 gap-4 ${
+        className={`mb-6 hidden grid-cols-2 gap-3 md:grid md:gap-4 ${
           month === null ? "lg:grid-cols-5" : "lg:grid-cols-3"
         }`}
       >
         {month === null && (
           <MetricCard
             label={`Restante de ${opening.previousYear}`}
-            value={formatBRL(openingBalance)}
+            value={money(openingBalance)}
             hint="Caixa transferido do ano anterior"
             icon={<Landmark className="h-5 w-5 text-muted-foreground" />}
           />
         )}
         <MetricCard
           label="Total de entradas"
-          value={formatBRL(periodTotals.income)}
-          tone="text-emerald-600 dark:text-emerald-400"
-          icon={<TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
+          value={money(periodTotals.income)}
+          tone="text-tv-in"
+          icon={<TrendingUp className="h-5 w-5 text-tv-in" />}
         />
         <MetricCard
           label="Total de saídas"
-          value={formatBRL(periodTotals.expense)}
-          tone="text-rose-600 dark:text-rose-400"
-          icon={<TrendingDown className="h-5 w-5 text-rose-600 dark:text-rose-400" />}
+          value={money(periodTotals.expense)}
+          tone="text-tv-out"
+          icon={<TrendingDown className="h-5 w-5 text-tv-out" />}
         />
         <MetricCard
           label="Resultado do período"
-          value={formatBRL(periodTotals.balance)}
+          value={money(periodTotals.balance)}
           hint={periodLabel}
-          tone={periodTotals.balance < 0 ? "text-rose-600 dark:text-rose-400" : undefined}
+          tone={periodTotals.balance < 0 ? "text-tv-out" : "text-tv-in"}
           icon={<Wallet className="h-5 w-5 text-muted-foreground" />}
         />
         {month === null && (
           <MetricCard
             label={cashBalanceLabel}
-            value={formatBRL(cashBalanceValue)}
+            value={money(cashBalanceValue)}
             hint={cashBalanceHint}
-            tone={cashBalanceValue < 0 ? "text-rose-600 dark:text-rose-400" : undefined}
+            highlight
             icon={<Landmark className="h-5 w-5 text-muted-foreground" />}
           />
         )}
@@ -1088,14 +1257,13 @@ function FluxoCaixa() {
                   setForm(emptyForm());
                   setEntryOpen(true);
                 }}
-                style={{ backgroundColor: active?.chapter.primary_color }}
               >
                 Fazer primeiro lançamento
               </Button>
             ) : undefined
           }
         />
-      ) : filteredEntries.length === 0 ? (
+      ) : listEntries.length === 0 ? (
         <EmptyState
           icon={<Wallet className="h-7 w-7" />}
           title="Nenhum lançamento com esses filtros"
@@ -1105,6 +1273,7 @@ function FluxoCaixa() {
               variant="outline"
               onClick={() => {
                 setSearch("");
+                setKindFilter("all");
                 setSelectedCategories([]);
                 setSelectedSubcategories([]);
               }}
@@ -1141,7 +1310,7 @@ function FluxoCaixa() {
               <Card key={group.month} className="overflow-hidden ">
                 <button
                   type="button"
-                  className="flex w-full flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                  className="flex min-h-14 w-full flex-wrap items-center justify-between gap-2 border-b border-tv-line px-4 py-3 text-left transition-colors hover:bg-tv-bg/60 md:px-5"
                   onClick={() => toggleMonth(group.month)}
                   aria-expanded={open}
                 >
@@ -1151,27 +1320,28 @@ function FluxoCaixa() {
                         open ? "rotate-0" : "-rotate-90"
                       }`}
                     />
-                    <h3 className="text-sm font-semibold capitalize">
+                    <h3 className="text-[15px] font-bold first-letter:uppercase">
                       {group.month >= 1 && group.month <= 12
                         ? `${monthName(group.month)} de ${year}`
                         : monthName(group.month)}
-                      <span className="ml-2 font-normal text-muted-foreground">
-                        ({group.entries.length}{" "}
-                        {group.entries.length === 1 ? "lançamento" : "lançamentos"})
+                      <span className="ml-1 font-normal text-tv-text-2">
+                        · {group.entries.length}{" "}
+                        {group.entries.length === 1 ? "lançamento" : "lançamentos"}
                       </span>
                     </h3>
                   </div>
-                  <div className="flex flex-wrap gap-3 text-xs sm:text-sm">
-                    <span className="text-emerald-600 dark:text-emerald-400">
-                      Entradas {formatBRL(group.income)}
+                  <div className="flex flex-wrap gap-2 text-[13px] font-semibold">
+                    <span className="rounded-full bg-tv-in-bg px-2.5 py-1 text-tv-in">
+                      Entradas {money(group.income)}
                     </span>
-                    <span className="text-rose-600 dark:text-rose-400">
-                      Saídas {formatBRL(group.expense)}
+                    <span className="rounded-full bg-tv-out-bg px-2.5 py-1 text-tv-out">
+                      Saídas {money(group.expense)}
                     </span>
                   </div>
                 </button>
                 {open && (
                   <CashEntriesTable
+                    hidden={hiddenValues}
                     entries={group.entries}
                     writable={writable}
                     sortKey={sortKey}
@@ -1201,6 +1371,7 @@ function FluxoCaixa() {
       ) : (
         <Card className="overflow-hidden ">
           <CashEntriesTable
+                    hidden={hiddenValues}
             entries={sortedMonthEntries}
             writable={writable}
             sortKey={sortKey}
@@ -1565,7 +1736,6 @@ function FluxoCaixa() {
               <Button
                 onClick={() => runImport.mutate()}
                 disabled={runImport.isPending || !(importRows ?? []).some((r) => !r.error)}
-                style={{ backgroundColor: active?.chapter.primary_color }}
               >
                 {runImport.isPending
                   ? "Importando…"
@@ -1923,6 +2093,7 @@ function sortCashEntries(
 }
 
 function CashEntriesTable({
+  hidden = false,
   entries,
   writable,
   sortKey,
@@ -1931,6 +2102,7 @@ function CashEntriesTable({
   onEdit,
   onDelete,
 }: {
+  hidden?: boolean;
   entries: CashEntryRow[];
   writable: boolean;
   sortKey: CashSortKey;
@@ -1965,11 +2137,58 @@ function CashEntriesTable({
     );
   }
 
+  const amount = (e: CashEntryRow) =>
+    hidden ? "R$ ••••" : `${e.kind === "entrada" ? "+" : "−"} ${formatBRL(Number(e.amount))}`;
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[880px] text-sm">
+    <>
+    {/* Celular: extrato */}
+    <ul className="md:hidden">
+      {entries.map((e, idx) => {
+        const isIn = e.kind === "entrada";
+        const newDay = idx === 0 || entries[idx - 1].entry_date !== e.entry_date;
+        const sub = [e.category, e.event_name && !e.subcategory?.includes(e.event_name) ? e.event_name : null, e.subcategory]
+          .filter(Boolean)
+          .join(" · ");
+        const Row = writable ? "button" : "div";
+        return (
+          <li key={e.id} className="border-b border-tv-line last:border-0">
+            {newDay ? (
+              <div className="bg-tv-bg/60 px-4 py-1.5 text-[13px] font-bold text-tv-text-2 first-letter:uppercase">
+                {dayLabel(e.entry_date)}
+              </div>
+            ) : null}
+            <Row
+              {...(writable ? { type: "button" as const, onClick: () => onEdit(e) } : {})}
+              className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left"
+            >
+              <span
+                className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+                  isIn ? "bg-tv-in-bg text-tv-in" : "bg-tv-out-bg text-tv-out"
+                }`}
+                aria-hidden
+              >
+                {isIn ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-semibold">{e.description || e.category}</span>
+                <span className="block truncate text-[13px] text-tv-text-2">
+                  {isIn ? "Entrada" : "Saída"}
+                  {sub ? ` · ${sub}` : ""}
+                </span>
+              </span>
+              <span className={`shrink-0 text-[15px] font-bold tabular-nums ${isIn ? "text-tv-in" : "text-tv-out"}`}>
+                {amount(e)}
+              </span>
+            </Row>
+          </li>
+        );
+      })}
+    </ul>
+    <div className="hidden overflow-x-auto md:block">
+      <table className="w-full min-w-[880px] text-[15px]">
         <thead>
-          <tr className="border-b border-border text-xs">
+          <tr className="border-b border-tv-line text-[13px]">
             <SortHeader label="Data" column="entry_date" />
             <SortHeader label="Tipo" column="kind" />
             <SortHeader label="Categoria" column="category" />
@@ -1980,18 +2199,18 @@ function CashEntriesTable({
         </thead>
         <tbody>
           {entries.map((e) => (
-            <tr key={e.id} className="border-b border-border last:border-b-0">
+            <tr key={e.id} className="border-b border-tv-line last:border-b-0 hover:bg-tv-bg/50">
               <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                 {formatDateBR(e.entry_date)}
               </td>
-              <td
-                className={`whitespace-nowrap px-4 py-3 font-medium ${
-                  e.kind === "entrada"
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-rose-600 dark:text-rose-400"
-                }`}
-              >
-                {e.kind === "entrada" ? "Entrada" : "Saída"}
+              <td className="whitespace-nowrap px-4 py-3">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                    e.kind === "entrada" ? "bg-tv-in-bg text-tv-in" : "bg-tv-out-bg text-tv-out"
+                  }`}
+                >
+                  {e.kind === "entrada" ? "Entrada" : "Saída"}
+                </span>
               </td>
               <td className="px-4 py-3">
                 <div className="font-medium">{e.category}</div>
@@ -2009,13 +2228,11 @@ function CashEntriesTable({
                 {e.description}
               </td>
               <td
-                className={`whitespace-nowrap px-4 py-3 text-right font-semibold ${
-                  e.kind === "entrada"
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-rose-600 dark:text-rose-400"
+                className={`whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums ${
+                  e.kind === "entrada" ? "text-tv-in" : "text-tv-out"
                 }`}
               >
-                {e.kind === "entrada" ? "+" : "−"} {formatBRL(Number(e.amount))}
+                {amount(e)}
               </td>
               {writable && (
                 <td className="px-2 py-2 text-right">
@@ -2044,6 +2261,7 @@ function CashEntriesTable({
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 
@@ -2053,21 +2271,61 @@ function MetricCard({
   icon,
   hint,
   tone,
+  highlight,
 }: {
   label: string;
   value: string;
   icon: React.ReactNode;
   hint?: string;
   tone?: string;
+  highlight?: boolean;
 }) {
   return (
-    <Card className="p-5">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-sm text-muted-foreground">{label}</span>
-        {icon}
+    <Card className={`p-4 md:p-5 ${highlight ? "!bg-tv-primary text-white" : ""}`}>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className={`text-[13px] ${highlight ? "text-white/85" : "text-tv-text-2"}`}>{label}</span>
+        <span className={highlight ? "text-white/80 [&_svg]:!text-white/80" : ""}>{icon}</span>
       </div>
-      <div className={`text-xl font-bold ${tone ?? ""}`}>{value}</div>
-      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
+      <div
+        className={`font-display text-xl font-extrabold tracking-[-0.02em] tabular-nums md:text-[26px] ${
+          highlight ? "text-white" : (tone ?? "")
+        }`}
+      >
+        {value}
+      </div>
+      {hint && (
+        <div className={`mt-1 text-xs ${highlight ? "text-white/80" : "text-tv-text-2"}`}>{hint}</div>
+      )}
     </Card>
+  );
+}
+
+function dayLabel(ymd: string) {
+  const d = new Date(`${String(ymd).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return formatDateBR(ymd);
+  return d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
+}
+
+function RoundAction({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex flex-col items-center gap-1.5 text-center disabled:opacity-60"
+    >
+      <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-tv-primary">{children}</span>
+      <span className="text-xs font-semibold leading-tight">{label}</span>
+    </button>
   );
 }

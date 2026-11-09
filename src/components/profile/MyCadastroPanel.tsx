@@ -25,9 +25,7 @@ import {
 } from "@/components/ui/select";
 import {
   digitsOnly,
-  formatCpfMask,
   formatDateBR,
-  formatRgMask,
   isUnder21,
   kindLabel,
   maskCpfInput,
@@ -53,6 +51,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
   const [rg, setRg] = useState("");
+  const [editDocs, setEditDocs] = useState(false);
   const [address, setAddress] = useState({
     zip: "",
     street: "",
@@ -279,24 +278,39 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
               onChange={(e) => setEmail(e.target.value)}
             />
           </Field>
-          <Field label="CPF">
-            <Input
-              value={cpf}
-              placeholder={formatCpfMask(member.cpf_last2)}
-              onChange={(e) => setCpf(maskCpfInput(e.target.value))}
-            />
-          </Field>
-          <Field label="RG">
-            <Input
-              value={rg}
-              placeholder={formatRgMask(member.rg_last2)}
-              onChange={(e) => setRg(e.target.value.slice(0, 20))}
-            />
-          </Field>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Deixe CPF e RG em branco para manter os valores já cadastrados.
-        </p>
+        {/* CPF e RG nunca aparecem na tela, nem mascarados (redesign). */}
+        <div className="flex flex-col gap-3 rounded-[14px] bg-tv-bg p-4 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-[15px] text-tv-text-2">
+            {member.cpf_last2 || member.rg_last2
+              ? "CPF e RG cadastrados e protegidos."
+              : "CPF e RG ainda não cadastrados."}
+          </span>
+          {!editDocs ? (
+            <Button type="button" variant="outline" onClick={() => setEditDocs(true)}>
+              Atualizar documentos
+            </Button>
+          ) : null}
+        </div>
+        {editDocs ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Novo CPF">
+              <Input
+                value={cpf}
+                inputMode="numeric"
+                placeholder="Deixe vazio para manter"
+                onChange={(e) => setCpf(maskCpfInput(e.target.value))}
+              />
+            </Field>
+            <Field label="Novo RG">
+              <Input
+                value={rg}
+                placeholder="Deixe vazio para manter"
+                onChange={(e) => setRg(e.target.value.slice(0, 20))}
+              />
+            </Field>
+          </div>
+        ) : null}
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
@@ -424,7 +438,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
               <Field label="CPF">
                 <Input
                   value={g.cpf}
-                  placeholder={formatCpfMask(g.cpf_last2)}
+                  placeholder={g.cpf_last2 ? "Cadastrado · deixe vazio para manter" : ""}
                   onChange={(e) =>
                     patchGuardian(g.id, { cpf: maskCpfInput(e.target.value) })
                   }

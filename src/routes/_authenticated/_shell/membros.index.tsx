@@ -165,6 +165,14 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
     }
   }, [filters.filtro, members, memberIdsWithCargo]);
 
+  // Paginação só da exibição; volta à 1ª página quando a lista muda.
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(0);
+  useEffect(() => setPage(0), [filteredMembers]);
+  const pageCount = Math.max(1, Math.ceil(filteredMembers.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageMembers = filteredMembers.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
   const isAdmin =
     canScreen("membros", "edit") ||
     can("secretaria") ||
@@ -244,14 +252,14 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
         }
       />
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
-        <label className="flex min-h-[52px] items-center gap-2.5 rounded-[14px] border border-tv-border bg-tv-surface px-3.5 lg:min-h-[46px] lg:max-w-[420px] lg:flex-1 lg:rounded-[12px]">
+      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+        <label className="flex min-h-[52px] items-center gap-2.5 rounded-[14px] border border-tv-border bg-tv-surface px-3.5 md:min-h-[46px] md:max-w-[420px] md:flex-1 md:rounded-[12px]">
           <Search className="h-5 w-5 shrink-0 text-tv-text-2" />
           <span className="sr-only">Buscar membro</span>
           <input
             type="search"
             placeholder="Buscar por nome"
-            className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-[#6B6E75] lg:text-[15px]"
+            className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-[#6B6E75] md:text-[15px]"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
@@ -266,7 +274,7 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
             </button>
           )}
         </label>
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0">
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0">
           {chips.map((c) => (
             <button
               key={c.key}
@@ -348,8 +356,8 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
       ) : (
         <>
           {/* Celular: lista */}
-          <ul className="mt-4 overflow-hidden rounded-[20px] bg-tv-surface lg:hidden">
-            {filteredMembers.map((m) => {
+          <ul className="mt-4 overflow-hidden rounded-[20px] bg-tv-surface md:hidden">
+            {pageMembers.map((m) => {
               const kind = (m as { kind?: string }).kind;
               return (
                 <li key={m.id} className="border-b border-tv-line last:border-0">
@@ -371,7 +379,7 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
           </ul>
 
           {/* Desktop: tabela */}
-          <div className="mt-4 hidden overflow-x-auto rounded-[20px] bg-tv-surface lg:block">
+          <div className="mt-4 hidden overflow-x-auto rounded-[20px] bg-tv-surface md:block">
             <div className="min-w-[760px] text-[15px]">
               <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_110px_120px] gap-3 border-b border-[#EEEEEA] px-5 py-3.5 text-[13px] font-semibold text-tv-text-2 dark:border-tv-line">
                 <span>Membro</span>
@@ -380,7 +388,7 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
                 <span>Situação</span>
                 <span className="text-right">Ações</span>
               </div>
-              {filteredMembers.map((m) => {
+              {pageMembers.map((m) => {
                 const grau = grauOf(m);
                 const kind = (m as { kind?: string }).kind;
                 const showGrau = kind !== "senior" && kind !== "macom";
@@ -424,10 +432,38 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
                   </div>
                 );
               })}
-              <div className="px-5 py-3.5 text-sm text-tv-text-2">
-                {filteredMembers.length} {filteredMembers.length === 1 ? "membro" : "membros"}
-              </div>
             </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-tv-text-2">
+            <span>
+              {filteredMembers.length > PAGE_SIZE
+                ? `Mostrando ${safePage * PAGE_SIZE + 1}–${Math.min((safePage + 1) * PAGE_SIZE, filteredMembers.length)} de ${filteredMembers.length} membros`
+                : `${filteredMembers.length} ${filteredMembers.length === 1 ? "membro" : "membros"}`}
+            </span>
+            {pageCount > 1 ? (
+              <span className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  disabled={safePage === 0}
+                  onClick={() => setPage(safePage - 1)}
+                  aria-label="Página anterior"
+                >
+                  Anterior
+                </Button>
+                <span className="tabular-nums">
+                  {safePage + 1} de {pageCount}
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={safePage >= pageCount - 1}
+                  onClick={() => setPage(safePage + 1)}
+                  aria-label="Próxima página"
+                >
+                  Próxima
+                </Button>
+              </span>
+            ) : null}
           </div>
         </>
       )}

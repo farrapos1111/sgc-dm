@@ -28,6 +28,10 @@ import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { EmptyState } from "@/components/EmptyState";
 import { useNavGroups } from "@/hooks/useNavGroups";
+import { useQuery } from "@tanstack/react-query";
+import { countPendingMemberRequests } from "@/lib/member-change-requests.functions";
+import { getDashboardFinance } from "@/lib/finance.functions";
+import { canAccess } from "@/lib/permissions";
 import {
   DesktopSidebar,
   MobileTabBar,
@@ -87,6 +91,23 @@ export function AppShell({ children }: { children: ReactNode }) {
     canManageLeaderships,
   } = useOrgScope();
   const { groups, canSee, isFdj } = useNavGroups();
+  // Contadores do menu: solicitações de membros e mensalidades atrasadas.
+  const canRequests =
+    !activeScope &&
+    canSee("/membros") &&
+    (canScreen("membros", "edit") || canAccess(accessCtx, "secretaria") || canAccess(accessCtx, "conselho") || canAccess(accessCtx, "admin"));
+  const { data: pendingRequests } = useQuery({
+    queryKey: ["member-change-requests-count", active?.chapter_id],
+    queryFn: () => countPendingMemberRequests({ data: { originChapterId: active!.chapter_id } }),
+    enabled: Boolean(active?.chapter_id) && canRequests,
+    refetchInterval: 120_000,
+  });
+  const { data: navFinance } = useQuery({
+    queryKey: ["dashboard-finance", active?.chapter_id],
+    queryFn: () => getDashboardFinance({ data: { chapterId: active!.chapter_id } }),
+    enabled: Boolean(active?.chapter_id) && !activeScope && canSee("/tesouraria/atrasados"),
+    staleTime: 60_000,
+  });
   const tabs = useMemo(
     () => visibleMobileTabs(Boolean(activeScope)),
     [activeScope],
@@ -354,6 +375,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-tv-bg text-tv-text">
       <DesktopSidebar
+        badges={{
+          "/membros": pendingRequests?.count || undefined,
+          "/tesouraria/atrasados": navFinance?.pendingMembers || undefined,
+        }}
         brand={sidebarBrand}
         switcher={scopeSwitcher}
         groups={groups}
@@ -364,10 +389,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       />
 
       {/* Main */}
-      <div className="flex min-h-screen flex-col lg:pl-[264px]">
+      <div className="flex min-h-screen flex-col md:pl-[264px]">
         {/* Celular: sem cabeçalho fixo (como no redesign); só na visão regional. */}
         {activeScope && (
-          <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-tv-border bg-tv-surface/95 px-4 py-3 backdrop-blur lg:hidden">
+          <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-tv-border bg-tv-surface/95 px-4 py-3 backdrop-blur md:hidden">
             <ChapterMark
               logoUrl={logoUrl}
               number={chapterNum}
@@ -386,14 +411,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {isNavigating && (
           <div
-            className="fixed left-0 right-0 top-0 z-50 h-0.5 origin-left animate-pulse lg:left-[264px]"
+            className="fixed left-0 right-0 top-0 z-50 h-0.5 origin-left animate-pulse md:left-[264px]"
             style={{ backgroundColor: primary }}
             role="progressbar"
             aria-label="Carregando página"
           />
         )}
 
-        <main className="relative flex-1 px-4 pb-28 pt-4 sm:px-6 lg:px-8 lg:pb-12 lg:pt-6 xl:px-8">
+        <main className="relative flex-1 px-4 pb-28 pt-4 sm:px-6 md:px-8 md:pb-12 md:pt-6 xl:px-8">
           <div
             className={`mx-auto w-full ${
               pathname.startsWith("/tesouraria/mensalidades") ||
@@ -422,7 +447,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           />
         ) : (
           <nav
-            className="fixed inset-x-0 bottom-0 z-30 grid border-t border-tv-border bg-tv-surface lg:hidden"
+            className="fixed inset-x-0 bottom-0 z-30 grid border-t border-tv-border bg-tv-surface md:hidden"
             style={{
               paddingBottom: "env(safe-area-inset-bottom)",
               gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`,

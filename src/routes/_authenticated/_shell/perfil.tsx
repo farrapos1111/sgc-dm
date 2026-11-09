@@ -115,7 +115,7 @@ function PerfilOdm() {
   return (
     <div>
       <PageHeader
-        title="Perfil DeMolay"
+        title="Meu perfil"
         subtitle={
           data.profile.fullName
             ? `${data.profile.fullName}${data.profile.email ? ` · ${data.profile.email}` : ""}`
@@ -190,6 +190,13 @@ function PerfilOdm() {
           ) : null}
 
           {selected ? (
+            <div className="grid items-start gap-4 md:grid-cols-[340px_minmax(0,1fr)] md:gap-5">
+            <ProfileSideCard
+              member={selected}
+              hasCards={data.cards.some((c) => c.memberId === selected.id)}
+              onShowCards={() => setTab("carteirinhas")}
+            />
+            <div className="min-w-0">
             <Tabs value={tab} onValueChange={setTab}>
               <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1">
                 <TabsTrigger value="cadastro" className="gap-1.5">
@@ -350,6 +357,8 @@ function PerfilOdm() {
                 ) : null}
               </TabsContent>
             </Tabs>
+            </div>
+            </div>
           ) : null}
         </div>
       )}
@@ -400,5 +409,96 @@ function CardRow({
         Ver carteirinha
       </Button>
     </li>
+  );
+}
+
+/** Carteirinha digital + trajetória (D-Perfil / M-Perfil do redesign). */
+function ProfileSideCard({
+  member,
+  hasCards,
+  onShowCards,
+}: {
+  member: LinkedMemberSummary;
+  hasCards: boolean;
+  onShowCards: () => void;
+}) {
+  const regular = member.status === "regular";
+  const steps = [
+    { label: "Iniciação na Ordem", date: member.iniciacaoOrdem },
+    { label: "Exame do Grau Iniciático", date: member.examGrauIniciatico },
+    { label: "Iniciação no Grau DeMolay", date: member.iniciacaoGrauDemolay },
+    { label: "Exame do Grau DeMolay", date: member.examGrauDemolay },
+  ];
+  const id = member.demolayId ?? member.masonicId;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="relative overflow-hidden rounded-[22px] bg-tv-primary p-5 text-white">
+        <div
+          aria-hidden
+          className="absolute -bottom-16 -right-12 h-48 w-48 rounded-full border-[30px] border-white/[0.08]"
+        />
+        <div className="relative flex items-start justify-between gap-2">
+          <span className="leading-tight">
+            <span className="block text-xs font-semibold uppercase tracking-[0.08em] opacity-85">
+              Carteirinha digital
+            </span>
+            <span className="mt-0.5 block text-sm font-semibold">
+              {member.chapterName} nº {member.chapterNumber}
+            </span>
+          </span>
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
+              regular ? "bg-white text-tv-in" : "bg-white text-tv-warn"
+            }`}
+          >
+            {statusLabel(member.status)}
+          </span>
+        </div>
+        <div className="relative mt-10">
+          <span className="block font-display text-[22px] font-extrabold leading-tight">
+            {member.fullName}
+          </span>
+          <span className="mt-1 block text-sm opacity-90">
+            {kindLabel(member.kind)}
+            {id ? ` · ID ${id}` : ""}
+          </span>
+        </div>
+      </div>
+      <Button variant="secondary" onClick={onShowCards}>
+        <CreditCard className="h-[18px] w-[18px]" />
+        {hasCards ? "Ver carteirinha de proficiência" : "Carteirinhas"}
+      </Button>
+
+      <div className="rounded-[20px] bg-tv-surface p-5">
+        <span className="text-[13px] font-semibold uppercase tracking-[0.06em] text-tv-text-2">
+          Minha trajetória
+        </span>
+        <ol className="mt-3">
+          {steps.map((st, i) => (
+            <li key={st.label} className="flex gap-3">
+              <span className="flex flex-col items-center">
+                <span
+                  className={`mt-1 h-3 w-3 shrink-0 rounded-full ${
+                    st.date ? "bg-tv-primary" : "border-2 border-[#DCDCD8] bg-tv-surface dark:border-tv-border"
+                  }`}
+                />
+                {i < steps.length - 1 ? <span className="w-0.5 flex-1 bg-tv-line" /> : null}
+              </span>
+              <span className="pb-4">
+                <span className={`block text-[15px] ${st.date ? "font-semibold" : "text-tv-text-2"}`}>
+                  {st.label}
+                </span>
+                <span className="block text-[13px] text-tv-text-2">
+                  {st.date ? formatDateBR(st.date) : "Ainda não registrado"}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
+        <p className="text-[13px] text-tv-text-2">
+          Datas e graus são alterados apenas pela secretaria do capítulo de origem.
+        </p>
+      </div>
+    </div>
   );
 }
