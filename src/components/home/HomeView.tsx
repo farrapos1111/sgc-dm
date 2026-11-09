@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType, ReactElement, ReactNode } from "react";
 import {
   Cake,
   CalendarDays,
@@ -33,6 +33,8 @@ export type HomeViewProps = {
   chapterLabel: string;
   chapterMark: ReactNode;
   onSwitchChapter?: () => void;
+  /** Envolve o botão do topo (ex.: menu de troca de instituição). */
+  wrapSwitcher?: (trigger: ReactElement) => ReactNode;
   switchLabel?: string;
   hidden: boolean;
   onToggleHidden: () => void;
@@ -80,26 +82,29 @@ const money = (hidden: boolean, v: string) => (hidden ? "R$ ••••" : v);
 export function HomeView(p: HomeViewProps) {
   const EyeIcon = p.hidden ? EyeOff : Eye;
   const eyeLabel = p.hidden ? "Mostrar valores" : "Ocultar valores";
+  const switchButton = (
+    <button
+      type="button"
+      onClick={p.onSwitchChapter}
+      className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-full bg-white/15 py-1.5 pl-1.5 pr-3 text-left"
+    >
+      <span className="grid h-[34px] w-[34px] shrink-0 place-items-center overflow-hidden rounded-full bg-white text-[15px] font-bold text-tv-primary">
+        {p.chapterMark}
+      </span>
+      <span className="min-w-0 leading-tight">
+        <span className="block truncate text-sm font-semibold">{p.chapterLabel}</span>
+        <span className="block text-xs opacity-85">{p.switchLabel ?? "Trocar capítulo"}</span>
+      </span>
+      <ChevronDown className="h-[18px] w-[18px] shrink-0" />
+    </button>
+  );
 
   return (
     <div className="pb-4">
       {/* ---------- Mobile: hero colorido ---------- */}
       <section className="-mx-4 -mt-4 bg-tv-primary px-5 pb-[76px] pt-4 text-white sm:-mx-6 sm:px-7 lg:hidden">
         <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={p.onSwitchChapter}
-            className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-full bg-white/15 py-1.5 pl-1.5 pr-3 text-left"
-          >
-            <span className="grid h-[34px] w-[34px] shrink-0 place-items-center overflow-hidden rounded-full bg-white text-[15px] font-bold text-tv-primary">
-              {p.chapterMark}
-            </span>
-            <span className="min-w-0 leading-tight">
-              <span className="block truncate text-sm font-semibold">{p.chapterLabel}</span>
-              <span className="block text-xs opacity-85">{p.switchLabel ?? "Trocar capítulo"}</span>
-            </span>
-            <ChevronDown className="h-[18px] w-[18px] shrink-0" />
-          </button>
+          {p.wrapSwitcher ? p.wrapSwitcher(switchButton) : switchButton}
           <button
             type="button"
             onClick={p.onToggleHidden}

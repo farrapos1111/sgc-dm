@@ -37,6 +37,8 @@ import { STATUS_LABELS } from "@/lib/investigation-labels";
 import { useChapterLogo } from "@/lib/chapter-logo";
 import { HomeView, type HomeShortcut } from "@/components/home/HomeView";
 import { initialsOf } from "@/components/shell/ShellNav";
+import { ChapterSwitcher } from "@/components/home/ChapterSwitcher";
+import { useOrgScope } from "@/context/OrgScopeContext";
 
 /** Idade que o membro completa no aniversário deste ano civil. */
 function turningAgeThisYear(birthDate: string | null | undefined, year: number): number | null {
@@ -141,6 +143,8 @@ function Inicio() {
 function InicioContent({ active }: { active: Membership }) {
   const navigate = useNavigate();
   const { profileFullName, memberships } = useActiveChapter();
+  const { scopes } = useOrgScope();
+  const hasOtherViews = new Set(memberships.map((m) => m.chapter_id)).size > 1 || scopes.length > 0;
   const { can, ctx, positionLabels } = useChapterAccess();
   const { canSee, duesEnabled } = useNavGroups();
   const chapterId = active.chapter_id;
@@ -293,10 +297,9 @@ function InicioContent({ active }: { active: Membership }) {
           (active.chapter.name?.[0] ?? "T").toUpperCase()
         )
       }
-      switchLabel={memberships.length > 1 ? "Trocar instituição" : "Menu e opções"}
-      onSwitchChapter={() =>
-        navigate({ to: memberships.length > 1 ? "/selecionar-capitulo" : "/mais" })
-      }
+      switchLabel={hasOtherViews ? "Trocar instituição" : "Menu e opções"}
+      onSwitchChapter={hasOtherViews ? undefined : () => navigate({ to: "/mais" })}
+      wrapSwitcher={hasOtherViews ? (trigger) => <ChapterSwitcher trigger={trigger} /> : undefined}
       hidden={hidden}
       onToggleHidden={toggleHidden}
       ongoing={((ongoing ?? []) as CalItem[]).map((it) => ({
