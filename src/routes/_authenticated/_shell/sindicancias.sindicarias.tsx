@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { initialsOf } from "@/components/shell/ShellNav";
 import {
   Select,
   SelectContent,
@@ -575,24 +575,30 @@ function SindicariasPage() {
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Input
-          className="max-w-xs"
-          placeholder="Pesquisar indicado, local, responsável…"
+          className="w-full sm:max-w-xs"
+          type="search"
+          aria-label="Buscar sindicância"
+          placeholder="Buscar indicado, local ou responsável"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todas">Todos os status</SelectItem>
-            {Object.entries(STATUS_LABELS).map(([k, v]) => (
-              <SelectItem key={k} value={k}>
-                {v}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Situação">
+          {[["todas", "Todas"] as const, ...Object.entries(STATUS_LABELS)].map(([k, v]) => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={statusFilter === k}
+              onClick={() => setStatusFilter(k)}
+              className={`min-h-10 rounded-full border px-3.5 text-sm font-semibold ${
+                statusFilter === k
+                  ? "border-tv-text bg-tv-text text-tv-surface"
+                  : "border-tv-border bg-tv-surface text-tv-text"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
         <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Ordenar" />
@@ -630,45 +636,59 @@ function SindicariasPage() {
         <ul className="space-y-3">
           {visible.map((r) => (
             <li key={r.calendar_event_id}>
-              <Card className="p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-medium">
-                      {r.event?.title ?? r.nominee_name}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Indicado: {r.nominee_name}
-                      {r.event?.start_at
-                        ? ` · ${formatDateTimeBR(r.event.start_at)}`
-                        : ""}
-                      {r.event?.location ? ` · ${r.event.location}` : ""}
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
+              <Card className="p-4 md:p-5">
+                <div className="flex flex-wrap items-start gap-3">
+                  <span
+                    aria-hidden
+                    className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-tv-soft text-base font-bold text-tv-ink"
+                  >
+                    {initialsOf(r.nominee_name)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[13px] text-tv-text-2">Indicado</span>
+                    <span className="block text-lg font-bold leading-snug">{r.nominee_name}</span>
+                    <span className="block text-sm text-tv-text-2">
                       {[
-                        r.senior?.full_name || r.senior_text
-                          ? `Tio/Senior: ${r.senior?.full_name || r.senior_text}`
-                          : null,
-                        r.investigator?.full_name || r.investigator_text
-                          ? `Sindicante: ${r.investigator?.full_name || r.investigator_text}`
-                          : null,
-                        r.clerk?.full_name || r.clerk_text
-                          ? `Escrivão: ${r.clerk?.full_name || r.clerk_text}`
-                          : null,
+                        r.event?.title && r.event.title !== r.nominee_name ? r.event.title : null,
+                        r.event?.start_at ? formatDateTimeBR(r.event.start_at) : null,
+                        r.event?.location,
                       ]
                         .filter(Boolean)
                         .join(" · ")}
-                    </div>
+                    </span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary">
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-full bg-tv-soft px-2.5 py-1 text-xs font-bold text-tv-ink">
                       {STATUS_LABELS[r.status] ?? r.status}
-                    </Badge>
-                    {r.minute_draft ? (
-                      <Badge variant="outline">Ata em rascunho</Badge>
-                    ) : null}
+                    </span>
                     {r.minute_completed ? (
-                      <Badge variant="outline">Ata concluída</Badge>
+                      <span className="rounded-full bg-tv-in-bg px-2.5 py-1 text-xs font-bold text-tv-in">
+                        Ata concluída
+                      </span>
+                    ) : r.minute_draft ? (
+                      <span className="rounded-full bg-tv-warn-bg px-2.5 py-1 text-xs font-bold text-tv-warn">
+                        Ata em rascunho
+                      </span>
                     ) : null}
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-2 rounded-[14px] bg-tv-bg p-3 text-sm sm:grid-cols-3">
+                  {(
+                    [
+                      ["Tio ou Sênior", r.senior?.full_name || r.senior_text],
+                      ["Sindicante", r.investigator?.full_name || r.investigator_text],
+                      ["Escrivão", r.clerk?.full_name || r.clerk_text],
+                    ] as const
+                  ).map(([k, v]) => (
+                    <span key={k} className="min-w-0">
+                      <span className="block text-[13px] text-tv-text-2">{k}</span>
+                      <span className={`block truncate font-semibold ${v ? "" : "text-tv-text-2"}`}>
+                        {v || "A definir"}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                     <Button
                       size="sm"
                       variant="outline"
@@ -791,7 +811,7 @@ function SindicariasPage() {
                           });
                         }}
                       >
-                        <SelectTrigger className="h-8 w-36">
+                        <SelectTrigger className="w-auto min-w-44 sm:ml-auto" aria-label="Mudar situação">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -820,7 +840,6 @@ function SindicariasPage() {
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     )}
-                  </div>
                 </div>
               </Card>
             </li>
