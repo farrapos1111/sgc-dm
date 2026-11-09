@@ -1,4 +1,21 @@
 import type { ReactNode } from "react";
+import { useRouterState } from "@tanstack/react-router";
+
+/** Seção do menu deduzida pela rota, quando a tela não informa `eyebrow`. */
+const SECTION_BY_PREFIX: [string, string][] = [
+  ["/membros", "Secretaria"],
+  ["/atas", "Secretaria"],
+  ["/oficios", "Secretaria"],
+  ["/presencas", "Secretaria"],
+  ["/tesouraria", "Tesouraria"],
+  ["/calendario", "Gestão"],
+  ["/gestao", "Gestão"],
+  ["/configuracoes", "Gestão"],
+  ["/eventos", "Comissão de Eventos"],
+  ["/sindicancias", "Comissão de Sindicâncias"],
+  ["/hospitalaria", "Hospitalaria"],
+  ["/regional", "Gestão regional"],
+];
 
 /** Cabeçalho de página do redesign: seção (opcional), título grande, subtítulo e ações. */
 export function PageHeader({
@@ -13,10 +30,13 @@ export function PageHeader({
   /** Seção do menu acima do título (ex.: "Secretaria"). */
   eyebrow?: string;
 }) {
+  const pathname = useRouterState({ select: (st) => st.location.pathname });
+  const section =
+    eyebrow ?? SECTION_BY_PREFIX.find(([p]) => pathname === p || pathname.startsWith(`${p}/`))?.[1];
   return (
     <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between lg:mb-6">
       <div className="min-w-0">
-        {eyebrow ? <p className="text-sm text-tv-text-2">{eyebrow}</p> : null}
+        {section ? <p className="text-sm text-tv-text-2">{section}</p> : null}
         <h1 className="mt-0.5 truncate font-display text-[28px] font-extrabold tracking-[-0.02em] text-tv-text lg:text-[32px]">
           {title}
         </h1>

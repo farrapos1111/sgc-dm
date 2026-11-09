@@ -105,9 +105,9 @@ const deletedMinutesQO = (chapterId: string) =>
   });
 
 const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
-  rascunho: { bg: "#F3F4F6", color: "#6B6B6B" },
-  em_revisao: { bg: "#FEF3C7", color: "#B45309" },
-  aprovada: { bg: "#D1FAE5", color: "#047857" },
+  rascunho: { bg: "var(--tv-line)", color: "#3F4249" },
+  em_revisao: { bg: "var(--tv-warn-bg)", color: "var(--tv-warn)" },
+  aprovada: { bg: "var(--tv-in-bg)", color: "var(--tv-in)" },
 };
 
 type MinuteRow = {
@@ -185,7 +185,7 @@ function StatusBadge({ status }: { status: string }) {
   const st = STATUS_STYLE[status] ?? STATUS_STYLE.rascunho;
   return (
     <span
-      className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
+      className="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold"
       style={{ backgroundColor: st.bg, color: st.color }}
     >
       {MINUTE_STATUS_LABELS[status] ?? status}
@@ -193,61 +193,187 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function MinuteCard({ minute }: { minute: MinuteRow }) {
+const MONTH_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+function minuteDate(m: MinuteRow): Date {
+  return new Date(m.calendar_event?.start_at ?? m.opened_at);
+}
+
+function plainText(content: string | null | undefined): string {
+  return (content ?? "")
+    .replace(/<\/(p|div|h\d|li)>/gi, "\n")
+    .replace(/<br\s*\/?>(\s*)/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/[#*_>`]+/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** Lista de atas à esquerda e a selecionada à direita (D-Atas / M-Ata do redesign). */
+function MinutesMasterDetail({ minutes }: { minutes: MinuteRow[] }) {
+  const [selectedId, setSelectedId] = useState<string | null>(minutes[0]?.id ?? null);
+  const selected = minutes.find((m) => m.id === selectedId) ?? minutes[0] ?? null;
+
+  return (
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
+      <ul className="overflow-hidden rounded-[20px] bg-tv-surface">
+        {minutes.map((m) => {
+          const d = minuteDate(m);
+          const on = selected?.id === m.id;
+          const signed = (m.approvals ?? []).length;
+          return (
+            <li key={m.id} className="border-b border-tv-line last:border-0">
+              {/* Celular: abre a ata direto. Desktop: seleciona para o painel. */}
+              <Link
+                to="/ongoing/$id"
+                params={{ id: m.calendar_event_id }}
+                search={{ tab: "ata", minute: m.id }}
+                className="flex min-h-16 items-center gap-3 px-3.5 py-3 lg:hidden"
+              >
+                <MinuteRowContent m={m} d={d} signed={signed} />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setSelectedId(m.id)}
+                aria-pressed={on}
+                className={`hidden min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors lg:flex ${
+                  on ? "bg-tv-soft" : "hover:bg-tv-bg"
+                }`}
+              >
+                <MinuteRowContent m={m} d={d} signed={signed} active={on} />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {selected ? <MinuteDetail minute={selected} /> : null}
+    </div>
+  );
+}
+
+function MinuteRowContent({
+  m,
+  d,
+  signed,
+  active,
+}: {
+  m: MinuteRow;
+  d: Date;
+  signed: number;
+  active?: boolean;
+}) {
+  return (
+    <>
+      <span
+        className={`grid h-12 w-12 shrink-0 place-items-center rounded-[14px] leading-none ${
+          active ? "bg-tv-surface text-tv-ink" : "bg-tv-soft text-tv-ink"
+        }`}
+      >
+        <span className="text-center">
+          <span className="block font-display text-lg font-extrabold">{d.getDate()}</span>
+          <span className="block text-[11px] font-semibold uppercase">{MONTH_SHORT[d.getMonth()]}</span>
+        </span>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[15px] font-semibold">
+          {m.calendar_event?.title ?? "Sessão"}
+        </span>
+        <span className="block truncate text-[13px] text-tv-text-2">
+          {[
+            m.kind ? (MINUTE_KIND_LABELS[m.kind as MinuteKind] ?? m.kind) : null,
+            d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+            `${signed} de 3 assinaturas`,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
+      </span>
+      <StatusBadge status={m.status} />
+    </>
+  );
+}
+
+function MinuteDetail({ minute }: { minute: MinuteRow }) {
+  const d = minuteDate(minute);
   const signed = SIGNER_ROLES.filter((r) =>
     (minute.approvals ?? []).some((a) => a.signer_role === r),
   );
-  const eventId = minute.calendar_event_id;
+  const steps = [
+    { label: "Rascunho", done: true },
+    { label: "Em revisão", done: minute.status !== "rascunho" },
+    { label: `Assinaturas (${signed.length}/3)`, done: signed.length >= 3 },
+    { label: "Aprovada", done: minute.status === "aprovada" },
+  ];
+  const text = plainText(minute.content);
 
   return (
-    <Card className="p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-sm font-medium">
-              {minute.calendar_event?.title ?? "Sessão"}
-            </h3>
-            <StatusBadge status={minute.status} />
-            {minute.kind ? (
-              <Badge variant="outline" className="text-xs font-normal">
-                {MINUTE_KIND_LABELS[minute.kind as MinuteKind] ?? minute.kind}
-              </Badge>
-            ) : null}
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {minute.calendar_event?.start_at
-              ? formatDateTimeBR(minute.calendar_event.start_at)
-              : formatDateTimeBR(minute.opened_at)}
-            {" · "}
-            Assinaturas: {signed.length}/3
-            {signed.length > 0
-              ? ` · ${signed.map((r) => SIGNER_LABELS[r]).join(", ")}`
-              : " · nenhuma"}
+    <div className="hidden flex-col gap-4 rounded-[20px] bg-tv-surface p-6 lg:flex">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-display text-[22px] font-extrabold leading-tight">
+            {minute.calendar_event?.title ?? "Sessão"}
+          </h2>
+          <p className="mt-1 text-sm text-tv-text-2">
+            Sessão de {d.toLocaleDateString("pt-BR")} às{" "}
+            {d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
           </p>
-          {minute.rejection_note && minute.status === "rascunho" ? (
-            <p className="mt-1.5 line-clamp-2 text-xs text-amber-700 dark:text-amber-400">
-              Reprovada: {minute.rejection_note}
-            </p>
-          ) : null}
         </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap gap-2">
           <ExportPdfButton minute={minute} size="sm" />
-          <Button
-            asChild
-            size="sm"
-            style={{ backgroundColor: "var(--chapter-primary)" }}
-          >
+          <Button asChild size="sm">
             <Link
               to="/ongoing/$id"
-              params={{ id: eventId }}
+              params={{ id: minute.calendar_event_id }}
               search={{ tab: "ata", minute: minute.id }}
             >
-              Acessar ata
+              Abrir ata
             </Link>
           </Button>
         </div>
       </div>
-    </Card>
+
+      <div>
+        <span className="text-[13px] font-semibold uppercase tracking-[0.06em] text-tv-text-2">
+          Andamento
+        </span>
+        <ol className="mt-2.5 grid grid-cols-4 gap-2">
+          {steps.map((st) => (
+            <li key={st.label} className="flex flex-col gap-1.5">
+              <span className={`h-1.5 rounded-full ${st.done ? "bg-tv-primary" : "bg-[#E9E9E5] dark:bg-tv-line"}`} />
+              <span className={`text-[13px] ${st.done ? "font-semibold text-tv-text" : "text-tv-text-2"}`}>
+                {st.label}
+              </span>
+            </li>
+          ))}
+        </ol>
+        {signed.length > 0 ? (
+          <p className="mt-2 text-[13px] text-tv-text-2">
+            Assinaram: {signed.map((r) => SIGNER_LABELS[r]).join(", ")}
+          </p>
+        ) : null}
+      </div>
+
+      {minute.kind ? (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-tv-text-2">Quem pode ler:</span>
+          <span className="rounded-full bg-tv-soft px-2.5 py-1 text-xs font-semibold text-tv-ink">
+            {MINUTE_KIND_LABELS[minute.kind as MinuteKind] ?? minute.kind}
+          </span>
+        </div>
+      ) : null}
+
+      {minute.rejection_note && minute.status === "rascunho" ? (
+        <p className="rounded-[14px] bg-tv-warn-bg px-4 py-3 text-sm text-tv-warn">
+          Reprovada: {minute.rejection_note}
+        </p>
+      ) : null}
+
+      <div className="max-h-[420px] overflow-y-auto whitespace-pre-line rounded-[14px] bg-tv-bg px-5 py-4 text-[15px] leading-relaxed text-[#2A2C31] dark:text-tv-text">
+        {text || <span className="text-tv-text-2">Ata ainda sem texto.</span>}
+      </div>
+    </div>
   );
 }
 
@@ -312,7 +438,7 @@ function CreateMinuteDialog({
             Cancelar
           </Button>
           <Button
-            style={{ backgroundColor: "var(--chapter-primary)" }}
+            
             disabled={!selectedId}
             onClick={() => {
               onOpenChange(false);
@@ -564,6 +690,7 @@ function AtasPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Secretaria"
         title="Atas"
         subtitle={
           canViewModelos
@@ -597,7 +724,7 @@ function AtasPage() {
             </p>
             {canEditAtas ? (
               <Button
-                style={{ backgroundColor: "var(--chapter-primary)" }}
+                
                 onClick={() => setCreateOpen(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -618,7 +745,7 @@ function AtasPage() {
               action={
                 canEditAtas ? (
                   <Button
-                    style={{ backgroundColor: "var(--chapter-primary)" }}
+                    
                     onClick={() => setCreateOpen(true)}
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -628,13 +755,7 @@ function AtasPage() {
               }
             />
           ) : (
-            <ul className="space-y-3">
-              {inProgress.map((m) => (
-                <li key={m.id}>
-                  <MinuteCard minute={m} />
-                </li>
-              ))}
-            </ul>
+            <MinutesMasterDetail key={inProgress.map((m) => m.id).join()} minutes={inProgress} />
           )}
 
           {canEditAtas ? (
@@ -660,49 +781,7 @@ function AtasPage() {
               description="Não há atas registradas para esses filtros."
             />
           ) : (
-            <ul className="space-y-2">
-              {filteredAll.map((m) => (
-                <li key={m.id}>
-                  <div className="flex flex-col gap-3 rounded-[12px] border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="truncate text-sm font-medium">
-                          {m.calendar_event?.title ?? "Sessão"}
-                        </div>
-                        <StatusBadge status={m.status} />
-                        {m.kind ? (
-                          <Badge
-                            variant="outline"
-                            className="text-xs font-normal"
-                          >
-                            {MINUTE_KIND_LABELS[m.kind as MinuteKind] ?? m.kind}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {m.calendar_event?.start_at
-                          ? formatDateTimeBR(m.calendar_event.start_at)
-                          : formatDateTimeBR(m.opened_at)}
-                        {" · "}
-                        {(m.approvals ?? []).length}/3 assinaturas
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                      <ExportPdfButton minute={m} size="sm" />
-                      <Button asChild size="sm" variant="outline">
-                        <Link
-                          to="/ongoing/$id"
-                          params={{ id: m.calendar_event_id }}
-                          search={{ tab: "ata", minute: m.id }}
-                        >
-                          Abrir
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <MinutesMasterDetail key={filteredAll.map((m) => m.id).join()} minutes={filteredAll} />
           )}
         </TabsContent>
 

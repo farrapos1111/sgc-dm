@@ -91,6 +91,7 @@ function OngoingPage() {
   const qc = useQueryClient();
   const { data } = useSuspenseQuery(ongoingQO(id));
   const [search, setSearch] = useState("");
+  const [rollFilter, setRollFilter] = useState<"todos" | "sem_marcar">("todos");
   const minutesList = (data.minutes as SessionMinute[]) ?? EMPTY_LIST;
   const canEditAtas = canScreen("atas", "edit");
   const [selectedMinuteKey, setSelectedMinuteKey] = useState<string>(() => {
@@ -345,6 +346,7 @@ function OngoingPage() {
   return (
     <div>
       <PageHeader
+        eyebrow={effectiveTab === "ata" ? "Atas" : "Chamada"}
         title={item.title}
         subtitle={`${meta?.label ?? item.event_type} · ${formatDateTimeBR(item.start_at)}${item.mandatory ? " · Obrigatório" : " · Facultativo"}`}
         actions={
@@ -373,17 +375,6 @@ function OngoingPage() {
         }
       />
 
-      {effectiveTab !== "ata" ? (
-        <div className="mb-4 grid grid-cols-3 gap-2">
-          <Counter label="Presentes" value={presentes} color="#047857" />
-          <Counter label="Ausentes" value={ausentes} color="#B91C1C" />
-          <Counter
-            label="Pendentes"
-            value={Math.max(0, pendentes)}
-            color="#6B6B6B"
-          />
-        </div>
-      ) : null}
 
       <Tabs
         value={effectiveTab}
@@ -409,151 +400,184 @@ function OngoingPage() {
 
         {hasAttendance ? (
         <TabsContent value="chamada">
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              placeholder="Buscar membro…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <Card className="p-0">
-            <ul className="divide-y divide-border">
-              {members.length === 0 && (
-                <li className="p-5 text-sm text-muted-foreground">
-                  Nenhum membro elegível nesta data (iniciação / Senior).
-                </li>
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="min-w-0">
+              <div className="mb-3 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                <label className="flex min-h-12 flex-1 items-center gap-2.5 rounded-[14px] border border-tv-border bg-tv-surface px-3.5 lg:min-h-[46px] lg:rounded-[12px]">
+                  <Search className="h-5 w-5 shrink-0 text-tv-text-2" />
+                  <span className="sr-only">Buscar membro</span>
+                  <input
+                    type="search"
+                    className="min-w-0 flex-1 bg-transparent text-base outline-none lg:text-[15px]"
+                    placeholder="Buscar membro"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </label>
+                <div className="flex gap-2">
+                  {(["todos", "sem_marcar"] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      aria-pressed={rollFilter === f}
+                      onClick={() => setRollFilter(f)}
+                      className={`min-h-10 rounded-full border px-3.5 text-sm font-semibold ${
+                        rollFilter === f
+                          ? "border-tv-text bg-tv-text text-tv-surface"
+                          : "border-[#DCDCD8] bg-tv-surface text-[#2A2C31] dark:border-tv-border dark:text-tv-text"
+                      }`}
+                    >
+                      {f === "todos" ? "Todos" : `Sem marcar (${Math.max(0, pendentes)})`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Celular: resumo compacto */}
+              <div className="mb-3 grid grid-cols-3 gap-2 lg:hidden">
+                <SummaryNumber value={presentes} label="Presentes" tone="in" />
+                <SummaryNumber value={ausentes} label="Faltaram" tone="out" />
+                <SummaryNumber value={Math.max(0, pendentes)} label="Sem marcar" tone="neutral" />
+              </div>
+
+              <ul className="overflow-hidden rounded-[20px] bg-tv-surface">
+                {members.length === 0 && (
+                  <li className="p-5 text-[15px] text-tv-text-2">
+                    Nenhum membro elegível nesta data (iniciação / Senior).
+                  </li>
+                )}
+                {members
+                  .filter((m) => rollFilter === "todos" || !recordMap.get(m.id))
+                  .map((m) => {
+                    const rec = recordMap.get(m.id);
+                    const isP = rec?.status === "presente";
+                    const isA = rec?.status === "ausente";
+                    return (
+                      <li key={m.id} className="border-b border-tv-line px-3.5 py-2.5 last:border-0 lg:px-5">
+                        <div className="flex items-center gap-3">
+                          <span className="min-w-0 flex-1 truncate text-base font-semibold lg:text-[15px]">
+                            {m.full_name}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={!canManage}
+                            aria-pressed={isP}
+                            aria-label={isP ? `Desmarcar presença de ${m.full_name}` : `${m.full_name} veio`}
+                            onClick={() => toggleMark(m.id, "presente")}
+                            className={`flex min-h-11 items-center gap-1.5 rounded-[12px] border px-3.5 text-sm font-semibold transition-colors disabled:opacity-60 ${
+                              isP
+                                ? "border-tv-in bg-tv-in-bg text-tv-in"
+                                : "border-[#DCDCD8] bg-tv-surface text-[#2A2C31] hover:border-tv-in hover:text-tv-in dark:border-tv-border dark:text-tv-text"
+                            }`}
+                          >
+                            <Check className="h-4 w-4" />
+                            Veio
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!canManage}
+                            aria-pressed={isA}
+                            aria-label={isA ? `Desmarcar falta de ${m.full_name}` : `${m.full_name} faltou`}
+                            onClick={() => toggleMark(m.id, "ausente")}
+                            className={`flex min-h-11 items-center gap-1.5 rounded-[12px] border px-3.5 text-sm font-semibold transition-colors disabled:opacity-60 ${
+                              isA
+                                ? "border-tv-out bg-tv-out-bg text-tv-out"
+                                : "border-[#DCDCD8] bg-tv-surface text-[#2A2C31] hover:border-tv-out hover:text-tv-out dark:border-tv-border dark:text-tv-text"
+                            }`}
+                          >
+                            <X className="h-4 w-4" />
+                            Faltou
+                          </button>
+                        </div>
+                        {isA && (
+                          <Input
+                            className="mt-2 animate-fade-in"
+                            aria-label="Justificativa da falta"
+                            placeholder="Motivo da falta (opcional)"
+                            defaultValue={rec?.justification ?? ""}
+                            readOnly={!canManage}
+                            disabled={!canManage}
+                            onBlur={(e) => {
+                              if (!canManage) return;
+                              mark.mutate({
+                                memberId: m.id,
+                                status: "ausente",
+                                justification: e.target.value.trim() || null,
+                              });
+                            }}
+                          />
+                        )}
+                      </li>
+                    );
+                  })}
+              </ul>
+              {!item.mandatory && (
+                <p className="mt-3 text-[13px] text-tv-text-2">
+                  Este item é facultativo: as presenças ficam registradas, mas não impactam a
+                  frequência.
+                </p>
               )}
-              {members.map((m) => {
-                const rec = recordMap.get(m.id);
-                return (
-                  <li
-                    key={m.id}
-                    className="group p-3 transition-colors duration-200"
-                    style={{
-                      backgroundColor:
-                        rec?.status === "presente"
-                          ? "rgba(4,120,87,0.05)"
-                          : rec?.status === "ausente"
-                            ? "rgba(185,28,28,0.05)"
-                            : undefined,
+            </div>
+
+            {/* Desktop: resumo e sessão */}
+            <aside className="hidden flex-col gap-4 lg:flex">
+              <div className="rounded-[20px] bg-tv-surface p-5">
+                <span className="text-[13px] font-semibold uppercase tracking-[0.06em] text-tv-text-2">
+                  Resumo
+                </span>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <SummaryNumber value={presentes} label="Presentes" tone="in" />
+                  <SummaryNumber value={ausentes} label="Faltaram" tone="out" />
+                  <SummaryNumber value={Math.max(0, pendentes)} label="Sem marcar" tone="neutral" />
+                </div>
+                <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-[#EEEEEA] dark:bg-tv-line">
+                  <div
+                    className="bg-tv-in"
+                    style={{ width: `${allMembers.length ? (presentes / allMembers.length) * 100 : 0}%` }}
+                  />
+                  <div
+                    className="bg-tv-out"
+                    style={{ width: `${allMembers.length ? (ausentes / allMembers.length) * 100 : 0}%` }}
+                  />
+                </div>
+                {canManage && pendentes > 0 ? (
+                  <Button
+                    className="mt-4 w-full"
+                    variant="secondary"
+                    disabled={mark.isPending}
+                    onClick={() => {
+                      for (const m of allMembers) {
+                        if (!recordMap.get(m.id)) {
+                          mark.mutate({ memberId: m.id, status: "presente", justification: null });
+                        }
+                      }
                     }}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span
-                          className="h-2 w-2 shrink-0 rounded-full transition-colors duration-200"
-                          style={{
-                            backgroundColor:
-                              rec?.status === "presente"
-                                ? "#047857"
-                                : rec?.status === "ausente"
-                                  ? "#B91C1C"
-                                  : "var(--border)",
-                          }}
-                        />
-                        <span className="min-w-0 truncate text-sm font-medium">
-                          {m.full_name}
-                        </span>
-                      </span>
-                      <div className="flex shrink-0 gap-1.5">
-                        <button
-                          type="button"
-                          disabled={!canManage}
-                          aria-label={
-                            rec?.status === "presente"
-                              ? "Desmarcar presente"
-                              : "Presente"
-                          }
-                          aria-pressed={rec?.status === "presente"}
-                          onClick={() => toggleMark(m.id, "presente")}
-                          className="grid h-11 w-11 place-items-center rounded-[8px] border transition-all duration-200 hover:-translate-y-0.5 hover:border-[#047857] hover:bg-[#ECFDF5] hover:text-[#047857] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#047857]/40 active:translate-y-0 active:scale-95 disabled:pointer-events-none disabled:opacity-60"
-                          style={
-                            rec?.status === "presente"
-                              ? {
-                                  backgroundColor: "#D1FAE5",
-                                  borderColor: "#047857",
-                                  color: "#047857",
-                                  boxShadow: "0 0 0 3px rgba(4,120,87,0.12)",
-                                }
-                              : {
-                                  borderColor: "var(--border)",
-                                  color: "var(--muted-foreground)",
-                                }
-                          }
-                        >
-                          <Check
-                            className={`h-5 w-5 transition-transform duration-200 ${
-                              rec?.status === "presente"
-                                ? "scale-110"
-                                : "group-hover:scale-105"
-                            }`}
-                          />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!canManage}
-                          aria-label={
-                            rec?.status === "ausente"
-                              ? "Desmarcar ausente"
-                              : "Ausente"
-                          }
-                          aria-pressed={rec?.status === "ausente"}
-                          onClick={() => toggleMark(m.id, "ausente")}
-                          className="grid h-11 w-11 place-items-center rounded-[8px] border transition-all duration-200 hover:-translate-y-0.5 hover:border-[#B91C1C] hover:bg-[#FEF2F2] hover:text-[#B91C1C] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/40 active:translate-y-0 active:scale-95 disabled:pointer-events-none disabled:opacity-60"
-                          style={
-                            rec?.status === "ausente"
-                              ? {
-                                  backgroundColor: "#FEE2E2",
-                                  borderColor: "#B91C1C",
-                                  color: "#B91C1C",
-                                  boxShadow: "0 0 0 3px rgba(185,28,28,0.12)",
-                                }
-                              : {
-                                  borderColor: "var(--border)",
-                                  color: "var(--muted-foreground)",
-                                }
-                          }
-                        >
-                          <X
-                            className={`h-5 w-5 transition-transform duration-200 ${
-                              rec?.status === "ausente"
-                                ? "scale-110"
-                                : "group-hover:scale-105"
-                            }`}
-                          />
-                        </button>
-                      </div>
-                    </div>
-                    {rec?.status === "ausente" && (
-                      <Input
-                        className="mt-2 h-9 animate-fade-in text-xs"
-                        placeholder="Justificativa (opcional)"
-                        defaultValue={rec.justification ?? ""}
-                        readOnly={!canManage}
-                        disabled={!canManage}
-                        onBlur={(e) => {
-                          if (!canManage) return;
-                          mark.mutate({
-                            memberId: m.id,
-                            status: "ausente",
-                            justification: e.target.value.trim() || null,
-                          });
-                        }}
-                      />
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </Card>
-          {!item.mandatory && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Este item é facultativo: as presenças ficam registradas, mas não
-              impactam a frequência.
-            </p>
-          )}
+                    Marcar todos como presentes
+                  </Button>
+                ) : null}
+                <p className="mt-3 text-center text-[13px] text-tv-text-2">
+                  Cada marcação é salva na hora
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5 rounded-[20px] bg-tv-surface p-5 text-[15px]">
+                <span className="text-[13px] font-semibold uppercase tracking-[0.06em] text-tv-text-2">
+                  Sessão
+                </span>
+                {item.location ? <span>Local: {item.location}</span> : null}
+                <span>{formatDateTimeBR(item.start_at)}</span>
+                {hasAta ? (
+                  <button
+                    type="button"
+                    onClick={() => setTab("ata")}
+                    className="mt-1 text-left font-semibold text-tv-primary"
+                  >
+                    Abrir a ata desta sessão
+                  </button>
+                ) : null}
+              </div>
+            </aside>
+          </div>
         </TabsContent>
         ) : null}
 
@@ -655,21 +679,25 @@ function OngoingPage() {
   );
 }
 
-function Counter({
-  label,
+function SummaryNumber({
   value,
-  color,
+  label,
+  tone,
 }: {
-  label: string;
   value: number;
-  color: string;
+  label: string;
+  tone: "in" | "out" | "neutral";
 }) {
+  const cls =
+    tone === "in"
+      ? "bg-tv-in-bg text-tv-in"
+      : tone === "out"
+        ? "bg-tv-out-bg text-tv-out"
+        : "bg-tv-line text-[#3F4249] dark:text-tv-text";
   return (
-    <Card className="p-4 text-center">
-      <div className="text-2xl font-bold" style={{ color }}>
-        {value}
-      </div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-    </Card>
+    <div className={`rounded-[14px] px-2 py-2.5 text-center ${cls}`}>
+      <div className="font-display text-2xl font-extrabold tabular-nums">{value}</div>
+      <div className="text-xs font-semibold">{label}</div>
+    </div>
   );
 }

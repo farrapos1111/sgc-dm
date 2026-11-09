@@ -21,6 +21,8 @@ import {
   Upload,
   Wallet,
   X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
@@ -183,7 +185,31 @@ function formFromCashEntry(e: {
 }
 
 
+const HIDE_KEY = "tv.hideValues";
+function useHiddenValues(): [boolean, () => void] {
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    try {
+      setHidden(window.localStorage.getItem(HIDE_KEY) === "1");
+    } catch {
+      /* sem armazenamento */
+    }
+  }, []);
+  const toggle = () =>
+    setHidden((v) => {
+      try {
+        window.localStorage.setItem(HIDE_KEY, v ? "0" : "1");
+      } catch {
+        /* sem armazenamento */
+      }
+      return !v;
+    });
+  return [hidden, toggle];
+}
+
 function FluxoCaixa() {
+  const [hiddenValues, toggleHiddenValues] = useHiddenValues();
+  const money = (v: number) => (hiddenValues ? "R$ ••••" : formatBRL(v));
   const { active } = useActiveChapter();
   const { data: publicSlug } = useChapterPublicSlug(active?.chapter_id);
   const { can, canScreen } = useChapterAccess();
@@ -795,20 +821,26 @@ function FluxoCaixa() {
   return (
     <div>
       <PageHeader
-        title="Fluxo de Caixa"
+        eyebrow="Tesouraria"
+        title="Fluxo de caixa"
         subtitle="Entradas, saídas e relatórios financeiros do capítulo."
         actions={
-          writable ? (
-            <Button
-              onClick={() => {
-                setForm(emptyForm());
-                setEntryOpen(true);
-              }}
-              style={{ backgroundColor: active?.chapter.primary_color }}
-            >
-              <Plus className="mr-2 h-4 w-4" /> Novo lançamento
+          <>
+            <Button variant="outline" onClick={toggleHiddenValues}>
+              {hiddenValues ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+              {hiddenValues ? "Mostrar valores" : "Ocultar valores"}
             </Button>
-          ) : null
+            {writable ? (
+              <Button
+                onClick={() => {
+                  setForm(emptyForm());
+                  setEntryOpen(true);
+                }}
+              >
+                <Plus className="h-[18px] w-[18px]" /> Novo lançamento
+              </Button>
+            ) : null}
+          </>
         }
       />
 
@@ -1031,43 +1063,43 @@ function FluxoCaixa() {
 
       {/* Indicadores */}
       <div
-        className={`mb-6 grid grid-cols-2 gap-4 ${
+        className={`mb-6 grid grid-cols-2 gap-3 lg:gap-4 ${
           month === null ? "lg:grid-cols-5" : "lg:grid-cols-3"
         }`}
       >
         {month === null && (
           <MetricCard
             label={`Restante de ${opening.previousYear}`}
-            value={formatBRL(openingBalance)}
+            value={money(openingBalance)}
             hint="Caixa transferido do ano anterior"
             icon={<Landmark className="h-5 w-5 text-muted-foreground" />}
           />
         )}
         <MetricCard
           label="Total de entradas"
-          value={formatBRL(periodTotals.income)}
-          tone="text-emerald-600 dark:text-emerald-400"
-          icon={<TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
+          value={money(periodTotals.income)}
+          tone="text-tv-in"
+          icon={<TrendingUp className="h-5 w-5 text-tv-in" />}
         />
         <MetricCard
           label="Total de saídas"
-          value={formatBRL(periodTotals.expense)}
-          tone="text-rose-600 dark:text-rose-400"
-          icon={<TrendingDown className="h-5 w-5 text-rose-600 dark:text-rose-400" />}
+          value={money(periodTotals.expense)}
+          tone="text-tv-out"
+          icon={<TrendingDown className="h-5 w-5 text-tv-out" />}
         />
         <MetricCard
           label="Resultado do período"
-          value={formatBRL(periodTotals.balance)}
+          value={money(periodTotals.balance)}
           hint={periodLabel}
-          tone={periodTotals.balance < 0 ? "text-rose-600 dark:text-rose-400" : undefined}
+          tone={periodTotals.balance < 0 ? "text-tv-out" : "text-tv-in"}
           icon={<Wallet className="h-5 w-5 text-muted-foreground" />}
         />
         {month === null && (
           <MetricCard
             label={cashBalanceLabel}
-            value={formatBRL(cashBalanceValue)}
+            value={money(cashBalanceValue)}
             hint={cashBalanceHint}
-            tone={cashBalanceValue < 0 ? "text-rose-600 dark:text-rose-400" : undefined}
+            highlight
             icon={<Landmark className="h-5 w-5 text-muted-foreground" />}
           />
         )}
@@ -1088,7 +1120,6 @@ function FluxoCaixa() {
                   setForm(emptyForm());
                   setEntryOpen(true);
                 }}
-                style={{ backgroundColor: active?.chapter.primary_color }}
               >
                 Fazer primeiro lançamento
               </Button>
@@ -1141,7 +1172,7 @@ function FluxoCaixa() {
               <Card key={group.month} className="overflow-hidden ">
                 <button
                   type="button"
-                  className="flex w-full flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                  className="flex min-h-14 w-full flex-wrap items-center justify-between gap-2 border-b border-tv-line px-4 py-3 text-left transition-colors hover:bg-tv-bg/60 lg:px-5"
                   onClick={() => toggleMonth(group.month)}
                   aria-expanded={open}
                 >
@@ -1151,27 +1182,28 @@ function FluxoCaixa() {
                         open ? "rotate-0" : "-rotate-90"
                       }`}
                     />
-                    <h3 className="text-sm font-semibold capitalize">
+                    <h3 className="text-[15px] font-bold first-letter:uppercase">
                       {group.month >= 1 && group.month <= 12
                         ? `${monthName(group.month)} de ${year}`
                         : monthName(group.month)}
-                      <span className="ml-2 font-normal text-muted-foreground">
-                        ({group.entries.length}{" "}
-                        {group.entries.length === 1 ? "lançamento" : "lançamentos"})
+                      <span className="ml-1 font-normal text-tv-text-2">
+                        · {group.entries.length}{" "}
+                        {group.entries.length === 1 ? "lançamento" : "lançamentos"}
                       </span>
                     </h3>
                   </div>
-                  <div className="flex flex-wrap gap-3 text-xs sm:text-sm">
-                    <span className="text-emerald-600 dark:text-emerald-400">
-                      Entradas {formatBRL(group.income)}
+                  <div className="flex flex-wrap gap-2 text-[13px] font-semibold">
+                    <span className="rounded-full bg-tv-in-bg px-2.5 py-1 text-tv-in">
+                      Entradas {money(group.income)}
                     </span>
-                    <span className="text-rose-600 dark:text-rose-400">
-                      Saídas {formatBRL(group.expense)}
+                    <span className="rounded-full bg-tv-out-bg px-2.5 py-1 text-tv-out">
+                      Saídas {money(group.expense)}
                     </span>
                   </div>
                 </button>
                 {open && (
                   <CashEntriesTable
+                    hidden={hiddenValues}
                     entries={group.entries}
                     writable={writable}
                     sortKey={sortKey}
@@ -1201,6 +1233,7 @@ function FluxoCaixa() {
       ) : (
         <Card className="overflow-hidden ">
           <CashEntriesTable
+                    hidden={hiddenValues}
             entries={sortedMonthEntries}
             writable={writable}
             sortKey={sortKey}
@@ -1565,7 +1598,6 @@ function FluxoCaixa() {
               <Button
                 onClick={() => runImport.mutate()}
                 disabled={runImport.isPending || !(importRows ?? []).some((r) => !r.error)}
-                style={{ backgroundColor: active?.chapter.primary_color }}
               >
                 {runImport.isPending
                   ? "Importando…"
@@ -1923,6 +1955,7 @@ function sortCashEntries(
 }
 
 function CashEntriesTable({
+  hidden = false,
   entries,
   writable,
   sortKey,
@@ -1931,6 +1964,7 @@ function CashEntriesTable({
   onEdit,
   onDelete,
 }: {
+  hidden?: boolean;
   entries: CashEntryRow[];
   writable: boolean;
   sortKey: CashSortKey;
@@ -1965,11 +1999,52 @@ function CashEntriesTable({
     );
   }
 
+  const amount = (e: CashEntryRow) =>
+    hidden ? "R$ ••••" : `${e.kind === "entrada" ? "+" : "−"} ${formatBRL(Number(e.amount))}`;
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[880px] text-sm">
+    <>
+    {/* Celular: extrato */}
+    <ul className="lg:hidden">
+      {entries.map((e) => {
+        const isIn = e.kind === "entrada";
+        const sub = [e.category, e.event_name && !e.subcategory?.includes(e.event_name) ? e.event_name : null, e.subcategory]
+          .filter(Boolean)
+          .join(" · ");
+        const Row = writable ? "button" : "div";
+        return (
+          <li key={e.id} className="border-b border-tv-line last:border-0">
+            <Row
+              {...(writable ? { type: "button" as const, onClick: () => onEdit(e) } : {})}
+              className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left"
+            >
+              <span
+                className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+                  isIn ? "bg-tv-in-bg text-tv-in" : "bg-tv-out-bg text-tv-out"
+                }`}
+                aria-hidden
+              >
+                {isIn ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-semibold">{e.description || e.category}</span>
+                <span className="block truncate text-[13px] text-tv-text-2">
+                  {formatDateBR(e.entry_date)} · {isIn ? "Entrada" : "Saída"}
+                  {sub ? ` · ${sub}` : ""}
+                </span>
+              </span>
+              <span className={`shrink-0 text-[15px] font-bold tabular-nums ${isIn ? "text-tv-in" : "text-tv-out"}`}>
+                {amount(e)}
+              </span>
+            </Row>
+          </li>
+        );
+      })}
+    </ul>
+    <div className="hidden overflow-x-auto lg:block">
+      <table className="w-full min-w-[880px] text-[15px]">
         <thead>
-          <tr className="border-b border-border text-xs">
+          <tr className="border-b border-tv-line text-[13px]">
             <SortHeader label="Data" column="entry_date" />
             <SortHeader label="Tipo" column="kind" />
             <SortHeader label="Categoria" column="category" />
@@ -1980,18 +2055,18 @@ function CashEntriesTable({
         </thead>
         <tbody>
           {entries.map((e) => (
-            <tr key={e.id} className="border-b border-border last:border-b-0">
+            <tr key={e.id} className="border-b border-tv-line last:border-b-0 hover:bg-tv-bg/50">
               <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                 {formatDateBR(e.entry_date)}
               </td>
-              <td
-                className={`whitespace-nowrap px-4 py-3 font-medium ${
-                  e.kind === "entrada"
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-rose-600 dark:text-rose-400"
-                }`}
-              >
-                {e.kind === "entrada" ? "Entrada" : "Saída"}
+              <td className="whitespace-nowrap px-4 py-3">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                    e.kind === "entrada" ? "bg-tv-in-bg text-tv-in" : "bg-tv-out-bg text-tv-out"
+                  }`}
+                >
+                  {e.kind === "entrada" ? "Entrada" : "Saída"}
+                </span>
               </td>
               <td className="px-4 py-3">
                 <div className="font-medium">{e.category}</div>
@@ -2009,13 +2084,11 @@ function CashEntriesTable({
                 {e.description}
               </td>
               <td
-                className={`whitespace-nowrap px-4 py-3 text-right font-semibold ${
-                  e.kind === "entrada"
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-rose-600 dark:text-rose-400"
+                className={`whitespace-nowrap px-4 py-3 text-right font-bold tabular-nums ${
+                  e.kind === "entrada" ? "text-tv-in" : "text-tv-out"
                 }`}
               >
-                {e.kind === "entrada" ? "+" : "−"} {formatBRL(Number(e.amount))}
+                {amount(e)}
               </td>
               {writable && (
                 <td className="px-2 py-2 text-right">
@@ -2044,6 +2117,7 @@ function CashEntriesTable({
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 
@@ -2053,21 +2127,31 @@ function MetricCard({
   icon,
   hint,
   tone,
+  highlight,
 }: {
   label: string;
   value: string;
   icon: React.ReactNode;
   hint?: string;
   tone?: string;
+  highlight?: boolean;
 }) {
   return (
-    <Card className="p-5">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-sm text-muted-foreground">{label}</span>
-        {icon}
+    <Card className={`p-4 lg:p-5 ${highlight ? "!bg-tv-primary text-white" : ""}`}>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className={`text-[13px] ${highlight ? "text-white/85" : "text-tv-text-2"}`}>{label}</span>
+        <span className={highlight ? "text-white/80 [&_svg]:!text-white/80" : ""}>{icon}</span>
       </div>
-      <div className={`text-xl font-bold ${tone ?? ""}`}>{value}</div>
-      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
+      <div
+        className={`font-display text-xl font-extrabold tracking-[-0.02em] tabular-nums lg:text-[26px] ${
+          highlight ? "text-white" : (tone ?? "")
+        }`}
+      >
+        {value}
+      </div>
+      {hint && (
+        <div className={`mt-1 text-xs ${highlight ? "text-white/80" : "text-tv-text-2"}`}>{hint}</div>
+      )}
     </Card>
   );
 }

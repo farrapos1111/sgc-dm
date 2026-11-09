@@ -135,17 +135,18 @@ type YearDuesData = {
 
 const DUES_STALE_MS = 60_000;
 
+/** Cores de situação do redesign (HANDOFF: Pago, Em aberto, Atrasado, Isento, Desligado). */
 const STATUS_STYLE: Record<DueStatus, string> = {
-  em_aberto:
-    "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-  pago: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-  isento: "bg-[#c8e0f7] text-sky-900 dark:bg-[#c8e0f7]/25 dark:text-sky-200",
-  desligado:
-    "bg-[#d3d3d3] text-stone-700 dark:bg-[#d3d3d3]/30 dark:text-stone-200",
+  em_aberto: "bg-[#FFF6D6] text-[#6E5100] dark:bg-amber-950/40 dark:text-amber-300",
+  pago: "bg-[#DDF0E5] text-[#155A38] dark:bg-emerald-950/40 dark:text-emerald-300",
+  isento: "bg-[#E3EAF7] text-[#2D4A80] dark:bg-sky-950/40 dark:text-sky-200",
+  desligado: "bg-[#E6E6E3] text-[#4F5258] dark:bg-stone-800/50 dark:text-stone-300",
 };
 
+const OVERDUE_STYLE = "!bg-[#FBE3C8] !text-[#7E3F00] dark:!bg-orange-950/50 dark:!text-orange-300";
+
 const FUTURE_OPEN_STYLE =
-  "bg-zinc-100 text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400";
+  "bg-tv-bg text-tv-text-2 dark:bg-zinc-800/50 dark:text-zinc-400";
 
 const STATUS_LABEL: Record<DueStatus, string> = {
   em_aberto: "Em aberto",
@@ -286,11 +287,11 @@ const StatusCell = memo(function StatusCell({
     <button
       type="button"
       disabled={!writable}
-      className={`w-full rounded-md px-1 py-2 text-center transition hover:ring-2 hover:ring-ring disabled:cursor-default ${cellClass(
+      className={`w-full rounded-[10px] px-1 py-2 text-center transition hover:ring-2 hover:ring-ring disabled:cursor-default ${cellClass(
         status,
         year,
         month,
-      )} ${overdue ? "ring-1 ring-rose-500" : ""}`}
+      )} ${overdue ? OVERDUE_STYLE : ""}`}
     >
       <div className="text-xs opacity-70">{MONTH_SHORT[month - 1]}</div>
       <div className="text-xs font-semibold uppercase">
@@ -305,11 +306,11 @@ const StatusCell = memo(function StatusCell({
     <button
       type="button"
       disabled={!writable}
-      className={`h-10 w-full rounded-md text-xs font-semibold uppercase tracking-wide transition hover:ring-2 hover:ring-ring disabled:cursor-default ${cellClass(
+      className={`h-10 w-full rounded-[10px] text-xs font-bold uppercase tracking-wide transition hover:ring-2 hover:ring-ring disabled:cursor-default ${cellClass(
         status,
         year,
         month,
-      )} ${overdue ? "ring-1 ring-rose-500" : ""}`}
+      )} ${overdue ? OVERDUE_STYLE : ""}`}
     >
       {cellLetter(status, overdue, future && status === "em_aberto")}
     </button>
@@ -987,7 +988,8 @@ function Mensalidades() {
     <TooltipProvider delayDuration={250}>
       <div>
         <PageHeader
-          title="Mensalidades"
+          eyebrow="Tesouraria"
+          title={`Mensalidades ${year}`}
           subtitle={`Calendário anual · valor único ${formatBRL(defaultAmount)}. Clique no mês para Em aberto, Pago, Isento ou Desligado.`}
           actions={
             writable ? (
@@ -1187,24 +1189,22 @@ function Mensalidades() {
           </Select>
         </div>
 
-        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
-          <Card className="p-5">
-            <div className="text-sm text-muted-foreground">Recebido</div>
-            <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:gap-4">
+          <Card className="p-4 lg:p-5">
+            <div className="text-[13px] text-tv-text-2">Recebido no ano</div>
+            <div className="font-display text-[26px] font-extrabold tracking-[-0.02em] text-tv-in tabular-nums">
               {formatBRL(totals.paid)}
             </div>
           </Card>
-          <Card className="p-5">
-            <div className="text-sm text-muted-foreground">Em aberto</div>
-            <div className="text-xl font-bold text-amber-600 dark:text-amber-400">
+          <Card className="p-4 lg:p-5">
+            <div className="text-[13px] text-tv-text-2">Em aberto</div>
+            <div className="font-display text-[26px] font-extrabold tracking-[-0.02em] text-[#6E5100] tabular-nums dark:text-amber-300">
               {formatBRL(totals.openAmount)}
             </div>
           </Card>
-          <Card className="p-5">
-            <div className="text-sm text-muted-foreground">
-              Atrasado (após dia 15)
-            </div>
-            <div className="text-xl font-bold text-rose-600 dark:text-rose-400">
+          <Card className="p-4 lg:p-5">
+            <div className="text-[13px] text-tv-text-2">Atrasado (depois do dia 15)</div>
+            <div className="font-display text-[26px] font-extrabold tracking-[-0.02em] text-[#7E3F00] tabular-nums dark:text-orange-300">
               {formatBRL(totals.overdue)}
             </div>
           </Card>
@@ -1442,43 +1442,24 @@ function Mensalidades() {
                   </tbody>
                 </table>
               </div>
-              <div className="flex flex-wrap gap-4 border-t border-border px-4 py-3 text-xs text-muted-foreground">
-                <span>
-                  <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-emerald-100 text-emerald-800">
-                    P
+              <div className="flex flex-wrap gap-2 border-t border-tv-line px-5 py-3.5 text-[13px] font-semibold">
+                {(
+                  [
+                    ["P", "Pago", STATUS_STYLE.pago],
+                    ["O", "Em aberto", STATUS_STYLE.em_aberto],
+                    ["A", "Atrasado", OVERDUE_STYLE],
+                    ["·", "Futuro", FUTURE_OPEN_STYLE],
+                    ["I", "Isento", STATUS_STYLE.isento],
+                    ["D", "Desligado", STATUS_STYLE.desligado],
+                  ] as const
+                ).map(([cod, nome, cls]) => (
+                  <span key={nome} className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 ${cls}`}>
+                    <span className="grid h-5 w-5 place-items-center rounded-full bg-white/60 text-[11px] font-extrabold">
+                      {cod}
+                    </span>
+                    {nome}
                   </span>
-                  Pago
-                </span>
-                <span>
-                  <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-amber-100 text-amber-800">
-                    O
-                  </span>
-                  Em aberto
-                </span>
-                <span>
-                  <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-amber-100 text-amber-800 ring-1 ring-rose-500">
-                    A
-                  </span>
-                  Atrasado
-                </span>
-                <span>
-                  <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-zinc-100 text-zinc-500">
-                    ·
-                  </span>
-                  Futuro
-                </span>
-                <span>
-                  <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-[#c8e0f7] text-sky-900">
-                    I
-                  </span>
-                  Isento
-                </span>
-                <span>
-                  <span className="mr-1 inline-block rounded px-1.5 py-0.5 font-semibold uppercase bg-[#d3d3d3] text-stone-700">
-                    D
-                  </span>
-                  Desligado
-                </span>
+                ))}
               </div>
             </Card>
 
