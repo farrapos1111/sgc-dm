@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Início · mobile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A; overflow: hidden">
+  <div style="flex: 1; overflow-y: auto; min-height: 0">
+
+    <div style="background: {{t.p}}; color: #FFFFFF; padding: 16px 20px 76px">
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <button style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.14); border: 0; color: #FFFFFF; padding: 6px 12px 6px 6px; border-radius: 999px; min-height: 44px">
+          <span style="width: 34px; height: 34px; border-radius: 50%; background: #FFFFFF; color: {{t.p}}; display: grid; place-items: center; font-weight: 700; font-size: 15px">F</span>
+          <span style="text-align: left; line-height: 1.2"><span style="display: block; font-weight: 600; font-size: 14px">Farrapos nº 1111</span><span style="display: block; font-size: 12px; opacity: 0.85">Trocar capítulo</span></span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.chevD}}"></path></svg>
+        </button>
+        <div style="display: flex; gap: 8px">
+          <button aria-label="{{eyeLabel}}" onClick="{{toggle}}" style="width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(255,255,255,0.14); color: #FFFFFF; display: grid; place-items: center">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{eyeIcon}}"></path></svg>
+          </button>
+          <button aria-label="Avisos, 2 novos" style="position: relative; width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(255,255,255,0.14); color: #FFFFFF; display: grid; place-items: center">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.bell}}"></path></svg>
+            <span style="position: absolute; top: 9px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: #F5B83D; border: 2px solid {{t.p}}"></span>
+          </button>
+        </div>
+      </div>
+      <p style="margin: 24px 0 0; font-size: 16px; opacity: 0.88">Boa noite,</p>
+      <h1 style="margin: 2px 0 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.02em">Lucas</h1>
+      <p style="margin: 4px 0 0; font-size: 14px; opacity: 0.88">Conselheiro Consultor · Caxias do Sul</p>
+    </div>
+
+    <div style="margin: -56px 16px 0; background: #FFFFFF; border-radius: 22px; padding: 18px; box-shadow: 0 8px 24px rgba(20,20,20,0.08); display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+        <span style="font-size: 13px; font-weight: 600; color: #5E6168; text-transform: uppercase; letter-spacing: 0.06em">Próximo compromisso</span>
+        <span style="font-size: 12px; font-weight: 600; background: {{t.s}}; color: {{t.i}}; padding: 4px 10px; border-radius: 999px">Sessão ritualística</span>
+      </div>
+      <h2 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 20px; line-height: 1.25; font-weight: 700">Dia em Memória a Frank Sherman Land</h2>
+      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 15px; color: #3F4249">
+        <span style="display: flex; align-items: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.clock}}"></path></svg>Sábado, 14 de novembro · 13:30</span>
+        <span style="display: flex; align-items: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.pin}}"></path></svg>Heráclito Victória nº 3168</span>
+      </div>
+      <div style="display: flex; gap: 10px; margin-top: 4px">
+        <button style="flex: 1; min-height: 48px; border: 0; border-radius: 14px; background: {{t.p}}; color: #FFFFFF; font-weight: 600; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.copy}}"></path></svg>Copiar chave do dia
+        </button>
+        <button style="min-height: 48px; padding: 0 16px; border: 1px solid #DCDCD8; border-radius: 14px; background: #FFFFFF; color: #17181A; font-weight: 600; font-size: 15px">Detalhes</button>
+      </div>
+    </div>
+
+    <div style="padding: 24px 16px 0">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px">
+        <h3 style="margin: 0; font-size: 17px; font-weight: 700">Acesso rápido</h3>
+        <button style="border: 0; background: none; color: {{t.p}}; font-weight: 600; font-size: 14px; min-height: 44px; padding: 0 4px">Personalizar</button>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 8px">
+        <sc-for list="{{atalhos}}" as="a" hint-placeholder-count="8">
+          <a href="{{a.href}}" style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center">
+            <span style="width: 60px; height: 60px; border-radius: 18px; background: #FFFFFF; color: {{t.p}}; display: grid; place-items: center; box-shadow: 0 1px 2px rgba(20,20,20,0.06)">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{a.icon}}"></path></svg>
+            </span>
+            <span style="font-size: 13px; font-weight: 500; line-height: 1.2; color: #2A2C31">{{a.label}}</span>
+          </a>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="padding: 24px 16px 0; display: flex; flex-direction: column; gap: 12px">
+      <a href="M-Caixa.dc.html" style="display: block; background: #FFFFFF; border-radius: 20px; padding: 18px">
+        <div style="display: flex; align-items: center; justify-content: space-between">
+          <span style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.wallet}}"></path></svg>Caixa do capítulo</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5E6168" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.chevR}}"></path></svg>
+        </div>
+        <p style="margin: 14px 0 0; font-size: 13px; color: #5E6168">Saldo atual</p>
+        <p style="margin: 2px 0 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">{{saldo}}</p>
+        <p style="margin: 4px 0 0; font-size: 14px; color: #5E6168">Resultado de novembro: <span style="color: #B42318; font-weight: 600">{{resultado}}</span></p>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px">
+          <div style="background: #EAF5EF; border-radius: 14px; padding: 10px 12px"><span style="display: block; font-size: 12px; color: #1B6B44; font-weight: 600">Entradas</span><span style="font-size: 16px; font-weight: 700; color: #155A38">{{entradas}}</span></div>
+          <div style="background: #FBEDEC; border-radius: 14px; padding: 10px 12px"><span style="display: block; font-size: 12px; color: #A1261B; font-weight: 600">Saídas</span><span style="font-size: 16px; font-weight: 700; color: #8F1F16">{{saidas}}</span></div>
+        </div>
+      </a>
+
+      <div style="background: #FFFFFF; border-radius: 20px; padding: 18px">
+        <div style="display: flex; align-items: center; justify-content: space-between">
+          <span style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.receipt}}"></path></svg>Mensalidades</span>
+          <span style="font-size: 12px; font-weight: 600; background: #FDF3D8; color: #7A4F00; padding: 4px 10px; border-radius: 999px">14 pendentes</span>
+        </div>
+        <p style="margin: 14px 0 0; font-size: 15px; color: #3F4249"><strong style="color: #17181A">{{aberto}}</strong> em aberto, sendo <strong style="color: #B42318">{{atrasado}}</strong> atrasados</p>
+        <div style="height: 10px; border-radius: 999px; background: #EEEEEA; margin-top: 12px; overflow: hidden"><div style="width: 83%; height: 100%; background: {{t.p}}; border-radius: 999px"></div></div>
+        <p style="margin: 6px 0 0; font-size: 13px; color: #5E6168">83% das mensalidades de 2026 recebidas</p>
+        <a href="M-Mensalidades.dc.html" style="margin-top: 14px; min-height: 48px; border-radius: 14px; background: {{t.s}}; color: {{t.i}}; font-weight: 600; font-size: 15px; display: flex; align-items: center; justify-content: center">Ver quem está pendente</a>
+      </div>
+
+      <div style="background: #FFFFFF; border-radius: 20px; padding: 18px">
+        <span style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.cake}}"></path></svg>Aniversariantes de novembro</span>
+        <div style="display: flex; flex-direction: column; margin-top: 8px">
+          <sc-for list="{{aniversarios}}" as="n" hint-placeholder-count="3">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #F0F0EC">
+              <span style="width: 40px; height: 40px; flex: none; border-radius: 50%; background: {{n.bg}}; color: {{n.fg}}; display: grid; place-items: center; font-weight: 700; font-size: 14px">{{n.ini}}</span>
+              <span style="flex: 1; min-width: 0"><span style="display: block; font-size: 15px; font-weight: 600; color: {{n.nameColor}}">{{n.nome}}</span><span style="display: block; font-size: 13px; color: #5E6168">{{n.info}}</span></span>
+              <sc-if value="{{n.hoje}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; font-weight: 700; background: {{t.p}}; color: #FFFFFF; padding: 4px 10px; border-radius: 999px">Hoje</span></sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <button style="width: 100%; margin-top: 12px; min-height: 48px; border-radius: 14px; border: 1px solid #DCDCD8; background: #FFFFFF; font-weight: 600; font-size: 15px; color: #17181A">Enviar parabéns ao Felipe</button>
+      </div>
+
+      <div style="background: #FFFFFF; border-radius: 20px; padding: 18px; display: flex; align-items: center; gap: 14px">
+        <span style="width: 48px; height: 48px; flex: none; border-radius: 14px; background: #F0F0EC; color: #5E6168; display: grid; place-items: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.calendar}}"></path></svg></span>
+        <span style="flex: 1"><span style="display: block; font-size: 15px; font-weight: 600">Nenhum evento agendado</span><span style="display: block; font-size: 13px; color: #5E6168">Eventos aparecem aqui assim que criados</span></span>
+        <a href="M-Eventos.dc.html" style="min-height: 44px; padding: 0 14px; border-radius: 12px; background: {{t.s}}; color: {{t.i}}; font-weight: 600; font-size: 14px; display: flex; align-items: center">Criar</a>
+      </div>
+      <div style="height: 16px"></div>
+    </div>
+  </div>
+  <dc-import name="TabBar" active="inicio" tema="{{tema}}" hint-size="390px,84px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { oculto: false }; }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const IC = {
+      home:'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+      users:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+      wallet:'M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3M21 8h-5a3 3 0 0 0 0 6h5zM16 11h.01',
+      calendar:'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
+      file:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5',
+      chamada:'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+      receipt:'M4 2v20l3-2 3 2 2-2 2 2 3-2 3 2V2l-3 2-3-2-2 2-2-2-3 2zM8 8h8M8 12h8M8 16h5',
+      mail:'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6',
+      grid:'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
+      bell:'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0',
+      eye:'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+      eyeoff:'M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A9.8 9.8 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6',
+      copy:'M9 9h11v11H9zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1',
+      chevR:'M9 18l6-6-6-6', chevD:'M6 9l6 6 6-6',
+      pin:'M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0zM12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+      clock:'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2',
+      cake:'M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8M4 16s1.5-1 4-1 4 2 6 2 4-1 4-1M2 21h20M7 8v3M12 8v3M17 8v3'
+    };
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const o = this.state.oculto;
+    const h = (v) => o ? 'R$ ••••' : v;
+    return {
+      t, ic: IC, tema,
+      toggle: () => this.setState({ oculto: !o }),
+      eyeIcon: o ? IC.eyeoff : IC.eye,
+      eyeLabel: o ? 'Mostrar valores' : 'Ocultar valores',
+      saldo: h('R$ 12.701,00'), resultado: h('-R$ 597,43'), entradas: h('R$ 584,70'), saidas: h('R$ 1.182,13'),
+      aberto: h('R$ 1.040,00'), atrasado: h('R$ 760,00'),
+      atalhos: [
+        {label:'Chamada', icon: IC.chamada, href:'M-Chamada.dc.html'},
+        {label:'Mensali­dades', icon: IC.receipt, href:'M-Mensalidades.dc.html'},
+        {label:'Membros', icon: IC.users, href:'M-Membros.dc.html'},
+        {label:'Atas', icon: IC.file, href:'M-Ata.dc.html'},
+        {label:'Caixa', icon: IC.wallet, href:'M-Caixa.dc.html'},
+        {label:'Agenda', icon: IC.calendar, href:'M-Calendario.dc.html'},
+        {label:'Eventos', icon:'M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4zM13 5v2M13 11v2M13 17v2', href:'M-Eventos.dc.html'},
+        {label:'Ver tudo', icon: IC.grid, href:'M-Mais.dc.html'}
+      ],
+      aniversarios: [
+        {ini:'FA', nome:'Felipe de Mattos Alves', info:'Faz 50 anos hoje, 08/11', hoje:true, bg:t.s, fg:t.i, nameColor:'#17181A'},
+        {ini:'MP', nome:'Miguel Werner Prestes', info:'Fez 18 anos em 06/11', hoje:false, bg:'#F0F0EC', fg:'#5E6168', nameColor:'#3F4249'},
+        {ini:'GP', nome:'Guilherme Deon Pereira', info:'Fez 20 anos em 01/11', hoje:false, bg:'#F0F0EC', fg:'#5E6168', nameColor:'#3F4249'}
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

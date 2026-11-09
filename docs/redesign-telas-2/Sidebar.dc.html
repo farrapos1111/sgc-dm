@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Menu lateral</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<aside style="width: 100%; min-height: 1180px; height: 100%; box-sizing: border-box; background: #FFFFFF; border-right: 1px solid #E8E8E4; display: flex; flex-direction: column; font-family: Inter, system-ui, sans-serif; color: #17181A; padding: 20px 14px">
+  <div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+    <span style="width: 40px; height: 40px; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; display: grid; place-items: center; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-weight: 800; font-size: 17px">F</span>
+    <span style="line-height: 1.2"><span style="display: block; font-size: 12px; color: #5E6168; font-weight: 500">Templo Virtual</span><span style="display: block; font-size: 15px; font-weight: 700">Farrapos nº 1111</span></span>
+  </div>
+  <button style="margin-top: 16px; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid #E2E2DE; border-radius: 12px; background: #FAFAF8; font-size: 14px; color: #2A2C31; text-align: left">
+    <span style="flex: 1">Capítulo · Caxias do Sul</span>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"></path></svg>
+  </button>
+
+  <nav aria-label="Menu principal" style="margin-top: 18px; display: flex; flex-direction: column; gap: 14px; flex: 1">
+    <sc-for list="{{grupos}}" as="g" hint-placeholder-count="4">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <sc-if value="{{g.titulo}}" hint-placeholder-val="{{true}}">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6B6E75; padding: 0 12px 6px">{{g.titulo}}</span>
+        </sc-if>
+        <sc-for list="{{g.itens}}" as="i" hint-placeholder-count="4">
+          <a href="{{i.href}}" aria-current="{{i.cur}}" style="display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 12px; border-radius: 10px; background: {{i.bg}}; color: {{i.fg}}; font-size: 15px; font-weight: {{i.w}}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{i.icon}}"></path></svg>
+            <span style="flex: 1">{{i.label}}</span>
+            <sc-if value="{{i.badge}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; font-weight: 700; background: #FDF3D8; color: #7A4F00; padding: 2px 8px; border-radius: 999px">{{i.badge}}</span></sc-if>
+          </a>
+        </sc-for>
+      </div>
+    </sc-for>
+  </nav>
+
+  <div style="border-top: 1px solid #EEEEEA; padding-top: 14px; margin-top: 14px; display: flex; align-items: center; gap: 10px">
+    <span style="width: 40px; height: 40px; border-radius: 50%; background: {{t.s}}; color: {{t.i}}; display: grid; place-items: center; font-weight: 700; font-size: 14px; flex: none">LB</span>
+    <span style="flex: 1; min-width: 0; line-height: 1.25"><span style="display: block; font-size: 14px; font-weight: 600">Lucas Boeira Borges</span><span style="display: block; font-size: 12px; color: #5E6168">Conselheiro Consultor</span></span>
+    <button aria-label="Tema escuro" style="width: 40px; height: 40px; border-radius: 10px; border: 0; background: #F4F4F1; display: grid; place-items: center; color: #3F4249">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+    </button>
+    <button aria-label="Sair" style="width: 40px; height: 40px; border-radius: 10px; border: 0; background: #F4F4F1; display: grid; place-items: center; color: #3F4249">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>
+    </button>
+  </div>
+</aside>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["inicio","perfil","membros","atas","oficios","presencas","caixa","mensalidades","atrasados","cobrancas","calendario","cargos","config","eventos","checkins","fichas","sindicancias","cardapios","escala"],"default":"inicio"},"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":264,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const t = T[this.props.tema ?? 'Bordô'] || T['Bordô'];
+    const act = this.props.active ?? 'inicio';
+    const I = {
+      home:'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+      user:'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+      users:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+      file:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5',
+      mail:'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6',
+      check:'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+      wallet:'M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3M21 8h-5a3 3 0 0 0 0 6h5zM16 11h.01',
+      receipt:'M4 2v20l3-2 3 2 2-2 2 2 3-2 3 2V2l-3 2-3-2-2 2-2-2-3 2zM8 8h8M8 12h8M8 16h5',
+      alert:'M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01',
+      card:'M2 5h20v14H2zM2 10h20M6 15h4',
+      landmark:'M3 21h18M5 21V10M10 21V10M14 21V10M19 21V10M2 10l10-7 10 7z',
+      calendar:'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
+      shield:'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+      heart:'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z'
+    };
+    const it = (k, label, icon, href, badge) => {
+      const on = k === act;
+      return { label, icon, href, badge: badge || false, cur: on ? 'page' : 'false', bg: on ? t.s : 'transparent', fg: on ? t.i : '#2A2C31', w: on ? 700 : 500 };
+    };
+    const X = {
+      gear:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
+      brief:'M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16M4 6h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z',
+      ticket:'M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4zM13 5v2M13 11v2M13 17v2',
+      qr:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v.01M14 20v.01M20 20h-3',
+      ficha:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h5M14 2v6h6M20 8v3M16.5 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM21 22l-2.7-2.7',
+      gavel:'M14 13l-8.5 8.5a2.1 2.1 0 0 1-3-3L11 10M16 16l6-6M8 8l6-6M9 7l8 8M21 11l-8-8',
+      food:'M3 2v7a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6a2 2 0 0 0 2 2h3zM21 15v7',
+      escala:'M3 17l2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8'
+    };
+    const grupos = [
+      { titulo: false, itens: [ it('inicio','Início',I.home,'D-Inicio.dc.html'), it('perfil','Meu perfil',I.user,'D-Perfil.dc.html') ] },
+      { titulo: 'Secretaria', itens: [ it('membros','Membros',I.users,'D-Membros.dc.html','3'), it('atas','Atas',I.file,'D-Atas.dc.html'), it('oficios','Ofícios',I.mail,'#'), it('presencas','Presenças',I.check,'D-Chamada.dc.html') ] },
+      { titulo: 'Tesouraria', itens: [ it('caixa','Fluxo de caixa',I.wallet,'D-Caixa.dc.html'), it('mensalidades','Mensalidades',I.receipt,'D-Mensalidades.dc.html'), it('atrasados','Atrasados',I.alert,'#','14'), it('cobrancas','Cobranças',I.card,'#') ] },
+      { titulo: 'Gestão', itens: [ it('calendario','Calendário',I.calendar,'D-Calendario.dc.html'), it('cargos','Cargos e comissões',X.brief,'D-Gestao.dc.html'), it('config','Configurações',X.gear,'D-Config.dc.html') ] },
+      { titulo: 'Com. de Eventos', itens: [ it('eventos','Eventos',X.ticket,'D-Eventos.dc.html'), it('checkins','Check-ins',X.qr,'#') ] },
+      { titulo: 'Com. de Sindicâncias', itens: [ it('fichas','Fichas',X.ficha,'#'), it('sindicancias','Sindicâncias',X.gavel,'D-Sindicancias.dc.html') ] },
+      { titulo: 'Hospitalaria', itens: [ it('cardapios','Cardápios',X.food,'#'), it('escala','Escala de serviço',X.escala,'#') ] }
+    ];
+    return { t, grupos };
+  }
+}
+</script>
+</body>
+</html>

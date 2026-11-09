@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Configurações · desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input{font:inherit}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A">
+  <div style="flex: 1 1 264px; max-width: 100%; display: flex; flex-direction: column; background: #FFFFFF">
+    <dc-import name="Sidebar" active="config" tema="{{tema}}" hint-size="264px,1180px"></dc-import>
+  </div>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box">
+    <div style="max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px">
+      <div>
+        <p style="margin: 0; font-size: 14px; color: #5E6168">Gestão</p>
+        <h1 style="margin: 2px 0 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.02em">Configurações</h1>
+        <p style="margin: 4px 0 0; font-size: 15px; color: #5E6168">Dados e aparência do Capítulo Farrapos</p>
+      </div>
+      <div role="tablist" aria-label="Seção" style="align-self: flex-start; background: #E9E9E5; border-radius: 12px; padding: 4px; display: flex; gap: 4px">
+        <sc-for list="{{abas}}" as="a" hint-placeholder-count="3">
+          <button role="tab" aria-selected="{{a.sel}}" onClick="{{a.pick}}" style="min-height: 40px; padding: 0 18px; border: 0; border-radius: 9px; background: {{a.bg}}; color: {{a.fg}}; font-weight: 600; font-size: 15px; box-shadow: {{a.sh}}">{{a.label}}</button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{isSec}}" hint-placeholder-val="{{true}}">
+        <section style="background: #FFFFFF; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+          <h2 style="margin: 0; font-size: 17px; font-weight: 700">Perfil do capítulo</h2>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px">
+            <sc-for list="{{perfil}}" as="c" hint-placeholder-count="4">
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600; color: #2A2C31">{{c.label}}<input type="text" value="{{c.valor}}" style="min-height: 46px; border: 1px solid #DCDCD8; border-radius: 12px; padding: 0 14px; font-size: 15px; font-weight: 400; color: #17181A"></label>
+            </sc-for>
+          </div>
+          <p style="margin: 0; font-size: 13px; color: #5E6168">A data de fundação define o primeiro semestre disponível para cargos e comissões.</p>
+          <button style="align-self: flex-end; min-height: 46px; padding: 0 20px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 15px">Salvar</button>
+        </section>
+        <section style="background: #FFFFFF; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px"><h2 style="margin: 0; font-size: 17px; font-weight: 700">Lojas patrocinadoras</h2><button onClick="{{toggleLoja}}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">{{lojaBtn}}</button></div>
+          <div style="display: flex; align-items: center; gap: 14px; padding: 14px; border: 1px solid #ECECE8; border-radius: 14px">
+            <span style="width: 44px; height: 44px; border-radius: 12px; background: {{t.s}}; color: {{t.p}}; display: grid; place-items: center; flex: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V10M10 21V10M14 21V10M19 21V10M2 10l10-7 10 7z"></path></svg></span>
+            <span style="flex: 1; min-width: 0"><span style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"><span style="font-size: 15px; font-weight: 700">Heráclito Victória nº 3168</span><span style="font-size: 12px; font-weight: 700; background: {{t.s}}; color: {{t.i}}; padding: 2px 8px; border-radius: 999px">Principal</span></span><span style="display: block; font-size: 14px; color: #5E6168; margin-top: 2px">Rua Paulino Balbinotti, 385, Forqueta, Caxias do Sul</span></span>
+            <button aria-label="Editar loja" style="width: 40px; height: 40px; border-radius: 10px; border: 1px solid #E2E2DE; background: #FFFFFF; color: #3F4249; display: grid; place-items: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg></button>
+          </div>
+          <sc-if value="{{novaLoja}}" hint-placeholder-val="{{false}}">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; padding: 14px; background: #FAFAF8; border-radius: 14px">
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Nome da loja<input type="text" placeholder="Ex: Loja Maçônica Fraternidade" style="min-height: 46px; border: 1px solid #DCDCD8; border-radius: 12px; padding: 0 14px; font-size: 15px; font-weight: 400"></label>
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Endereço<input type="text" placeholder="Rua, número, bairro, cidade" style="min-height: 46px; border: 1px solid #DCDCD8; border-radius: 12px; padding: 0 14px; font-size: 15px; font-weight: 400"></label>
+              <button style="grid-column: 1 / -1; justify-self: end; min-height: 44px; padding: 0 18px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 14px">Salvar loja</button>
+            </div>
+          </sc-if>
+        </section>
+        <section style="background: #FFFFFF; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 12px">
+          <h2 style="margin: 0; font-size: 17px; font-weight: 700">Chave do dia</h2>
+          <p style="margin: 0; font-size: 14px; color: #5E6168">Texto copiado pelo botão "Copiar chave do dia". Toque numa informação para incluir no modelo.</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px">
+            <sc-for list="{{vars}}" as="v" hint-placeholder-count="8"><button style="min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid #DCDCD8; background: #FFFFFF; font-size: 13px; font-weight: 600; color: #2A2C31">+ {{v}}</button></sc-for>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px">
+            <div style="border: 1px solid #DCDCD8; border-radius: 14px; padding: 14px; font-size: 15px; line-height: 1.6; color: #24262B"><span style="display: block; font-size: 12px; font-weight: 700; color: #5E6168; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em">Modelo</span>[Título] · [Dia da semana], [Data] às [Hora de início] · [Local]</div>
+            <div style="background: {{t.s}}; border-radius: 14px; padding: 14px; font-size: 15px; line-height: 1.6; color: #17181A"><span style="display: block; font-size: 12px; font-weight: 700; color: {{t.i}}; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em">Como vai ficar</span>Dia em Memória a Frank Sherman Land · Sábado, 14/11 às 13:30 · Heráclito Victória nº 3168</div>
+          </div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{isTes}}" hint-placeholder-val="{{false}}">
+        <section style="background: #FFFFFF; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+          <h2 style="margin: 0; font-size: 17px; font-weight: 700">Mensalidades</h2>
+          <div style="display: flex; align-items: center; gap: 14px">
+            <span style="flex: 1"><span style="display: block; font-size: 15px; font-weight: 600">Cobrar mensalidade dos membros</span><span style="display: block; font-size: 14px; color: #5E6168">Desligue se o capítulo não cobra mensalidade</span></span>
+            <button role="switch" aria-checked="{{cobrarS}}" aria-label="Cobrar mensalidade" onClick="{{toggleCobrar}}" style="width: 56px; height: 32px; border-radius: 999px; border: 0; background: {{swBg}}; padding: 3px; display: flex; justify-content: {{swJ}}"><span style="width: 26px; height: 26px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 3px rgba(0,0,0,0.2)"></span></button>
+          </div>
+          <sc-if value="{{cobrar}}" hint-placeholder-val="{{true}}">
+            <div style="display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap">
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Valor por mês<span style="display: flex; align-items: center; gap: 8px; min-height: 46px; border: 1px solid #DCDCD8; border-radius: 12px; padding: 0 14px; width: 160px; box-sizing: border-box"><span style="color: #5E6168; font-weight: 500">R$</span><input type="text" value="20,00" style="border: 0; outline: none; width: 100%; font-size: 15px; font-weight: 400"></span></label>
+              <button style="min-height: 46px; padding: 0 18px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 15px">Salvar valor</button>
+            </div>
+          </sc-if>
+        </section>
+        <section style="background: #FFFFFF; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+          <h2 style="margin: 0; font-size: 17px; font-weight: 700">Pix do capítulo</h2>
+          <p style="margin: 0; font-size: 14px; color: #5E6168">Aparece no pagamento das comandas e das mensalidades.</p>
+          <div style="display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start">
+            <div style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 10px">
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Chave Pix (CNPJ)<input type="text" value="52.820.658/0001-43" style="min-height: 46px; border: 1px solid #DCDCD8; border-radius: 12px; padding: 0 14px; font-size: 15px; font-weight: 400"></label>
+              <button style="align-self: flex-start; min-height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 14px">Salvar chave</button>
+            </div>
+            <div style="display: flex; gap: 14px; align-items: center">
+              <span role="img" aria-label="Imagem do QR Code Pix enviada" style="width: 120px; height: 120px; border-radius: 14px; border: 1px solid #ECECE8; background: #FAFAF8; display: grid; place-items: center; color: #3F4249"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v.01M14 20v.01M20 20h-3"></path></svg></span>
+              <span style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 13px; color: #5E6168">QR do app do banco<br>PNG, JPG ou WEBP até 2 MB</span><button style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Trocar imagem</button><button style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #A1261B">Remover</button></span>
+            </div>
+          </div>
+        </section>
+        <section style="background: #FFFFFF; border-radius: 20px; padding: 22px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap">
+          <span style="flex: 1 1 300px"><span style="display: block; font-size: 17px; font-weight: 700">Link público</span><span style="display: block; font-size: 14px; color: #5E6168; margin-top: 4px">Um link só para mensalidades, fluxo de caixa, presenças e área do membro (protegida pelo ID DeMolay).</span></span>
+          <button style="min-height: 44px; padding: 0 16px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Copiar link</button>
+          <button style="min-height: 44px; padding: 0 16px; border-radius: 12px; background: {{t.s}}; color: {{t.i}}; border: 0; font-weight: 600; font-size: 14px">Gerenciar</button>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{isVis}}" hint-placeholder-val="{{false}}">
+        <section style="background: #FFFFFF; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+          <h2 style="margin: 0; font-size: 17px; font-weight: 700">Aparência</h2>
+          <div role="radiogroup" aria-label="Aparência" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+            <sc-for list="{{modos}}" as="m" hint-placeholder-count="3">
+              <button role="radio" aria-checked="{{m.sel}}" onClick="{{m.pick}}" style="min-height: 72px; border-radius: 14px; border: 2px solid {{m.bd}}; background: {{m.bg}}; color: #17181A; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px"><span style="font-size: 15px; font-weight: 700">{{m.label}}</span><span style="font-size: 12px; color: #5E6168">{{m.sub}}</span></button>
+            </sc-for>
+          </div>
+        </section>
+        <section style="background: #FFFFFF; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+          <h2 style="margin: 0; font-size: 17px; font-weight: 700">Cor do capítulo</h2>
+          <p style="margin: 0; font-size: 14px; color: #5E6168">Escolha uma cor. O sistema inteiro muda na hora, inclusive este menu.</p>
+          <div role="radiogroup" aria-label="Cor do capítulo" style="display: flex; gap: 12px; flex-wrap: wrap">
+            <sc-for list="{{cores}}" as="c" hint-placeholder-count="5">
+              <button role="radio" aria-checked="{{c.sel}}" onClick="{{c.pick}}" style="display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0; background: none; padding: 0; color: #2A2C31">
+                <span style="width: 52px; height: 52px; border-radius: 50%; background: {{c.p}}; box-shadow: 0 0 0 {{c.ring}} #FFFFFF, 0 0 0 {{c.ring2}} {{c.p}}; display: grid; place-items: center; color: #FFFFFF"><sc-if value="{{c.on}}" hint-placeholder-val="{{false}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg></sc-if></span>
+                <span style="font-size: 13px; font-weight: 600">{{c.nome}}</span>
+              </button>
+            </sc-for>
+          </div>
+          <div style="display: flex; border: 1px solid #ECECE8; border-radius: 16px; overflow: hidden; flex-wrap: wrap">
+            <div style="flex: 1 1 200px; background: #FFFFFF; padding: 16px; border-right: 1px solid #ECECE8; display: flex; flex-direction: column; gap: 6px">
+              <span style="font-size: 12px; font-weight: 700; color: #5E6168; text-transform: uppercase; letter-spacing: 0.06em">Menu</span>
+              <span style="min-height: 38px; padding: 0 12px; border-radius: 10px; background: {{t.s}}; color: {{t.i}}; font-weight: 700; font-size: 14px; display: flex; align-items: center">Item ativo</span>
+              <span style="min-height: 38px; padding: 0 12px; font-size: 14px; display: flex; align-items: center; color: #2A2C31">Outro item</span>
+            </div>
+            <div style="flex: 2 1 300px; background: #F4F4F1; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+              <span style="font-size: 12px; font-weight: 700; color: #5E6168; text-transform: uppercase; letter-spacing: 0.06em">Prévia</span>
+              <span style="font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 20px; font-weight: 800">Capítulo Farrapos</span>
+              <span style="display: flex; gap: 8px; flex-wrap: wrap"><span style="min-height: 40px; padding: 0 14px; border-radius: 10px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 14px; display: flex; align-items: center">Botão principal</span><span style="min-height: 40px; padding: 0 14px; border-radius: 10px; background: {{t.s}}; color: {{t.i}}; font-weight: 700; font-size: 14px; display: flex; align-items: center">Botão secundário</span></span>
+            </div>
+          </div>
+          <button onClick="{{toggleAvanc}}" aria-expanded="{{avancS}}" style="align-self: flex-start; min-height: 40px; padding: 0 4px; border: 0; background: none; color: {{t.p}}; font-weight: 600; font-size: 14px">{{avancLabel}}</button>
+          <sc-if value="{{avanc}}" hint-placeholder-val="{{false}}">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px">
+              <sc-for list="{{campos}}" as="c" hint-placeholder-count="6">
+                <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">{{c.label}}<span style="display: flex; align-items: center; gap: 10px; min-height: 46px; border: 1px solid #DCDCD8; border-radius: 12px; padding: 0 12px"><span style="width: 24px; height: 24px; border-radius: 6px; background: {{c.cor}}; border: 1px solid #DCDCD8"></span><input type="text" value="{{c.cor}}" style="border: 0; outline: none; width: 100%; font-size: 15px; font-weight: 400; text-transform: uppercase"></span><span style="font-size: 12px; font-weight: 400; color: #5E6168">{{c.uso}}</span></label>
+              </sc-for>
+            </div>
+          </sc-if>
+          <div style="display: flex; justify-content: flex-end; gap: 10px">
+            <button style="min-height: 46px; padding: 0 16px; border-radius: 12px; border: 1px solid #DCDCD8; background: #FFFFFF; font-weight: 600; font-size: 15px; color: #2A2C31">Restaurar padrão</button>
+            <button style="min-height: 46px; padding: 0 20px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 15px">Salvar cor</button>
+          </div>
+        </section>
+      </sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { aba: 'Visual', temaLocal: null, modo: 'Sistema', novaLoja: false, cobrar: true, avanc: false }; }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.state.temaLocal ?? this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const s = this.state;
+    const tab = (label) => { const on = s.aba === label; return { label, sel: on ? 'true' : 'false', bg: on ? '#FFFFFF' : 'transparent', fg: on ? '#17181A' : '#4A4D54', sh: on ? '0 1px 3px rgba(20,20,20,0.12)' : 'none', pick: () => this.setState({ aba: label }) }; };
+    return {
+      t, tema,
+      abas: ['Secretaria','Tesouraria','Visual'].map(tab),
+      isSec: s.aba === 'Secretaria', isTes: s.aba === 'Tesouraria', isVis: s.aba === 'Visual',
+      perfil: [ {label:'Nome do capítulo', valor:'Farrapos'}, {label:'Número', valor:'1111'}, {label:'Cidade sede', valor:'Caxias do Sul'}, {label:'Data de fundação', valor:'20/09/2017'} ],
+      novaLoja: s.novaLoja, lojaBtn: s.novaLoja ? 'Cancelar' : 'Adicionar loja', toggleLoja: () => this.setState({ novaLoja: !s.novaLoja }),
+      vars: ['Título','Descrição','Data','Dia da semana','Hora de início','Local','Endereço','Traje'],
+      cobrar: s.cobrar, cobrarS: s.cobrar ? 'true' : 'false', swBg: s.cobrar ? t.p : '#CFCFCA', swJ: s.cobrar ? 'flex-end' : 'flex-start', toggleCobrar: () => this.setState({ cobrar: !s.cobrar }),
+      modos: [['Claro','Sempre claro'],['Escuro','Sempre escuro'],['Sistema','Segue o aparelho']].map(([label, sub]) => { const on = s.modo === label; return { label, sub, sel: on ? 'true' : 'false', bd: on ? t.p : '#E2E2DE', bg: on ? t.s : '#FFFFFF', pick: () => this.setState({ modo: label }) }; }),
+      cores: Object.keys(T).map((nome) => { const on = nome === tema; return { nome, p: T[nome].p, on, sel: on ? 'true' : 'false', ring: on ? '3px' : '0px', ring2: on ? '5px' : '0px', pick: () => this.setState({ temaLocal: nome }) }; }),
+      avanc: s.avanc, avancS: s.avanc ? 'true' : 'false', avancLabel: s.avanc ? 'Esconder ajuste fino das cores' : 'Ajuste fino das cores (avançado)', toggleAvanc: () => this.setState({ avanc: !s.avanc }),
+      campos: [
+        {label:'Fundo', cor:'#F4F4F1', uso:'Atrás de tudo'}, {label:'Menu', cor:'#FFFFFF', uso:'Fundo do menu lateral'},
+        {label:'Destaque', cor:t.p, uso:'Botões principais e topo do app'}, {label:'Destaque escuro', cor:t.i, uso:'Texto sobre o realce'},
+        {label:'Realce', cor:t.s, uso:'Item ativo e botões secundários'}, {label:'Texto', cor:'#17181A', uso:'Títulos e textos'}
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

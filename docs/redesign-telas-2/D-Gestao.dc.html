@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Cargos e comissões · desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A">
+  <div style="flex: 1 1 264px; max-width: 100%; display: flex; flex-direction: column; background: #FFFFFF">
+    <dc-import name="Sidebar" active="cargos" tema="{{tema}}" hint-size="264px,1180px"></dc-import>
+  </div>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box">
+    <div style="max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between">
+        <div>
+          <p style="margin: 0; font-size: 14px; color: #5E6168">Gestão</p>
+          <h1 style="margin: 2px 0 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.02em">Cargos e comissões</h1>
+          <p style="margin: 4px 0 0; font-size: 15px; color: #5E6168">Gestão 2026 · 2º semestre</p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <button style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31; display: flex; align-items: center; gap: 6px">2026 · 2º semestre<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+          <button style="min-height: 44px; padding: 0 18px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 15px">{{novoLabel}}</button>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+        <div role="tablist" aria-label="Seção" style="background: #E9E9E5; border-radius: 12px; padding: 4px; display: flex; gap: 4px">
+          <sc-for list="{{abas}}" as="a" hint-placeholder-count="2">
+            <button role="tab" aria-selected="{{a.sel}}" onClick="{{a.pick}}" style="min-height: 40px; padding: 0 18px; border: 0; border-radius: 9px; background: {{a.bg}}; color: {{a.fg}}; font-weight: 600; font-size: 15px; box-shadow: {{a.sh}}">{{a.label}}</button>
+          </sc-for>
+        </div>
+        <label style="flex: 1 1 280px; max-width: 440px; display: flex; align-items: center; gap: 10px; background: #FFFFFF; border: 1px solid #E2E2DE; border-radius: 12px; padding: 0 14px; min-height: 46px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5E6168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"></path></svg>
+          <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar</span>
+          <input type="search" placeholder="Buscar membro, cargo ou comissão" style="flex: 1; min-width: 0; border: 0; outline: none; font: inherit; font-size: 15px; background: transparent">
+        </label>
+      </div>
+
+      <sc-if value="{{isCargos}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+          <div style="flex: 2 1 520px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 20px">
+            <span style="display: block; font-size: 16px; font-weight: 700; margin-bottom: 8px">Cargos ritualísticos</span>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0 20px">
+              <sc-for list="{{ritualisticos}}" as="c" hint-placeholder-count="12">
+                <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #F3F3EF">
+                  <span style="width: 40px; height: 40px; flex: none; border-radius: 50%; background: {{t.s}}; color: {{t.i}}; display: grid; place-items: center; font-weight: 700; font-size: 13px">{{c.ini}}</span>
+                  <span style="min-width: 0"><span style="display: block; font-size: 13px; color: #5E6168; font-weight: 600">{{c.cargo}}</span><span style="display: block; font-size: 15px; font-weight: 600">{{c.nome}}</span></span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex: 1 1 300px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 20px">
+            <span style="display: block; font-size: 16px; font-weight: 700; margin-bottom: 8px">Conselho consultivo</span>
+            <sc-for list="{{conselho}}" as="c" hint-placeholder-count="4">
+              <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #F3F3EF">
+                <span style="width: 40px; height: 40px; flex: none; border-radius: 50%; background: #F0F0EC; color: #3F4249; display: grid; place-items: center; font-weight: 700; font-size: 13px">{{c.ini}}</span>
+                <span style="min-width: 0"><span style="display: block; font-size: 13px; color: #5E6168; font-weight: 600">{{c.cargo}}</span><span style="display: block; font-size: 15px; font-weight: 600">{{c.nome}}</span></span>
+              </div>
+            </sc-for>
+            <p style="margin: 12px 0 0; font-size: 13px; color: #5E6168">O conselho acompanha todas as comissões automaticamente.</p>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isComissoes}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; align-items: center; gap: 12px; background: #FFFFFF; border-radius: 16px; padding: 14px 16px; font-size: 14px; color: #3F4249">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{t.p}}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 16v-4M12 8h.01"></path></svg>
+          <span>As 6 comissões marcadas como obrigatórias já vêm ligadas aos módulos do sistema. O conselho (4 pessoas) participa de todas e não aparece repetido em cada uma.</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px">
+          <sc-for list="{{comissoes}}" as="c" hint-placeholder-count="6">
+            <div style="background: #FFFFFF; border-radius: 20px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px">
+              <div style="display: flex; align-items: flex-start; gap: 10px">
+                <span style="flex: 1; min-width: 0"><span style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"><span style="font-size: 17px; font-weight: 700">{{c.nome}}</span><span style="font-size: 12px; font-weight: 600; background: #F0F0EC; color: #3F4249; padding: 3px 9px; border-radius: 999px">Obrigatória</span></span><span style="display: block; font-size: 13px; color: #5E6168; margin-top: 2px">Ligada ao módulo {{c.modulo}}</span></span>
+                <button aria-label="Adicionar pessoa à comissão" style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 13px; color: #2A2C31; white-space: nowrap">Adicionar</button>
+              </div>
+              <sc-for list="{{c.pessoas}}" as="p" hint-placeholder-count="4">
+                <div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #F3F3EF">
+                  <span style="width: 34px; height: 34px; flex: none; border-radius: 50%; background: {{p.abg}}; color: {{p.afg}}; display: grid; place-items: center; font-weight: 700; font-size: 12px">{{p.ini}}</span>
+                  <span style="flex: 1; min-width: 0; font-size: 15px; font-weight: 500">{{p.nome}}</span>
+                  <span style="font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: {{p.fbg}}; color: {{p.ffg}}">{{p.funcao}}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { aba: 'Cargos' }; }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const ini = (n) => { const p = n.split(' '); return (p[0][0] + p[p.length - 1][0]).toUpperCase(); };
+    const cg = (cargo, nome) => ({ cargo, nome, ini: ini(nome) });
+    const F = { Presidente: [t.p, '#FFFFFF'], Vice: [t.s, t.i], Membro: ['#F0F0EC', '#3F4249'], 'Auxiliar sênior': ['#E3EAF7', '#22427A'] };
+    const ps = (nome, funcao) => ({ nome, funcao, ini: ini(nome), fbg: F[funcao][0], ffg: F[funcao][1], abg: funcao === 'Presidente' ? t.s : '#F4F4F1', afg: funcao === 'Presidente' ? t.i : '#3F4249' });
+    const abas = ['Cargos','Comissões'].map((label) => { const on = this.state.aba === label; return { label, sel: on ? 'true' : 'false', bg: on ? '#FFFFFF' : 'transparent', fg: on ? '#17181A' : '#4A4D54', sh: on ? '0 1px 3px rgba(20,20,20,0.12)' : 'none', pick: () => this.setState({ aba: label }) }; });
+    return {
+      t, tema, abas,
+      isCargos: this.state.aba === 'Cargos', isComissoes: this.state.aba === 'Comissões',
+      novoLabel: this.state.aba === 'Cargos' ? 'Atribuir cargo' : 'Nova comissão',
+      ritualisticos: [
+        cg('Mestre Conselheiro','Ricardo Pieruccini Massairo'), cg('Primeiro Conselheiro','Gabriel Machado Roldo'), cg('Segundo Conselheiro','Guilherme Gonçalves Peres'),
+        cg('Escrivão','Arthur Toigo de Campos'), cg('Tesoureiro','Pedro Bossle Sandi'), cg('Mestre de Cerimônias','Elias Algemiro Artagabeitia Ferreira'),
+        cg('Orador','Lorenzo Retore Frighetto'), cg('Hospitaleiro','João Pedro Cecin Coelho Stopassola'), cg('Capelão','Arthur Tonet Pagliarin'),
+        cg('Primeiro Diácono','Bernardo Luiz Candeia'), cg('Segundo Diácono','Braian Roldo Visona'), cg('Primeiro Mordomo','Nicolas Farias Peroni')
+      ],
+      conselho: [ cg('Presidente do Conselho Consultivo','Leonardo Argenta'), cg('Conselheiro Consultor','Felipe de Mattos Alves'), cg('Conselheiro Consultor','Arthur Perotoni'), cg('Conselheiro Consultor','Lucas Boeira Borges') ],
+      comissoes: [
+        { nome:'Hospitalaria', modulo:'Hospitalaria', pessoas:[ ps('João Pedro Cecin Coelho Stopassola','Presidente'), ps('Arthur Toigo de Campos','Membro'), ps('Carlos Henrique Köhler Mendes','Membro'), ps('Guilherme da Silva Dutra','Membro'), ps('Fabrício Kehl','Auxiliar sênior') ] },
+        { nome:'Entretenimento', modulo:'Calendário', pessoas:[ ps('Elias Algemiro Artagabeitia Ferreira','Presidente'), ps('Davi Bernardo Prux','Membro'), ps('Lorenzo Retore Frighetto','Membro'), ps('Nicolas Farias Peroni','Membro') ] },
+        { nome:'Eventos', modulo:'Eventos', pessoas:[ ps('Braian Roldo Visona','Presidente'), ps('Bryan Joaquim Ferreira Pereira','Vice'), ps('Vinícius Menegol Cardoso','Membro') ] },
+        { nome:'Sindicâncias', modulo:'Sindicâncias', pessoas:[ ps('Arthur Tonet Pagliarin','Presidente'), ps('Guilherme Garbin Ghiotti','Vice'), ps('João Alfredo da Silva Faggion','Membro'), ps('Miguel Panisson Cruz','Membro') ] },
+        { nome:'Finanças', modulo:'Tesouraria', pessoas:[ ps('Pedro Bossle Sandi','Presidente'), ps('Gabriel Machado Roldo','Membro'), ps('Ricardo Pieruccini Massairo','Membro') ] },
+        { nome:'Auditoria', modulo:'Configurações', pessoas:[ ps('Ricardo Pieruccini Massairo','Membro'), ps('Arthur Adami Gaio','Auxiliar sênior') ] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

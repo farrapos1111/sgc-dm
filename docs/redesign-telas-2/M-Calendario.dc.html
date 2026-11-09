@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Calendário · mobile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A; overflow: hidden">
+  <div style="flex: 1; overflow-y: auto; min-height: 0">
+    <div style="padding: 16px 16px 0; display: flex; align-items: center; gap: 8px">
+      <a href="Main.dc.html" aria-label="Voltar para o início" style="width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; display: grid; place-items: center; flex: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      </a>
+      <h1 style="flex: 1; margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 24px; font-weight: 800; letter-spacing: -0.02em">Agenda</h1>
+      <button style="min-height: 44px; padding: 0 14px; border: 0; border-radius: 14px; background: {{t.p}}; color: #FFFFFF; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 6px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Novo</button>
+    </div>
+
+    <div style="margin: 14px 16px 0; background: #FFFFFF; border-radius: 20px; padding: 14px">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px">
+        <button aria-label="Mês anterior" style="width: 44px; height: 44px; border-radius: 50%; border: 0; background: #F4F4F1; display: grid; place-items: center; color: #17181A"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+        <span style="font-size: 17px; font-weight: 700">Novembro de 2026</span>
+        <button aria-label="Próximo mês" style="width: 44px; height: 44px; border-radius: 50%; border: 0; background: #F4F4F1; display: grid; place-items: center; color: #17181A"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg></button>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; text-align: center">
+        <sc-for list="{{semana}}" as="w" hint-placeholder-count="7"><span style="font-size: 12px; font-weight: 600; color: #5E6168; padding: 4px 0">{{w}}</span></sc-for>
+        <sc-for list="{{cels}}" as="c" hint-placeholder-count="35">
+          <sc-if value="{{c.vazio}}" hint-placeholder-val="{{false}}"><span></span></sc-if>
+          <sc-if value="{{c.dia}}" hint-placeholder-val="{{true}}">
+            <button onClick="{{c.pick}}" aria-label="{{c.aria}}" aria-pressed="{{c.selS}}" style="height: 46px; border: 0; background: none; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #17181A">
+              <span style="width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; font-weight: {{c.w}}; background: {{c.bg}}; color: {{c.fg}}; border: 2px solid {{c.bd}}; box-sizing: border-box">{{c.n}}</span>
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: {{c.dot}}"></span>
+            </button>
+          </sc-if>
+        </sc-for>
+      </div>
+    </div>
+
+    <h2 style="margin: 18px 16px 8px; font-size: 15px; font-weight: 700">{{selTitulo}}</h2>
+    <div style="margin: 0 16px; display: flex; flex-direction: column; gap: 10px">
+      <sc-if value="{{temEv}}" hint-placeholder-val="{{true}}">
+        <sc-for list="{{selEvs}}" as="e" hint-placeholder-count="1">
+          <div style="background: #FFFFFF; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+            <span style="align-self: flex-start; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: {{e.bg}}; color: {{e.fg}}">{{e.tipo}}</span>
+            <span style="font-size: 18px; font-weight: 700; line-height: 1.3">{{e.n}}</span>
+            <span style="font-size: 15px; color: #3F4249">{{e.h}} · Heráclito Victória nº 3168</span>
+            <div style="display: flex; gap: 8px">
+              <button style="flex: 1; min-height: 48px; border: 0; border-radius: 14px; background: {{t.p}}; color: #FFFFFF; font-weight: 600; font-size: 15px">Copiar chave do dia</button>
+              <a href="M-Chamada.dc.html" style="min-height: 48px; padding: 0 14px; border-radius: 14px; background: {{t.s}}; color: {{t.i}}; font-weight: 600; font-size: 15px; display: flex; align-items: center">Chamada</a>
+            </div>
+          </div>
+        </sc-for>
+      </sc-if>
+      <sc-if value="{{semEv}}" hint-placeholder-val="{{false}}">
+        <div style="background: #FFFFFF; border-radius: 20px; padding: 18px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start">
+          <span style="font-size: 15px; color: #5E6168">Nada marcado neste dia.</span>
+          <button style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px dashed #CFCFCA; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Marcar algo neste dia</button>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="margin: 14px 16px 20px; background: #FFFFFF; border-radius: 20px; overflow: hidden">
+      <button onClick="{{toggleOb}}" aria-expanded="{{obS}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 0; background: #FFFFFF; text-align: left; color: #17181A; min-height: 64px">
+        <span style="width: 40px; height: 40px; border-radius: 12px; background: #FDF3D8; color: #7A4F00; display: grid; place-items: center; flex: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"></path></svg></span>
+        <span style="flex: 1"><span style="display: block; font-size: 15px; font-weight: 700">Datas obrigatórias</span><span style="display: block; font-size: 13px; color: #5E6168">2 ainda faltam marcar</span></span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{obIcon}}"></path></svg>
+      </button>
+      <sc-if value="{{ob}}" hint-placeholder-val="{{false}}">
+        <sc-for list="{{obrigatorias}}" as="o" hint-placeholder-count="5">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid #F0F0EC">
+            <span style="flex: 1; min-width: 0"><span style="display: block; font-size: 15px; font-weight: 600">{{o.nome}}</span><span style="display: block; font-size: 13px; color: #5E6168">{{o.prazo}}</span></span>
+            <span style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: {{o.bg}}; color: {{o.fg}}; white-space: nowrap">{{o.status}}</span>
+          </div>
+        </sc-for>
+      </sc-if>
+    </div>
+  </div>
+  <dc-import name="TabBar" active="" tema="{{tema}}" hint-size="390px,84px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { sel: 14, ob: false }; }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const K = { s:{bg:'#E3EAF7', fg:'#22427A', dot:'#3B63B3', tipo:'Sessão ritualística'}, f:{bg:'#DDF0E5', fg:'#155A38', dot:'#1F7A4D', tipo:'Filantropia'} };
+    const EV = { 7:[{h:'13:30', n:'Iniciação', k:'s'}], 14:[{h:'13:30', n:'Dia em Memória a Frank Sherman Land', k:'s'}], 21:[{h:'13:30', n:'Eleição', k:'s'}], 28:[{h:'13:30', n:'Visita em asilo', k:'f'}] };
+    const WD = ['D','S','T','Q','Q','S','S'];
+    const WDL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    const sel = this.state.sel;
+    const cels = [];
+    for (let i = 0; i < 35; i++) {
+      const d = i + 1;
+      if (d > 30) { cels.push({ vazio: true, dia: false }); continue; }
+      const hoje = d === 8, on = d === sel, ev = EV[d];
+      cels.push({ vazio: false, dia: true, n: d, pick: () => this.setState({ sel: d }), aria: WDL[i % 7] + ', ' + d + ' de novembro' + (ev ? ', com compromisso' : ''), selS: on ? 'true' : 'false',
+        bg: on ? t.p : 'transparent', fg: on ? '#FFFFFF' : '#17181A', bd: hoje && !on ? t.p : 'transparent', w: on || hoje ? 700 : 500, dot: ev ? K[ev[0].k].dot : 'transparent' });
+    }
+    const selEvs = (EV[sel] || []).map((e) => ({ ...e, ...K[e.k] }));
+    const ob = (nome, prazo, ok, st) => ({ nome, prazo, status: st, bg: ok ? '#DDF0E5' : '#FDF3D8', fg: ok ? '#155A38' : '#7A4F00' });
+    return {
+      t, tema, cels, semana: WD, selEvs, temEv: selEvs.length > 0, semEv: selEvs.length === 0,
+      selTitulo: (sel === 8 ? 'Hoje, ' : WDL[(sel - 1) % 7] + ', ') + sel + ' de novembro',
+      ob: this.state.ob, obS: this.state.ob ? 'true' : 'false', toggleOb: () => this.setState({ ob: !this.state.ob }), obIcon: this.state.ob ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6',
+      obrigatorias: [
+        ob('Iniciação ao Grau DeMolay','Até 12 de dezembro', false, 'Falta marcar'),
+        ob('Dia do Meu Governo','Dentro de novembro', false, 'Falta marcar'),
+        ob('Dia em Memória a Frank Sherman Land','Dentro de novembro', true, 'Marcado 14/11'),
+        ob('Iniciação ao Grau Iniciático','Até 12 de dezembro', true, 'Feita 07/11'),
+        ob('Evento de arrecadação','Até 12 de dezembro', true, 'Feito 19/09')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Chamada · desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A">
+  <div style="flex: 1 1 264px; max-width: 100%; display: flex; flex-direction: column; background: #FFFFFF">
+    <dc-import name="Sidebar" active="presencas" tema="{{tema}}" hint-size="264px,960px"></dc-import>
+  </div>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box">
+    <div style="max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between">
+        <div>
+          <a href="D-Inicio.dc.html" style="font-size: 14px; color: #5E6168; display: inline-flex; align-items: center; gap: 4px; min-height: 32px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>Presenças</a>
+          <h1 style="margin: 2px 0 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: center; gap: 12px; flex-wrap: wrap">Iniciação <span style="display: inline-flex; align-items: center; gap: 6px; font-family: Inter, sans-serif; font-size: 13px; font-weight: 700; color: #155A38; background: #DDF0E5; padding: 5px 12px; border-radius: 999px; letter-spacing: 0"><span style="width: 8px; height: 8px; border-radius: 50%; background: #1F7A4D"></span>Chamada aberta</span></h1>
+          <p style="margin: 4px 0 0; font-size: 15px; color: #5E6168">Sessão ritualística · Sábado, 07/11/2026 · 13:30 · Obrigatória</p>
+        </div>
+        <div role="tablist" aria-label="Seções da sessão" style="background: #E9E9E5; border-radius: 14px; padding: 4px; display: flex; gap: 4px">
+          <button role="tab" aria-selected="true" style="min-height: 40px; padding: 0 18px; border: 0; border-radius: 10px; background: #FFFFFF; color: #17181A; font-weight: 600; font-size: 14px; box-shadow: 0 1px 3px rgba(20,20,20,0.12)">Chamada</button>
+          <a role="tab" aria-selected="false" href="D-Atas.dc.html" style="min-height: 40px; padding: 0 18px; border-radius: 10px; color: #4A4D54; font-weight: 600; font-size: 14px; display: flex; align-items: center">Ata</a>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start">
+        <div style="flex: 2 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <label style="flex: 1 1 260px; display: flex; align-items: center; gap: 10px; background: #FFFFFF; border: 1px solid #E2E2DE; border-radius: 12px; padding: 0 14px; min-height: 46px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5E6168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"></path></svg>
+              <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar membro</span>
+              <input type="search" placeholder="Buscar membro" style="flex: 1; min-width: 0; border: 0; outline: none; font: inherit; font-size: 15px; background: transparent">
+            </label>
+            <sc-for list="{{filtros}}" as="f" hint-placeholder-count="3">
+              <button onClick="{{f.pick}}" aria-pressed="{{f.pressed}}" style="min-height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid {{f.border}}; background: {{f.bg}}; color: {{f.fg}}; font-size: 14px; font-weight: 600">{{f.label}}</button>
+            </sc-for>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px">
+            <sc-for list="{{lista}}" as="m" hint-placeholder-count="10">
+              <div style="background: #FFFFFF; border-radius: 16px; padding: 12px 12px 12px 16px; border: 1px solid {{m.borda}}">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <span style="flex: 1; min-width: 0; font-size: 15px; font-weight: 600; line-height: 1.25">{{m.nome}}</span>
+                  <button onClick="{{m.presente}}" aria-pressed="{{m.pOn}}" style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid {{m.pBd}}; background: {{m.pBg}}; color: {{m.pFg}}; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Veio</button>
+                  <button onClick="{{m.ausente}}" aria-pressed="{{m.aOn}}" style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid {{m.aBd}}; background: {{m.aBg}}; color: {{m.aFg}}; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>Faltou</button>
+                </div>
+                <sc-if value="{{m.isA}}" hint-placeholder-val="{{false}}">
+                  <input type="text" aria-label="Justificativa da falta" placeholder="Motivo da falta (opcional)" style="margin-top: 10px; width: 100%; box-sizing: border-box; min-height: 40px; border: 1px solid #E2E2DE; border-radius: 10px; padding: 0 12px; font: inherit; font-size: 14px; background: #FAFAF8">
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <aside style="flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+          <div style="background: #FFFFFF; border-radius: 20px; padding: 20px">
+            <span style="display: block; font-size: 15px; font-weight: 700">Resumo</span>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; text-align: center">
+              <div style="background: #EAF5EF; border-radius: 14px; padding: 12px 4px"><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 26px; font-weight: 800; color: #155A38">{{np}}</span><span style="font-size: 12px; color: #155A38; font-weight: 600">Presentes</span></div>
+              <div style="background: #FBEDEC; border-radius: 14px; padding: 12px 4px"><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 26px; font-weight: 800; color: #A1261B">{{na}}</span><span style="font-size: 12px; color: #A1261B; font-weight: 600">Faltaram</span></div>
+              <div style="background: #F4F4F1; border-radius: 14px; padding: 12px 4px"><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 26px; font-weight: 800">{{nf}}</span><span style="font-size: 12px; color: #3F4249; font-weight: 600">Sem marcar</span></div>
+            </div>
+            <div style="height: 10px; border-radius: 999px; background: #EEEEEA; margin-top: 14px; overflow: hidden; display: flex"><div style="width: {{wp}}; background: #1F7A4D"></div><div style="width: {{wa}}; background: #C8463A"></div></div>
+            <button onClick="{{todos}}" style="width: 100%; margin-top: 16px; min-height: 46px; border: 0; border-radius: 12px; background: {{t.s}}; color: {{t.i}}; font-weight: 600; font-size: 15px">Marcar todos como presentes</button>
+            <button style="width: 100%; margin-top: 8px; min-height: 48px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 15px">Encerrar chamada</button>
+            <p style="margin: 10px 0 0; font-size: 13px; color: #5E6168; text-align: center">Cada marcação é salva na hora</p>
+          </div>
+          <div style="background: #FFFFFF; border-radius: 20px; padding: 20px; font-size: 14px; color: #3F4249; display: flex; flex-direction: column; gap: 8px">
+            <span style="font-size: 15px; font-weight: 700; color: #17181A">Sessão</span>
+            <span>Local: Heráclito Victória nº 3168</span>
+            <span>Presidida por Ricardo Pieruccini Massairo</span>
+            <a href="D-Atas.dc.html" style="color: {{t.p}}; font-weight: 600; min-height: 32px; display: flex; align-items: center">Abrir a ata desta sessão</a>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filtro: 'Todos', marc: {
+      'André Azevedo de Oliveira':'A', 'Ariam Miguel Sander Lumertz dos Reis':'P', 'Arthur Espinosa da Silva':'A',
+      'Arthur Toigo de Campos':'P', 'Arthur Tonet Pagliarin':'P', 'Bernardo Luiz Candeia':'P', 'Braian Roldo Visona':'A',
+      'Bryan Joaquim Ferreira Pereira':'P', 'Davi Bernardo Prux':'', 'Gabriel Machado Roldo':''
+    } };
+  }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const marc = this.state.marc;
+    const set = (nome, v) => this.setState({ marc: { ...marc, [nome]: marc[nome] === v ? '' : v } });
+    const nomes = Object.keys(marc);
+    const p = nomes.filter((n) => marc[n] === 'P').length, a = nomes.filter((n) => marc[n] === 'A').length, f = nomes.length - p - a;
+    const np = 13 + p, na = 10 + a, total = 23 + nomes.length;
+    const fl = this.state.filtro;
+    const lista = nomes.filter((n) => fl === 'Todos' ? true : marc[n] === '').map((nome) => {
+      const v = marc[nome];
+      return { nome, isA: v === 'A', presente: () => set(nome, 'P'), ausente: () => set(nome, 'A'),
+        pOn: v === 'P' ? 'true' : 'false', aOn: v === 'A' ? 'true' : 'false',
+        pBg: v === 'P' ? '#1F7A4D' : '#FFFFFF', pFg: v === 'P' ? '#FFFFFF' : '#2A2C31', pBd: v === 'P' ? '#1F7A4D' : '#DCDCD8',
+        aBg: v === 'A' ? '#B42318' : '#FFFFFF', aFg: v === 'A' ? '#FFFFFF' : '#2A2C31', aBd: v === 'A' ? '#B42318' : '#DCDCD8',
+        borda: v === '' ? '#E9D58A' : '#FFFFFF' };
+    });
+    const filtros = ['Todos','Sem marcar'].map((label) => {
+      const on = label === fl;
+      return { label, pressed: on ? 'true' : 'false', bg: on ? '#17181A' : '#FFFFFF', fg: on ? '#FFFFFF' : '#2A2C31', border: on ? '#17181A' : '#DCDCD8', pick: () => this.setState({ filtro: label }) };
+    });
+    const todos = () => { const m = {}; nomes.forEach((n) => { m[n] = 'P'; }); this.setState({ marc: m }); };
+    return { t, tema, lista, filtros, todos, np, na, nf: f, wp: (np / total * 100).toFixed(1) + '%', wa: (na / total * 100).toFixed(1) + '%' };
+  }
+}
+</script>
+</body>
+</html>

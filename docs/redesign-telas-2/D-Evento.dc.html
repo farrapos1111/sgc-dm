@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Evento · desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input,select{font:inherit}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A">
+  <div style="flex: 1 1 264px; max-width: 100%; display: flex; flex-direction: column; background: #FFFFFF">
+    <dc-import name="Sidebar" active="eventos" tema="{{tema}}" hint-size="264px,1180px"></dc-import>
+  </div>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box">
+    <div style="max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px">
+      <div>
+        <a href="D-Eventos.dc.html" style="font-size: 14px; color: #5E6168; display: inline-flex; align-items: center; gap: 4px; min-height: 32px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>Eventos</a>
+        <h1 style="margin: 2px 0 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: center; gap: 12px; flex-wrap: wrap">Aniversário de 9 anos do Farrapos <span style="font-family: Inter, sans-serif; font-size: 13px; font-weight: 700; background: #E9E9E5; color: #3F4249; padding: 5px 12px; border-radius: 999px; letter-spacing: 0">Encerrado · caixa fechado</span></h1>
+        <p style="margin: 4px 0 0; font-size: 15px; color: #5E6168">Sábado, 19/09/2026 · 12:00 às 15:30 · Salão do São José, Caxias do Sul</p>
+      </div>
+      <div role="tablist" aria-label="Seções do evento" style="align-self: flex-start; background: #E9E9E5; border-radius: 12px; padding: 4px; display: flex; flex-wrap: wrap; gap: 4px">
+        <sc-for list="{{abas}}" as="a" hint-placeholder-count="5">
+          <button role="tab" aria-selected="{{a.sel}}" onClick="{{a.pick}}" style="min-height: 40px; padding: 0 16px; border: 0; border-radius: 9px; background: {{a.bg}}; color: {{a.fg}}; font-weight: 600; font-size: 15px; box-shadow: {{a.sh}}">{{a.label}}</button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{isResumo}}" hint-placeholder-val="{{true}}">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px">
+          <div style="background: {{t.p}}; color: #FFFFFF; border-radius: 20px; padding: 18px 20px"><span style="display: block; font-size: 13px; opacity: 0.88">Arrecadado</span><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 26px; font-weight: 800; margin-top: 4px">R$ 13.210,02</span><span style="display: block; font-size: 13px; opacity: 0.88; margin-top: 4px">Meta de R$ 10.000 batida · 132%</span></div>
+          <div style="background: #FFFFFF; border-radius: 20px; padding: 18px 20px"><span style="display: block; font-size: 13px; color: #5E6168">Gasto</span><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 24px; font-weight: 800; color: #A1261B; margin-top: 4px">R$ 9.374,90</span></div>
+          <div style="background: #FFFFFF; border-radius: 20px; padding: 18px 20px"><span style="display: block; font-size: 13px; color: #5E6168">Lucro para o capítulo</span><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 24px; font-weight: 800; color: #155A38; margin-top: 4px">R$ 3.835,12</span><span style="display: block; font-size: 13px; color: #7A4F00; margin-top: 4px">R$ 185,00 ainda a receber</span></div>
+          <div style="background: #FFFFFF; border-radius: 20px; padding: 18px 20px"><span style="display: block; font-size: 13px; color: #5E6168">Ingressos</span><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 24px; font-weight: 800; margin-top: 4px">177 vendidos</span><span style="display: block; font-size: 13px; color: #5E6168; margin-top: 4px">178 check-ins na entrada</span></div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+          <div style="flex: 2 1 440px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 22px">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px"><h2 style="margin: 0; font-size: 17px; font-weight: 700">Informações</h2><button style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Editar</button></div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 24px; margin-top: 8px">
+              <sc-for list="{{info}}" as="i" hint-placeholder-count="6">
+                <div style="padding: 12px 0; border-bottom: 1px solid #F3F3EF"><span style="display: block; font-size: 13px; color: #5E6168">{{i.k}}</span><span style="display: block; font-size: 15px; font-weight: 600; margin-top: 2px">{{i.v}}</span></div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex: 1 1 300px; min-width: 0; background: #FFFFFF; border-radius: 20px; overflow: hidden">
+            <div style="height: 150px; background: {{t.p}}; color: #FFFFFF; padding: 18px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-end"><span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85">Arte do ingresso</span><span style="font-size: 15px; font-weight: 600">Sem imagem, usando a cor do capítulo</span></div>
+            <div style="padding: 16px 18px; display: flex; flex-direction: column; gap: 8px"><button style="min-height: 44px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Enviar imagem</button><span style="font-size: 13px; color: #5E6168">Tamanho ideal 1200 x 600 px. Aparece no topo do ingresso.</span></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isIngressos}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+          <div style="flex: 2 1 520px; min-width: 0; background: #FFFFFF; border-radius: 20px; overflow: hidden">
+            <div style="padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; border-bottom: 1px solid #EEEEEA">
+              <div style="display: flex; gap: 10px; flex-wrap: wrap">
+                <label style="flex: 1 1 240px; display: flex; align-items: center; gap: 10px; border: 1px solid #E2E2DE; border-radius: 12px; padding: 0 14px; min-height: 44px">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5E6168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"></path></svg>
+                  <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar ingresso</span>
+                  <input type="search" placeholder="Buscar comprador ou vendedor" style="flex: 1; min-width: 0; border: 0; outline: none; font-size: 15px; background: transparent">
+                </label>
+                <button style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Comandas em PDF</button>
+              </div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap">
+                <sc-for list="{{chipsIng}}" as="c" hint-placeholder-count="5">
+                  <button onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{c.bd}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 13px; font-weight: 600">{{c.label}}</button>
+                </sc-for>
+              </div>
+            </div>
+            <sc-for list="{{ingressos}}" as="i" hint-placeholder-count="7">
+              <div style="display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid #F3F3EF">
+                <span style="flex: 1; min-width: 0"><span style="display: block; font-size: 15px; font-weight: 600">{{i.nome}}</span><span style="display: block; font-size: 13px; color: #5E6168">{{i.tipo}} · vendido por {{i.vend}}</span></span>
+                <span style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #DDF0E5; color: #155A38">Pago</span>
+                <span style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #E3EAF7; color: #22427A">Entrou</span>
+                <button aria-label="Ver QR do ingresso" style="min-height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 13px; color: #2A2C31">QR</button>
+              </div>
+            </sc-for>
+          </div>
+          <div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+            <div style="background: #FFFFFF; border-radius: 20px; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+              <h2 style="margin: 0; font-size: 16px; font-weight: 700">Vender ingresso</h2>
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Nome do comprador<input type="text" placeholder="Nome completo" style="min-height: 44px; border: 1px solid #DCDCD8; border-radius: 12px; padding: 0 12px; font-size: 15px; font-weight: 400"></label>
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">E-mail (opcional)<input type="email" placeholder="Para enviar o QR" style="min-height: 44px; border: 1px solid #DCDCD8; border-radius: 12px; padding: 0 12px; font-size: 15px; font-weight: 400"></label>
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Tipo de ingresso<select style="min-height: 44px; border: 1px solid #DCDCD8; border-radius: 12px; padding: 0 12px; font-size: 15px; font-weight: 400; background: #FFFFFF"><option>Novo Inteiro · R$ 65,00</option><option>Inteiro · R$ 65,00</option><option>Meia · R$ 40,00</option><option>Preço de custo DeMolay · R$ 50,00</option></select></label>
+              <button style="min-height: 48px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 15px">Registrar venda</button>
+            </div>
+            <div style="background: #FFFFFF; border-radius: 20px; padding: 18px">
+              <div style="display: flex; justify-content: space-between; align-items: center"><h2 style="margin: 0; font-size: 16px; font-weight: 700">Tipos de ingresso</h2><button style="min-height: 36px; padding: 0 10px; border: 0; background: none; color: {{t.p}}; font-weight: 600; font-size: 14px">Adicionar tipo</button></div>
+              <sc-for list="{{tipos}}" as="tp" hint-placeholder-count="4">
+                <div style="padding: 10px 0; border-bottom: 1px solid #F3F3EF">
+                  <div style="display: flex; justify-content: space-between; font-size: 14px"><span style="font-weight: 600">{{tp.nome}}</span><span style="color: #3F4249">{{tp.preco}}</span></div>
+                  <div style="height: 6px; border-radius: 999px; background: #EEEEEA; margin-top: 6px; overflow: hidden"><div style="height: 100%; width: {{tp.w}}; background: {{t.p}}"></div></div>
+                  <span style="display: block; font-size: 12px; color: #5E6168; margin-top: 4px">{{tp.qtd}}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isMesas}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between">
+          <div style="display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; color: #3F4249">
+            <span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; height: 14px; border-radius: 50%; background: #1F7A4D"></span>Pago</span>
+            <span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; height: 14px; border-radius: 50%; background: #E3A21A"></span>Falta pagar</span>
+            <span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; height: 14px; border-radius: 50%; border: 2px dashed #A3A6AC; box-sizing: border-box"></span>Lugar livre</span>
+          </div>
+          <div style="display: flex; gap: 8px">
+            <button style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Todos os vendedores</button>
+            <button style="min-height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 14px">Nova mesa</button>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px">
+          <sc-for list="{{mesas}}" as="m" hint-placeholder-count="4">
+            <div style="background: #FFFFFF; border-radius: 20px; padding: 18px">
+              <div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-size: 17px; font-weight: 700">{{m.nome}}</span><span style="font-size: 14px; color: #5E6168">{{m.ocup}}</span></div>
+              <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 8px; margin-top: 14px">
+                <sc-for list="{{m.lugares}}" as="l" hint-placeholder-count="8">
+                  <button aria-label="{{l.aria}}" style="border: 0; background: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #2A2C31; min-width: 0">
+                    <span style="width: 40px; height: 40px; border-radius: 50%; background: {{l.bg}}; color: {{l.fg}}; border: 2px {{l.bs}} {{l.bd}}; box-sizing: border-box; display: grid; place-items: center; font-size: 13px; font-weight: 700">{{l.n}}</span>
+                    <span style="font-size: 12px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: {{l.nc}}">{{l.nome}}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isOutro}}" hint-placeholder-val="{{false}}">
+        <div style="background: #FFFFFF; border-radius: 20px; padding: 40px; text-align: center; color: #5E6168; font-size: 15px">O conteúdo desta aba entra na próxima rodada do design.</div>
+      </sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { aba: 'Resumo', chip: 'Todos' }; }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const s = this.state;
+    const tab = (label) => { const on = s.aba === label; return { label, sel: on ? 'true' : 'false', bg: on ? '#FFFFFF' : 'transparent', fg: on ? '#17181A' : '#4A4D54', sh: on ? '0 1px 3px rgba(20,20,20,0.12)' : 'none', pick: () => this.setState({ aba: label }) }; };
+    const chip = (label) => { const on = s.chip === label; return { label, pressed: on ? 'true' : 'false', bg: on ? '#17181A' : '#FFFFFF', fg: on ? '#FFFFFF' : '#2A2C31', bd: on ? '#17181A' : '#DCDCD8', pick: () => this.setState({ chip: label }) }; };
+    const L = (nome, st) => ({ nome, st });
+    const M = [
+      { nome:'Mesa Bernardo Candeia 5', l:[L('Bernardo','P'),L('Camile','O'),L('Carol','P'),L('Cristiano','P'),L('Flávia','P'),L('Maria Teresa','P'),L('Otávio','P'),L('Rúbia Mara','P'),L('Vilmar','P')] },
+      { nome:'Mesa Bortola 17', l:[L('Armando','P'),L('Gabriela','P'),L('Alexandre','P'),L('Robson','P'),L('','L'),L('','L')] },
+      { nome:'Mesa Braian 6', l:[L('Braian','P'),L('','L'),L('Karolina','P'),L('Maria Eduarda','P'),L('Marcela','P'),L('Marilice','P'),L('Wilson','P'),L('Julia','P'),L('William','P'),L('Geórgia','P')] },
+      { nome:'Mesa Elias 7', l:[L('Alexsander','P'),L('Ana','P'),L('Antônio','P'),L('Carlize','P'),L('Carol','P'),L('Catiane','P'),L('Cristiano','P'),L('Gislaine','P'),L('Elias','P'),L('Maciel','P'),L('Erica','P'),L('Ricardo','P'),L('','L'),L('','L'),L('','L')] }
+    ];
+    const ST = { P:{bg:'#1F7A4D', fg:'#FFFFFF', bd:'#1F7A4D', bs:'solid', nome:'pago'}, O:{bg:'#E3A21A', fg:'#3D2A00', bd:'#E3A21A', bs:'solid', nome:'falta pagar'}, L:{bg:'#FFFFFF', fg:'#5E6168', bd:'#A3A6AC', bs:'dashed', nome:'livre'} };
+    const mesas = M.map((m) => { const oc = m.l.filter((x) => x.st !== 'L').length; return { nome: m.nome, ocup: oc + ' de ' + m.l.length + ' lugares',
+      lugares: m.l.map((x, i) => ({ n: i + 1, nome: x.st === 'L' ? 'Livre' : x.nome, nc: x.st === 'L' ? '#6B6E75' : '#2A2C31', aria: 'Lugar ' + (i + 1) + ', ' + (x.nome || 'vazio') + ', ' + ST[x.st].nome, ...ST[x.st] })) }; });
+    return {
+      t, tema,
+      abas: ['Resumo','Ingressos','Mapa de mesas','Ranking de vendedores','Financeiro'].map(tab),
+      isResumo: s.aba === 'Resumo', isIngressos: s.aba === 'Ingressos', isMesas: s.aba === 'Mapa de mesas', isOutro: s.aba === 'Ranking de vendedores' || s.aba === 'Financeiro',
+      info: [ {k:'Início', v:'19/09/2026 às 12:00'}, {k:'Término', v:'19/09/2026 às 15:30'}, {k:'Local', v:'Salão do São José · R. Hugo Luciano Ronca, 2526'}, {k:'Chegada', v:'12:00'}, {k:'Almoço servido', v:'12:30'}, {k:'Valor do ingresso', v:'R$ 80,00 por pessoa'} ],
+      chipsIng: ['Todos','Entraram (177)','Pagos (172)','Parciais (3)','Em aberto (2)'].map(chip),
+      ingressos: [
+        {nome:'Luiz Henrique Susin Fortunatto', tipo:'Inteiro · R$ 80,00', vend:'Braian Roldo Visona'},
+        {nome:'Laura Susin', tipo:'Inteiro · R$ 80,00', vend:'Braian Roldo Visona'},
+        {nome:'Daiane Brito', tipo:'Novo Inteiro · R$ 65,00', vend:'João Alfredo da Silva Faggion'},
+        {nome:'Alexandre Pagani', tipo:'Novo Inteiro · R$ 65,00', vend:'Guilherme Marzotto'},
+        {nome:'Maria Lúcia Zimmer Marzotto', tipo:'Novo Inteiro · R$ 65,00', vend:'Guilherme Marzotto'},
+        {nome:'Paulo Ricardo', tipo:'Novo Inteiro · R$ 65,00', vend:'Braian Roldo Visona'},
+        {nome:'Ivoni', tipo:'Novo Inteiro · R$ 65,00', vend:'Ricardo Pieruccini Massairo'}
+      ],
+      tipos: [
+        {nome:'Novo Inteiro', preco:'R$ 65,00', qtd:'142 de 150 vendidos', w:'95%'},
+        {nome:'Preço de custo DeMolay', preco:'R$ 50,00', qtd:'20 de 25 vendidos', w:'80%'},
+        {nome:'Inteiro', preco:'R$ 65,00', qtd:'8 vendidos', w:'100%'},
+        {nome:'Meia', preco:'R$ 40,00', qtd:'7 vendidos', w:'100%'}
+      ],
+      mesas
+    };
+  }
+}
+</script>
+</body>
+</html>

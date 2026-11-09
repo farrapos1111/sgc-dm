@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Ata · mobile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A; overflow: hidden">
+  <div style="flex: 1; overflow-y: auto; min-height: 0">
+    <div style="padding: 16px 16px 0; display: flex; align-items: center; gap: 8px">
+      <a href="Main.dc.html" aria-label="Voltar" style="width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; display: grid; place-items: center; flex: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      </a>
+      <span style="flex: 1; font-size: 15px; font-weight: 600; color: #5E6168">Atas · 2º semestre</span>
+      <button aria-label="Baixar PDF" style="width: 44px; height: 44px; border-radius: 50%; border: 0; background: #FFFFFF; display: grid; place-items: center; color: #17181A">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
+      </button>
+    </div>
+
+    <div style="padding: 12px 16px 0">
+      <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -0.02em">Ata da Iniciação</h1>
+      <p style="margin: 4px 0 0; font-size: 15px; color: #5E6168">Sessão ritualística · Sáb, 07/11/2026 · 13:30</p>
+    </div>
+
+    <div style="margin: 14px 16px 0; background: #FFFFFF; border-radius: 20px; padding: 16px">
+      <span style="display: block; font-size: 13px; font-weight: 600; color: #5E6168; margin-bottom: 12px">Andamento</span>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px">
+        <sc-for list="{{etapas}}" as="e" hint-placeholder-count="4">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <span style="height: 6px; border-radius: 999px; background: {{e.bar}}"></span>
+            <span style="font-size: 12px; font-weight: {{e.w}}; color: {{e.fg}}">{{e.label}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <p style="margin: 12px 0 0; font-size: 14px; color: #3F4249">Rascunho do Escrivão. Assinaturas: <strong>0 de 3</strong></p>
+    </div>
+
+    <div style="margin: 10px 16px 0; background: #FFFFFF; border-radius: 20px; padding: 16px">
+      <span style="display: block; font-size: 13px; font-weight: 600; color: #5E6168; margin-bottom: 10px">Quem pode ler esta ata</span>
+      <div role="radiogroup" aria-label="Nível de acesso" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px">
+        <sc-for list="{{niveis}}" as="n" hint-placeholder-count="3">
+          <button role="radio" aria-checked="{{n.sel}}" onClick="{{n.pick}}" style="min-height: 56px; border-radius: 12px; border: 1px solid {{n.bd}}; background: {{n.bg}}; color: {{n.fg}}; padding: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px">
+            <span style="font-size: 14px; font-weight: 700">{{n.label}}</span>
+            <span style="font-size: 11px">{{n.sub}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="margin: 10px 16px 0; background: #FFFFFF; border-radius: 20px; padding: 18px">
+      <p style="margin: 0; font-size: 16px; line-height: 1.65; color: #24262B">Aos 07 dias do mês de novembro de 2026, no templo da A∴R∴L∴S∴ Heráclito Victória nº 3168, situado na Rua Paulino Balbinotti, 385, Forqueta, Caxias do Sul, reuniram-se os membros do Capítulo Farrapos nº 1111, estando presentes os DeMolays Ativos, Seniores DeMolays, Tios Maçons e demais visitantes.</p>
+      <p style="margin: 12px 0 0; font-size: 16px; line-height: 1.65; color: #24262B">Os trabalhos foram presididos pelos Irmãos Ricardo Pieruccini Massairo, Gabriel Machado Roldo e Guilherme Gonçalves Peres, nos cargos de Mestre Conselheiro, Primeiro Conselheiro e Segundo Conselheiro. Deu-se início aos trabalhos às 13h52.</p>
+      <p style="margin: 12px 0 0; font-size: 16px; line-height: 1.65; color: #24262B"><strong>Pauta do dia:</strong> Iniciação à Ordem DeMolay do candidato Rafael Orlando. <strong>Palavra do dia:</strong> Contemplação.</p>
+      <button style="margin-top: 12px; min-height: 44px; padding: 0; border: 0; background: none; color: {{t.p}}; font-weight: 600; font-size: 15px">Ler ata completa</button>
+    </div>
+
+    <div style="margin: 10px 16px 20px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #3F4249; background: #ECECE8; border-radius: 14px; padding: 12px 14px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+      <span>Só o Escrivão edita o texto. Você poderá aprovar quando ela entrar em revisão.</span>
+    </div>
+  </div>
+  <div style="padding: 12px 16px; background: #FFFFFF; border-top: 1px solid #E6E6E2; display: flex; gap: 10px">
+    <button style="flex: 1; min-height: 52px; border: 1px solid #DCDCD8; border-radius: 14px; background: #FFFFFF; color: #17181A; font-weight: 600; font-size: 16px">Comentar</button>
+    <button style="flex: 1; min-height: 52px; border: 0; border-radius: 14px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 16px">Baixar PDF</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { nivel: 'Pública' }; }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const t = T[this.props.tema ?? 'Bordô'] || T['Bordô'];
+    const etapas = ['Rascunho','Em revisão','Aprovada','Assinada'].map((label, i) => ({ label, bar: i === 0 ? t.p : '#E6E6E2', fg: i === 0 ? '#17181A' : '#6B6E75', w: i === 0 ? 700 : 500 }));
+    const niveis = [['Pública','Todos'],['Iniciático','Grau I'],['DeMolay','Grau II']].map(([label, sub]) => {
+      const on = this.state.nivel === label;
+      return { label, sub, sel: on ? 'true' : 'false', bg: on ? t.s : '#FFFFFF', fg: on ? t.i : '#3F4249', bd: on ? t.p : '#DCDCD8', pick: () => this.setState({ nivel: label }) };
+    });
+    return { t, etapas, niveis };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Mensalidades · mobile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A; overflow: hidden">
+  <div style="flex: 1; overflow-y: auto; min-height: 0">
+    <div style="padding: 16px 16px 4px; display: flex; align-items: center; gap: 8px">
+      <a href="Main.dc.html" aria-label="Voltar para o início" style="width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; display: grid; place-items: center; flex: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      </a>
+      <div style="flex: 1">
+        <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 24px; font-weight: 800; letter-spacing: -0.02em">Mensalidades 2026</h1>
+        <p style="margin: 0; font-size: 13px; color: #5E6168">Valor único de R$ 20,00 por mês</p>
+      </div>
+      <button aria-label="Mais ações: copiar lista, incluir membro, compartilhar" style="width: 44px; height: 44px; border-radius: 50%; border: 0; background: #FFFFFF; display: grid; place-items: center; color: #17181A">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01"></path></svg>
+      </button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px 16px 0">
+      <div style="background: #FFFFFF; border-radius: 16px; padding: 12px"><span style="display: block; font-size: 12px; color: #5E6168">Recebido</span><span style="display: block; font-size: 16px; font-weight: 700; color: #155A38; margin-top: 2px">R$ 4.940</span></div>
+      <div style="background: #FFFFFF; border-radius: 16px; padding: 12px"><span style="display: block; font-size: 12px; color: #5E6168">Em aberto</span><span style="display: block; font-size: 16px; font-weight: 700; color: #7A4F00; margin-top: 2px">R$ 1.040</span></div>
+      <div style="background: #FFFFFF; border-radius: 16px; padding: 12px"><span style="display: block; font-size: 12px; color: #5E6168">Atrasado</span><span style="display: block; font-size: 16px; font-weight: 700; color: #A1261B; margin-top: 2px">R$ 760</span></div>
+    </div>
+
+    <div style="padding: 12px 16px 0; display: flex; gap: 8px">
+      <label style="flex: 1; display: flex; align-items: center; gap: 8px; background: #FFFFFF; border: 1px solid #E2E2DE; border-radius: 14px; padding: 0 12px; min-height: 48px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5E6168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"></path></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar membro</span>
+        <input type="search" placeholder="Buscar membro" style="flex: 1; min-width: 0; border: 0; outline: none; font: inherit; font-size: 16px; background: transparent">
+      </label>
+      <button style="min-height: 48px; padding: 0 12px; border: 1px solid #E2E2DE; border-radius: 14px; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31; display: flex; align-items: center; gap: 4px">A a Z<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+    </div>
+
+    <div role="tablist" aria-label="Filtrar membros" style="margin: 12px 16px 0; background: #E9E9E5; border-radius: 14px; padding: 4px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px">
+      <sc-for list="{{filtros}}" as="f" hint-placeholder-count="3">
+        <button role="tab" aria-selected="{{f.sel}}" onClick="{{f.pick}}" style="min-height: 40px; border: 0; border-radius: 10px; background: {{f.bg}}; color: {{f.fg}}; font-weight: 600; font-size: 14px; box-shadow: {{f.sh}}">{{f.label}}</button>
+      </sc-for>
+    </div>
+
+    <div style="padding: 12px 16px 0; display: flex; flex-direction: column; gap: 8px">
+      <sc-for list="{{membros}}" as="m" hint-placeholder-count="6">
+        <div style="background: #FFFFFF; border-radius: 18px; overflow: hidden; border: 1px solid {{m.borda}}">
+          <button onClick="{{m.toggle}}" aria-expanded="{{m.abertoS}}" style="width: 100%; border: 0; background: #FFFFFF; padding: 12px 14px; text-align: left; color: #17181A; display: flex; flex-direction: column; gap: 10px">
+            <span style="display: flex; align-items: center; gap: 10px; width: 100%">
+              <span style="flex: 1; min-width: 0">
+                <span style="display: block; font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{m.nome}}</span>
+                <span style="display: block; font-size: 13px; color: {{m.resumoCor}}; font-weight: 500; margin-top: 1px">{{m.resumo}}</span>
+              </span>
+              <span style="font-size: 15px; font-weight: 700; white-space: nowrap; color: {{m.totalCor}}">{{m.total}}</span>
+              <span style="width: 32px; height: 32px; border-radius: 50%; background: #F4F4F1; display: grid; place-items: center; flex: none">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{m.chev}}"></path></svg>
+              </span>
+            </span>
+            <sc-if value="{{m.fechado}}" hint-placeholder-val="{{true}}">
+              <span aria-hidden="true" style="display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; width: 100%">
+                <sc-for list="{{m.meses}}" as="c" hint-placeholder-count="12">
+                  <span style="height: 8px; border-radius: 999px; background: {{c.bar}}"></span>
+                </sc-for>
+              </span>
+            </sc-if>
+          </button>
+
+          <sc-if value="{{m.aberto}}" hint-placeholder-val="{{false}}">
+            <div style="padding: 0 14px 14px; display: flex; flex-direction: column; gap: 12px">
+              <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+                <sc-for list="{{m.meses}}" as="c" hint-placeholder-count="12">
+                  <button onClick="{{c.cycle}}" aria-label="{{c.aria}}" style="min-height: 56px; border-radius: 12px; border: 1px solid {{c.bd}}; background: {{c.bg}}; color: {{c.fg}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 4px">
+                    <span style="font-size: 13px; font-weight: 500">{{c.mes}}</span>
+                    <span style="font-size: 13px; font-weight: 700">{{c.cod}}</span>
+                  </button>
+                </sc-for>
+              </div>
+              <p style="margin: 0; font-size: 12px; color: #5E6168">Toque num mês para mudar a situação.</p>
+              <sc-if value="{{m.pendente}}" hint-placeholder-val="{{true}}">
+                <div style="display: flex; gap: 8px">
+                  <button onClick="{{m.pagar}}" style="flex: 1; min-height: 48px; border: 0; border-radius: 14px; background: {{t.p}}; color: #FFFFFF; font-weight: 600; font-size: 15px">Pagar mês mais antigo</button>
+                  <button style="min-height: 48px; padding: 0 14px; border: 1px solid #DCDCD8; border-radius: 14px; background: #FFFFFF; color: #17181A; font-weight: 600; font-size: 15px">Cobrar</button>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="margin: 14px 16px 20px; background: #FFFFFF; border-radius: 16px; padding: 12px 14px">
+      <span style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px">O que cada cor quer dizer</span>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px">
+        <sc-for list="{{legenda}}" as="l" hint-placeholder-count="5">
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #3F4249"><span style="min-width: 36px; height: 22px; padding: 0 4px; border-radius: 6px; background: {{l.bg}}; color: {{l.fg}}; border: 1px solid {{l.bd}}; box-sizing: border-box; display: grid; place-items: center; font-size: 11px; font-weight: 700">{{l.cod}}</span>{{l.nome}}</span>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  <dc-import name="TabBar" active="caixa" tema="{{tema}}" hint-size="390px,84px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filtro: 'Todos', aberto: '', dados: {
+      'André Azevedo de Oliveira': 'IDDDDDDDDDDD',
+      'Ariam Miguel Sander Lumertz dos Reis': 'IIIIIIPPPPPF',
+      'Arthur Adami Gaio': 'IPPPPPIIIIII',
+      'Arthur Toigo de Campos': 'IPPPPPPPPPPP',
+      'Braian Roldo Visona': 'IPPPPPPPAAOF',
+      'Bryan Joaquim Ferreira Pereira': 'IPPPPPPPPAOF',
+      'Carlos Henrique Köhler Mendes': 'IAAAAAAAAAOF',
+      'Davi Bernardo Prux': 'IIIIIIPPPPPP'
+    } };
+  }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const S = {
+      P:{cod:'PAG', nome:'Pago', bg:'#DDF0E5', fg:'#155A38', bd:'#DDF0E5', bar:'#3E9A69'},
+      O:{cod:'ABE', nome:'Em aberto', bg:'#FFF6D6', fg:'#6E5100', bd:'#E9D58A', bar:'#E8C341'},
+      A:{cod:'ATR', nome:'Atrasado', bg:'#FBE3C8', fg:'#7E3F00', bd:'#E0A866', bar:'#D9822B'},
+      I:{cod:'ISE', nome:'Isento', bg:'#E3EAF7', fg:'#2D4A80', bd:'#E3EAF7', bar:'#9DB3DC'},
+      D:{cod:'DES', nome:'Desligado', bg:'#E6E6E3', fg:'#4F5258', bd:'#E6E6E3', bar:'#C4C4C0'},
+      F:{cod:'·', nome:'Ainda não venceu', bg:'#FAFAF8', fg:'#6B6E75', bd:'#ECECE8', bar:'#ECECE8'}
+    };
+    const NEXT = {A:'P', O:'P', P:'I', I:'D', D:'O', F:'P'};
+    const MES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const d = this.state.dados;
+    const f = this.state.filtro;
+    const membros = Object.keys(d).map((nome) => {
+      const cods = d[nome];
+      const arr = cods.split('');
+      const abertos = arr.filter((c) => c === 'A' || c === 'O').length;
+      const atrasados = arr.filter((c) => c === 'A').length;
+      const desligado = cods.indexOf('D') >= 0;
+      const on = this.state.aberto === nome;
+      const set = (novo) => this.setState({ dados: { ...d, [nome]: novo } });
+      return {
+        nome, aberto: on, fechado: !on, abertoS: on ? 'true' : 'false',
+        chev: on ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6',
+        borda: on ? t.p : '#FFFFFF',
+        toggle: () => this.setState({ aberto: on ? '' : nome }),
+        pendente: abertos > 0,
+        pagar: () => { const i = cods.search(/[AO]/); if (i >= 0) set(cods.slice(0, i) + 'P' + cods.slice(i + 1)); },
+        resumo: desligado ? 'Desligado desde fevereiro' : abertos === 0 ? 'Em dia' : abertos + (abertos === 1 ? ' mês em aberto' : ' meses em aberto') + (atrasados ? ', ' + atrasados + ' atrasado' + (atrasados > 1 ? 's' : '') : ''),
+        resumoCor: abertos === 0 ? (desligado ? '#5E6168' : '#155A38') : '#7E3F00',
+        total: abertos === 0 ? 'R$ 0,00' : 'R$ ' + (abertos * 20) + ',00',
+        totalCor: abertos === 0 ? '#5E6168' : '#A1261B',
+        meses: arr.map((c, i) => ({ mes: MES[i], cod: S[c].cod, bg: S[c].bg, fg: S[c].fg, bd: S[c].bd, bar: S[c].bar,
+          aria: NOMES[i] + ': ' + S[c].nome + '. Toque para mudar',
+          cycle: () => { const a = d[nome].split(''); a[i] = NEXT[a[i]]; set(a.join('')); } }))
+      };
+    }).filter((m) => f === 'Todos' ? true : f === 'Pendentes' ? m.pendente : !m.pendente);
+    const filtros = ['Todos','Pendentes','Em dia'].map((label) => {
+      const on = label === f;
+      return { label, sel: on ? 'true' : 'false', bg: on ? '#FFFFFF' : 'transparent', fg: on ? '#17181A' : '#4A4D54', sh: on ? '0 1px 3px rgba(20,20,20,0.12)' : 'none', pick: () => this.setState({ filtro: label }) };
+    });
+    const legenda = ['P','O','A','I','D'].map((k) => ({ cod: S[k].cod, nome: S[k].nome, bg: S[k].bg, fg: S[k].fg, bd: S[k].bd }));
+    return { t, tema, membros, filtros, legenda };
+  }
+}
+</script>
+</body>
+</html>

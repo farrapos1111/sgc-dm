@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Cargos e comissões · mobile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A; overflow: hidden">
+  <div style="flex: 1; overflow-y: auto; min-height: 0">
+    <div style="padding: 16px 16px 0; display: flex; align-items: center; gap: 8px">
+      <a href="M-Mais.dc.html" aria-label="Voltar" style="width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; display: grid; place-items: center; flex: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      </a>
+      <div style="flex: 1">
+        <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.02em">Cargos e comissões</h1>
+        <p style="margin: 0; font-size: 13px; color: #5E6168">Gestão 2026 · 2º semestre</p>
+      </div>
+    </div>
+    <div role="tablist" aria-label="Seção" style="margin: 14px 16px 0; background: #E9E9E5; border-radius: 14px; padding: 4px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px">
+      <sc-for list="{{abas}}" as="a" hint-placeholder-count="2">
+        <button role="tab" aria-selected="{{a.sel}}" onClick="{{a.pick}}" style="min-height: 42px; border: 0; border-radius: 10px; background: {{a.bg}}; color: {{a.fg}}; font-weight: 600; font-size: 15px; box-shadow: {{a.sh}}">{{a.label}}</button>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{isCargos}}" hint-placeholder-val="{{true}}">
+      <h2 style="margin: 18px 16px 8px; font-size: 15px; font-weight: 700">Cargos ritualísticos</h2>
+      <div style="margin: 0 16px; background: #FFFFFF; border-radius: 20px; overflow: hidden">
+        <sc-for list="{{ritualisticos}}" as="c" hint-placeholder-count="12">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #F0F0EC; min-height: 56px; box-sizing: border-box">
+            <span style="width: 40px; height: 40px; flex: none; border-radius: 50%; background: {{t.s}}; color: {{t.i}}; display: grid; place-items: center; font-weight: 700; font-size: 13px">{{c.ini}}</span>
+            <span style="min-width: 0"><span style="display: block; font-size: 13px; color: #5E6168; font-weight: 600">{{c.cargo}}</span><span style="display: block; font-size: 15px; font-weight: 600">{{c.nome}}</span></span>
+          </div>
+        </sc-for>
+      </div>
+      <h2 style="margin: 18px 16px 8px; font-size: 15px; font-weight: 700">Conselho consultivo</h2>
+      <div style="margin: 0 16px 20px; background: #FFFFFF; border-radius: 20px; overflow: hidden">
+        <sc-for list="{{conselho}}" as="c" hint-placeholder-count="4">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #F0F0EC; min-height: 56px; box-sizing: border-box">
+            <span style="width: 40px; height: 40px; flex: none; border-radius: 50%; background: #F0F0EC; color: #3F4249; display: grid; place-items: center; font-weight: 700; font-size: 13px">{{c.ini}}</span>
+            <span style="min-width: 0"><span style="display: block; font-size: 13px; color: #5E6168; font-weight: 600">{{c.cargo}}</span><span style="display: block; font-size: 15px; font-weight: 600">{{c.nome}}</span></span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isComissoes}}" hint-placeholder-val="{{false}}">
+      <p style="margin: 14px 16px 10px; font-size: 14px; color: #5E6168">O conselho participa de todas as comissões.</p>
+      <div style="margin: 0 16px 20px; display: flex; flex-direction: column; gap: 10px">
+        <sc-for list="{{comissoes}}" as="c" hint-placeholder-count="6">
+          <div style="background: #FFFFFF; border-radius: 20px; overflow: hidden">
+            <button onClick="{{c.toggle}}" aria-expanded="{{c.abertaS}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 0; background: #FFFFFF; text-align: left; color: #17181A; min-height: 64px">
+              <span style="flex: 1; min-width: 0"><span style="display: block; font-size: 16px; font-weight: 700">{{c.nome}}</span><span style="display: block; font-size: 13px; color: #5E6168">Presidente: {{c.pres}} · {{c.qtd}} pessoas</span></span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{c.icon}}"></path></svg>
+            </button>
+            <sc-if value="{{c.aberta}}" hint-placeholder-val="{{false}}">
+              <sc-for list="{{c.pessoas}}" as="p" hint-placeholder-count="4">
+                <div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-top: 1px solid #F0F0EC">
+                  <span style="flex: 1; min-width: 0; font-size: 15px">{{p.nome}}</span>
+                  <span style="font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: {{p.fbg}}; color: {{p.ffg}}">{{p.funcao}}</span>
+                </div>
+              </sc-for>
+              <button style="width: 100%; min-height: 48px; border: 0; border-top: 1px solid #F0F0EC; background: #FFFFFF; color: {{t.p}}; font-weight: 600; font-size: 15px">Adicionar pessoa</button>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+  <dc-import name="TabBar" active="" tema="{{tema}}" hint-size="390px,84px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { aba: 'Cargos', aberta: 'Hospitalaria' }; }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const ini = (n) => { const p = n.split(' '); return (p[0][0] + p[p.length - 1][0]).toUpperCase(); };
+    const cg = (cargo, nome) => ({ cargo, nome, ini: ini(nome) });
+    const F = { Presidente: [t.p, '#FFFFFF'], Vice: [t.s, t.i], Membro: ['#F0F0EC', '#3F4249'], 'Auxiliar sênior': ['#E3EAF7', '#22427A'] };
+    const ps = (nome, funcao) => ({ nome, funcao, fbg: F[funcao][0], ffg: F[funcao][1] });
+    const C = [
+      { nome:'Hospitalaria', pessoas:[ ps('João Pedro Cecin Coelho Stopassola','Presidente'), ps('Arthur Toigo de Campos','Membro'), ps('Carlos Henrique Köhler Mendes','Membro'), ps('Guilherme da Silva Dutra','Membro'), ps('Fabrício Kehl','Auxiliar sênior') ] },
+      { nome:'Entretenimento', pessoas:[ ps('Elias Algemiro Artagabeitia Ferreira','Presidente'), ps('Davi Bernardo Prux','Membro'), ps('Lorenzo Retore Frighetto','Membro'), ps('Nicolas Farias Peroni','Membro') ] },
+      { nome:'Eventos', pessoas:[ ps('Braian Roldo Visona','Presidente'), ps('Bryan Joaquim Ferreira Pereira','Vice'), ps('Vinícius Menegol Cardoso','Membro') ] },
+      { nome:'Sindicâncias', pessoas:[ ps('Arthur Tonet Pagliarin','Presidente'), ps('Guilherme Garbin Ghiotti','Vice'), ps('João Alfredo da Silva Faggion','Membro'), ps('Miguel Panisson Cruz','Membro') ] },
+      { nome:'Finanças', pessoas:[ ps('Pedro Bossle Sandi','Presidente'), ps('Gabriel Machado Roldo','Membro'), ps('Ricardo Pieruccini Massairo','Membro') ] },
+      { nome:'Auditoria', pessoas:[ ps('Ricardo Pieruccini Massairo','Membro'), ps('Arthur Adami Gaio','Auxiliar sênior') ] }
+    ];
+    const comissoes = C.map((c) => { const on = this.state.aberta === c.nome; const pr = c.pessoas.find((p) => p.funcao === 'Presidente');
+      return { ...c, aberta: on, abertaS: on ? 'true' : 'false', icon: on ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6', pres: pr ? pr.nome.split(' ')[0] : 'a definir', qtd: c.pessoas.length,
+        toggle: () => this.setState({ aberta: on ? '' : c.nome }) }; });
+    const abas = ['Cargos','Comissões'].map((label) => { const on = this.state.aba === label; return { label, sel: on ? 'true' : 'false', bg: on ? '#FFFFFF' : 'transparent', fg: on ? '#17181A' : '#4A4D54', sh: on ? '0 1px 3px rgba(20,20,20,0.12)' : 'none', pick: () => this.setState({ aba: label }) }; });
+    return {
+      t, tema, abas, comissoes,
+      isCargos: this.state.aba === 'Cargos', isComissoes: this.state.aba === 'Comissões',
+      ritualisticos: [
+        cg('Mestre Conselheiro','Ricardo Pieruccini Massairo'), cg('Primeiro Conselheiro','Gabriel Machado Roldo'), cg('Segundo Conselheiro','Guilherme Gonçalves Peres'),
+        cg('Escrivão','Arthur Toigo de Campos'), cg('Tesoureiro','Pedro Bossle Sandi'), cg('Mestre de Cerimônias','Elias Algemiro Artagabeitia Ferreira'),
+        cg('Orador','Lorenzo Retore Frighetto'), cg('Hospitaleiro','João Pedro Cecin Coelho Stopassola'), cg('Capelão','Arthur Tonet Pagliarin'),
+        cg('Primeiro Diácono','Bernardo Luiz Candeia'), cg('Segundo Diácono','Braian Roldo Visona'), cg('Primeiro Mordomo','Nicolas Farias Peroni')
+      ],
+      conselho: [ cg('Presidente do Conselho Consultivo','Leonardo Argenta'), cg('Conselheiro Consultor','Felipe de Mattos Alves'), cg('Conselheiro Consultor','Arthur Perotoni'), cg('Conselheiro Consultor','Lucas Boeira Borges') ]
+    };
+  }
+}
+</script>
+</body>
+</html>
