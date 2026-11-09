@@ -238,11 +238,11 @@ function CalendarioPage() {
   const { can, canScreen } = useChapterAccess();
   const canManageCats =
     canScreen("calendario", "edit") || can("secretaria");
-  const isMobile = useIsMobile();
   const qc = useQueryClient();
 
-  const [view, setView] = useState<"mes" | "agenda">(
-    isMobile ? "agenda" : "mes",
+  const [view, setView] = useState<"mes" | "agenda">("mes");
+  const [pickedDay, setPickedDay] = useState<string>(() =>
+    toLocalDateKey(new Date().toISOString()),
   );
   const [typeFilters, setTypeFilters] = useState<Set<CalendarType>>(
     new Set(CALENDAR_TYPES),
@@ -434,57 +434,52 @@ function CalendarioPage() {
         subtitle="Sessões, eventos e ações de filantropia em uma visão única."
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-            <div className="inline-flex rounded-[8px] border border-border p-0.5">
-              <button
-                onClick={() => setView("mes")}
-                className="flex items-center gap-1 rounded-[6px] px-2.5 py-1.5 text-xs font-medium"
-                style={
-                  view === "mes"
-                    ? {
-                        backgroundColor: "var(--chapter-primary)",
-                        color: "#fff",
-                      }
-                    : { color: "var(--muted-foreground)" }
-                }
-              >
-                <LayoutGrid className="h-3.5 w-3.5" /> Mês
-              </button>
-              <button
-                onClick={() => setView("agenda")}
-                className="flex items-center gap-1 rounded-[6px] px-2.5 py-1.5 text-xs font-medium"
-                style={
-                  view === "agenda"
-                    ? {
-                        backgroundColor: "var(--chapter-primary)",
-                        color: "#fff",
-                      }
-                    : { color: "var(--muted-foreground)" }
-                }
-              >
-                <List className="h-3.5 w-3.5" /> Agenda
-              </button>
+            <div
+              role="tablist"
+              aria-label="Visualização"
+              className="inline-flex gap-1 rounded-[12px] bg-[#E9E9E5] p-1 dark:bg-tv-line"
+            >
+              {(
+                [
+                  ["mes", "Mês", LayoutGrid],
+                  ["agenda", "Agenda", List],
+                ] as const
+              ).map(([k, label, Icon]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === k}
+                  onClick={() => setView(k)}
+                  className={`flex min-h-[38px] items-center gap-1.5 rounded-[9px] px-3.5 text-sm font-semibold ${
+                    view === k
+                      ? "bg-tv-surface text-tv-text shadow-[0_1px_3px_rgba(20,20,20,0.12)]"
+                      : "text-[#4A4D54] dark:text-tv-text-2"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" aria-hidden /> {label}
+                </button>
+              ))}
             </div>
             <Button
               variant="outline"
-              size="sm"
-              className="h-9"
               onClick={() =>
                 downloadIcs(filtered, `calendario-sgcdm`, "Templo Virtual · Calendário")
               }
               title="Baixar .ics para Google Agenda, Apple, Outlook ou Teams"
+              aria-label="Exportar calendário"
             >
-              <Download className="h-4 w-4 sm:mr-2" />{" "}
+              <Download className="h-4 w-4" />
               <span className="hidden sm:inline">Exportar</span>
             </Button>
             {canManageCats && categoriesChapterId && (
               <Button
                 variant="outline"
-                size="sm"
-                className="h-9"
                 onClick={() => setCatsOpen(true)}
                 title="Categorias do calendário"
+                aria-label="Categorias do calendário"
               >
-                <Tags className="h-4 w-4 sm:mr-2" />
+                <Tags className="h-4 w-4" />
                 <span className="hidden sm:inline">Categorias</span>
               </Button>
             )}
@@ -497,13 +492,10 @@ function CalendarioPage() {
                 }}
               >
                 <DialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="h-9"
-                    style={{ backgroundColor: "var(--chapter-primary)" }}
-                    onClick={() => setCreateDate(null)}
-                  >
-                    <PlusCircle className="mr-2 h-4 w-4" /> Novo
+                  <Button onClick={() => setCreateDate(null)}>
+                    <PlusCircle className="h-[18px] w-[18px]" />
+                    <span className="md:hidden">Novo</span>
+                    <span className="hidden md:inline">Novo compromisso</span>
                   </Button>
                 </DialogTrigger>
                 <CreateDialog
@@ -539,7 +531,7 @@ function CalendarioPage() {
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Buscar eventos…"
-            className="h-9 pl-9 pr-9 text-sm"
+            className="pl-9 pr-9"
             aria-label="Buscar no calendário"
           />
           {searchQuery ? (
@@ -574,14 +566,46 @@ function CalendarioPage() {
         ) : null}
       </div>
 
+      <MandatoryDatesCard dates={mandatoryDatesForCursor} items={items} />
+
       <div className="mb-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          aria-pressed={typeFilters.size === CALENDAR_TYPES.length}
+          onClick={() => setTypeFilters(new Set(CALENDAR_TYPES))}
+          className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold ${
+            typeFilters.size === CALENDAR_TYPES.length
+              ? "border-tv-text bg-tv-text text-tv-surface"
+              : "border-tv-border bg-tv-surface text-tv-text"
+          }`}
+        >
+          <span className="h-2.5 w-2.5 rounded-full bg-[#9A9DA3]" aria-hidden />
+          Todos
+        </button>
+        {CALENDAR_TYPES.map((t) => {
+          const meta = resolveTypeMeta(t, typeLabels);
+          const all = typeFilters.size === CALENDAR_TYPES.length;
+          const on = !all && typeFilters.has(t);
+          return (
+            <button
+              key={t}
+              type="button"
+              aria-pressed={on}
+              onClick={() => (all ? setTypeFilters(new Set([t])) : toggleType(t))}
+              className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold ${
+                on
+                  ? "border-tv-text bg-tv-text text-tv-surface"
+                  : "border-tv-border bg-tv-surface text-tv-text"
+              }`}
+            >
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: meta.color }} aria-hidden />
+              {meta.label}
+            </button>
+          );
+        })}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 cursor-pointer justify-between text-xs sm:min-w-[180px]"
-            >
+            <Button variant="ghost" className="cursor-pointer justify-between text-sm" aria-label="Escolher vários tipos">
               <span className="truncate">{typeFilterLabel}</span>
               <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />
             </Button>
@@ -631,7 +655,8 @@ function CalendarioPage() {
             <button
               key={c.id}
               onClick={() => toggleCustomCat(c.id)}
-              className="inline-flex min-h-[36px] cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+              aria-pressed={on}
+              className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors"
               style={{
                 backgroundColor: on ? bg : "transparent",
                 color: on ? c.color : "var(--muted-foreground)",
@@ -639,8 +664,9 @@ function CalendarioPage() {
               }}
             >
               <span
-                className="h-2 w-2 rounded-full"
+                className="h-2.5 w-2.5 rounded-full"
                 style={{ backgroundColor: c.color }}
+                aria-hidden
               />
               {c.name}
             </button>
@@ -682,25 +708,37 @@ function CalendarioPage() {
       )}
 
       {view === "mes" ? (
-        <MonthView
-          cursor={cursor}
-          setCursor={setCursor}
-          items={filtered}
-          typeLabels={typeLabels}
-          mandatoryDates={mandatoryDatesForCursor}
-          onDayClick={(key) => {
-            const hasItems = filtered.some((it) => occursOnDay(it, key));
-            if (canCreate && !hasItems) {
-              setCreateDate(key);
-              setCreateOpen(true);
-              return;
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <div className="min-w-0 lg:flex-[3]">
+            <MonthView
+              cursor={cursor}
+              setCursor={setCursor}
+              items={filtered}
+              typeLabels={typeLabels}
+              mandatoryDates={[]}
+              selectedDay={pickedDay}
+              onDayClick={setPickedDay}
+            />
+          </div>
+          <SelectedDayPanel
+            dayKey={pickedDay}
+            items={filtered.filter((it) => occursOnDay(it, pickedDay))}
+            typeLabels={typeLabels}
+            chapterNameMap={chapterNameMap}
+            showChapter={memberships.length > 1}
+            onSelect={setDetail}
+            onCreate={
+              canCreate
+                ? (key) => {
+                    setCreateDate(key);
+                    setCreateOpen(true);
+                  }
+                : undefined
             }
-            setSelectedDay(key);
-          }}
-        />
+          />
+        </div>
       ) : (
         <div className="space-y-3">
-          <MandatoryDatesBanner items={mandatoryDatesForCursor} />
           <AgendaView
             items={filtered}
             typeLabels={typeLabels}
@@ -833,6 +871,7 @@ export function MonthView({
   typeLabels,
   mandatoryDates,
   onDayClick,
+  selectedDay,
 }: {
   cursor: Date;
   setCursor: (d: Date) => void;
@@ -840,6 +879,7 @@ export function MonthView({
   typeLabels?: CalendarTypeLabels;
   mandatoryDates: { id: string; title: string; prazo_label: string }[];
   onDayClick: (key: string) => void;
+  selectedDay?: string | null;
 }) {
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -866,35 +906,59 @@ export function MonthView({
   });
   const todayKey = toLocalDateKey(new Date().toISOString());
 
+  const goToday = () => {
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    setCursor(d);
+  };
+  const longMonth = (n: number) =>
+    new Date(year, month, n).toLocaleDateString("pt-BR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+
   return (
-    <Card className="p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-sm font-semibold capitalize">{monthLabel}</div>
-        <div className="flex items-center gap-1">
+    <Card className="p-3.5 lg:px-5 lg:py-[18px]">
+      <div className="mb-2 flex items-center justify-between gap-2 lg:mb-3">
+        <Button
+          aria-label="Mês anterior"
+          size="icon"
+          variant="ghost"
+          className="rounded-full bg-tv-bg lg:hidden"
+          onClick={() => setCursor(new Date(year, month - 1, 1))}
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <div className="text-[17px] font-bold first-letter:uppercase lg:font-display lg:text-xl lg:font-extrabold">
+          {monthLabel}
+        </div>
+        <Button
+          aria-label="Próximo mês"
+          size="icon"
+          variant="ghost"
+          className="rounded-full bg-tv-bg lg:hidden"
+          onClick={() => setCursor(new Date(year, month + 1, 1))}
+        >
+          <ChevronRight className="h-5 w-5" />
+        </Button>
+        <div className="hidden items-center gap-1.5 lg:flex">
           <Button
             aria-label="Mês anterior"
             size="icon"
-            variant="ghost"
+            variant="outline"
             onClick={() => setCursor(new Date(year, month - 1, 1))}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              const d = new Date();
-              d.setDate(1);
-              d.setHours(0, 0, 0, 0);
-              setCursor(d);
-            }}
-          >
+          <Button variant="outline" onClick={goToday}>
             Hoje
           </Button>
           <Button
             aria-label="Próximo mês"
             size="icon"
-            variant="ghost"
+            variant="outline"
             onClick={() => setCursor(new Date(year, month + 1, 1))}
           >
             <ChevronRight className="h-4 w-4" />
@@ -906,89 +970,253 @@ export function MonthView({
           <MandatoryDatesBanner items={mandatoryDates} />
         </div>
       ) : null}
-      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground">
+      <div className="grid grid-cols-7 gap-0.5 text-center text-xs font-semibold text-tv-text-2 lg:gap-1.5 lg:text-[13px]">
         {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
           <div key={d} className="py-1">
-            {d}
+            <span className="lg:hidden">{d[0]}</span>
+            <span className="hidden lg:inline">{d}</span>
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5 lg:gap-1.5">
         {Array.from({ length: totalCells }).map((_, idx) => {
           const dayNum = idx - startWeekday + 1;
           const inMonth = dayNum >= 1 && dayNum <= daysInMonth;
-          if (!inMonth)
-            return (
-              <div
-                key={idx}
-                className="min-h-[64px] rounded-[6px] bg-transparent lg:min-h-[96px]"
-              />
-            );
+          if (!inMonth) return <div key={idx} aria-hidden />;
           const date = new Date(year, month, dayNum);
           const key = toLocalDateKey(date.toISOString());
           const dayItems = byDay.get(key) ?? [];
           const isToday = key === todayKey;
+          const isSel = key === selectedDay;
           const visible = dayItems.slice(0, 3);
           const extra = dayItems.length - visible.length;
+          const dotColor = dayItems[0]
+            ? resolveTypeMeta(dayItems[0].event_type, typeLabels).color
+            : "transparent";
           return (
             <button
               key={idx}
+              type="button"
               onClick={() => onDayClick(key)}
-              className="flex min-h-[64px] flex-col rounded-[6px] border border-border p-1 text-left transition-colors hover:bg-muted lg:min-h-[96px]"
-              style={
-                isToday ? { borderColor: "var(--chapter-primary)" } : undefined
-              }
+              aria-pressed={isSel}
+              aria-label={`${longMonth(dayNum)}${dayItems.length ? `, ${dayItems.length} compromisso${dayItems.length > 1 ? "s" : ""}` : ""}${isToday ? ", hoje" : ""}`}
+              className={`flex h-[46px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[12px] text-left lg:h-auto lg:min-h-[100px] lg:items-stretch lg:justify-start lg:gap-1 lg:border-2 lg:p-1.5 ${
+                isSel
+                  ? "lg:border-tv-primary lg:bg-tv-soft"
+                  : "lg:border-tv-line lg:bg-tv-surface lg:hover:bg-tv-bg"
+              }`}
             >
-              <div className="mb-1 flex items-center justify-between">
-                <span
-                  className="text-xs font-semibold"
-                  style={
-                    isToday ? { color: "var(--chapter-primary)" } : undefined
-                  }
-                >
-                  {dayNum}
-                </span>
-                <div className="flex gap-0.5 lg:hidden">
-                  {Array.from(new Set(dayItems.map((i) => i.event_type))).map(
-                    (t) => (
-                      <span
-                        key={t}
-                        className="h-1.5 w-1.5 rounded-full"
-                        style={{
-                          backgroundColor: resolveTypeMeta(t, typeLabels).color,
-                        }}
-                      />
-                    ),
-                  )}
-                </div>
-              </div>
-              <div className="hidden flex-col gap-0.5 lg:flex">
-                {visible.map((it) => (
-                  <span
-                    key={it.id}
-                    className="truncate rounded px-1 py-0.5 text-[11px]"
-                    style={{
-                      backgroundColor: resolveTypeMeta(
-                        it.event_type,
-                        typeLabels,
-                      ).bg,
-                      color: resolveTypeMeta(it.event_type, typeLabels).color,
-                    }}
-                  >
-                    {formatTimeInAppTz(it.start_at)} {it.title}
-                  </span>
-                ))}
-                {extra > 0 && (
-                  <span className="text-[11px] text-muted-foreground">
-                    +{extra} mais
-                  </span>
-                )}
-              </div>
+              {/* Celular: número em círculo + ponto */}
+              <span
+                className={`grid h-[34px] w-[34px] place-items-center rounded-full border-2 text-[15px] lg:hidden ${
+                  isSel
+                    ? "border-transparent bg-tv-primary font-bold text-white"
+                    : isToday
+                      ? "border-tv-primary font-bold"
+                      : "border-transparent font-medium"
+                }`}
+              >
+                {dayNum}
+              </span>
+              <span
+                className="h-1.5 w-1.5 rounded-full lg:hidden"
+                style={{ backgroundColor: dotColor }}
+                aria-hidden
+              />
+              {/* Desktop: número + compromissos */}
+              <span
+                className={`hidden h-7 w-7 place-items-center rounded-full text-sm font-bold lg:grid ${
+                  isToday ? "bg-tv-primary text-white" : ""
+                }`}
+              >
+                {dayNum}
+              </span>
+              <span className="hidden min-w-0 flex-col gap-1 lg:flex">
+                {visible.map((it) => {
+                  const meta = resolveTypeMeta(it.event_type, typeLabels);
+                  return (
+                    <span
+                      key={it.id}
+                      className="block max-w-full truncate rounded-[6px] px-1.5 py-[3px] text-xs font-semibold"
+                      style={{ backgroundColor: meta.bg, color: meta.color }}
+                    >
+                      {formatTimeInAppTz(it.start_at)} {it.title}
+                    </span>
+                  );
+                })}
+                {extra > 0 && <span className="text-xs text-tv-text-2">+{extra} mais</span>}
+              </span>
             </button>
           );
         })}
       </div>
     </Card>
+  );
+}
+
+/** Painel do dia escolhido: ao lado da grade no computador, abaixo no celular. */
+function SelectedDayPanel({
+  dayKey,
+  items,
+  typeLabels,
+  chapterNameMap,
+  showChapter,
+  onSelect,
+  onCreate,
+}: {
+  dayKey: string;
+  items: CalendarItem[];
+  typeLabels?: CalendarTypeLabels;
+  chapterNameMap: Map<string, string>;
+  showChapter: boolean;
+  onSelect: (it: CalendarItem) => void;
+  onCreate?: (key: string) => void;
+}) {
+  const todayKey = toLocalDateKey(new Date().toISOString());
+  const date = new Date(`${dayKey}T12:00:00`);
+  const label = date.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  const title = dayKey === todayKey ? `Hoje, ${label.split(", ").slice(1).join(", ")}` : label;
+  const sorted = [...items].sort((a, b) => a.start_at.localeCompare(b.start_at));
+
+  return (
+    <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-4 lg:flex-1 lg:rounded-[20px] lg:bg-tv-surface lg:p-5">
+      <span className="hidden text-[13px] font-semibold uppercase tracking-[0.06em] text-tv-text-2 lg:block">
+        Dia selecionado
+      </span>
+      <h2 className="text-[15px] font-bold first-letter:uppercase lg:font-display lg:text-xl lg:font-extrabold">
+        {title}
+      </h2>
+      {sorted.length === 0 ? (
+        <div className="flex flex-col items-start gap-2.5 rounded-[20px] bg-tv-surface p-[18px] lg:rounded-[16px] lg:border lg:border-[#ECECE8] lg:p-3.5 dark:lg:border-tv-line">
+          <span className="text-[15px] text-tv-text-2">Nada marcado neste dia.</span>
+          {onCreate ? (
+            <button
+              type="button"
+              onClick={() => onCreate(dayKey)}
+              className="min-h-11 rounded-[12px] border border-dashed border-[#CFCFCA] bg-tv-surface px-3.5 text-sm font-semibold dark:border-tv-border"
+            >
+              Marcar algo neste dia
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        sorted.map((it) => {
+          const meta = resolveTypeMeta(it.event_type, typeLabels);
+          const chapter = showChapter ? chapterNameMap.get(it.chapter_id) : null;
+          return (
+            <div
+              key={it.id}
+              className="flex flex-col gap-2.5 rounded-[20px] bg-tv-surface p-4 lg:rounded-[16px] lg:border lg:border-[#ECECE8] lg:p-3.5 dark:lg:border-tv-line"
+            >
+              <span
+                className="self-start rounded-full px-2.5 py-1 text-xs font-bold"
+                style={{ backgroundColor: meta.bg, color: meta.color }}
+              >
+                {meta.label}
+              </span>
+              <span className="text-lg font-bold leading-snug lg:text-base">{it.title}</span>
+              <span className="text-[15px] text-[#3F4249] dark:text-tv-text-2 lg:text-sm">
+                {[formatTimeInAppTz(it.start_at), it.location, chapter].filter(Boolean).join(" · ")}
+              </span>
+              <Button className="min-h-12 lg:min-h-11" onClick={() => onSelect(it)}>
+                Ver detalhes
+              </Button>
+            </div>
+          );
+        })
+      )}
+      {sorted.length > 0 && onCreate ? (
+        <button
+          type="button"
+          onClick={() => onCreate(dayKey)}
+          className="min-h-11 self-start rounded-[12px] border border-dashed border-[#CFCFCA] px-3.5 text-sm font-semibold dark:border-tv-border"
+        >
+          Marcar mais algo neste dia
+        </button>
+      ) : null}
+    </aside>
+  );
+}
+
+/** Datas obrigatórias do período: card no computador, sanfona no celular. */
+function MandatoryDatesCard({
+  dates,
+  items,
+}: {
+  dates: { id: string; title: string; prazo_label: string }[];
+  items: CalendarItem[];
+}) {
+  const [open, setOpen] = useState(false);
+  if (dates.length === 0) return null;
+  const todayKey = toLocalDateKey(new Date().toISOString());
+  const rows = dates.map((d) => {
+    const linked = items
+      .filter((it) => it.org_mandatory_date_id === d.id)
+      .sort((a, b) => a.start_at.localeCompare(b.start_at))[0];
+    if (!linked) return { ...d, ok: false, status: "Falta marcar" };
+    const key = toLocalDateKey(linked.start_at);
+    const ddmm = `${key.slice(8, 10)}/${key.slice(5, 7)}`;
+    return { ...d, ok: true, status: key < todayKey ? `Feita em ${ddmm}` : `Marcado ${ddmm}` };
+  });
+  const pending = rows.filter((r) => !r.ok).length;
+  const done = rows.length - pending;
+  const list = (
+    <div className="grid gap-x-4 gap-y-2 md:grid-cols-[repeat(auto-fit,minmax(300px,1fr))]">
+      {rows.map((r) => (
+        <div
+          key={r.id}
+          className="flex items-center gap-2.5 border-t border-tv-line px-4 py-3 md:rounded-[12px] md:border md:bg-[#FAFAF8] md:px-3 md:py-2.5 dark:md:bg-tv-bg"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-semibold md:text-sm">{r.title}</span>
+            <span className="block text-[13px] text-tv-text-2">{r.prazo_label}</span>
+          </span>
+          <span
+            className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ${
+              r.ok ? "bg-tv-in-bg text-tv-in" : "bg-tv-warn-bg text-tv-warn"
+            }`}
+          >
+            {r.status}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+  return (
+    <section className="mb-4 overflow-hidden rounded-[20px] bg-tv-surface md:px-5 md:py-[18px]">
+      {/* Celular: sanfona */}
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex min-h-16 w-full items-center gap-3 px-4 py-3.5 text-left md:hidden"
+      >
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-tv-warn-bg text-tv-warn">
+          <AlertTriangle className="h-5 w-5" aria-hidden />
+        </span>
+        <span className="flex-1">
+          <span className="block text-[15px] font-bold">Datas obrigatórias</span>
+          <span className="block text-[13px] text-tv-text-2">
+            {pending > 0 ? `${pending} ainda ${pending === 1 ? "falta" : "faltam"} marcar` : "Todas marcadas"}
+          </span>
+        </span>
+        <ChevronDown className={`h-5 w-5 text-tv-text-2 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+      </button>
+      <div className="md:hidden">{open ? list : null}</div>
+      {/* Computador: sempre aberto */}
+      <div className="hidden md:block">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-2 text-base font-bold">
+            <AlertTriangle className="h-5 w-5 text-tv-warn" aria-hidden />
+            Datas obrigatórias
+          </span>
+          <span className="text-sm text-tv-text-2">
+            {done} de {rows.length} {rows.length === 1 ? "resolvida" : "resolvidas"}
+          </span>
+        </div>
+        {list}
+      </div>
+    </section>
   );
 }
 
