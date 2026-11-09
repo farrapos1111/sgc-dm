@@ -54,6 +54,24 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-brand: var(--chapter-primary);
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Redesign 2026 (docs/templo-virtual-redesign/HANDOFF.md) */
+  --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-tv-primary: var(--chapter-primary);
+  --color-tv-soft: var(--tv-soft);
+  --color-tv-ink: var(--tv-ink);
+  --color-tv-bg: var(--tv-bg);
+  --color-tv-surface: var(--tv-surface);
+  --color-tv-border: var(--tv-border);
+  --color-tv-line: var(--tv-line);
+  --color-tv-text: var(--tv-text);
+  --color-tv-text-2: var(--tv-text-2);
+  --color-tv-in: var(--tv-in);
+  --color-tv-in-bg: var(--tv-in-bg);
+  --color-tv-out: var(--tv-out);
+  --color-tv-out-bg: var(--tv-out-bg);
+  --color-tv-warn: var(--tv-warn);
+  --color-tv-warn-bg: var(--tv-warn-bg);
 }
 
 /* Clicáveis: cursor pointer consistente (exceto desabilitados) */
@@ -119,9 +137,39 @@ input[type="date"]:not(:disabled) {
   --sidebar-accent-foreground: var(--chapter-font);
   --sidebar-border: color-mix(in srgb, var(--chapter-font) 12%, var(--chapter-sidebar));
   --sidebar-ring: var(--chapter-primary);
+
+  /* Redesign: cor da marca (soft/ink definidos pelo tema do capítulo) e neutros fixos */
+  --tv-soft: var(--chapter-soft, color-mix(in srgb, var(--chapter-primary) 9%, #ffffff));
+  --tv-ink: var(--chapter-ink, color-mix(in srgb, var(--chapter-primary) 80%, #000000));
+  --tv-bg: #F4F4F1;
+  --tv-surface: #FFFFFF;
+  --tv-border: #E2E2DE;
+  --tv-line: #F0F0EC;
+  --tv-text: #17181A;
+  --tv-text-2: #5E6168;
+  --tv-in: #155A38;
+  --tv-in-bg: #EAF5EF;
+  --tv-out: #A1261B;
+  --tv-out-bg: #FBEDEC;
+  --tv-warn: #7A4F00;
+  --tv-warn-bg: #FDF3D8;
 }
 
 .dark {
+  --tv-soft: color-mix(in srgb, var(--chapter-primary) 28%, #17181A);
+  --tv-ink: color-mix(in srgb, var(--chapter-primary) 35%, #FFFFFF);
+  --tv-bg: oklch(0.15 0 0);
+  --tv-surface: oklch(0.2 0 0);
+  --tv-border: oklch(1 0 0 / 12%);
+  --tv-line: oklch(1 0 0 / 8%);
+  --tv-text: oklch(0.98 0 0);
+  --tv-text-2: oklch(0.72 0 0);
+  --tv-in: #7FD3A6;
+  --tv-in-bg: rgba(46, 125, 91, 0.22);
+  --tv-out: #F2A39B;
+  --tv-out-bg: rgba(180, 35, 24, 0.22);
+  --tv-warn: #F3CD72;
+  --tv-warn-bg: rgba(183, 121, 31, 0.22);
   --background: oklch(0.15 0 0);
   --foreground: oklch(0.98 0 0);
   --card: oklch(0.2 0 0);

@@ -27,6 +27,13 @@ import { getRealmForOrgType } from "@/lib/realm";
 import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { EmptyState } from "@/components/EmptyState";
+import { useNavGroups } from "@/hooks/useNavGroups";
+import {
+  DesktopSidebar,
+  MobileTabBar,
+  buildMobileTabs,
+  initialsOf,
+} from "@/components/shell/ShellNav";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { formatClockInAppTz } from "@/lib/timezone";
@@ -62,6 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setActiveChapterId,
     canSwitchRoleView,
     cycleRoleView,
+    profileFullName,
   } = useActiveChapter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const routerStatus = useRouterState({ select: (s) => s.status });
@@ -78,40 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     canManageChapters,
     canManageLeaderships,
   } = useOrgScope();
-  const duesEnabled = isChapterDuesEnabled(
-    active?.chapter as { settings?: Record<string, unknown> } | undefined,
-  );
-  const isFdj = getRealmForOrgType(active?.chapter?.org_type) === "fdj";
-  const groups = useMemo(() => {
-    const raw = activeScope
-      ? visibleOrgGroups({
-          canManageOrg,
-          canManageChapters,
-          canManageLeaderships,
-        })
-      : visibleGroups(active?.role.name ?? null, canView, accessCtx, {
-          canScreen,
-          isAdminTotal,
-        });
-    if (!activeScope && isFdj) return filterGroupsForFdj(raw);
-    if (activeScope || duesEnabled) return raw;
-    return raw.map((g) => ({
-      ...g,
-      items: (g.items ?? []).filter((i) => !isDuesOnlyNavPath(i.to)),
-    }));
-  }, [
-    activeScope,
-    canManageOrg,
-    canManageChapters,
-    canManageLeaderships,
-    active?.role.name,
-    canView,
-    accessCtx,
-    canScreen,
-    isAdminTotal,
-    duesEnabled,
-    isFdj,
-  ]);
+  const { groups, canSee, isFdj } = useNavGroups();
   const tabs = useMemo(
     () => visibleMobileTabs(Boolean(activeScope)),
     [activeScope],
@@ -210,7 +185,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         placeholder="Selecionar visão"
         searchPlaceholder="Buscar instituição ou visão…"
         emptyText="Nenhum resultado."
-        className="h-9 w-full text-xs"
+        className="h-11 w-full rounded-[12px] border-tv-border bg-[#FAFAF8] text-sm dark:bg-tv-surface"
       />
     ) : null;
 
@@ -319,144 +294,118 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }
 
+  const mobileTabs = useMemo(
+    () => (activeScope ? null : buildMobileTabs(canSee)),
+    [activeScope, canSee],
+  );
+
+  const sidebarBrand = (
+    <div className="flex items-center gap-2.5 px-1.5">
+      <ChapterMark
+        logoUrl={logoUrl}
+        number={chapterNum}
+        primary={primary}
+        className="h-10 w-10 rounded-[12px] text-sm"
+      />
+      <div className="min-w-0 flex-1 leading-tight">
+        <div className="text-xs font-medium text-tv-text-2">
+          {chapterNum ? "Templo Virtual" : (headerSubtitle ?? "Templo Virtual")}
+        </div>
+        <div className="truncate text-[15px] font-bold">
+          {chapterName}
+          {chapterNum ? ` nº ${chapterNum}` : ""}
+        </div>
+      </div>
+    </div>
+  );
+
+  const sidebarFooter = (
+    <div>
+      <div className="mb-2 px-1">
+        <SidebarClock />
+      </div>
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-tv-soft text-sm font-bold text-tv-ink">
+          {initialsOf(profileFullName)}
+        </span>
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className="truncate text-sm font-semibold">
+            {profileFullName ?? footerTitle}
+          </div>
+          <div className="truncate text-xs text-tv-text-2">{footerTitle}</div>
+        </div>
+        {roleSwitchButton}
+        <ThemeToggle className="h-10 w-10 shrink-0 rounded-[10px] bg-tv-bg" />
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          onClick={handleSignOut}
+          aria-label="Sair"
+          title="Sair"
+          className="h-10 w-10 shrink-0 rounded-[10px] bg-tv-bg text-[#3F4249] dark:text-tv-text"
+        >
+          <LogOut className="h-[18px] w-[18px]" />
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Sidebar (desktop) */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
-        <div className="flex items-center gap-3 border-b border-border px-5 py-5">
-          <ChapterMark
-            logoUrl={logoUrl}
-            number={chapterNum}
-            primary={primary}
-            className="h-10 w-10 rounded-[10px] text-sm"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold">{chapterName}</div>
-            {chapterNum ? (
-              <div className="text-xs text-muted-foreground">
-                Nº {chapterNum}
-              </div>
-            ) : (
-              headerSubtitle && (
-                <div className="truncate text-xs text-muted-foreground">
-                  {headerSubtitle}
-                </div>
-              )
-            )}
-          </div>
-        </div>
-
-        {scopeSwitcher && (
-          <div className="border-b border-border px-3 py-3">
-            {scopeSwitcher}
-          </div>
-        )}
-
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {groups.map((group) => (
-            <SidebarGroup
-              key={group.id}
-              group={group}
-              primary={primary}
-              isActive={isActive}
-              isHighlighted={navHighlight}
-              open={openGroupId === group.id}
-              onOpenChange={(next) =>
-                setOpenGroupId(
-                  next
-                    ? group.id
-                    : openGroupId === group.id
-                      ? null
-                      : openGroupId,
-                )
-              }
-              onNavigate={setPendingTo}
-              onPreload={preloadRoute}
-            />
-          ))}
-        </nav>
-
-        <div className="px-4 pb-2 pt-1">
-          <SidebarClock />
-        </div>
-
-        <div className="border-t border-border p-4">
-          <div className="mb-3 flex items-center gap-2">
-            {active && (
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">
-                  {footerTitle}
-                </div>
-                {footerSubtitle ? (
-                  <div className="truncate text-xs text-muted-foreground">
-                    {footerSubtitle}
-                  </div>
-                ) : null}
-              </div>
-            )}
-            {roleSwitchButton}
-            <ThemeToggle className="shrink-0" />
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="w-full justify-start text-muted-foreground"
-          >
-            <LogOut className="mr-2 h-4 w-4" /> Sair
-          </Button>
-        </div>
-      </aside>
+    <div className="min-h-screen bg-tv-bg text-tv-text">
+      <DesktopSidebar
+        brand={sidebarBrand}
+        switcher={scopeSwitcher}
+        groups={groups}
+        isHighlighted={navHighlight}
+        onNavigate={setPendingTo}
+        onPreload={preloadRoute}
+        footer={sidebarFooter}
+      />
 
       {/* Main */}
-      <div className="flex min-h-screen flex-col lg:pl-64">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-sidebar-border bg-sidebar/95 px-4 py-3 text-sidebar-foreground backdrop-blur lg:hidden">
-          <ChapterMark
-            logoUrl={logoUrl}
-            number={chapterNum}
-            primary={primary}
-            className="h-9 w-9 rounded-[8px] text-xs"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold">{chapterName}</div>
-            {headerSubtitle && (
-              <div className="truncate text-xs text-muted-foreground">
-                {headerSubtitle}
-              </div>
-            )}
-          </div>
-          {roleSwitchButton}
-          <ThemeToggle className="shrink-0" />
-        </header>
-
-        {scopeSwitcher && (
-          <div className="border-b border-sidebar-border bg-sidebar px-4 py-2 text-sidebar-foreground lg:hidden">
-            {scopeSwitcher}
-          </div>
+      <div className="flex min-h-screen flex-col lg:pl-[264px]">
+        {/* Celular: sem cabeçalho fixo (como no redesign); só na visão regional. */}
+        {activeScope && (
+          <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-tv-border bg-tv-surface/95 px-4 py-3 backdrop-blur lg:hidden">
+            <ChapterMark
+              logoUrl={logoUrl}
+              number={chapterNum}
+              primary={primary}
+              className="h-9 w-9 rounded-[10px] text-xs"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold">{chapterName}</div>
+              {headerSubtitle && (
+                <div className="truncate text-xs text-tv-text-2">{headerSubtitle}</div>
+              )}
+            </div>
+            <ThemeToggle className="shrink-0" />
+          </header>
         )}
 
         {isNavigating && (
           <div
-            className="fixed left-0 right-0 top-0 z-50 h-0.5 origin-left animate-pulse lg:left-64"
+            className="fixed left-0 right-0 top-0 z-50 h-0.5 origin-left animate-pulse lg:left-[264px]"
             style={{ backgroundColor: primary }}
             role="progressbar"
             aria-label="Carregando página"
           />
         )}
 
-        <main className="relative flex-1 px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8 xl:px-10">
+        <main className="relative flex-1 px-4 pb-28 pt-4 sm:px-6 lg:px-8 lg:pb-12 lg:pt-6 xl:px-8">
           <div
             className={`mx-auto w-full ${
               pathname.startsWith("/tesouraria/mensalidades") ||
               pathname.startsWith("/tesouraria/fluxo")
                 ? "max-w-[1680px]"
-                : "max-w-6xl"
+                : "max-w-[1120px]"
             }`}
           >
             {isFdj && !activeScope && !isPathAllowedForFdj(pathname) ? (
               <EmptyState
                 title="Ainda não disponível no Bethel"
-                description="Esta parte do sistema está sendo adaptada para as Filhas de Jó. Use o menu ao lado para as funções já liberadas."
+                description="Esta parte do sistema está sendo adaptada para as Filhas de Jó. Use o menu para as funções já liberadas."
               />
             ) : (
               children
@@ -464,39 +413,41 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </main>
 
-        {/* Bottom tabs (mobile) */}
-        <nav
-          className="fixed inset-x-0 bottom-0 z-30 grid border-t border-sidebar-border bg-sidebar text-sidebar-foreground lg:hidden"
-          style={{
-            paddingBottom: "env(safe-area-inset-bottom)",
-            gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`,
-          }}
-        >
-          {tabs.map((item) => {
-            const Icon = item.icon;
-            const highlighted =
-              item.to === "/mais"
-                ? isMaisTabHighlighted
-                : navHighlight(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={() => setPendingTo(item.to)}
-                onMouseEnter={() => preloadRoute(item.to)}
-                onFocus={() => preloadRoute(item.to)}
-                className="flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium"
-                style={{
-                  color: highlighted ? primary : "var(--muted-foreground)",
-                }}
-                aria-current={highlighted ? "page" : undefined}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        {mobileTabs ? (
+          <MobileTabBar
+            tabs={mobileTabs}
+            isHighlighted={navHighlight}
+            onNavigate={setPendingTo}
+            onPreload={preloadRoute}
+          />
+        ) : (
+          <nav
+            className="fixed inset-x-0 bottom-0 z-30 grid border-t border-tv-border bg-tv-surface lg:hidden"
+            style={{
+              paddingBottom: "env(safe-area-inset-bottom)",
+              gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`,
+            }}
+          >
+            {tabs.map((item) => {
+              const Icon = item.icon;
+              const highlighted =
+                item.to === "/mais" ? isMaisTabHighlighted : navHighlight(item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setPendingTo(item.to)}
+                  className="flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-xs font-medium"
+                  style={{ color: highlighted ? primary : "var(--tv-text-2)" }}
+                  aria-current={highlighted ? "page" : undefined}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        )}
       </div>
     </div>
   );
@@ -520,112 +471,6 @@ function SidebarClock() {
     >
       {label}
     </time>
-  );
-}
-
-function SidebarGroup({
-  group,
-  primary,
-  isActive,
-  isHighlighted,
-  open,
-  onOpenChange,
-  onNavigate,
-  onPreload,
-}: {
-  group: NavGroup;
-  primary: string;
-  isActive: (to: string) => boolean;
-  isHighlighted: (to: string) => boolean;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onNavigate: (to: string) => void;
-  onPreload: (to: string) => void;
-}) {
-  const Icon = group.icon;
-  const hasActiveChild = (group.items ?? []).some((i) => isActive(i.to));
-  const expanded = open || hasActiveChild;
-
-  if (group.to) {
-    const highlighted = isHighlighted(group.to);
-    return (
-      <Link
-        to={group.to}
-        onClick={() => onNavigate(group.to!)}
-        onMouseEnter={() => onPreload(group.to!)}
-        onFocus={() => onPreload(group.to!)}
-        className="flex min-h-[44px] items-center gap-3 rounded-[8px] px-3 py-2.5 text-sm font-medium transition-colors"
-        style={
-          highlighted
-            ? { backgroundColor: `${primary}14`, color: primary }
-            : { color: "var(--muted-foreground)" }
-        }
-      >
-        <Icon className="h-5 w-5" />
-        <span>{group.label}</span>
-      </Link>
-    );
-  }
-
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => {
-          // Grupo da rota atual permanece aberto
-          if (hasActiveChild && expanded) return;
-          onOpenChange(!open);
-        }}
-        className="flex min-h-[44px] w-full items-center gap-3 rounded-[8px] px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-muted/60"
-        style={{ color: hasActiveChild ? primary : "var(--foreground)" }}
-        aria-expanded={expanded}
-      >
-        <Icon className="h-5 w-5" />
-        <span className="flex-1 truncate text-left">{group.label}</span>
-        <ChevronDown
-          className={`h-4 w-4 transition-transform duration-200 ease-out ${
-            expanded ? "rotate-180" : "rotate-0"
-          }`}
-        />
-      </button>
-      <div
-        className={`grid transition-[grid-template-rows] duration-200 ease-out ${
-          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-        }`}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <div
-            className={`mt-0.5 space-y-0.5 pl-4 transition-opacity duration-200 ease-out ${
-              expanded ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            {(group.items ?? []).map((item) => {
-              const ItemIcon = item.icon;
-              const highlighted = isHighlighted(item.to);
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => onNavigate(item.to)}
-                  onMouseEnter={() => onPreload(item.to)}
-                  onFocus={() => onPreload(item.to)}
-                  className="flex min-h-[44px] items-center gap-3 rounded-[8px] px-3 py-2 text-sm font-medium transition-colors"
-                  style={
-                    highlighted
-                      ? { backgroundColor: `${primary}14`, color: primary }
-                      : { color: "var(--muted-foreground)" }
-                  }
-                  tabIndex={expanded ? 0 : -1}
-                >
-                  <ItemIcon className="h-4 w-4" />
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
