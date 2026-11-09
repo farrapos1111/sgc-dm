@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Mensalidades · desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A">
+  <div style="flex: 1 1 264px; max-width: 100%; display: flex; flex-direction: column; background: #FFFFFF">
+    <dc-import name="Sidebar" active="mensalidades" tema="{{tema}}" hint-size="264px,960px"></dc-import>
+  </div>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box">
+    <div style="max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between">
+        <div>
+          <p style="margin: 0; font-size: 14px; color: #5E6168">Tesouraria</p>
+          <h1 style="margin: 2px 0 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.02em">Mensalidades 2026</h1>
+          <p style="margin: 4px 0 0; font-size: 15px; color: #5E6168">Valor único de R$ 20,00. Clique em um mês para mudar a situação.</p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <button style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Copiar lista</button>
+          <button style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Compartilhar</button>
+          <button style="min-height: 44px; padding: 0 18px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 15px">Incluir membro</button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px">
+        <div style="background: #FFFFFF; border-radius: 20px; padding: 20px"><span style="display: block; font-size: 13px; color: #5E6168">Recebido no ano</span><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 26px; font-weight: 800; color: #155A38; margin-top: 4px">R$ 4.940,00</span></div>
+        <div style="background: #FFFFFF; border-radius: 20px; padding: 20px"><span style="display: block; font-size: 13px; color: #5E6168">Em aberto</span><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 26px; font-weight: 800; color: #7A4F00; margin-top: 4px">R$ 1.040,00</span><span style="display: block; font-size: 13px; color: #5E6168; margin-top: 2px">14 membros, 52 meses</span></div>
+        <div style="background: #FFFFFF; border-radius: 20px; padding: 20px"><span style="display: block; font-size: 13px; color: #5E6168">Atrasado (depois do dia 15)</span><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 26px; font-weight: 800; color: #A1261B; margin-top: 4px">R$ 760,00</span></div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+        <label style="flex: 1 1 240px; max-width: 340px; display: flex; align-items: center; gap: 10px; background: #FFFFFF; border: 1px solid #E2E2DE; border-radius: 12px; padding: 0 14px; min-height: 44px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5E6168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"></path></svg>
+          <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar membro</span>
+          <input type="search" placeholder="Nome do membro" style="flex: 1; min-width: 0; border: 0; outline: none; font: inherit; font-size: 15px; background: transparent">
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #2A2C31">Pago em
+          <input type="text" value="08/11/2026" style="width: 120px; min-height: 44px; border: 1px solid #E2E2DE; border-radius: 12px; padding: 0 12px; font: inherit; font-size: 15px; font-weight: 400">
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #2A2C31; min-height: 44px">
+          <input type="checkbox" style="width: 20px; height: 20px; accent-color: {{t.p}}">Não lançar no caixa
+        </label>
+        <span style="flex: 1"></span>
+        <button style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31; display: flex; align-items: center; gap: 6px">Ações em lote<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: #3F4249">
+        <sc-for list="{{legenda}}" as="l" hint-placeholder-count="5">
+          <span style="display: flex; align-items: center; gap: 6px"><span style="width: 22px; height: 22px; border-radius: 6px; background: {{l.bg}}; color: {{l.fg}}; border: 1px solid {{l.bd}}; box-sizing: border-box; display: grid; place-items: center; font-size: 11px; font-weight: 700">{{l.cod}}</span>{{l.nome}}</span>
+        </sc-for>
+      </div>
+
+      <div style="background: #FFFFFF; border-radius: 20px; overflow-x: auto">
+        <div style="min-width: 980px; font-size: 14px">
+          <div style="display: grid; grid-template-columns: 250px repeat(12, minmax(0, 1fr)) 110px; gap: 6px; align-items: center; padding: 14px 20px; border-bottom: 1px solid #EEEEEA; color: #5E6168; font-size: 13px; font-weight: 600; text-align: center">
+            <span style="text-align: left">Membro</span>
+            <sc-for list="{{meses}}" as="m" hint-placeholder-count="12"><span>{{m}}</span></sc-for>
+            <span style="text-align: right">Em aberto</span>
+          </div>
+          <sc-for list="{{linhas}}" as="r" hint-placeholder-count="8">
+            <div style="display: grid; grid-template-columns: 250px repeat(12, minmax(0, 1fr)) 110px; gap: 6px; align-items: center; padding: 8px 20px; border-bottom: 1px solid #F3F3EF">
+              <span style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.nome}}</span>
+              <sc-for list="{{r.cels}}" as="c" hint-placeholder-count="12">
+                <button onClick="{{c.cycle}}" aria-label="{{c.aria}}" style="width: 100%; height: 36px; border-radius: 8px; border: 1px solid {{c.bd}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 12px; font-weight: 700">{{c.cod}}</button>
+              </sc-for>
+              <span style="text-align: right; white-space: nowrap"><span style="display: block; font-weight: 700; color: {{r.cor}}">{{r.total}}</span><span style="display: block; font-size: 12px; color: #5E6168">{{r.qtd}}</span></span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { d: {
+      'André Azevedo de Oliveira':'IDDDDDDDDDDD',
+      'Ariam Miguel Sander Lumertz dos Reis':'IIIIIIPPPPPF',
+      'Arthur Adami Gaio':'IPPPPPIIIIII',
+      'Arthur Toigo de Campos':'IPPPPPPPPPPP',
+      'Arthur Tonet Pagliarin':'IPPPPPPPPPPP',
+      'Bernardo Luiz Candeia':'IPPPPPPPPPPP',
+      'Braian Roldo Visona':'IPPPPPPPAAOF',
+      'Bryan Joaquim Ferreira Pereira':'IPPPPPPPPAOF',
+      'Carlos Henrique Köhler Mendes':'IAAAAAAAAAOF',
+      'Davi Bernardo Prux':'IIIIIIPPPPPP'
+    } };
+  }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const S = {
+      P:{nome:'Pago', bg:'#DDF0E5', fg:'#155A38', bd:'#DDF0E5'},
+      O:{nome:'Em aberto', bg:'#FFF6D6', fg:'#6E5100', bd:'#E9D58A'},
+      A:{nome:'Atrasado', bg:'#FBE3C8', fg:'#7E3F00', bd:'#E0A866'},
+      I:{nome:'Isento', bg:'#E3EAF7', fg:'#2D4A80', bd:'#E3EAF7'},
+      D:{nome:'Desligado', bg:'#E6E6E3', fg:'#4F5258', bd:'#E6E6E3'},
+      F:{nome:'Ainda não venceu', bg:'#F7F7F4', fg:'#6B6E75', bd:'#ECECE8'}
+    };
+    const NEXT = {A:'P', O:'P', P:'I', I:'D', D:'O', F:'P'};
+    const MES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const d = this.state.d;
+    const linhas = Object.keys(d).map((nome) => {
+      const cods = d[nome].split('');
+      const n = cods.filter((c) => c === 'A' || c === 'O').length;
+      return {
+        nome, total: 'R$ ' + (n * 20) + ',00', qtd: n === 0 ? 'em dia' : n + (n === 1 ? ' mês' : ' meses'), cor: n === 0 ? '#5E6168' : '#A1261B',
+        cels: cods.map((c, i) => ({
+          cod: c === 'F' ? '' : c, bg: S[c].bg, fg: S[c].fg, bd: S[c].bd,
+          aria: MES[i] + ', ' + S[c].nome + '. Clique para mudar',
+          cycle: () => { const arr = d[nome].split(''); arr[i] = NEXT[arr[i]]; this.setState({ d: { ...d, [nome]: arr.join('') } }); }
+        }))
+      };
+    });
+    const legenda = ['P','O','A','I','D'].map((k) => ({ cod: k, nome: S[k].nome, bg: S[k].bg, fg: S[k].fg, bd: S[k].bd }));
+    return { t, tema, linhas, legenda, meses: MES };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Membros · desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A">
+  <div style="flex: 1 1 264px; max-width: 100%; display: flex; flex-direction: column; background: #FFFFFF">
+    <dc-import name="Sidebar" active="membros" tema="{{tema}}" hint-size="264px,960px"></dc-import>
+  </div>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box">
+    <div style="max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between">
+        <div>
+          <p style="margin: 0; font-size: 14px; color: #5E6168">Secretaria</p>
+          <h1 style="margin: 2px 0 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.02em">Membros</h1>
+          <p style="margin: 4px 0 0; font-size: 15px; color: #5E6168">78 cadastrados no Farrapos</p>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap">
+          <button style="min-height: 46px; padding: 0 16px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 15px; color: #2A2C31; display: flex; align-items: center; gap: 8px">Solicitações<span style="font-size: 12px; font-weight: 700; background: #FDF3D8; color: #7A4F00; padding: 2px 8px; border-radius: 999px">3</span></button>
+          <button style="min-height: 46px; padding: 0 18px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Novo membro</button>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+        <label style="flex: 1 1 280px; max-width: 420px; display: flex; align-items: center; gap: 10px; background: #FFFFFF; border: 1px solid #E2E2DE; border-radius: 12px; padding: 0 14px; min-height: 46px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5E6168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"></path></svg>
+          <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar membro</span>
+          <input type="search" placeholder="Buscar por nome" style="flex: 1; min-width: 0; border: 0; outline: none; font: inherit; font-size: 15px; background: transparent">
+        </label>
+        <sc-for list="{{chips}}" as="c" hint-placeholder-count="5">
+          <button onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 14px; font-weight: 600">{{c.label}}</button>
+        </sc-for>
+      </div>
+
+      <div style="background: #FFFFFF; border-radius: 20px; overflow-x: auto">
+        <div style="min-width: 760px; font-size: 15px">
+          <div style="display: grid; grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.2fr) minmax(0, 1.4fr) 110px 120px; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #EEEEEA; color: #5E6168; font-size: 13px; font-weight: 600">
+            <span>Membro</span><span>Tipo</span><span>Grau</span><span>Situação</span><span style="text-align: right">Ações</span>
+          </div>
+          <sc-for list="{{lista}}" as="m" hint-placeholder-count="10">
+            <div style="display: grid; grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.2fr) minmax(0, 1.4fr) 110px 120px; gap: 12px; align-items: center; padding: 10px 20px; border-bottom: 1px solid #F3F3EF">
+              <span style="display: flex; align-items: center; gap: 12px; min-width: 0">
+                <span style="width: 38px; height: 38px; flex: none; border-radius: 50%; background: {{t.s}}; color: {{t.i}}; display: grid; place-items: center; font-weight: 700; font-size: 13px">{{m.ini}}</span>
+                <span style="font-weight: 600">{{m.nome}}</span>
+              </span>
+              <span style="color: #3F4249">{{m.tipo}}</span>
+              <span style="color: #3F4249">{{m.grau}}</span>
+              <span><span style="font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: {{m.sbg}}; color: {{m.sfg}}">{{m.status}}</span></span>
+              <span style="text-align: right"><a href="D-Perfil.dc.html" style="display: inline-flex; align-items: center; min-height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid #E2E2DE; font-size: 14px; font-weight: 600">Ver perfil</a></span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; font-size: 14px; color: #5E6168">
+          <span>{{rodape}}</span>
+          <span style="display: flex; gap: 8px"><button style="min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid #E2E2DE; background: #FFFFFF; color: #2A2C31; font-weight: 600">Anterior</button><button style="min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid #E2E2DE; background: #FFFFFF; color: #2A2C31; font-weight: 600">Próxima</button></span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { filtro: 'Todos' }; }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const f = this.state.filtro;
+    const M = [
+      ['AB','Adrian Ruan Horn de Borba','Senior DeMolay','DeMolay','Regular'],
+      ['AP','Adriano Lopes Parise','Maçom','Tio Maçom','Regular'],
+      ['AO','André Azevedo de Oliveira','DeMolay ativo','DeMolay','Regular'],
+      ['AD','Andre Girardi Dalathea','Maçom','Tio Maçom','Regular'],
+      ['AB','Andrew Horn de Borba','Senior DeMolay','DeMolay','Irregular'],
+      ['AZ','Anthony Ricardo Marcolin Machado Zencke','DeMolay ativo','DeMolay','Irregular'],
+      ['AR','Ariam Miguel Sander Lumertz dos Reis','DeMolay ativo','Iniciático · apto ao DeMolay','Regular'],
+      ['AG','Arthur Adami Gaio','Senior DeMolay','DeMolay','Regular'],
+      ['AS','Arthur Eduardo da Silva','Senior DeMolay','DeMolay','Irregular'],
+      ['AS','Arthur Espinosa da Silva','DeMolay ativo','DeMolay','Regular'],
+      ['AP','Arthur Perotoni','Maçom','Tio Maçom','Regular'],
+      ['BC','Bernardo Luiz Candeia','DeMolay ativo','DeMolay','Regular']
+    ].map(([ini,nome,tipo,grau,status]) => ({ini,nome,tipo,grau,status,
+      sbg: status === 'Regular' ? '#EAF5EF' : '#FDF3D8', sfg: status === 'Regular' ? '#155A38' : '#7A4F00'}));
+    const lista = M.filter((m) => f === 'Todos' ? true : f === 'Irregulares' ? m.status === 'Irregular' : m.tipo === f);
+    const chips = ['Todos','DeMolay ativo','Senior DeMolay','Maçom','Irregulares'].map((label) => {
+      const on = label === f;
+      return { label, pressed: on ? 'true' : 'false', bg: on ? t.p : '#FFFFFF', fg: on ? '#FFFFFF' : '#2A2C31', border: on ? t.p : '#DCDCD8', pick: () => this.setState({ filtro: label }) };
+    });
+    return { t, tema, chips, lista, rodape: f === 'Todos' ? 'Mostrando 12 de 78' : lista.length + ' encontrados' };
+  }
+}
+</script>
+</body>
+</html>
