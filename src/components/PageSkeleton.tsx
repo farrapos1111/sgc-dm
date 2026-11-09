@@ -35,7 +35,11 @@ export function DelayedPageSkeleton({
   if (!show) {
     return <div className="min-h-[12rem]" aria-busy="true" />;
   }
-  return <PageSkeleton />;
+  return (
+    <div className="fade-enter">
+      <PageSkeleton />
+    </div>
+  );
 }
 
 export function DelayedSuspenseFallback({
@@ -51,5 +55,9 @@ export function DelayedSuspenseFallback({
     return () => window.clearTimeout(id);
   }, [delayMs]);
   if (!show) return children ?? <div className="min-h-[12rem]" aria-busy="true" />;
-  return <PageSkeleton />;
+  return (
+    <div className="fade-enter">
+      <PageSkeleton />
+    </div>
+  );
 }

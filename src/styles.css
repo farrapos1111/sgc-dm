@@ -447,3 +447,80 @@ input[type="date"]:not(:disabled) {
 .scroll-row > * {
   scroll-snap-align: start;
 }
+
+/* ------------------------------------------------------------------ */
+/* Movimento                                                           */
+/* ------------------------------------------------------------------ */
+:root {
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-soft: cubic-bezier(0.4, 0, 1, 1);
+}
+
+@keyframes tv-page-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.page-enter {
+  animation: tv-page-in 240ms var(--ease-out-soft) both;
+}
+
+@keyframes tv-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.fade-enter {
+  animation: tv-fade-in 200ms var(--ease-out-soft) both;
+}
+
+/* Barra de carregamento do topo: corre até ~90% enquanto a tela carrega */
+@keyframes tv-progress {
+  0% {
+    transform: scaleX(0);
+  }
+  60% {
+    transform: scaleX(0.7);
+  }
+  100% {
+    transform: scaleX(0.92);
+  }
+}
+.nav-progress {
+  transform-origin: left;
+  animation: tv-progress 2.4s var(--ease-out-soft) forwards;
+}
+
+/* Sanfonas (componente Expand) */
+.tv-expand {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 240ms var(--ease-out-soft),
+    opacity 180ms var(--ease-out-soft);
+}
+.tv-expand[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.tv-expand > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

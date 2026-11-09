@@ -115,7 +115,7 @@ function SidebarLink({
       onFocus={() => onPreload(to)}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-h-[42px] items-center gap-3 rounded-[10px] px-3 text-[15px] transition-colors",
+        "flex min-h-[42px] items-center gap-3 rounded-[10px] px-3 text-[15px] transition-colors duration-150",
         active
           ? "bg-tv-soft font-bold text-tv-ink"
           : "font-medium text-[#2A2C31] hover:bg-tv-bg dark:text-tv-text",
@@ -197,9 +197,9 @@ export function MobileTabBar({
               onClick={() => onNavigate(tab.to)}
               onFocus={() => onPreload(tab.to)}
               aria-current={on ? "page" : undefined}
-              className="-mt-[22px] flex flex-col items-center gap-1"
+              className="group -mt-[22px] flex flex-col items-center gap-1"
             >
-              <span className="grid h-14 w-14 place-items-center rounded-full border-4 border-tv-surface bg-tv-primary text-white shadow-[0_6px_16px_rgba(20,20,20,0.18)]">
+              <span className="grid h-14 w-14 place-items-center rounded-full border-4 border-tv-surface bg-tv-primary text-white shadow-[0_6px_16px_rgba(20,20,20,0.18)] transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] group-active:scale-95 group-active:shadow-[0_3px_8px_rgba(20,20,20,0.16)]">
                 <Icon className="h-[26px] w-[26px]" strokeWidth={2} aria-hidden />
               </span>
               <span
@@ -217,11 +217,11 @@ export function MobileTabBar({
             onClick={() => onNavigate(tab.to)}
             onFocus={() => onPreload(tab.to)}
             aria-current={on ? "page" : undefined}
-            className="flex min-h-[52px] flex-col items-center justify-center gap-1"
+            className="group flex min-h-[52px] flex-col items-center justify-center gap-1"
           >
             <span
               className={cn(
-                "grid h-[30px] w-[52px] place-items-center rounded-full",
+                "grid h-[30px] w-[52px] place-items-center rounded-full transition-[background-color,color,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] group-active:scale-90",
                 on ? "bg-tv-soft text-tv-primary" : "text-tv-text-2",
               )}
             >

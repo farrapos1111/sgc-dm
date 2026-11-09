@@ -389,7 +389,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {isNavigating && (
           <div
-            className="fixed left-0 right-0 top-0 z-50 h-0.5 origin-left animate-pulse md:left-[264px]"
+            className="nav-progress fixed left-0 right-0 top-0 z-50 h-[3px] md:left-[264px]"
             style={{ backgroundColor: primary }}
             role="progressbar"
             aria-label="Carregando página"
@@ -411,7 +411,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 description="Esta parte do sistema está sendo adaptada para as Filhas de Jó. Use o menu para as funções já liberadas."
               />
             ) : (
-              children
+              <div key={pathname} className="page-enter">
+                {children}
+              </div>
             )}
           </div>
         </main>
