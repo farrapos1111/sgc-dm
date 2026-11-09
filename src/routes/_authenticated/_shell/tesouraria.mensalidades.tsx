@@ -36,6 +36,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Expand } from "@/components/ui/expand";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -1713,7 +1714,7 @@ function MobileDuesList({
             role="tab"
             aria-selected={tab === k}
             onClick={() => setTab(k)}
-            className={`min-h-10 rounded-[10px] text-[15px] font-semibold ${
+            className={`min-h-10 rounded-[10px] text-[15px] font-semibold transition-all duration-200 ${
               tab === k ? "bg-tv-surface text-tv-text shadow-sm" : "text-tv-text-2"
             }`}
           >
@@ -1799,7 +1800,7 @@ function MobileDuesList({
                 </span>
               </button>
 
-              {expanded ? (
+              <Expand open={expanded}>
                 <div className="border-t border-tv-line px-4 pb-4 pt-3">
                   <div className="grid grid-cols-4 gap-1.5">
                     {months.map((x) => (
@@ -1862,7 +1863,7 @@ function MobileDuesList({
                     </button>
                   ) : null}
                 </div>
-              ) : null}
+              </Expand>
             </li>
           );
         })}

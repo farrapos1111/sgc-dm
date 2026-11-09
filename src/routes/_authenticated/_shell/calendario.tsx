@@ -25,6 +25,7 @@ import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Expand } from "@/components/ui/expand";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -573,7 +574,7 @@ function CalendarioPage() {
           type="button"
           aria-pressed={typeFilters.size === CALENDAR_TYPES.length}
           onClick={() => setTypeFilters(new Set(CALENDAR_TYPES))}
-          className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold ${
+          className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 ${
             typeFilters.size === CALENDAR_TYPES.length
               ? "border-tv-text bg-tv-text text-tv-surface"
               : "border-tv-border bg-tv-surface text-tv-text"
@@ -592,7 +593,7 @@ function CalendarioPage() {
               type="button"
               aria-pressed={on}
               onClick={() => (all ? setTypeFilters(new Set([t])) : toggleType(t))}
-              className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold ${
+              className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 ${
                 on
                   ? "border-tv-text bg-tv-text text-tv-surface"
                   : "border-tv-border bg-tv-surface text-tv-text"
@@ -1086,6 +1087,7 @@ function SelectedDayPanel({
       <h2 className="text-[15px] font-bold first-letter:uppercase lg:font-display lg:text-xl lg:font-extrabold">
         {title}
       </h2>
+      <div key={dayKey} className="fade-enter flex flex-col gap-3">
       {sorted.length === 0 ? (
         <div className="flex flex-col items-start gap-2.5 rounded-[20px] bg-tv-surface p-[18px] lg:rounded-[16px] lg:border lg:border-[#ECECE8] lg:p-3.5 dark:lg:border-tv-line">
           <span className="text-[15px] text-tv-text-2">Nada marcado neste dia.</span>
@@ -1134,6 +1136,7 @@ function SelectedDayPanel({
           Marcar mais algo neste dia
         </button>
       ) : null}
+      </div>
     </aside>
   );
 }
@@ -1202,7 +1205,9 @@ function MandatoryDatesCard({
         </span>
         <ChevronDown className={`h-5 w-5 text-tv-text-2 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
-      <div className="md:hidden">{open ? list : null}</div>
+      <Expand open={open} className="md:hidden">
+        {list}
+      </Expand>
       {/* Computador: sempre aberto */}
       <div className="hidden md:block">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

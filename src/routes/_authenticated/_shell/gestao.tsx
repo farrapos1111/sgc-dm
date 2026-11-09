@@ -727,7 +727,8 @@ function GestaoContent({ active }: { active: Membership }) {
                         aria-hidden
                       />
                     </button>
-                    <div className={expanded ? "mt-3 md:mt-0" : "hidden md:block"}>
+                    <div className="tv-expand tv-expand-md-open" data-open={expanded ? "true" : "false"}>
+                    <div className="pt-3 md:pt-0">
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -846,6 +847,7 @@ function GestaoContent({ active }: { active: Membership }) {
                         ))}
                       </ul>
                     )}
+                    </div>
                     </div>
                   </Card>
                 );

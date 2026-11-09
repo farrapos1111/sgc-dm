@@ -501,13 +501,25 @@ input[type="date"]:not(:disabled) {
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
+  visibility: hidden;
   transition:
     grid-template-rows 240ms var(--ease-out-soft),
-    opacity 180ms var(--ease-out-soft);
+    opacity 180ms var(--ease-out-soft),
+    visibility 0s linear 240ms;
 }
 .tv-expand[data-open="true"] {
   grid-template-rows: 1fr;
   opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+/* Sempre aberto a partir do computador (sanfona só no celular) */
+@media (min-width: 768px) {
+  .tv-expand.tv-expand-md-open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    visibility: visible;
+  }
 }
 .tv-expand > * {
   min-height: 0;

@@ -28,6 +28,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Expand } from "@/components/ui/expand";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -963,7 +964,7 @@ function FluxoCaixa() {
               role="tab"
               aria-selected={on}
               onClick={() => setMonth(m)}
-              className={`min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold first-letter:uppercase ${
+              className={`min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors duration-150 first-letter:uppercase ${
                 on ? "bg-tv-text text-tv-surface" : "border border-tv-border bg-tv-surface text-tv-text"
               }`}
             >
@@ -1122,7 +1123,7 @@ function FluxoCaixa() {
                 role="tab"
                 aria-selected={kindFilter === k}
                 onClick={() => setKindFilter(k)}
-                className={`min-h-9 rounded-full px-4 text-sm font-semibold ${
+                className={`min-h-9 rounded-full px-4 text-sm font-semibold transition-all duration-200 ${
                   kindFilter === k ? "bg-tv-surface text-tv-text shadow-sm" : "text-tv-text-2"
                 }`}
               >
@@ -1339,7 +1340,7 @@ function FluxoCaixa() {
                     </span>
                   </div>
                 </button>
-                {open && (
+                <Expand open={open}>
                   <CashEntriesTable
                     hidden={hiddenValues}
                     entries={group.entries}
@@ -1363,7 +1364,7 @@ function FluxoCaixa() {
                       if (ok) remove.mutate(id);
                     }}
                   />
-                )}
+                </Expand>
               </Card>
             );
           })}

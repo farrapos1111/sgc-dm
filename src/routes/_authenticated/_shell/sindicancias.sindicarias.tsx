@@ -589,7 +589,7 @@ function SindicariasPage() {
               type="button"
               aria-pressed={statusFilter === k}
               onClick={() => setStatusFilter(k)}
-              className={`min-h-10 rounded-full border px-3.5 text-sm font-semibold ${
+              className={`min-h-10 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 ${
                 statusFilter === k
                   ? "border-tv-text bg-tv-text text-tv-surface"
                   : "border-tv-border bg-tv-surface text-tv-text"
