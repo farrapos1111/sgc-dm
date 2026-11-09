@@ -953,7 +953,7 @@ function FluxoCaixa() {
       </section>
 
       {/* Celular: meses em chips */}
-      <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 md:hidden" role="tablist" aria-label="Mês">
+      <div className="scroll-row -mx-4 mb-3 flex gap-2 px-4 pb-1 md:hidden" role="tablist" aria-label="Mês">
         {[null, ...MONTHS].map((m) => {
           const on = month === m;
           return (

@@ -303,7 +303,7 @@ function EventoDetalhe() {
       />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 flex h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto p-1">
+        <TabsList className="scroll-row mb-4 flex h-auto w-full flex-nowrap justify-start gap-1 p-1">
           <TabsTrigger value="resumo" className="shrink-0">
             Resumo
           </TabsTrigger>
