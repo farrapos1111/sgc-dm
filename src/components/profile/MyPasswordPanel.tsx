@@ -78,7 +78,7 @@ export function MyPasswordPanel() {
   }
 
   return (
-    <Card className="rounded-[12px] p-5">
+    <Card className="p-5">
       <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
         <KeyRound className="h-4 w-4" />
         Alterar senha

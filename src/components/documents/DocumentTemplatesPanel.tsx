@@ -146,7 +146,7 @@ export function DocumentTemplatesPanel({
         ) : null}
       </div>
 
-      <Card className="overflow-hidden rounded-[12px]">
+      <Card className="overflow-hidden ">
         <button
           type="button"
           className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-xs hover:bg-muted/40"
@@ -228,7 +228,7 @@ export function DocumentTemplatesPanel({
           }
         />
       ) : filtered.length === 0 ? (
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           Nenhum modelo encontrado com essa busca.
         </Card>
       ) : (
@@ -381,7 +381,7 @@ function TemplateEditorCard({
   }
 
   return (
-    <Card className="overflow-hidden rounded-[12px]">
+    <Card className="overflow-hidden ">
       <div className="flex items-stretch gap-1">
         <button
           type="button"

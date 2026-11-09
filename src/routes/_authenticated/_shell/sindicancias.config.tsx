@@ -148,7 +148,7 @@ function SindicanciaConfigPage() {
     return (
       <div>
         <PageHeader title="Configurações" subtitle="Sindicâncias" />
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           Sem permissão. Apenas o presidente da comissão, o Mestre Conselheiro
           ou administradores podem alterar estas configurações.
         </Card>
@@ -169,7 +169,7 @@ function SindicanciaConfigPage() {
       />
 
       {canLink && (
-        <Card className="mb-6 space-y-3 rounded-[12px] p-5">
+        <Card className="mb-6 space-y-3 p-5">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Link2 className="h-4 w-4" /> Link público de inscrição
           </div>
@@ -232,7 +232,7 @@ function SindicanciaConfigPage() {
 
       {canTemplates && (
         <div className="space-y-6">
-          <Card className="space-y-3 rounded-[12px] p-5">
+          <Card className="space-y-3 p-5">
             <h3 className="text-sm font-semibold">Chave de Sindicância</h3>
             <p className="text-xs text-muted-foreground">
               Modelo copiado ao montar a chave. Digite{" "}
@@ -268,7 +268,7 @@ function SindicanciaConfigPage() {
             />
           </Card>
 
-          <Card className="space-y-3 rounded-[12px] p-5">
+          <Card className="space-y-3 p-5">
             <h3 className="text-sm font-semibold">Modelo de Parecer</h3>
             <p className="text-xs text-muted-foreground">
               Inserido na ficha ao clicar em “Inserir modelo”.

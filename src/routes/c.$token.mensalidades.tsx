@@ -17,7 +17,7 @@ function LobbyMensalidadesPage() {
     return (
       <div>
         <LobbyBackLink />
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           Este capítulo não cobra mensalidade.{" "}
           <Link
             to="/c/$token"

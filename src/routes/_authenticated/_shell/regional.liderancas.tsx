@@ -213,7 +213,7 @@ function LeadershipsContent() {
 
   if (!canManageLeaderships) {
     return (
-      <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+      <Card className="p-6 text-sm text-muted-foreground">
         Sem permissão para gerenciar lideranças.
       </Card>
     );
@@ -272,7 +272,7 @@ function LeadershipsContent() {
       )}
 
       {!isLoading && filtered.length === 0 && (
-        <Card className="rounded-[12px] p-8 text-center text-sm text-muted-foreground">
+        <Card className="p-8 text-center text-sm text-muted-foreground">
           Nenhuma liderança neste escopo.
         </Card>
       )}
@@ -283,7 +283,7 @@ function LeadershipsContent() {
           return (
             <Card
               key={row.id}
-              className="flex items-center gap-3 rounded-[12px] p-4"
+              className="flex items-center gap-3 p-4"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">

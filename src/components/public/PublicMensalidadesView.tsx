@@ -305,12 +305,12 @@ export function PublicMensalidadesView({
             <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando…
           </div>
         ) : members.length === 0 ? (
-          <Card className="rounded-[12px] p-10 text-center text-sm text-muted-foreground">
+          <Card className="p-10 text-center text-sm text-muted-foreground">
             <Receipt className="mx-auto mb-2 h-7 w-7" />
             Nenhum membro elegível neste ano.
           </Card>
         ) : displayedMembers.length === 0 ? (
-          <Card className="rounded-[12px] p-10 text-center text-sm text-muted-foreground">
+          <Card className="p-10 text-center text-sm text-muted-foreground">
             Nenhum membro encontrado.
             <div className="mt-3">
               <Button variant="outline" size="sm" onClick={() => setSearch("")}>
@@ -321,15 +321,15 @@ export function PublicMensalidadesView({
         ) : (
           <>
             <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
-              <Card className="rounded-[12px] p-5">
+              <Card className="p-5">
                 <div className="text-sm text-muted-foreground">Recebido</div>
                 <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{formatBRL(totals.paid)}</div>
               </Card>
-              <Card className="rounded-[12px] p-5">
+              <Card className="p-5">
                 <div className="text-sm text-muted-foreground">Em aberto</div>
                 <div className="text-xl font-bold text-amber-600 dark:text-amber-400">{formatBRL(totals.openAmount)}</div>
               </Card>
-              <Card className="rounded-[12px] p-5">
+              <Card className="p-5">
                 <div className="text-sm text-muted-foreground">
                   Atrasado (após dia 15)
                 </div>
@@ -337,7 +337,7 @@ export function PublicMensalidadesView({
               </Card>
             </div>
 
-            <Card className="hidden overflow-hidden rounded-[12px] lg:block">
+            <Card className="hidden overflow-hidden lg:block">
               <table className="w-full table-fixed border-collapse text-sm">
                 <colgroup>
                   <col className="w-[18%]" />
@@ -475,7 +475,7 @@ export function PublicMensalidadesView({
               {displayedMembers.map((m) => {
                 const open = openByMember.get(m.id) ?? { count: 0, total: 0 };
                 return (
-                  <Card key={m.id} className="rounded-[12px] p-3">
+                  <Card key={m.id} className="p-3">
                     <div className="mb-2 flex justify-between gap-2">
                       <div className="text-sm font-medium">{m.full_name}</div>
                       <div className="text-right text-xs">

@@ -41,7 +41,7 @@ function SugestoesPage() {
         subtitle="Fale com a Comissão de Tecnologia e Desenvolvimento do Templo Virtual."
       />
 
-      <Card className="mb-6 rounded-[12px] border-border p-5">
+      <Card className="mb-6 border-border p-5">
         <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
           <Lightbulb className="h-5 w-5" />
           Como contribuir
@@ -59,7 +59,7 @@ function SugestoesPage() {
       </div>
 
       {contacts.length === 0 ? (
-        <Card className="rounded-[12px] border-border p-5">
+        <Card className="border-border p-5">
           <p className="text-sm text-muted-foreground">
             Contatos da comissão ainda não configurados. Defina
             TECH_COMMISSION_CONTACTS_JSON no ambiente do servidor.
@@ -69,7 +69,7 @@ function SugestoesPage() {
         <ul className="grid gap-3 sm:grid-cols-2">
           {contacts.map((c) => (
             <li key={c.email}>
-              <Card className="flex h-full flex-col rounded-[12px] p-5">
+              <Card className="flex h-full flex-col p-5">
                 <div className="mb-1 text-base font-semibold text-foreground">
                   {c.name}
                 </div>

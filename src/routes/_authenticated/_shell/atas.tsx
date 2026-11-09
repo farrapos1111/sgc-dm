@@ -200,7 +200,7 @@ function MinuteCard({ minute }: { minute: MinuteRow }) {
   const eventId = minute.calendar_event_id;
 
   return (
-    <Card className="rounded-[12px] p-4">
+    <Card className="p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">

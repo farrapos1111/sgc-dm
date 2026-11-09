@@ -411,7 +411,7 @@ function PositionListCard({
   onDelete: (p: CatalogPosition) => void;
 }) {
   return (
-    <Card className="rounded-[12px] p-4">
+    <Card className="p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">{title}</h2>
         <Button type="button" size="sm" variant="outline" onClick={onAdd}>

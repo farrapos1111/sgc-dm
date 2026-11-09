@@ -285,7 +285,7 @@ function PresencasFrequencyTab({
           {aptosVoto ? ` (${frequency.length})` : null}
         </Button>
       </div>
-      <Card className="rounded-[12px] p-0">
+      <Card className="p-0">
         <ul className="divide-y divide-border">
           {frequency.length === 0 && (
             <li className="p-5 text-sm text-muted-foreground">
@@ -429,7 +429,7 @@ function PresencasPage() {
 
   if (!allowed) {
     return (
-      <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+      <Card className="p-6 text-sm text-muted-foreground">
         Módulo disponível para administração, Escrivão e Conselheiros (1º/2º).
       </Card>
     );
@@ -533,14 +533,14 @@ function PresencasPage() {
             </Select>
           </div>
           {items.length === 0 ? (
-            <Card className="rounded-[12px] p-10 text-center">
+            <Card className="p-10 text-center">
               <ClipboardList className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
               <div className="text-sm font-medium">
                 Nenhuma chamada em {year}.
               </div>
             </Card>
           ) : (
-            <Card className="rounded-[12px] p-0">
+            <Card className="p-0">
               <ul className="divide-y divide-border">
                 {items.map((it) => {
                   const recs = byEvent.get(it.id) ?? [];

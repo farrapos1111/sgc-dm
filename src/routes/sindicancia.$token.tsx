@@ -93,13 +93,13 @@ function PublicSindicanciaPage() {
 
       <main className="mx-auto max-w-3xl px-4 py-6">
         {closed ? (
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <p className="text-sm">
               A ata foi concluída. Este link não abre mais as ferramentas.
             </p>
           </Card>
         ) : session && unlockedId ? (
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <SindicanciaParticipationView
               token={token}
               demolayId={unlockedId}
@@ -113,13 +113,13 @@ function PublicSindicanciaPage() {
             />
           </Card>
         ) : unlock.isPending && unlockedId && !session ? (
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Conferindo o ID…
             </p>
           </Card>
         ) : (
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <div className="mb-4 flex items-center gap-2 text-sm font-medium">
               <Lock className="h-4 w-4" /> Identificação
             </div>

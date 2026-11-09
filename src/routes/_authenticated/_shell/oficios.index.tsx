@@ -147,7 +147,7 @@ function OficiosPage() {
     return (
       <div>
         <PageHeader title="Ofícios" subtitle="Acesso restrito à secretaria." />
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           Você não tem permissão para acessar ofícios neste capítulo.
         </Card>
       </div>
@@ -357,7 +357,7 @@ function ExpedidosList({
       </div>
 
       {filtered.length === 0 ? (
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           Nenhum ofício encontrado com esses filtros.
         </Card>
       ) : (

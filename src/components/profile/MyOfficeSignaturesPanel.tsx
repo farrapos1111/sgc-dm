@@ -62,7 +62,7 @@ export function MyOfficeSignaturesPanel({ memberId }: { memberId: string }) {
 
   if (listQ.isLoading) {
     return (
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <p className="text-sm text-muted-foreground">Carregando assinaturas…</p>
       </Card>
     );
@@ -72,7 +72,7 @@ export function MyOfficeSignaturesPanel({ memberId }: { memberId: string }) {
 
   return (
     <>
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
           <PenLine className="h-4 w-4" />
           Assinatura digital

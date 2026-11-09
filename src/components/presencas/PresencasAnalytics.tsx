@@ -466,11 +466,11 @@ export function PresencasOverviewTab({
       </div>
 
       {semesterEvents.length === 0 ? (
-        <Card className="rounded-[12px] p-8 text-center text-sm text-muted-foreground">
+        <Card className="p-8 text-center text-sm text-muted-foreground">
           Nenhuma chamada no {termLabel(year, semester)}.
         </Card>
       ) : rows.length === 0 ? (
-        <Card className="rounded-[12px] p-8 text-center text-sm text-muted-foreground">
+        <Card className="p-8 text-center text-sm text-muted-foreground">
           Nenhum membro elegível nas chamadas deste semestre.
         </Card>
       ) : (
@@ -478,7 +478,7 @@ export function PresencasOverviewTab({
           {/* Mobile / telas estreitas: um card por membro */}
           <div className="space-y-3 lg:hidden">
             {rows.map((row) => (
-              <Card key={row.member.id} className="rounded-[12px] p-3">
+              <Card key={row.member.id} className="p-3">
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <Link
                     to="/membros/$id"
@@ -577,7 +577,7 @@ export function PresencasOverviewTab({
           </div>
 
           {/* Desktop: matriz com scroll horizontal quando há muitos eventos */}
-          <Card className="hidden overflow-hidden rounded-[12px] p-0 lg:block">
+          <Card className="hidden overflow-hidden p-0 lg:block">
             <div className="w-full overflow-x-auto">
               <table className="w-full min-w-[640px] border-collapse text-sm">
                 <thead>

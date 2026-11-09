@@ -75,7 +75,7 @@ export function ChaveTemplateCard() {
   const dirty = template.trim() !== saved.trim();
 
   return (
-    <Card className="rounded-[12px] p-5">
+    <Card className="p-5">
       <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
         <KeyRound className="h-5 w-5" /> Chave do dia
       </div>

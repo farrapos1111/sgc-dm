@@ -528,7 +528,7 @@ function GestaoContent({ active }: { active: Membership }) {
                     return null;
                   }
                   return (
-                    <Card key={section.id} className="rounded-[12px] p-5">
+                    <Card key={section.id} className="p-5">
                       <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
                         {section.label}
                       </h3>
@@ -680,7 +680,7 @@ function GestaoContent({ active }: { active: Membership }) {
                 const modulePath =
                   "module_path" in c ? (c.module_path as string | null) : null;
                 return (
-                  <Card key={c.id} className="rounded-[12px] p-5">
+                  <Card key={c.id} className="p-5">
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">

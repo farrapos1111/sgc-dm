@@ -16,7 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Search, Users, X, Inbox } from "lucide-react";
+import { ChevronRight, Plus, Search, Users, X, Inbox } from "lucide-react";
+import { initialsOf } from "@/components/shell/ShellNav";
 import { formatDateBR, statusLabel, kindLabel, grauOf, isAptoGrauDemolay, ageFrom } from "@/lib/format";
 import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { countPendingMemberRequests } from "@/lib/member-change-requests.functions";
@@ -187,41 +188,70 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
     return <PageSkeleton />;
   }
 
+  const chips: { key: string; label: string; on: boolean; pick: () => void }[] = [
+    {
+      key: "todos",
+      label: "Todos",
+      on: filters.kind === "all" && filters.status === "all",
+      pick: () => setFilters((f) => ({ ...f, kind: "all", status: "all" })),
+    },
+    ...(["demolay_ativo", "senior", "macom"] as const).map((k) => ({
+      key: k,
+      label: kindLabel(k),
+      on: filters.kind === k && filters.status === "all",
+      pick: () => setFilters((f) => ({ ...f, kind: k, status: "all" })),
+    })),
+    {
+      key: "irregulares",
+      label: "Irregulares",
+      on: filters.status === "irregular" && filters.kind === "all",
+      pick: () => setFilters((f) => ({ ...f, kind: "all", status: "irregular" })),
+    },
+  ];
+  const pendingCount = pendingReq?.count ?? 0;
+
   return (
     <div className={isFetching ? "opacity-80 transition-opacity" : undefined}>
       <PageHeader
+        eyebrow="Secretaria"
         title="Membros"
-        subtitle={`${filteredMembers.length} ${filteredMembers.length === 1 ? "membro" : "membros"}`}
+        subtitle={`${filteredMembers.length} ${filteredMembers.length === 1 ? "membro" : "membros"}${
+          filters.kind !== "all" || filters.status !== "all" || filters.filtro !== "todos" || filters.q
+            ? " neste filtro"
+            : ` cadastrados no ${active.chapter.name}`
+        }`}
         actions={
-          <div className="flex flex-wrap gap-2">
+          <>
             {isAdmin && (
-              <Button variant="outline" asChild>
+              <Button variant="outline" asChild className="hidden sm:inline-flex">
                 <Link to="/membros/solicitacoes">
-                  <Inbox className="mr-2 h-4 w-4" />
+                  <Inbox className="h-[18px] w-[18px]" />
                   Solicitações
-                  {(pendingReq?.count ?? 0) > 0 && (
-                    <Badge className="ml-2" variant="destructive">
-                      {pendingReq!.count}
-                    </Badge>
+                  {pendingCount > 0 && (
+                    <span className="rounded-full bg-tv-warn-bg px-2 py-0.5 text-xs font-bold text-tv-warn">
+                      {pendingCount}
+                    </span>
                   )}
                 </Link>
               </Button>
             )}
-            <Button asChild style={{ backgroundColor: active.chapter.primary_color }}>
+            <Button asChild className="flex-1 sm:flex-none">
               <Link to="/membros/novo">
-                <PlusCircle className="mr-2 h-4 w-4" /> Novo membro
+                <Plus className="h-[18px] w-[18px]" /> Novo membro
               </Link>
             </Button>
-          </div>
+          </>
         }
       />
 
-      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_140px_160px_minmax(200px,280px)]">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome…"
-            className="pl-9 pr-9"
+      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
+        <label className="flex min-h-[52px] items-center gap-2.5 rounded-[14px] border border-tv-border bg-tv-surface px-3.5 lg:min-h-[46px] lg:max-w-[420px] lg:flex-1 lg:rounded-[12px]">
+          <Search className="h-5 w-5 shrink-0 text-tv-text-2" />
+          <span className="sr-only">Buscar membro</span>
+          <input
+            type="search"
+            placeholder="Buscar por nome"
+            className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-[#6B6E75] lg:text-[15px]"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
@@ -229,115 +259,203 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
             <button
               type="button"
               aria-label="Limpar busca"
-              className="absolute right-2.5 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="grid h-8 w-8 place-items-center rounded-full text-tv-text-2 hover:bg-tv-bg"
               onClick={clearSearch}
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-4 w-4" />
             </button>
           )}
+        </label>
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0">
+          {chips.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              onClick={c.pick}
+              aria-pressed={c.on}
+              className={`min-h-10 shrink-0 whitespace-nowrap rounded-full border px-3.5 text-sm font-semibold transition-colors ${
+                c.on
+                  ? "border-tv-primary bg-tv-primary text-white"
+                  : "border-[#DCDCD8] bg-tv-surface text-[#2A2C31] dark:border-tv-border dark:text-tv-text"
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+          {isAdmin && (
+            <Select
+              value={filters.filtro}
+              onValueChange={(v) => setFilters((f) => ({ ...f, filtro: v as MemberFilter }))}
+            >
+              <SelectTrigger
+                className={`min-h-10 w-auto shrink-0 gap-2 rounded-full px-3.5 text-sm font-semibold ${
+                  filters.filtro !== "todos" ? "border-tv-primary bg-tv-soft text-tv-ink" : ""
+                }`}
+              >
+                <SelectValue placeholder="Mais filtros" />
+              </SelectTrigger>
+              <SelectContent>
+                {MEMBER_FILTERS.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    {f.value === "todos" ? "Mais filtros" : f.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
-        <Select
-          value={filters.status}
-          onValueChange={(v) => setFilters((f) => ({ ...f, status: v as StatusFilter }))}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos status</SelectItem>
-            <SelectItem value="regular">Regular</SelectItem>
-            <SelectItem value="irregular">Irregular</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.kind}
-          onValueChange={(v) => setFilters((f) => ({ ...f, kind: v as KindFilter }))}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos tipos</SelectItem>
-            <SelectItem value="demolay_ativo">Demolay Ativo</SelectItem>
-            <SelectItem value="senior">Senior Demolay</SelectItem>
-            <SelectItem value="macom">Maçom</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.filtro}
-          onValueChange={(v) => setFilters((f) => ({ ...f, filtro: v as MemberFilter }))}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Filtrar" />
-          </SelectTrigger>
-          <SelectContent>
-            {MEMBER_FILTERS.map((f) => (
-              <SelectItem key={f.value} value={f.value}>
-                {f.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
+      {isAdmin && pendingCount > 0 && (
+        <Link
+          to="/membros/solicitacoes"
+          className="mt-3 flex items-center gap-3 rounded-2xl bg-tv-soft p-3.5 text-tv-ink sm:hidden"
+        >
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-tv-surface">
+            <Inbox className="h-5 w-5" />
+          </span>
+          <span className="flex-1">
+            <span className="block text-[15px] font-bold">
+              {pendingCount} {pendingCount === 1 ? "solicitação aguardando" : "solicitações aguardando"}
+            </span>
+            <span className="block text-[13px]">Cadastros e alterações para aprovar</span>
+          </span>
+          <ChevronRight className="h-5 w-5" />
+        </Link>
+      )}
+
       {filteredMembers.length === 0 ? (
-        <EmptyState
-          icon={<Users className="h-7 w-7" />}
-          title="Nenhum membro encontrado"
-          description={
-            filters.filtro !== "todos"
-              ? "Nenhum membro corresponde a este filtro."
-              : "Cadastre o primeiro membro do capítulo."
-          }
-          action={
-            filters.filtro === "todos" ? (
-              <Button asChild style={{ backgroundColor: active.chapter.primary_color }}>
-                <Link to="/membros/novo">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Cadastrar membro
-                </Link>
-              </Button>
-            ) : undefined
-          }
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          {filteredMembers.map((m) => {
-            const grau = grauOf(m);
-            const kind = (m as { kind?: string }).kind;
-            const showGrauTag = kind !== "senior" && kind !== "macom";
-            return (
-              <Link key={m.id} to="/membros/$id" params={{ id: m.id }} className="h-full">
-                <Card className="flex h-full flex-col items-stretch gap-2 rounded-[12px] p-4 transition-colors hover:bg-muted/40 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="break-words font-medium leading-snug">{m.full_name}</div>
-                    <div className="break-all text-xs text-muted-foreground">{m.email || "—"}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {(() => {
-                        const nasc = formatDateBR(m.birth_date);
-                        const age = ageFrom(m.birth_date);
-                        if (!m.birth_date) return "Nasc. —";
-                        return age !== null
-                          ? `Nasc. ${nasc} · ${age} ${age === 1 ? "Ano" : "Anos"}`
-                          : `Nasc. ${nasc}`;
-                      })()}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0 sm:justify-end">
-                    {isAdmin && isAptoGrauDemolay(m) && (
-                      <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 dark:bg-amber-500/20 dark:text-amber-200 dark:hover:bg-amber-500/20">
-                        Apto a G∴D∴
-                      </Badge>
-                    )}
-                    {showGrauTag && grau.code && <Badge variant="outline">{grau.code}</Badge>}
-                    <Badge variant="outline">{kindLabel(kind)}</Badge>
-                    <Badge variant="secondary">{statusLabel(m.status)}</Badge>
-                  </div>
-                </Card>
-              </Link>
-            );
-          })}
+        <div className="mt-4">
+          <EmptyState
+            icon={<Users className="h-7 w-7" />}
+            title="Nenhum membro encontrado"
+            description={
+              filters.filtro !== "todos" || filters.kind !== "all" || filters.status !== "all" || filters.q
+                ? "Nenhum membro corresponde a esta busca ou filtro."
+                : "Cadastre o primeiro membro do capítulo."
+            }
+            action={
+              filters.filtro === "todos" && !filters.q ? (
+                <Button asChild>
+                  <Link to="/membros/novo">
+                    <Plus className="h-[18px] w-[18px]" /> Cadastrar membro
+                  </Link>
+                </Button>
+              ) : undefined
+            }
+          />
         </div>
+      ) : (
+        <>
+          {/* Celular: lista */}
+          <ul className="mt-4 overflow-hidden rounded-[20px] bg-tv-surface lg:hidden">
+            {filteredMembers.map((m) => {
+              const kind = (m as { kind?: string }).kind;
+              return (
+                <li key={m.id} className="border-b border-tv-line last:border-0">
+                  <Link
+                    to="/membros/$id"
+                    params={{ id: m.id }}
+                    className="flex min-h-14 items-center gap-3 px-3.5 py-3"
+                  >
+                    <Avatar name={m.full_name} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-base font-semibold">{m.full_name}</span>
+                      <span className="block text-[13px] text-tv-text-2">{kindLabel(kind)}</span>
+                    </span>
+                    <StatusChip status={m.status} />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Desktop: tabela */}
+          <div className="mt-4 hidden overflow-x-auto rounded-[20px] bg-tv-surface lg:block">
+            <div className="min-w-[760px] text-[15px]">
+              <div className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_110px_120px] gap-3 border-b border-[#EEEEEA] px-5 py-3.5 text-[13px] font-semibold text-tv-text-2 dark:border-tv-line">
+                <span>Membro</span>
+                <span>Tipo</span>
+                <span>Grau</span>
+                <span>Situação</span>
+                <span className="text-right">Ações</span>
+              </div>
+              {filteredMembers.map((m) => {
+                const grau = grauOf(m);
+                const kind = (m as { kind?: string }).kind;
+                const showGrau = kind !== "senior" && kind !== "macom";
+                const age = ageFrom(m.birth_date);
+                return (
+                  <div
+                    key={m.id}
+                    className="grid grid-cols-[minmax(0,2.4fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_110px_120px] items-center gap-3 border-b border-[#F3F3EF] px-5 py-2.5 last:border-0 dark:border-tv-line"
+                  >
+                    <Link to="/membros/$id" params={{ id: m.id }} className="flex min-w-0 items-center gap-3">
+                      <Avatar name={m.full_name} size="sm" />
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold">{m.full_name}</span>
+                        <span className="block truncate text-[13px] text-tv-text-2">
+                          {[m.email, age !== null ? `${age} anos` : null].filter(Boolean).join(" · ") ||
+                            (m.birth_date ? `Nasc. ${formatDateBR(m.birth_date)}` : "—")}
+                        </span>
+                      </span>
+                    </Link>
+                    <span className="text-[#3F4249] dark:text-tv-text-2">{kindLabel(kind)}</span>
+                    <span className="flex flex-wrap items-center gap-1.5 text-[#3F4249] dark:text-tv-text-2">
+                      {showGrau ? grau.label.replace(/^(DM|GI) — /, "") : kind === "macom" ? "Tio Maçom" : "DeMolay"}
+                      {isAdmin && isAptoGrauDemolay(m) && (
+                        <span className="rounded-full bg-tv-warn-bg px-2 py-0.5 text-xs font-bold text-tv-warn">
+                          apto ao DeMolay
+                        </span>
+                      )}
+                    </span>
+                    <span>
+                      <StatusChip status={m.status} />
+                    </span>
+                    <span className="text-right">
+                      <Link
+                        to="/membros/$id"
+                        params={{ id: m.id }}
+                        className="inline-flex min-h-[38px] items-center rounded-[10px] border border-tv-border px-3 text-sm font-semibold hover:bg-tv-bg"
+                      >
+                        Ver perfil
+                      </Link>
+                    </span>
+                  </div>
+                );
+              })}
+              <div className="px-5 py-3.5 text-sm text-tv-text-2">
+                {filteredMembers.length} {filteredMembers.length === 1 ? "membro" : "membros"}
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
+  );
+}
+
+function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
+  return (
+    <span
+      className={`grid shrink-0 place-items-center rounded-full bg-tv-soft font-bold text-tv-ink ${
+        size === "sm" ? "h-[38px] w-[38px] text-[13px]" : "h-11 w-11 text-[15px]"
+      }`}
+    >
+      {initialsOf(name)}
+    </span>
+  );
+}
+
+function StatusChip({ status }: { status: string }) {
+  const regular = status === "regular";
+  return (
+    <span
+      className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-[13px] font-bold ${
+        regular ? "bg-tv-in-bg text-tv-in" : "bg-tv-warn-bg text-tv-warn"
+      }`}
+    >
+      {statusLabel(status)}
+    </span>
   );
 }

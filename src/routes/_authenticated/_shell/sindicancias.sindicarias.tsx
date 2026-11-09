@@ -615,7 +615,7 @@ function SindicariasPage() {
         <ul className="space-y-3">
           {visible.map((r) => (
             <li key={r.calendar_event_id}>
-              <Card className="rounded-[12px] p-4">
+              <Card className="p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-medium">

@@ -275,7 +275,7 @@ function OngoingPage() {
               </Button>
             }
           />
-          <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+          <Card className="p-6 text-sm text-muted-foreground">
             Só sessões ritualísticas, sessões administrativas e filantropias
             têm chamada de presença.
           </Card>
@@ -295,7 +295,7 @@ function OngoingPage() {
             </Button>
           }
         />
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           A ata desta sindicância é preenchida no módulo{" "}
           <Link
             to="/sindicancias/sindicarias"
@@ -320,7 +320,7 @@ function OngoingPage() {
 
   if (!canView) {
     return (
-      <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+      <Card className="p-6 text-sm text-muted-foreground">
         Você não tem permissão para ver a chamada desta sessão.
       </Card>
     );
@@ -418,7 +418,7 @@ function OngoingPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Card className="rounded-[12px] p-0">
+          <Card className="p-0">
             <ul className="divide-y divide-border">
               {members.length === 0 && (
                 <li className="p-5 text-sm text-muted-foreground">
@@ -622,7 +622,7 @@ function OngoingPage() {
                 }}
               />
             ) : (
-              <Card className="rounded-[12px] p-5">
+              <Card className="p-5">
                 <p className="text-sm text-muted-foreground">
                   Nenhuma ata nesta sessão. Somente o Escrivão pode criar e
                   redigir atas.
@@ -665,7 +665,7 @@ function Counter({
   color: string;
 }) {
   return (
-    <Card className="rounded-[12px] p-4 text-center">
+    <Card className="p-4 text-center">
       <div className="text-2xl font-bold" style={{ color }}>
         {value}
       </div>

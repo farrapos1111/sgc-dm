@@ -202,7 +202,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
 
   if (isLoading) {
     return (
-      <Card className="flex justify-center rounded-[12px] p-8 text-muted-foreground">
+      <Card className="flex justify-center p-8 text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </Card>
     );
@@ -210,7 +210,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
 
   if (error || !member) {
     return (
-      <Card className="rounded-[12px] p-5 text-sm text-destructive">
+      <Card className="p-5 text-sm text-destructive">
         {error instanceof Error
           ? error.message
           : "Não foi possível carregar o cadastro"}
@@ -220,7 +220,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
 
   return (
     <div className="space-y-4">
-      <Card className="space-y-3 rounded-[12px] p-5">
+      <Card className="space-y-3 p-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h3 className="text-base font-semibold">{member.full_name}</h3>
@@ -260,7 +260,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
         </p>
       </Card>
 
-      <Card className="space-y-4 rounded-[12px] p-5">
+      <Card className="space-y-4 p-5">
         <h3 className="text-sm font-semibold text-muted-foreground">
           Dados editáveis
         </h3>
@@ -385,7 +385,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
 
       {isUnder21(member.birth_date) &&
         guardians.map((g, idx) => (
-          <Card key={g.id} className="space-y-4 rounded-[12px] p-5">
+          <Card key={g.id} className="space-y-4 p-5">
             <h3 className="text-sm font-semibold">
               Responsável {idx + 1}
               <span className="ml-2 font-normal text-muted-foreground">

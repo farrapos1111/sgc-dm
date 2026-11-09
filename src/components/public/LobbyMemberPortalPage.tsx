@@ -133,7 +133,7 @@ export function LobbyMemberPortalPage() {
             cobranças e presenças.
           </p>
         </div>
-        <Card className="space-y-4 rounded-[12px] p-5">
+        <Card className="space-y-4 p-5">
           <form
             className="space-y-4"
             onSubmit={(e) => {
@@ -398,7 +398,7 @@ function MemberChargesTab({
       ) : (
         <>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Card className="rounded-[12px] p-4">
+            <Card className="p-4">
               <div className="text-xs text-muted-foreground">Total em aberto</div>
               <div
                 className={`mt-1 text-xl font-bold ${
@@ -416,7 +416,7 @@ function MemberChargesTab({
                 )}
               </div>
             </Card>
-            <Card className="rounded-[12px] p-4">
+            <Card className="p-4">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Receipt className="h-3.5 w-3.5" /> Mensalidades
               </div>
@@ -428,7 +428,7 @@ function MemberChargesTab({
                 {(showMensalidades ? summary.duesOpenCount : 0) === 1 ? "" : "s"}
               </div>
             </Card>
-            <Card className="rounded-[12px] p-4">
+            <Card className="p-4">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Banknote className="h-3.5 w-3.5" /> Cobranças
               </div>
@@ -442,7 +442,7 @@ function MemberChargesTab({
           </div>
 
           {showMensalidades ? (
-            <Card className="rounded-[12px] p-5">
+            <Card className="p-5">
               <h3 className="mb-3 text-sm font-semibold">
                 Mensalidades · {year}
                 <span className="ml-2 font-normal text-muted-foreground">
@@ -505,7 +505,7 @@ function MemberChargesTab({
             </Card>
           ) : null}
 
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <h3 className="mb-3 text-sm font-semibold">Cobranças</h3>
             {charges.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -651,7 +651,7 @@ function MemberFrequencyTab({
         </div>
       ) : (
         <>
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <div className="text-sm font-medium text-muted-foreground">
               Frequência em itens obrigatórios
             </div>
@@ -674,7 +674,7 @@ function MemberFrequencyTab({
               </span>
             </div>
           </Card>
-          <Card className="rounded-[12px] p-0">
+          <Card className="p-0">
             {recorded.length === 0 ? (
               <div className="p-5 text-sm text-muted-foreground">
                 Nenhum registro de presença neste ano.
@@ -724,7 +724,7 @@ function MemberFrequencyTab({
 
 function MemberCadastroTab({ accent }: { accent: string }) {
   return (
-    <Card className="space-y-3 rounded-[12px] p-5">
+    <Card className="space-y-3 p-5">
       <h3 className="text-sm font-semibold">Atualizar cadastro</h3>
       <p className="text-sm text-muted-foreground">
         Por segurança, telefone, e-mail, endereço e dados dos responsáveis só

@@ -959,7 +959,7 @@ function Mensalidades() {
     return (
       <div className="space-y-4">
         <PageHeader title="Mensalidades" />
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           Você não tem permissão para acessar mensalidades neste capítulo.
         </Card>
       </div>
@@ -970,7 +970,7 @@ function Mensalidades() {
     return (
       <div className="space-y-4">
         <PageHeader title="Mensalidades" />
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           Este capítulo não cobra mensalidade. Ative a opção em{" "}
           <span className="font-medium text-foreground">
             Configurações → Tesouraria
@@ -1188,19 +1188,19 @@ function Mensalidades() {
         </div>
 
         <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <div className="text-sm text-muted-foreground">Recebido</div>
             <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
               {formatBRL(totals.paid)}
             </div>
           </Card>
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <div className="text-sm text-muted-foreground">Em aberto</div>
             <div className="text-xl font-bold text-amber-600 dark:text-amber-400">
               {formatBRL(totals.openAmount)}
             </div>
           </Card>
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <div className="text-sm text-muted-foreground">
               Atrasado (após dia 15)
             </div>
@@ -1259,7 +1259,7 @@ function Mensalidades() {
           />
         ) : (
           <>
-            <Card className="hidden overflow-hidden rounded-[12px] lg:block">
+            <Card className="hidden overflow-hidden lg:block">
               <div className="w-full">
                 <table className="w-full table-fixed border-collapse text-sm">
                   <colgroup>
@@ -1486,7 +1486,7 @@ function Mensalidades() {
               {displayedMembers.map((m) => {
                 const open = openByMember.get(m.id) ?? { count: 0, total: 0 };
                 return (
-                  <Card key={m.id} className="rounded-[12px] p-3">
+                  <Card key={m.id} className="p-3">
                     <div className="mb-2 flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="text-sm font-medium">{m.full_name}</div>

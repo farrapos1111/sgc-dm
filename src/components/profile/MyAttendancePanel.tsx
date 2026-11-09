@@ -41,7 +41,7 @@ export function MyAttendancePanel({ memberId }: { memberId: string }) {
 
   if (isLoading) {
     return (
-      <Card className="flex justify-center rounded-[12px] p-8 text-muted-foreground">
+      <Card className="flex justify-center p-8 text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </Card>
     );
@@ -49,7 +49,7 @@ export function MyAttendancePanel({ memberId }: { memberId: string }) {
 
   if (error) {
     return (
-      <Card className="rounded-[12px] p-5 text-sm text-destructive">
+      <Card className="p-5 text-sm text-destructive">
         {error instanceof Error ? error.message : "Erro ao carregar frequência"}
       </Card>
     );
@@ -57,7 +57,7 @@ export function MyAttendancePanel({ memberId }: { memberId: string }) {
 
   return (
     <div className="space-y-4">
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <div className="text-sm font-medium text-muted-foreground">
           Frequência em itens obrigatórios
         </div>
@@ -81,7 +81,7 @@ export function MyAttendancePanel({ memberId }: { memberId: string }) {
         </div>
       </Card>
 
-      <Card className="rounded-[12px] p-0">
+      <Card className="p-0">
         {rows.length === 0 ? (
           <div className="p-5 text-sm text-muted-foreground">
             Nenhum registro de presença ainda.

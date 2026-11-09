@@ -1138,7 +1138,7 @@ function FluxoCaixa() {
           {entriesByMonth.map((group) => {
             const open = openMonths.has(group.month);
             return (
-              <Card key={group.month} className="overflow-hidden rounded-[12px]">
+              <Card key={group.month} className="overflow-hidden ">
                 <button
                   type="button"
                   className="flex w-full flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-3 text-left transition-colors hover:bg-muted/50"
@@ -1199,7 +1199,7 @@ function FluxoCaixa() {
           })}
         </div>
       ) : (
-        <Card className="overflow-hidden rounded-[12px]">
+        <Card className="overflow-hidden ">
           <CashEntriesTable
             entries={sortedMonthEntries}
             writable={writable}
@@ -2061,7 +2061,7 @@ function MetricCard({
   tone?: string;
 }) {
   return (
-    <Card className="rounded-[12px] p-5">
+    <Card className="p-5">
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="text-sm text-muted-foreground">{label}</span>
         {icon}

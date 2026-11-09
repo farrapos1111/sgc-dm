@@ -320,7 +320,7 @@ function EventoDetalhe() {
               className="text-left"
               onClick={() => setTab("financeiro")}
             >
-              <Card className="rounded-[12px] p-5 transition-colors hover:bg-muted/40">
+              <Card className="p-5 transition-colors hover:bg-muted/40">
                 <div className="text-sm text-muted-foreground">Arrecadação</div>
                 <div className="mt-1 text-2xl font-bold">
                   {formatBRL(raised)}
@@ -346,7 +346,7 @@ function EventoDetalhe() {
                 </div>
               </Card>
             </button>
-            <Card className="rounded-[12px] p-5">
+            <Card className="p-5">
               <div className="text-sm text-muted-foreground">Ingressos</div>
               <div className="mt-1 text-2xl font-bold">
                 {data.tickets.length}
@@ -618,7 +618,7 @@ function EventDetailsCard({
 
   if (!editing) {
     return (
-      <Card className="rounded-[12px] p-5 space-y-3 md:col-span-2">
+      <Card className="p-5 space-y-3 md:col-span-2">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-sm text-muted-foreground">Informações</div>
@@ -671,7 +671,7 @@ function EventDetailsCard({
   }
 
   return (
-    <Card className="rounded-[12px] p-5 space-y-4 md:col-span-2">
+    <Card className="p-5 space-y-4 md:col-span-2">
       <div className="flex items-center justify-between gap-3">
         <div className="text-sm font-medium">Editar evento</div>
         <Button
@@ -855,7 +855,7 @@ function TicketArtworkCard({
   }
 
   return (
-    <Card className="rounded-[12px] overflow-hidden md:col-span-2">
+    <Card className="overflow-hidden md:col-span-2">
       <div
         className="relative h-36 bg-cover bg-center"
         style={{
@@ -1073,7 +1073,7 @@ function TicketsList({
 
   return (
     <>
-      <Card className="rounded-[12px] p-0">
+      <Card className="p-0">
         <div className="border-b border-border p-3 space-y-2">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -1406,7 +1406,7 @@ function TicketTypesCard({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <Card className="rounded-[12px] p-0">
+      <Card className="p-0">
         <CollapsibleTrigger asChild>
           <button
             type="button"
@@ -1761,7 +1761,7 @@ function SellTicketCard({
   return (
     <>
       <Collapsible open={sellOpen} onOpenChange={setSellOpen}>
-        <Card className="rounded-[12px] p-0">
+        <Card className="p-0">
           <CollapsibleTrigger asChild>
             <button
               type="button"
@@ -2186,7 +2186,7 @@ function TablesMap({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
           {tables.length === 0 && (
-            <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+            <Card className="p-6 text-sm text-muted-foreground">
               Nenhuma mesa criada. Adicione a primeira ao lado.
             </Card>
           )}
@@ -2260,7 +2260,7 @@ function TablesMap({
                 return ticketMatchesSeller(ticketById.get(s.ticket_id));
               }).length;
               return (
-                <Card key={t.id} className="rounded-[12px] p-5">
+                <Card key={t.id} className="p-5">
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="font-semibold">{t.label}</div>
@@ -2376,7 +2376,7 @@ function TablesMap({
             })}
           </div>
         </div>
-        <Card className="rounded-[12px] p-5 space-y-3">
+        <Card className="p-5 space-y-3">
           <h3 className="text-sm font-semibold">Nova mesa</h3>
           <div>
             <Label className="mb-1 block text-xs">Nome</Label>

@@ -236,7 +236,7 @@ function ChaptersContent() {
 
   if (!canManageChapters) {
     return (
-      <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+      <Card className="p-6 text-sm text-muted-foreground">
         Apenas GME, Mestre Conselheiro Regional ou Oficial Executivo podem
         gerenciar instituições.
       </Card>
@@ -245,7 +245,7 @@ function ChaptersContent() {
 
   if (!resolvedStateId) {
     return (
-      <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+      <Card className="p-6 text-sm text-muted-foreground">
         Selecione um escopo estadual ou regional para gerenciar instituições.
       </Card>
     );
@@ -355,7 +355,7 @@ function ChaptersContent() {
       {isLoading && <div className="text-sm text-muted-foreground">Carregando…</div>}
 
       {!isLoading && visible.length === 0 && (
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           {(chapters ?? []).length === 0
             ? "Nenhuma instituição neste escopo."
             : typeFilter !== "all"
@@ -370,7 +370,7 @@ function ChaptersContent() {
             (c as { org_type?: string | null }).org_type,
           );
           return (
-            <Card key={c.id} className="flex items-center gap-3 rounded-[12px] p-4">
+            <Card key={c.id} className="flex items-center gap-3 p-4">
               <ChapterLogoAvatar
                 logoPath={c.logo_url}
                 number={c.number}

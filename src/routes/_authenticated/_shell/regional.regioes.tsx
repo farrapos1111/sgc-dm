@@ -107,7 +107,7 @@ function RegionsContent() {
 
   if (!canManageOrg) {
     return (
-      <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+      <Card className="p-6 text-sm text-muted-foreground">
         Apenas o Grande Mestre Estadual pode gerenciar
         regiões.
       </Card>
@@ -116,7 +116,7 @@ function RegionsContent() {
 
   if (!stateId) {
     return (
-      <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+      <Card className="p-6 text-sm text-muted-foreground">
         Cadastre um estado e selecione o escopo estadual para gerenciar regiões.
       </Card>
     );
@@ -137,7 +137,7 @@ function RegionsContent() {
       {isLoading && <div className="text-sm text-muted-foreground">Carregando…</div>}
 
       {!isLoading && (regions ?? []).length === 0 && (
-        <Card className="rounded-[12px] p-8 text-center text-sm text-muted-foreground">
+        <Card className="p-8 text-center text-sm text-muted-foreground">
           Nenhuma região cadastrada.
         </Card>
       )}
@@ -146,7 +146,7 @@ function RegionsContent() {
         {(regions ?? []).map((r) => {
           const count = (chapters ?? []).filter((c) => c.region_id === r.id).length;
           return (
-            <Card key={r.id} className="flex items-center gap-3 rounded-[12px] p-4">
+            <Card key={r.id} className="flex items-center gap-3 p-4">
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold">{r.name}</div>
                 <div className="text-xs text-muted-foreground">

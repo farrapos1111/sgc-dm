@@ -126,7 +126,7 @@ function PerfilOdm() {
       {data.members.length === 0 ? (
         <div className="space-y-4">
           <MyPasswordPanel />
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <p className="text-sm text-muted-foreground">
               Nenhum cadastro de membro vinculado à sua conta neste ambiente.
               Peça ao Escrivão para conferir o e-mail no cadastro e liberar o
@@ -134,7 +134,7 @@ function PerfilOdm() {
             </p>
           </Card>
           {otherSphereFichas.length > 0 ? (
-            <Card className="rounded-[12px] p-5">
+            <Card className="p-5">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                 <IdCard className="h-4 w-4" />
                 Outras esferas
@@ -167,7 +167,7 @@ function PerfilOdm() {
       ) : (
         <div className="space-y-4">
           {data.members.length > 1 ? (
-            <Card className="rounded-[12px] p-4">
+            <Card className="p-4">
               <label className="mb-1.5 block text-xs text-muted-foreground">
                 Cadastro vinculado
               </label>
@@ -247,7 +247,7 @@ function PerfilOdm() {
               </TabsContent>
 
               <TabsContent value="carteirinhas" className="mt-0 space-y-4">
-                <Card className="rounded-[12px] p-5">
+                <Card className="p-5">
                   <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                     <CreditCard className="h-4 w-4" />
                     Carteirinhas de Proficiência
@@ -272,7 +272,7 @@ function PerfilOdm() {
                   )}
                 </Card>
 
-                <Card className="rounded-[12px] p-5">
+                <Card className="p-5">
                   <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                     <Sparkles className="h-4 w-4" />
                     Nobre Rito da Cavalaria
@@ -284,7 +284,7 @@ function PerfilOdm() {
                 </Card>
 
                 {data.members.length > 1 ? (
-                  <Card className="rounded-[12px] p-5">
+                  <Card className="p-5">
                     <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                       <IdCard className="h-4 w-4" />
                       {affiliatedOrgsHeading("capitulo")}
@@ -319,7 +319,7 @@ function PerfilOdm() {
                   </Card>
                 ) : null}
                 {otherSphereFichas.length > 0 ? (
-                  <Card className="rounded-[12px] p-5">
+                  <Card className="p-5">
                     <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                       <IdCard className="h-4 w-4" />
                       Outras esferas

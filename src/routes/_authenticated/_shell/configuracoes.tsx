@@ -357,7 +357,7 @@ function AppearanceCard() {
   const { mode, setMode } = useTheme();
 
   return (
-    <Card className="rounded-[12px] p-5">
+    <Card className="p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
         <Moon className="h-5 w-5" /> Aparência
       </div>
@@ -585,7 +585,7 @@ function ConfiguracoesPage() {
 
         <TabsContent value="visual" className="space-y-4">
           <AppearanceCard />
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <Building2 className="h-5 w-5" /> Logo do capítulo
             </div>
@@ -654,7 +654,7 @@ function ConfiguracoesPage() {
             </div>
           </Card>
 
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <ImagePlus className="h-5 w-5" /> Assinatura de e-mail
             </div>
@@ -790,7 +790,7 @@ function DefaultDuesCard() {
   });
 
   return (
-    <Card className="rounded-[12px] p-5">
+    <Card className="p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
         <Receipt className="h-5 w-5" /> Mensalidades
       </div>
@@ -953,7 +953,7 @@ function PublicLobbyLinkCard() {
 
   return (
     <>
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
           <Link2 className="h-5 w-5" /> Link público
         </div>
@@ -1127,7 +1127,7 @@ function ChapterProfileCard() {
   });
 
   return (
-    <Card className="rounded-[12px] p-5">
+    <Card className="p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
         <Building2 className="h-5 w-5" /> Perfil do capítulo
       </div>
@@ -1262,7 +1262,7 @@ function LodgesCard() {
   const list = lodges.data ?? [];
 
   return (
-    <Card className="rounded-[12px] p-5">
+    <Card className="p-5">
       <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
         <Landmark className="h-5 w-5" /> Lojas patrocinadoras
       </div>

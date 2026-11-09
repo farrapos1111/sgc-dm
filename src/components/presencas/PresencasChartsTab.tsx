@@ -288,13 +288,13 @@ export function PresencasChartsTab({
       </div>
 
       {stats.total === 0 ? (
-        <Card className="rounded-[12px] p-8 text-center text-sm text-muted-foreground">
+        <Card className="p-8 text-center text-sm text-muted-foreground">
           Sem registros de presença em {year} para montar os gráficos.
         </Card>
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="rounded-[12px] p-4">
+            <Card className="p-4">
               <h3 className="mb-1 text-sm font-medium">Presença por pauta</h3>
               <p className="mb-3 text-xs text-muted-foreground">
                 Presentes, ausentes e indefinidos (sem marcação) por tipo
@@ -340,7 +340,7 @@ export function PresencasChartsTab({
               </ChartContainer>
             </Card>
 
-            <Card className="rounded-[12px] p-4">
+            <Card className="p-4">
               <h3 className="mb-1 text-sm font-medium">Distribuição geral</h3>
               <p className="mb-3 text-xs text-muted-foreground">
                 Total de marcações elegíveis em {year}
@@ -438,7 +438,7 @@ export function PresencasChartsTab({
             </Card>
           </div>
 
-          <Card className="rounded-[12px] p-4">
+          <Card className="p-4">
             <h3 className="mb-1 text-sm font-medium">
               Taxa mensal de presença
             </h3>
@@ -488,7 +488,7 @@ export function PresencasChartsTab({
           </Card>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="rounded-[12px] p-0">
+            <Card className="p-0">
               <div className="border-b border-border px-4 py-3">
                 <h3 className="text-sm font-medium">Melhores frequências</h3>
               </div>
@@ -515,7 +515,7 @@ export function PresencasChartsTab({
                 ))}
               </ul>
             </Card>
-            <Card className="rounded-[12px] p-0">
+            <Card className="p-0">
               <div className="border-b border-border px-4 py-3">
                 <h3 className="text-sm font-medium">Menores frequências</h3>
               </div>
@@ -561,7 +561,7 @@ function Kpi({
   hint?: string;
 }) {
   return (
-    <Card className="rounded-[12px] p-4">
+    <Card className="p-4">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div
         className="mt-1 text-2xl font-semibold tracking-tight"

@@ -607,7 +607,7 @@ export function PublicCashFlowView({
                   entriesByMonth.map((group) => {
                     const open = openMonths.has(group.month);
                     return (
-                      <Card key={group.month} className="overflow-hidden rounded-[12px]">
+                      <Card key={group.month} className="overflow-hidden ">
                         <button
                           type="button"
                           className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
@@ -661,7 +661,7 @@ export function PublicCashFlowView({
                 }
               />
             ) : (
-              <Card className="overflow-hidden rounded-[12px]">
+              <Card className="overflow-hidden ">
                 <ReadOnlyTable entries={filteredEntries} />
               </Card>
             )}
@@ -684,7 +684,7 @@ function Metric({
   icon: ReactNode;
 }) {
   return (
-    <Card className="rounded-[12px] p-3 sm:p-4">
+    <Card className="p-3 sm:p-4">
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground">{label}</span>
         {icon}
@@ -702,7 +702,7 @@ function Empty({
   onClear?: () => void;
 }) {
   return (
-    <Card className="rounded-[12px] p-10 text-center text-sm text-muted-foreground">
+    <Card className="p-10 text-center text-sm text-muted-foreground">
       <p>{message ?? "Nenhuma movimentação no período."}</p>
       {onClear ? (
         <Button variant="outline" size="sm" className="mt-3" onClick={onClear}>

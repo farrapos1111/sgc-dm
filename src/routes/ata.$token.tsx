@@ -222,7 +222,7 @@ function PublicAtaPage() {
           <ThemeToggle />
         </header>
         <main className="mx-auto max-w-lg px-4 py-10">
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <p className="text-sm text-muted-foreground">
               {(peekQ.error as Error).message || "Link indisponível."}
             </p>
@@ -242,7 +242,7 @@ function PublicAtaPage() {
           <ThemeToggle />
         </header>
         <main className="mx-auto max-w-lg px-4 py-10">
-          <Card className="space-y-4 rounded-[12px] p-5 text-center">
+          <Card className="space-y-4 p-5 text-center">
             <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
             <div>
               <h1 className="text-lg font-semibold">Ata trancada</h1>
@@ -288,7 +288,7 @@ function PublicAtaPage() {
             </p>
           </div>
 
-          <Card className="space-y-3 rounded-[12px] p-5">
+          <Card className="space-y-3 p-5">
             <h2 className="text-sm font-semibold">Sou membro do capítulo</h2>
             <p className="text-xs text-muted-foreground">
               Usa a sua sessão do Templo Virtual. Sem login?{" "}
@@ -317,7 +317,7 @@ function PublicAtaPage() {
             </Button>
           </Card>
 
-          <Card className="space-y-3 rounded-[12px] p-5">
+          <Card className="space-y-3 p-5">
             <h2 className="text-sm font-semibold">Acesso com senha</h2>
             <p className="text-xs text-muted-foreground">
               Para convidados ou feedback externo. A senha é a do tipo desta
@@ -384,7 +384,7 @@ function PublicAtaPage() {
           <ThemeToggle />
         </header>
         <main className="mx-auto max-w-lg px-4 py-10">
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             <p className="text-sm text-muted-foreground">
               {(minuteQuery.error as Error | null)?.message ??
                 "Link indisponível ou acesso inválido."}
@@ -419,7 +419,7 @@ function PublicAtaPage() {
       </header>
 
       <main className="mx-auto max-w-2xl space-y-5 px-4 py-6">
-        <Card className="rounded-[12px] p-5">
+        <Card className="p-5">
           <h1 className="mb-3 text-base font-semibold">Ata da sessão</h1>
           <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
             {minute.content || "—"}
@@ -429,7 +429,7 @@ function PublicAtaPage() {
           </p>
         </Card>
 
-        <Card className="rounded-[12px] p-5">
+        <Card className="p-5">
           <h2 className="mb-1 text-sm font-semibold">Seu feedback</h2>
           {!votingOpen ? (
             <p className="text-sm text-muted-foreground">

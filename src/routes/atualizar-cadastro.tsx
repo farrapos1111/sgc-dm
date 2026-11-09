@@ -23,7 +23,7 @@ function AtualizarCadastroPage() {
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-lg px-4 py-12">
-        <Card className="space-y-4 rounded-[12px] p-6">
+        <Card className="space-y-4 p-6">
           <div>
             <h1 className="text-lg font-semibold">Atualização cadastral</h1>
             <p className="mt-2 text-sm text-muted-foreground">

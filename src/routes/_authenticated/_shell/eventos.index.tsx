@@ -337,7 +337,7 @@ function EventCard({ event: e }: { event: EventRow }) {
 
   return (
     <Link to="/eventos/$id" params={{ id: e.id }}>
-      <Card className="rounded-[12px] p-5 transition-colors hover:bg-muted/30">
+      <Card className="p-5 transition-colors hover:bg-muted/30">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="break-words font-semibold leading-snug">

@@ -259,7 +259,7 @@ export function MemberAccountPanel({ memberId, memberEmail }: Props) {
   const hasEmail = Boolean(memberEmail?.trim());
 
   return (
-    <Card className="rounded-[12px] p-5 md:col-span-2">
+    <Card className="p-5 md:col-span-2">
       <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
         Acesso ao sistema
       </h3>

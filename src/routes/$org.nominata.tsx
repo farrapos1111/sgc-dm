@@ -234,7 +234,7 @@ function PublicNominataPage() {
                 return null;
               }
               return (
-                <Card key={section.id} className="rounded-[12px] p-5">
+                <Card key={section.id} className="p-5">
                   <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
                     {section.label}
                   </h2>

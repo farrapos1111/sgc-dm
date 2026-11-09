@@ -90,7 +90,7 @@ export function CalendarMonthView({
   const todayKey = toLocalDateKey(new Date().toISOString());
 
   return (
-    <Card className="rounded-[12px] p-4">
+    <Card className="p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="text-sm font-semibold capitalize">{monthLabel}</div>
         <div className="flex items-center gap-1">
@@ -224,7 +224,7 @@ export function CalendarAgendaView({
 
   if (upcoming.length === 0) {
     return (
-      <Card className="rounded-[12px] p-10 text-center">
+      <Card className="p-10 text-center">
         <CalendarDays className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
         <div className="text-sm font-medium">Nada agendado por aqui.</div>
         <div className="mt-1 text-xs text-muted-foreground">
@@ -260,7 +260,7 @@ export function CalendarAgendaView({
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {label}
               </div>
-              <Card className="rounded-[12px] p-0">
+              <Card className="p-0">
                 <ul className="divide-y divide-border">
                   {list.map((it) => {
                     const meta = TYPE_META[it.event_type];
