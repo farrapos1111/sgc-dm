@@ -64,7 +64,8 @@ import { useChapterAccess } from "@/hooks/useChapterAccess";
 import { is21OrOlder } from "@/lib/format";
 import { COMMISSION_MODULES } from "@/lib/fixed-commissions";
 import { isOrgLeader } from "@/lib/permissions";
-import { Pencil, Plus, Search, Trash2, UserPlus, Users, X } from "lucide-react";
+import { ChevronDown, Pencil, Plus, Search, Trash2, UserPlus, Users, X } from "lucide-react";
+import { initialsOf } from "@/components/shell/ShellNav";
 
 export const Route = createFileRoute("/_authenticated/_shell/gestao")({
   head: () => ({
@@ -96,6 +97,14 @@ const COMMISSION_ROLE_LABELS: Record<string, string> = {
 
 type SortKey = "name_asc" | "name_desc" | "default";
 
+const ROLE_CHIP: Record<string, string> = {
+  presidente: "bg-tv-primary text-white",
+  vice: "bg-tv-soft text-tv-ink",
+  membro: "bg-tv-line text-[#3F4249] dark:text-tv-text-2",
+  conselho: "bg-tv-warn-bg text-tv-warn",
+  auxiliar_senior: "bg-[#E3EAF7] text-[#22427A] dark:bg-blue-950/50 dark:text-blue-200",
+};
+
 function normalizeSearch(s: string) {
   return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
 }
@@ -113,7 +122,7 @@ function GestaoPage() {
     return (
       <div>
         <PageHeader
-          title="Gestão"
+          title="Cargos e comissões"
           subtitle="Cargos e comissões conforme o perfil dos membros, por vigência."
         />
         <EmptyState
@@ -134,6 +143,7 @@ function GestaoContent({ active }: { active: Membership }) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [tab, setTab] = useState("cargos");
+  const [openCommission, setOpenCommission] = useState<string | number | null>(null);
   const chapterId = active.chapter_id;
   const foundedAt = chapterFoundedAt(active.chapter);
   const terms = useMemo(() => termOptions({ foundedAt }), [foundedAt]);
@@ -416,7 +426,7 @@ function GestaoContent({ active }: { active: Membership }) {
   return (
     <div>
       <PageHeader
-        title="Gestão"
+        title="Cargos e comissões"
         subtitle="Cargos e comissões conforme o perfil dos membros, por vigência."
         actions={
           <TermSelect
@@ -528,9 +538,12 @@ function GestaoContent({ active }: { active: Membership }) {
                     return null;
                   }
                   return (
-                    <Card key={section.id} className="p-5">
-                      <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
-                        {section.label}
+                    <Card
+                      key={section.id}
+                      className={`p-5 ${section.id === "ritualisticos" || section.id === "all" ? "xl:col-span-2" : ""}`}
+                    >
+                      <h3 className="mb-3 text-[15px] font-bold">
+                        {section.id === "conselho" ? "Conselho consultivo" : section.id === "ritualisticos" ? "Cargos ritualísticos" : section.label}
                       </h3>
                       {section.id === "comissoes" ? (
                         <ul className="divide-y divide-border text-sm">
@@ -572,7 +585,9 @@ function GestaoContent({ active }: { active: Membership }) {
                           Nenhum cargo correspondente à busca.
                         </p>
                       ) : (
-                        <ul className="divide-y divide-border text-sm">
+                        <ul
+                          className={`grid gap-2 ${section.id === "ritualisticos" || section.id === "all" ? "sm:grid-cols-2 2xl:grid-cols-3" : ""}`}
+                        >
                           {scopePositions.map((p) => {
                             const assigned = positionAssignees(p.id);
                             const allAssigned = byPosition.get(p.id) ?? [];
@@ -582,27 +597,37 @@ function GestaoContent({ active }: { active: Membership }) {
                             return (
                               <li
                                 key={p.id}
-                                className="flex items-start justify-between gap-2 py-2.5"
+                                className="flex items-center gap-3 rounded-[14px] bg-tv-bg px-3 py-2.5"
                               >
-                                <div className="min-w-0">
-                                  <div className="font-medium">{p.label}</div>
+                                <span
+                                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold ${
+                                    assigned.length > 0
+                                      ? "bg-tv-soft text-tv-ink"
+                                      : "border border-dashed border-[#CFCFCA] text-tv-text-2 dark:border-tv-border"
+                                  }`}
+                                  aria-hidden
+                                >
+                                  {assigned.length > 0 ? initialsOf(assigned[0].member?.full_name) : "—"}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-[13px] text-tv-text-2">{p.label}</div>
                                   {assigned.length > 0 ? (
-                                    <ul className="mt-0.5 space-y-0.5">
+                                    <ul>
                                       {assigned.map((a) => (
                                         <li
                                           key={a.id}
-                                          className="truncate text-xs text-muted-foreground"
+                                          className="truncate text-[15px] font-semibold"
                                         >
                                           {a.member?.full_name}
                                         </li>
                                       ))}
                                     </ul>
                                   ) : occupied && q ? (
-                                    <div className="text-xs text-muted-foreground">
+                                    <div className="text-[15px] text-tv-text-2">
                                       Ocupado (sem membro na busca)
                                     </div>
                                   ) : (
-                                    <div className="text-xs text-muted-foreground">
+                                    <div className="text-[15px] font-semibold text-tv-text-2">
                                       Vago
                                     </div>
                                   )}
@@ -643,7 +668,7 @@ function GestaoContent({ active }: { active: Membership }) {
 
         <TabsContent value="comissoes">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
+            <p className="rounded-[14px] bg-tv-soft px-4 py-3 text-sm text-tv-ink">
               Em Capítulos DeMolay, Hospitalaria, Entretenimento, Auditoria,
               Finanças, Sindicâncias e Eventos são obrigatórias e ligadas aos
               módulos do sistema. Administrador Total e Mestre Conselheiro
@@ -679,12 +704,34 @@ function GestaoContent({ active }: { active: Membership }) {
                   "module_label" in c ? (c.module_label as string | null) : null;
                 const modulePath =
                   "module_path" in c ? (c.module_path as string | null) : null;
+                const president = rows.find((r) => r.role === "presidente");
+                const expanded = openCommission === c.id;
                 return (
-                  <Card key={c.id} className="p-5">
+                  <Card key={c.id} className="p-4 md:p-5">
+                    {/* Celular: cabeçalho que abre e fecha */}
+                    <button
+                      type="button"
+                      aria-expanded={expanded}
+                      onClick={() => setOpenCommission(expanded ? null : c.id)}
+                      className="flex min-h-12 w-full items-center gap-3 text-left md:hidden"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-base font-bold">{c.label}</span>
+                        <span className="block text-[13px] text-tv-text-2">
+                          Presidente: {president?.member?.full_name?.split(" ")[0] ?? "a definir"} ·{" "}
+                          {rows.length} {rows.length === 1 ? "pessoa" : "pessoas"}
+                        </span>
+                      </span>
+                      <ChevronDown
+                        className={`h-5 w-5 shrink-0 text-tv-text-2 transition-transform ${expanded ? "rotate-180" : ""}`}
+                        aria-hidden
+                      />
+                    </button>
+                    <div className={expanded ? "mt-3 md:mt-0" : "hidden md:block"}>
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="truncate text-sm font-semibold">
+                          <h3 className="truncate text-base font-bold">
                             {c.label}
                           </h3>
                           {isFixed ? (
@@ -692,8 +739,8 @@ function GestaoContent({ active }: { active: Membership }) {
                           ) : null}
                         </div>
                         {moduleLabel ? (
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            Módulo:{" "}
+                          <p className="mt-0.5 text-[13px] text-tv-text-2">
+                            Ligada ao módulo{" "}
                             {modulePath ? (
                               <Link
                                 to={modulePath}
@@ -762,19 +809,27 @@ function GestaoContent({ active }: { active: Membership }) {
                         Nenhum participante nesta vigência.
                       </p>
                     ) : (
-                      <ul className="divide-y divide-border text-sm">
+                      <ul className="divide-y divide-tv-line text-[15px]">
                         {rows.map((r) => (
                           <li
                             key={r.id}
-                            className="flex items-center justify-between gap-2 py-2"
+                            className="flex min-h-12 items-center justify-between gap-2.5 py-2"
                           >
-                            <span className="min-w-0 truncate">
+                            <span
+                              aria-hidden
+                              className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-[13px] font-bold ${
+                                r.role === "presidente" ? "bg-tv-soft text-tv-ink" : "bg-tv-bg text-[#3F4249] dark:text-tv-text-2"
+                              }`}
+                            >
+                              {initialsOf(r.member?.full_name)}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate font-medium">
                               {r.member?.full_name}
                             </span>
                             <span className="flex shrink-0 items-center gap-2">
-                              <Badge variant="secondary">
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${ROLE_CHIP[r.role] ?? ROLE_CHIP.membro}`}>
                                 {COMMISSION_ROLE_LABELS[r.role] ?? r.role}
-                              </Badge>
+                              </span>
                               {canEditCommissions &&
                                 !(r as { virtual?: boolean }).virtual && (
                                 <Button
@@ -791,6 +846,7 @@ function GestaoContent({ active }: { active: Membership }) {
                         ))}
                       </ul>
                     )}
+                    </div>
                   </Card>
                 );
               })}
