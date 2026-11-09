@@ -165,6 +165,14 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
     }
   }, [filters.filtro, members, memberIdsWithCargo]);
 
+  // Paginação só da exibição; volta à 1ª página quando a lista muda.
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(0);
+  useEffect(() => setPage(0), [filteredMembers]);
+  const pageCount = Math.max(1, Math.ceil(filteredMembers.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageMembers = filteredMembers.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
   const isAdmin =
     canScreen("membros", "edit") ||
     can("secretaria") ||
@@ -349,7 +357,7 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
         <>
           {/* Celular: lista */}
           <ul className="mt-4 overflow-hidden rounded-[20px] bg-tv-surface md:hidden">
-            {filteredMembers.map((m) => {
+            {pageMembers.map((m) => {
               const kind = (m as { kind?: string }).kind;
               return (
                 <li key={m.id} className="border-b border-tv-line last:border-0">
@@ -380,7 +388,7 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
                 <span>Situação</span>
                 <span className="text-right">Ações</span>
               </div>
-              {filteredMembers.map((m) => {
+              {pageMembers.map((m) => {
                 const grau = grauOf(m);
                 const kind = (m as { kind?: string }).kind;
                 const showGrau = kind !== "senior" && kind !== "macom";
@@ -424,10 +432,38 @@ function MembrosListContent({ active }: { active: ActiveChapter }) {
                   </div>
                 );
               })}
-              <div className="px-5 py-3.5 text-sm text-tv-text-2">
-                {filteredMembers.length} {filteredMembers.length === 1 ? "membro" : "membros"}
-              </div>
             </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-tv-text-2">
+            <span>
+              {filteredMembers.length > PAGE_SIZE
+                ? `Mostrando ${safePage * PAGE_SIZE + 1}–${Math.min((safePage + 1) * PAGE_SIZE, filteredMembers.length)} de ${filteredMembers.length} membros`
+                : `${filteredMembers.length} ${filteredMembers.length === 1 ? "membro" : "membros"}`}
+            </span>
+            {pageCount > 1 ? (
+              <span className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  disabled={safePage === 0}
+                  onClick={() => setPage(safePage - 1)}
+                  aria-label="Página anterior"
+                >
+                  Anterior
+                </Button>
+                <span className="tabular-nums">
+                  {safePage + 1} de {pageCount}
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={safePage >= pageCount - 1}
+                  onClick={() => setPage(safePage + 1)}
+                  aria-label="Próxima página"
+                >
+                  Próxima
+                </Button>
+              </span>
+            ) : null}
           </div>
         </>
       )}

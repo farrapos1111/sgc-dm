@@ -701,7 +701,7 @@ function AtasPage() {
 
       <Tabs defaultValue="atual">
         <TabsList className="mb-4">
-          <TabsTrigger value="atual">Atual</TabsTrigger>
+          <TabsTrigger value="atual">Em andamento</TabsTrigger>
           <TabsTrigger value="todas">Todas</TabsTrigger>
           {canManageTrash ? (
             <TabsTrigger value="lixeira">
