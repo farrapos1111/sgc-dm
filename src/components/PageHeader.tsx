@@ -3,7 +3,7 @@ import { useRouter, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
 /** Raízes da barra de abas: no celular não mostram "voltar". */
-const TAB_ROOTS = new Set(["/inicio", "/membros", "/presencas", "/tesouraria/fluxo", "/perfil", "/mais", "/regional"]);
+const TAB_ROOTS = new Set(["/inicio", "/membros", "/presencas", "/tesouraria/fluxo", "/perfil", "/regional"]);
 
 /** Seção do menu deduzida pela rota, quando a tela não informa `eyebrow`. */
 const SECTION_BY_PREFIX: [string, string][] = [
@@ -39,7 +39,7 @@ export function PageHeader({
   const showBack = !TAB_ROOTS.has(pathname);
   function goBack() {
     if (typeof window !== "undefined" && window.history.length > 1) router.history.back();
-    else void router.navigate({ to: "/mais" });
+    else void router.navigate({ to: pathname === "/mais" ? "/inicio" : "/mais" });
   }
   const section =
     eyebrow ?? SECTION_BY_PREFIX.find(([p]) => pathname === p || pathname.startsWith(`${p}/`))?.[1];

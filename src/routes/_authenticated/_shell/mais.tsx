@@ -1,11 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { BookOpen, ChevronRight, Lightbulb, LogOut, Repeat } from "lucide-react";
+import { useState } from "react";
+import { BookOpen, ChevronRight, Lightbulb, LogOut, Repeat, Search } from "lucide-react";
 import {
   clearChapterSessionStorage,
   useActiveChapter,
 } from "@/context/ActiveChapterContext";
 import { useOrgScope, ORG_ROLE_LABELS } from "@/context/OrgScopeContext";
 import { useNavGroups } from "@/hooks/useNavGroups";
+import { useNavBadges } from "@/hooks/useNavBadges";
 import { supabase } from "@/integrations/supabase/client";
 import { clearAuthNavCache } from "@/lib/auth-nav-cache";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -26,10 +28,23 @@ function MaisPage() {
   const { active, memberships, setActiveChapterId } = useActiveChapter();
   const { scopes, activeScope, setActiveScopeKey } = useOrgScope();
   const { groups } = useNavGroups();
+  const badges = useNavBadges();
   const navigate = useNavigate();
+  const [q, setQ] = useState("");
 
-  const sections = groups.filter((g) => !g.to && (g.items?.length ?? 0) > 0);
-  const loose = groups.filter((g) => g.to);
+  const norm = (v: string) =>
+    v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const query = norm(q.trim());
+  const sections = groups
+    .filter((g) => !g.to && (g.items?.length ?? 0) > 0)
+    .map((g) => ({
+      ...g,
+      items: query
+        ? (g.items ?? []).filter((i) => norm(i.label).includes(query) || norm(g.label).includes(query))
+        : (g.items ?? []),
+    }))
+    .filter((g) => g.items.length > 0);
+  const loose = groups.filter((g) => g.to && (!query || norm(g.label).includes(query)));
 
   function enterChapterView() {
     setActiveScopeKey(null);
@@ -71,7 +86,19 @@ function MaisPage() {
     <div>
       <PageHeader title="Tudo do capítulo" subtitle={chapterLine} />
 
-      <div className="flex flex-col gap-5">
+      <label className="mb-3.5 flex min-h-[52px] items-center gap-2.5 rounded-[14px] border border-tv-border bg-tv-surface px-3.5">
+        <Search className="h-5 w-5 shrink-0 text-tv-text-2" aria-hidden />
+        <span className="sr-only">Buscar função</span>
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="O que você procura?"
+          className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-tv-text-2"
+        />
+      </label>
+
+      <div className="flex flex-col gap-3">
         {loose.length > 0 && (
           <Section title="Atalhos">
             {loose.map((g) => (
@@ -82,12 +109,18 @@ function MaisPage() {
         {sections.map((g) => (
           <Section key={g.id} title={g.label}>
             {(g.items ?? []).map((i) => (
-              <Tile key={i.to} to={i.to} label={i.label} icon={i.icon} />
+              <Tile key={i.to} to={i.to} label={i.label} icon={i.icon} badge={badges[i.to]} />
             ))}
           </Section>
         ))}
 
-        <section>
+        {query && loose.length === 0 && sections.length === 0 ? (
+          <p className="rounded-[20px] bg-tv-surface p-5 text-center text-[15px] text-tv-text-2">
+            Nada encontrado para “{q.trim()}”.
+          </p>
+        ) : null}
+
+        <section className="mt-2">
           <h2 className="mb-2.5 text-[13px] font-bold uppercase tracking-[0.08em] text-tv-text-2">
             Conta e opções
           </h2>
@@ -128,9 +161,9 @@ function MaisPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section>
-      <h2 className="mb-2.5 text-[13px] font-bold uppercase tracking-[0.08em] text-tv-text-2">{title}</h2>
-      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6">{children}</div>
+    <section className="rounded-[20px] bg-tv-surface p-4">
+      <h2 className="mb-3 text-[15px] font-bold">{title}</h2>
+      <div className="grid grid-cols-4 gap-x-1.5 gap-y-3 md:grid-cols-6">{children}</div>
     </section>
   );
 }
@@ -139,20 +172,31 @@ function Tile({
   to,
   label,
   icon: Icon,
+  badge,
 }: {
   to: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  badge?: number;
 }) {
   return (
     <Link
       to={to}
-      className="flex min-h-[96px] flex-col items-center justify-center gap-2 rounded-[18px] bg-tv-surface px-2 py-3 text-center transition-shadow hover:shadow-[0_4px_14px_rgba(20,20,20,0.07)]"
+      className="relative flex flex-col items-center gap-1.5 rounded-[14px] py-1 text-center"
+      aria-label={badge ? `${label} (${badge} pendentes)` : undefined}
     >
-      <span className="grid h-11 w-11 place-items-center rounded-[14px] bg-tv-soft text-tv-primary">
-        <Icon className="h-[22px] w-[22px]" />
+      <span className="grid h-[52px] w-[52px] place-items-center rounded-[16px] bg-tv-soft text-tv-primary">
+        <Icon className="h-6 w-6" />
       </span>
-      <span className="text-[13px] font-semibold leading-tight">{label}</span>
+      {badge ? (
+        <span
+          aria-hidden
+          className="absolute -top-1 right-1.5 grid h-5 min-w-5 place-items-center rounded-full border-2 border-tv-surface bg-[#B42318] px-1 text-[11px] font-bold text-white"
+        >
+          {badge}
+        </span>
+      ) : null}
+      <span className="text-xs font-medium leading-tight text-[#2A2C31] dark:text-tv-text">{label}</span>
     </Link>
   );
 }
