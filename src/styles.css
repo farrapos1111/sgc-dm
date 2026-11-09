@@ -62,6 +62,7 @@
   --color-tv-ink: var(--tv-ink);
   --color-tv-bg: var(--tv-bg);
   --color-tv-surface: var(--tv-surface);
+  --color-tv-sidebar: var(--tv-sidebar);
   --color-tv-border: var(--tv-border);
   --color-tv-line: var(--tv-line);
   --color-tv-text: var(--tv-text);
@@ -141,11 +142,12 @@ input[type="date"]:not(:disabled) {
   /* Redesign: cor da marca (soft/ink definidos pelo tema do capítulo) e neutros fixos */
   --tv-soft: var(--chapter-soft, color-mix(in srgb, var(--chapter-primary) 9%, #ffffff));
   --tv-ink: var(--chapter-ink, color-mix(in srgb, var(--chapter-primary) 80%, #000000));
-  --tv-bg: #F4F4F1;
+  --tv-bg: var(--chapter-bg);
+  --tv-sidebar: var(--chapter-sidebar);
   --tv-surface: #FFFFFF;
   --tv-border: #E2E2DE;
   --tv-line: #F0F0EC;
-  --tv-text: #17181A;
+  --tv-text: var(--chapter-font);
   --tv-text-2: #5E6168;
   --tv-in: #155A38;
   --tv-in-bg: #EAF5EF;
@@ -159,6 +161,7 @@ input[type="date"]:not(:disabled) {
   --tv-soft: color-mix(in srgb, var(--chapter-primary) 28%, #17181A);
   --tv-ink: color-mix(in srgb, var(--chapter-primary) 35%, #FFFFFF);
   --tv-bg: oklch(0.15 0 0);
+  --tv-sidebar: oklch(0.18 0 0);
   --tv-surface: oklch(0.2 0 0);
   --tv-border: oklch(1 0 0 / 12%);
   --tv-line: oklch(1 0 0 / 8%);

@@ -123,7 +123,7 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Landmark,
     items: [
       { to: "/calendario", label: "Calendário", icon: CalendarDays },
-      { to: "/gestao", label: "Cargos e Comissões", icon: Briefcase },
+      { to: "/gestao", label: "Cargos e comissões", icon: Briefcase },
       { to: "/configuracoes", label: "Configurações", icon: Settings },
     ],
   },
@@ -162,7 +162,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/sindicancias/fichas", label: "Fichas", icon: FolderSearch },
       { to: "/sindicancias/sindicarias", label: "Sindicâncias", icon: Gavel },
-      { to: "/sindicancias/config", label: "Configurações", icon: Settings },
     ],
   },
   {

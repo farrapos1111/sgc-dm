@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SindicanciaConfigPanel } from "@/components/investigations/SindicanciaConfigPanel";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Copy, FileText, Gavel, Link2, ListOrdered, Mail, Pencil, Plus, Trash2, Unlink } from "lucide-react";
@@ -541,6 +543,11 @@ function SindicariasPage() {
       toast.error(e instanceof Error ? e.message : "Erro ao excluir"),
   });
 
+  const { canEditSindicanciasTemplates: canTemplatesCfg, canManage: canManageCfg } =
+    useCommissionAccess();
+  const canConfig = canManageCfg("sindicancias") || canTemplatesCfg();
+  const [pageTab, setPageTab] = useState<"lista" | "config">("lista");
+
   return (
     <div>
       <PageHeader
@@ -550,13 +557,21 @@ function SindicariasPage() {
           writable ? (
             <Button
               onClick={() => setOpen(true)}
-              style={{ backgroundColor: active?.chapter.primary_color }}
             >
               <Plus className="mr-2 h-4 w-4" /> Nova sindicância
             </Button>
           ) : null
         }
       />
+
+      <Tabs value={pageTab} onValueChange={(v) => setPageTab(v as "lista" | "config")}>
+        {canConfig ? (
+          <TabsList className="mb-4">
+            <TabsTrigger value="lista">Sindicâncias</TabsTrigger>
+            <TabsTrigger value="config">Configurações</TabsTrigger>
+          </TabsList>
+        ) : null}
+        <TabsContent value="lista" className="mt-0">
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Input
@@ -1113,6 +1128,13 @@ function SindicariasPage() {
         </Dialog>
       )}
       {dialog}
+        </TabsContent>
+        {canConfig ? (
+          <TabsContent value="config" className="mt-0">
+            <SindicanciaConfigPanel embedded />
+          </TabsContent>
+        ) : null}
+      </Tabs>
     </div>
   );
 }

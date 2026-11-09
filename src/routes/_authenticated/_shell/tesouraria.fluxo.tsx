@@ -1063,7 +1063,7 @@ function FluxoCaixa() {
 
       {/* Indicadores */}
       <div
-        className={`mb-6 grid grid-cols-2 gap-3 lg:gap-4 ${
+        className={`mb-6 grid grid-cols-2 gap-3 md:gap-4 ${
           month === null ? "lg:grid-cols-5" : "lg:grid-cols-3"
         }`}
       >
@@ -1172,7 +1172,7 @@ function FluxoCaixa() {
               <Card key={group.month} className="overflow-hidden ">
                 <button
                   type="button"
-                  className="flex min-h-14 w-full flex-wrap items-center justify-between gap-2 border-b border-tv-line px-4 py-3 text-left transition-colors hover:bg-tv-bg/60 lg:px-5"
+                  className="flex min-h-14 w-full flex-wrap items-center justify-between gap-2 border-b border-tv-line px-4 py-3 text-left transition-colors hover:bg-tv-bg/60 md:px-5"
                   onClick={() => toggleMonth(group.month)}
                   aria-expanded={open}
                 >
@@ -2005,7 +2005,7 @@ function CashEntriesTable({
   return (
     <>
     {/* Celular: extrato */}
-    <ul className="lg:hidden">
+    <ul className="md:hidden">
       {entries.map((e) => {
         const isIn = e.kind === "entrada";
         const sub = [e.category, e.event_name && !e.subcategory?.includes(e.event_name) ? e.event_name : null, e.subcategory]
@@ -2041,7 +2041,7 @@ function CashEntriesTable({
         );
       })}
     </ul>
-    <div className="hidden overflow-x-auto lg:block">
+    <div className="hidden overflow-x-auto md:block">
       <table className="w-full min-w-[880px] text-[15px]">
         <thead>
           <tr className="border-b border-tv-line text-[13px]">
@@ -2137,13 +2137,13 @@ function MetricCard({
   highlight?: boolean;
 }) {
   return (
-    <Card className={`p-4 lg:p-5 ${highlight ? "!bg-tv-primary text-white" : ""}`}>
+    <Card className={`p-4 md:p-5 ${highlight ? "!bg-tv-primary text-white" : ""}`}>
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <span className={`text-[13px] ${highlight ? "text-white/85" : "text-tv-text-2"}`}>{label}</span>
         <span className={highlight ? "text-white/80 [&_svg]:!text-white/80" : ""}>{icon}</span>
       </div>
       <div
-        className={`font-display text-xl font-extrabold tracking-[-0.02em] tabular-nums lg:text-[26px] ${
+        className={`font-display text-xl font-extrabold tracking-[-0.02em] tabular-nums md:text-[26px] ${
           highlight ? "text-white" : (tone ?? "")
         }`}
       >

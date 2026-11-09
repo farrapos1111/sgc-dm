@@ -190,7 +190,7 @@ function PerfilOdm() {
           ) : null}
 
           {selected ? (
-            <div className="grid items-start gap-4 lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-5">
+            <div className="grid items-start gap-4 md:grid-cols-[340px_minmax(0,1fr)] md:gap-5">
             <ProfileSideCard
               member={selected}
               hasCards={data.cards.some((c) => c.memberId === selected.id)}

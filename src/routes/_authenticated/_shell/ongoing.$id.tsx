@@ -400,15 +400,15 @@ function OngoingPage() {
 
         {hasAttendance ? (
         <TabsContent value="chamada">
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_300px]">
             <div className="min-w-0">
               <div className="mb-3 flex flex-col gap-2.5 sm:flex-row sm:items-center">
-                <label className="flex min-h-12 flex-1 items-center gap-2.5 rounded-[14px] border border-tv-border bg-tv-surface px-3.5 lg:min-h-[46px] lg:rounded-[12px]">
+                <label className="flex min-h-12 flex-1 items-center gap-2.5 rounded-[14px] border border-tv-border bg-tv-surface px-3.5 md:min-h-[46px] md:rounded-[12px]">
                   <Search className="h-5 w-5 shrink-0 text-tv-text-2" />
                   <span className="sr-only">Buscar membro</span>
                   <input
                     type="search"
-                    className="min-w-0 flex-1 bg-transparent text-base outline-none lg:text-[15px]"
+                    className="min-w-0 flex-1 bg-transparent text-base outline-none md:text-[15px]"
                     placeholder="Buscar membro"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -434,7 +434,7 @@ function OngoingPage() {
               </div>
 
               {/* Celular: resumo compacto */}
-              <div className="mb-3 grid grid-cols-3 gap-2 lg:hidden">
+              <div className="mb-3 grid grid-cols-3 gap-2 md:hidden">
                 <SummaryNumber value={presentes} label="Presentes" tone="in" />
                 <SummaryNumber value={ausentes} label="Faltaram" tone="out" />
                 <SummaryNumber value={Math.max(0, pendentes)} label="Sem marcar" tone="neutral" />
@@ -453,9 +453,9 @@ function OngoingPage() {
                     const isP = rec?.status === "presente";
                     const isA = rec?.status === "ausente";
                     return (
-                      <li key={m.id} className="border-b border-tv-line px-3.5 py-2.5 last:border-0 lg:px-5">
+                      <li key={m.id} className="border-b border-tv-line px-3.5 py-2.5 last:border-0 md:px-5">
                         <div className="flex items-center gap-3">
-                          <span className="min-w-0 flex-1 truncate text-base font-semibold lg:text-[15px]">
+                          <span className="min-w-0 flex-1 truncate text-base font-semibold md:text-[15px]">
                             {m.full_name}
                           </span>
                           <button
@@ -520,7 +520,7 @@ function OngoingPage() {
             </div>
 
             {/* Desktop: resumo e sessão */}
-            <aside className="hidden flex-col gap-4 lg:flex">
+            <aside className="hidden flex-col gap-4 md:flex">
               <div className="rounded-[20px] bg-tv-surface p-5">
                 <span className="text-[13px] font-semibold uppercase tracking-[0.06em] text-tv-text-2">
                   Resumo

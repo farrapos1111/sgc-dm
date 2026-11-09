@@ -216,7 +216,7 @@ function MinutesMasterDetail({ minutes }: { minutes: MinuteRow[] }) {
   const selected = minutes.find((m) => m.id === selectedId) ?? minutes[0] ?? null;
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
+    <div className="grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
       <ul className="overflow-hidden rounded-[20px] bg-tv-surface">
         {minutes.map((m) => {
           const d = minuteDate(m);
@@ -229,7 +229,7 @@ function MinutesMasterDetail({ minutes }: { minutes: MinuteRow[] }) {
                 to="/ongoing/$id"
                 params={{ id: m.calendar_event_id }}
                 search={{ tab: "ata", minute: m.id }}
-                className="flex min-h-16 items-center gap-3 px-3.5 py-3 lg:hidden"
+                className="flex min-h-16 items-center gap-3 px-3.5 py-3 md:hidden"
               >
                 <MinuteRowContent m={m} d={d} signed={signed} />
               </Link>
@@ -237,7 +237,7 @@ function MinutesMasterDetail({ minutes }: { minutes: MinuteRow[] }) {
                 type="button"
                 onClick={() => setSelectedId(m.id)}
                 aria-pressed={on}
-                className={`hidden min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors lg:flex ${
+                className={`hidden min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors md:flex ${
                   on ? "bg-tv-soft" : "hover:bg-tv-bg"
                 }`}
               >
@@ -309,7 +309,7 @@ function MinuteDetail({ minute }: { minute: MinuteRow }) {
   const text = plainText(minute.content);
 
   return (
-    <div className="hidden flex-col gap-4 rounded-[20px] bg-tv-surface p-6 lg:flex">
+    <div className="hidden flex-col gap-4 rounded-[20px] bg-tv-surface p-6 md:flex">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="font-display text-[22px] font-extrabold leading-tight">

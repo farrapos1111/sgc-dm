@@ -10,7 +10,7 @@ export type ChapterTheme = {
 };
 
 const DEFAULT_ACCENT = "#9E1B32";
-const DEFAULT_BG = "#FAFAF8";
+const DEFAULT_BG = "#F4F4F1";
 const DEFAULT_FONT = "#1A1A1A";
 const DEFAULT_SIDEBAR = "#FFFFFF";
 
@@ -98,8 +98,8 @@ export function deriveThemeFromPrimary(primaryColor: string): ChapterTheme {
   return {
     background: DEFAULT_BG,
     accent,
-    accentDark: darkenHex(accent),
-    highlight: mixHex(accent, "#FFFFFF", 0.82),
+    accentDark: darkenHex(accent, 0.2),
+    highlight: mixHex(accent, "#FFFFFF", 0.91),
     font: DEFAULT_FONT,
     sidebar: DEFAULT_SIDEBAR,
   };
@@ -139,23 +139,6 @@ export function resolveChapterTheme(
   return deriveThemeFromPrimary(primaryColor || DEFAULT_ACCENT);
 }
 
-/** Temas da identidade visual (HANDOFF do redesign): primary → [soft, ink]. */
-const BRAND_PRESETS: Record<string, [string, string]> = {
-  "#8A1C2B": ["#F7E9EB", "#6E1622"],
-  "#1F4FA3": ["#E7EEFA", "#173E80"],
-  "#17694A": ["#E3F1EA", "#10523A"],
-  "#5B2A86": ["#EFE7F7", "#4A2270"],
-  "#2A2E35": ["#E9EAEC", "#2A2E35"],
-};
-
-/** Tom claro (fundo de chips/avatares) e tinta (texto sobre o tom claro) da cor da marca. */
-export function brandSoftInk(primary: string): { soft: string; ink: string } {
-  const key = isThemeHex(primary) ? primary.toUpperCase() : DEFAULT_ACCENT;
-  const preset = BRAND_PRESETS[key];
-  if (preset) return { soft: preset[0], ink: preset[1] };
-  return { soft: mixHex(key, "#FFFFFF", 0.91), ink: darkenHex(key, 0.2) };
-}
-
 /** Aplica variáveis CSS do tema no elemento (compat: --chapter-primary = accent).
  * Fundo/texto/sidebar ligam aos tokens via styles.css (:root); .dark sobrescreve.
  */
@@ -171,9 +154,10 @@ export function applyChapterThemeVars(
   el.style.setProperty("--chapter-font", theme.font);
   el.style.setProperty("--chapter-sidebar", theme.sidebar);
   el.style.setProperty("--chapter-primary", theme.accent);
-  const { soft, ink } = brandSoftInk(theme.accent);
-  el.style.setProperty("--chapter-soft", soft);
-  el.style.setProperty("--chapter-ink", ink);
+  // Tokens do redesign vêm do seletor de identidade (Configurações > Visual):
+  // Realce = tom claro (soft), Destaque escuro = tinta (ink).
+  el.style.setProperty("--chapter-soft", theme.highlight);
+  el.style.setProperty("--chapter-ink", theme.accentDark);
   el.style.setProperty("--primary", theme.accent);
   const onPrimary = readableOnHex(theme.accent);
   el.style.setProperty("--primary-foreground", onPrimary);

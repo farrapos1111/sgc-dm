@@ -25,7 +25,9 @@ export function DesktopSidebar({
   onNavigate,
   onPreload,
   footer,
+  badges = {},
 }: {
+  badges?: Record<string, number | undefined>;
   brand: ReactNode;
   switcher: ReactNode;
   groups: NavGroup[];
@@ -39,7 +41,7 @@ export function DesktopSidebar({
   const sections = groups.filter((g) => !g.to && (g.items?.length ?? 0) > 0);
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[264px] flex-col border-r border-[#E8E8E4] bg-tv-surface px-3.5 py-5 text-tv-text lg:flex dark:border-tv-border">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[264px] flex-col border-r border-[#E8E8E4] bg-tv-sidebar px-3.5 py-5 text-tv-text md:flex dark:border-tv-border">
       {brand}
       {switcher ? <div className="mt-4">{switcher}</div> : null}
 
@@ -74,6 +76,7 @@ export function DesktopSidebar({
                 label={i.label}
                 icon={i.icon}
                 active={isHighlighted(i.to)}
+                badge={badges[i.to]}
                 onNavigate={onNavigate}
                 onPreload={onPreload}
               />
@@ -92,9 +95,11 @@ function SidebarLink({
   label,
   icon: Icon,
   active,
+  badge,
   onNavigate,
   onPreload,
 }: {
+  badge?: number;
   to: string;
   label: string;
   icon?: ComponentType<{ className?: string }>;
@@ -118,6 +123,14 @@ function SidebarLink({
     >
       {Icon ? <Icon className="h-5 w-5 shrink-0" /> : null}
       <span className="flex-1 truncate">{label}</span>
+      {badge ? (
+        <span
+          className="rounded-full bg-tv-warn-bg px-2 py-0.5 text-xs font-bold text-tv-warn"
+          aria-label={`${badge} pendentes`}
+        >
+          {badge}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -167,7 +180,7 @@ export function MobileTabBar({
   return (
     <nav
       aria-label="Navegação principal"
-      className="fixed inset-x-0 bottom-0 z-30 grid items-start border-t border-[#E6E6E2] bg-tv-surface px-1.5 pt-2 lg:hidden dark:border-tv-border"
+      className="fixed inset-x-0 bottom-0 z-30 grid items-start border-t border-[#E6E6E2] bg-tv-surface px-1.5 pt-2 md:hidden dark:border-tv-border"
       style={{
         gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`,
         paddingBottom: "max(8px, env(safe-area-inset-bottom))",
