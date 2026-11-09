@@ -19,6 +19,9 @@ import { toast } from "sonner";
 import {
   CheckCheck,
   ChevronDown,
+  ChevronRight,
+  MessageCircle,
+  MoreVertical,
   Copy,
   Link2,
   Plus,
@@ -98,6 +101,7 @@ import {
   type DueMemberLite,
 } from "@/lib/dues-rules";
 import { EMPTY_LIST } from "@/lib/utils";
+import { buildReminderMessage, buildWhatsAppUrl } from "@/lib/dues-reminder";
 
 export const Route = createFileRoute(
   "/_authenticated/_shell/tesouraria/mensalidades",
@@ -294,12 +298,16 @@ const StatusCell = memo(function StatusCell({
       )} ${overdue ? OVERDUE_STYLE : ""}`}
     >
       <div className="text-xs opacity-70">{MONTH_SHORT[month - 1]}</div>
-      <div className="text-xs font-semibold uppercase">
-        {future && status === "em_aberto"
-          ? "Fut"
-          : status === "desligado"
-            ? "Des"
-            : STATUS_LABEL[status].slice(0, 3)}
+      <div className="text-xs font-bold uppercase">
+        {status === "pago"
+          ? "PAG"
+          : status === "isento"
+            ? "ISE"
+            : status === "desligado"
+              ? "DES"
+              : overdue
+                ? "ATR"
+                : "ABE"}
       </div>
     </button>
   ) : (
@@ -993,7 +1001,32 @@ function Mensalidades() {
           subtitle={`Calendário anual · valor único ${formatBRL(defaultAmount)}. Clique no mês para Em aberto, Pago, Isento ou Desligado.`}
           actions={
             writable ? (
-              <div className="flex flex-wrap gap-2">
+              <>
+              <div className="ml-auto md:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" aria-label="Mais ações de mensalidades">
+                      <MoreVertical className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[220px] rounded-[16px] p-1.5">
+                    <DropdownMenuItem className="min-h-11 gap-2 rounded-[10px] text-[15px]" onSelect={() => void copyOpenList()}>
+                      <Copy className="h-4 w-4" /> Copiar lista
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="min-h-11 gap-2 rounded-[10px] text-[15px]" onSelect={() => setIncludeOpen(true)}>
+                      <Plus className="h-4 w-4" /> Incluir membro
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="min-h-11 gap-2 rounded-[10px] text-[15px]"
+                      disabled={openShare.isPending}
+                      onSelect={() => openShare.mutate()}
+                    >
+                      <Link2 className="h-4 w-4" /> Compartilhar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="hidden flex-wrap gap-2 md:flex">
                 <Button variant="outline" onClick={() => void copyOpenList()}>
                   <Copy className="mr-2 h-4 w-4" />
                   Copiar lista
@@ -1011,6 +1044,7 @@ function Mensalidades() {
                   {openShare.isPending ? "Abrindo…" : "Compartilhar"}
                 </Button>
               </div>
+              </>
             ) : (
               <Button variant="outline" onClick={() => void copyOpenList()}>
                 <Copy className="mr-2 h-4 w-4" />
@@ -1463,74 +1497,27 @@ function Mensalidades() {
               </div>
             </Card>
 
-            <div className="space-y-3 md:hidden">
-              {displayedMembers.map((m) => {
-                const open = openByMember.get(m.id) ?? { count: 0, total: 0 };
-                return (
-                  <Card key={m.id} className="p-3">
-                    <div className="mb-2 flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">{m.full_name}</div>
-                        {m.manualInclude ? (
-                          <div className="mt-0.5 flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">
-                              Inclusão manual
-                            </span>
-                            {writable ? (
-                              <button
-                                type="button"
-                                className="text-xs text-destructive underline"
-                                disabled={removeManual.isPending}
-                                onClick={async () => {
-                                  const ok = await confirm({
-                                    title: "Remover do calendário?",
-                                    description: `Remover ${m.full_name} deste calendário? As competências de ${year} serão apagadas (lançamentos no fluxo de caixa, se houver, permanecem).`,
-                                    confirmLabel: "Remover",
-                                  });
-                                  if (!ok) return;
-                                  removeManual.mutate(m.id);
-                                }}
-                              >
-                                Remover
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="shrink-0 text-right text-xs">
-                        <div className="text-muted-foreground">
-                          {open.count} abertos
-                        </div>
-                        <div className="font-semibold text-amber-700 dark:text-amber-400">
-                          {formatBRL(open.total)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
-                      {Array.from({ length: 12 }, (_, i) => {
-                        const month = i + 1;
-                        const status =
-                          (dueMap.get(`${m.id}:${month}`)
-                            ?.status as DueStatus) ?? "em_aberto";
-                        return (
-                          <StatusCell
-                            key={month}
-                            member={m}
-                            month={month}
-                            year={year}
-                            status={status}
-                            defaultAmount={defaultAmount}
-                            writable={writable}
-                            compact
-                            onSetStatus={onSetStatus}
-                          />
-                        );
-                      })}
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
+            <MobileDuesList
+              members={displayedMembers}
+              dueMap={dueMap}
+              openByMember={openByMember}
+              year={year}
+              defaultAmount={defaultAmount}
+              writable={writable}
+              onSetStatus={onSetStatus}
+              paidAt={paidAt}
+              onPaidAtChange={setPaidAt}
+              skipCashEntry={skipCashEntry}
+              onSkipCashEntryChange={setSkipCashEntry}
+              onRemoveManual={async (m) => {
+                const ok = await confirm({
+                  title: "Remover do calendário?",
+                  description: `Remover ${m.full_name} deste calendário? As competências de ${year} serão apagadas (lançamentos no fluxo de caixa, se houver, permanecem).`,
+                  confirmLabel: "Remover",
+                });
+                if (ok) removeManual.mutate(m.id);
+              }}
+            />
           </>
         )}
 
@@ -1661,5 +1648,230 @@ function Mensalidades() {
         {dialog}
       </div>
     </TooltipProvider>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Celular: um card por membro, um aberto por vez (M-Mensalidades)    */
+/* ------------------------------------------------------------------ */
+
+type DuesFilterTab = "todos" | "pendentes" | "em_dia";
+
+function MobileDuesList({
+  members,
+  dueMap,
+  openByMember,
+  year,
+  defaultAmount,
+  writable,
+  onSetStatus,
+  paidAt,
+  onPaidAtChange,
+  skipCashEntry,
+  onSkipCashEntryChange,
+  onRemoveManual,
+}: {
+  members: (DueMemberLite & { manualInclude?: boolean })[];
+  dueMap: Map<string, { status: string }>;
+  openByMember: Map<string, { count: number; total: number }>;
+  year: number;
+  defaultAmount: number;
+  writable: boolean;
+  onSetStatus: (v: { memberId: string; month: number; status: DueStatus }) => void;
+  paidAt: string;
+  onPaidAtChange: (v: string) => void;
+  skipCashEntry: boolean;
+  onSkipCashEntryChange: (v: boolean) => void;
+  onRemoveManual: (m: DueMemberLite) => void;
+}) {
+  const [tab, setTab] = useState<DuesFilterTab>("todos");
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const statusOf = (memberId: string, month: number) =>
+    ((dueMap.get(`${memberId}:${month}`)?.status as DueStatus) ?? "em_aberto");
+
+  const rows = members.filter((m) => {
+    const open = openByMember.get(m.id)?.count ?? 0;
+    if (tab === "pendentes") return open > 0;
+    if (tab === "em_dia") return open === 0;
+    return true;
+  });
+
+  return (
+    <div className="md:hidden">
+      <div className="mb-3 grid grid-cols-3 gap-1 rounded-[12px] bg-[#E9E9E5] p-1 dark:bg-tv-line" role="tablist">
+        {(
+          [
+            ["todos", "Todos"],
+            ["pendentes", "Pendentes"],
+            ["em_dia", "Em dia"],
+          ] as const
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={tab === k}
+            onClick={() => setTab(k)}
+            className={`min-h-10 rounded-[10px] text-[15px] font-semibold ${
+              tab === k ? "bg-tv-surface text-tv-text shadow-sm" : "text-tv-text-2"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <ul className="flex flex-col gap-2.5">
+        {rows.map((m) => {
+          const open = openByMember.get(m.id) ?? { count: 0, total: 0 };
+          const expanded = openId === m.id;
+          let overdueCount = 0;
+          const months = Array.from({ length: 12 }, (_, i) => {
+            const month = i + 1;
+            const status = statusOf(m.id, month);
+            const future = isFutureMonth(year, month);
+            const overdue = !future && isDueOverdue(year, month, status);
+            if (overdue) overdueCount++;
+            return { month, status, future, overdue };
+          });
+          const summary =
+            open.count === 0
+              ? "Em dia"
+              : `${open.count} ${open.count === 1 ? "mês" : "meses"} em aberto${
+                  overdueCount > 0
+                    ? `, ${overdueCount} ${overdueCount === 1 ? "atrasado" : "atrasados"}`
+                    : ""
+                }`;
+          const oldestOpen = months.find((x) => x.status === "em_aberto" && !x.future);
+
+          function charge() {
+            const lines = months
+              .filter((x) => x.status === "em_aberto" && !x.future)
+              .map((x) => ({
+                year,
+                month: x.month,
+                label: `${MONTH_LONG[x.month - 1]}/${year}`,
+                amount: defaultAmount,
+                kind: (x.overdue ? "atrasado" : "vencimento_hoje") as "atrasado" | "vencimento_hoje",
+              }));
+            const msg = buildReminderMessage({
+              fullName: m.full_name,
+              months: lines,
+              total: lines.reduce((acc, l) => acc + l.amount, 0),
+            });
+            window.open(buildWhatsAppUrl(m.phone, msg), "_blank", "noopener");
+          }
+
+          return (
+            <li key={m.id} className="overflow-hidden rounded-[18px] bg-tv-surface">
+              <button
+                type="button"
+                aria-expanded={expanded}
+                onClick={() => setOpenId(expanded ? null : m.id)}
+                className="flex w-full flex-col gap-2.5 p-4 text-left"
+              >
+                <span className="flex w-full items-center gap-3">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-base font-semibold">{m.full_name}</span>
+                    <span
+                      className={`block text-[13px] ${
+                        open.count === 0 ? "font-semibold text-tv-in" : overdueCount > 0 ? "text-[#7E3F00] dark:text-orange-300" : "text-tv-text-2"
+                      }`}
+                    >
+                      {summary}
+                    </span>
+                  </span>
+                  {open.total > 0 ? (
+                    <span className="shrink-0 text-[15px] font-bold tabular-nums">{formatBRL(open.total)}</span>
+                  ) : null}
+                  <ChevronRight
+                    className={`h-5 w-5 shrink-0 text-tv-text-2 transition-transform ${expanded ? "rotate-90" : ""}`}
+                  />
+                </span>
+                <span className="flex w-full gap-[3px]" aria-hidden>
+                  {months.map((x) => (
+                    <span
+                      key={x.month}
+                      className={`h-1.5 flex-1 rounded-full ${cellClass(x.status, year, x.month)} ${x.overdue ? OVERDUE_STYLE : ""}`}
+                    />
+                  ))}
+                </span>
+              </button>
+
+              {expanded ? (
+                <div className="border-t border-tv-line px-4 pb-4 pt-3">
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {months.map((x) => (
+                      <StatusCell
+                        key={x.month}
+                        member={m}
+                        month={x.month}
+                        year={year}
+                        status={x.status}
+                        defaultAmount={defaultAmount}
+                        writable={writable}
+                        compact
+                        onSetStatus={onSetStatus}
+                      />
+                    ))}
+                  </div>
+
+                  {writable ? (
+                    <div className="mt-3 grid gap-2.5 rounded-[14px] bg-tv-bg p-3">
+                      <label className="flex items-center justify-between gap-3 text-[15px]">
+                        <span>Data do pagamento</span>
+                        <Input
+                          type="date"
+                          value={paidAt}
+                          onChange={(e) => onPaidAtChange(e.target.value)}
+                          className="w-auto"
+                        />
+                      </label>
+                      <label className="flex min-h-11 items-center justify-between gap-3 text-[15px]">
+                        <span>Sem fluxo de caixa</span>
+                        <Switch checked={skipCashEntry} onCheckedChange={onSkipCashEntryChange} />
+                      </label>
+                    </div>
+                  ) : null}
+
+                  {writable && open.count > 0 ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2.5">
+                      <Button
+                        className="min-h-12"
+                        disabled={!oldestOpen}
+                        onClick={() =>
+                          oldestOpen && onSetStatus({ memberId: m.id, month: oldestOpen.month, status: "pago" })
+                        }
+                      >
+                        Pagar mês mais antigo
+                      </Button>
+                      <Button variant="secondary" className="min-h-12" onClick={charge}>
+                        <MessageCircle className="h-[18px] w-[18px]" /> Cobrar
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  {m.manualInclude && writable ? (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveManual(m)}
+                      className="mt-3 min-h-11 text-sm font-semibold text-tv-out"
+                    >
+                      Remover inclusão manual
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+        {rows.length === 0 ? (
+          <li className="rounded-[18px] bg-tv-surface p-5 text-center text-[15px] text-tv-text-2">
+            Ninguém nesta lista.
+          </li>
+        ) : null}
+      </ul>
+    </div>
   );
 }

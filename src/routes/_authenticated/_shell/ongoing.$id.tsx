@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { PageHeader } from "@/components/PageHeader";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +93,7 @@ function OngoingPage() {
   const { data } = useSuspenseQuery(ongoingQO(id));
   const [search, setSearch] = useState("");
   const [rollFilter, setRollFilter] = useState<"todos" | "sem_marcar">("todos");
+  const { confirm: confirmFinish, dialog: finishDialog } = useConfirmDialog();
   const minutesList = (data.minutes as SessionMinute[]) ?? EMPTY_LIST;
   const canEditAtas = canScreen("atas", "edit");
   const [selectedMinuteKey, setSelectedMinuteKey] = useState<string>(() => {
@@ -343,6 +345,28 @@ function OngoingPage() {
   ).length;
   const pendentes = allMembers.length - presentes - ausentes;
 
+  function markAllPresent() {
+    for (const m of allMembers) {
+      if (!recordMap.get(m.id)) {
+        mark.mutate({ memberId: m.id, status: "presente", justification: null });
+      }
+    }
+  }
+
+  /** As marcações já são salvas na hora; encerrar só confirma pendências e volta. */
+  async function finishRollCall() {
+    if (pendentes > 0) {
+      const ok = await confirmFinish({
+        title: "Encerrar chamada?",
+        description: `${pendentes} ${pendentes === 1 ? "membro ainda não foi marcado" : "membros ainda não foram marcados"}. As marcações feitas já estão salvas.`,
+        confirmLabel: "Encerrar",
+        destructive: false,
+      });
+      if (!ok) return;
+    }
+    void leaveWithAtaFlush("/presencas");
+  }
+
   return (
     <div>
       <PageHeader
@@ -353,11 +377,11 @@ function OngoingPage() {
           <div className="flex flex-wrap items-center gap-2">
             {live ? (
               <span
-                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                className="inline-flex items-center gap-1.5 rounded-full bg-tv-in-bg px-3 py-1.5 text-[13px] font-bold text-tv-in"
                 title="Presenças e ata sincronizam em tempo real"
               >
-                <Radio className="h-3 w-3 animate-pulse" />
-                Ao vivo
+                <Radio className="h-3.5 w-3.5 animate-pulse" />
+                {effectiveTab === "ata" ? "Ao vivo" : "Chamada aberta"}
               </span>
             ) : null}
             <Button
@@ -427,7 +451,7 @@ function OngoingPage() {
                           : "border-[#DCDCD8] bg-tv-surface text-[#2A2C31] dark:border-tv-border dark:text-tv-text"
                       }`}
                     >
-                      {f === "todos" ? "Todos" : `Sem marcar (${Math.max(0, pendentes)})`}
+                      {f === "todos" ? "Todos" : `Faltam marcar (${Math.max(0, pendentes)})`}
                     </button>
                   ))}
                 </div>
@@ -437,12 +461,12 @@ function OngoingPage() {
               <div className="mb-3 grid grid-cols-3 gap-2 md:hidden">
                 <SummaryNumber value={presentes} label="Presentes" tone="in" />
                 <SummaryNumber value={ausentes} label="Faltaram" tone="out" />
-                <SummaryNumber value={Math.max(0, pendentes)} label="Sem marcar" tone="neutral" />
+                <SummaryNumber value={Math.max(0, pendentes)} label="Faltam marcar" tone="neutral" />
               </div>
 
-              <ul className="overflow-hidden rounded-[20px] bg-tv-surface">
+              <ul className="grid gap-2.5 md:grid-cols-2">
                 {members.length === 0 && (
-                  <li className="p-5 text-[15px] text-tv-text-2">
+                  <li className="rounded-[16px] bg-tv-surface p-5 text-[15px] text-tv-text-2 md:col-span-2">
                     Nenhum membro elegível nesta data (iniciação / Senior).
                   </li>
                 )}
@@ -453,10 +477,18 @@ function OngoingPage() {
                     const isP = rec?.status === "presente";
                     const isA = rec?.status === "ausente";
                     return (
-                      <li key={m.id} className="border-b border-tv-line px-3.5 py-2.5 last:border-0 md:px-5">
+                      <li
+                        key={m.id}
+                        className={`rounded-[16px] border-2 bg-tv-surface p-3.5 ${
+                          rec ? "border-transparent" : "border-[#E9D58A] dark:border-amber-700/70"
+                        }`}
+                      >
                         <div className="flex items-center gap-3">
-                          <span className="min-w-0 flex-1 truncate text-base font-semibold md:text-[15px]">
+                          <span className="min-w-0 flex-1 text-base font-semibold leading-snug md:text-[15px]">
                             {m.full_name}
+                            {!rec ? (
+                              <span className="block text-[13px] font-medium text-tv-warn">Falta marcar</span>
+                            ) : null}
                           </span>
                           <button
                             type="button"
@@ -511,6 +543,21 @@ function OngoingPage() {
                     );
                   })}
               </ul>
+              {canManage ? (
+                <div className="mt-4 grid grid-cols-2 gap-2.5 md:hidden">
+                  <Button
+                    variant="secondary"
+                    className="min-h-12"
+                    disabled={mark.isPending || pendentes <= 0}
+                    onClick={markAllPresent}
+                  >
+                    Todos presentes
+                  </Button>
+                  <Button className="min-h-12" onClick={finishRollCall}>
+                    Encerrar chamada
+                  </Button>
+                </div>
+              ) : null}
               {!item.mandatory && (
                 <p className="mt-3 text-[13px] text-tv-text-2">
                   Este item é facultativo: as presenças ficam registradas, mas não impactam a
@@ -528,7 +575,7 @@ function OngoingPage() {
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   <SummaryNumber value={presentes} label="Presentes" tone="in" />
                   <SummaryNumber value={ausentes} label="Faltaram" tone="out" />
-                  <SummaryNumber value={Math.max(0, pendentes)} label="Sem marcar" tone="neutral" />
+                  <SummaryNumber value={Math.max(0, pendentes)} label="Faltam marcar" tone="neutral" />
                 </div>
                 <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-[#EEEEEA] dark:bg-tv-line">
                   <div
@@ -545,15 +592,14 @@ function OngoingPage() {
                     className="mt-4 w-full"
                     variant="secondary"
                     disabled={mark.isPending}
-                    onClick={() => {
-                      for (const m of allMembers) {
-                        if (!recordMap.get(m.id)) {
-                          mark.mutate({ memberId: m.id, status: "presente", justification: null });
-                        }
-                      }
-                    }}
+                    onClick={markAllPresent}
                   >
-                    Marcar todos como presentes
+                    Todos presentes
+                  </Button>
+                ) : null}
+                {canManage ? (
+                  <Button className="mt-2 w-full" onClick={finishRollCall}>
+                    Encerrar chamada
                   </Button>
                 ) : null}
                 <p className="mt-3 text-center text-[13px] text-tv-text-2">
@@ -656,6 +702,7 @@ function OngoingPage() {
           </TabsContent>
         ) : null}
       </Tabs>
+      {finishDialog}
 
       <div className="mt-4 text-xs text-muted-foreground">
         {effectiveTab === "ata" ? (
