@@ -62,33 +62,35 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const THEME_OPTIONS: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
-  { value: "light", label: "Claro", icon: Sun },
-  { value: "dark", label: "Escuro", icon: Moon },
-  { value: "system", label: "Sistema", icon: MonitorSmartphone },
+const THEME_OPTIONS: { value: ThemeMode; label: string; sub: string; icon: typeof Sun }[] = [
+  { value: "light", label: "Claro", sub: "Sempre claro", icon: Sun },
+  { value: "dark", label: "Escuro", sub: "Sempre escuro", icon: Moon },
+  { value: "system", label: "Sistema", sub: "Segue o aparelho", icon: MonitorSmartphone },
 ];
 
 const DEFAULT_ACCENT = "#9E1B32";
 
-const ACCENT_PRESETS: { value: string; label: string }[] = [
-  { value: "#9E1B32", label: "Vinho DeMolay" },
-  { value: "#1D4ED8", label: "Azul" },
-  { value: "#0F766E", label: "Verde" },
-  { value: "#B45309", label: "Dourado" },
-  { value: "#6D28D9", label: "Roxo" },
-  { value: "#374151", label: "Grafite" },
+/** Cores prontas do redesign (destaque, realce e destaque escuro), mais o padrão do sistema. */
+const ACCENT_PRESETS: { value: string; label: string; soft?: string; ink?: string }[] = [
+  { value: DEFAULT_ACCENT, label: "Vinho DeMolay" },
+  { value: "#8A1C2B", label: "Bordô", soft: "#F7E9EB", ink: "#6E1622" },
+  { value: "#1F4FA3", label: "Azul", soft: "#E7EEFA", ink: "#173E80" },
+  { value: "#17694A", label: "Verde", soft: "#E3F1EA", ink: "#10523A" },
+  { value: "#5B2A86", label: "Roxo", soft: "#EFE7F7", ink: "#4A2270" },
+  { value: "#2A2E35", label: "Grafite", soft: "#E9EAEC", ink: "#2A2E35" },
 ];
 
 const THEME_FIELDS: {
   key: keyof ChapterTheme;
   label: string;
+  uso: string;
 }[] = [
-  { key: "background", label: "Fundo" },
-  { key: "sidebar", label: "Sidebar" },
-  { key: "accent", label: "Destaque" },
-  { key: "accentDark", label: "Destaque escuro" },
-  { key: "highlight", label: "Realce" },
-  { key: "font", label: "Texto" },
+  { key: "background", label: "Fundo", uso: "Atrás de tudo" },
+  { key: "sidebar", label: "Menu", uso: "Fundo do menu lateral" },
+  { key: "accent", label: "Destaque", uso: "Botões principais e topo do app" },
+  { key: "accentDark", label: "Destaque escuro", uso: "Texto sobre o realce" },
+  { key: "highlight", label: "Realce", uso: "Item ativo e botões secundários" },
+  { key: "font", label: "Texto", uso: "Títulos e textos" },
 ];
 
 /** Texto legível sobre a cor escolhida (luminância relativa). */
@@ -157,9 +159,17 @@ function AccentColorSection() {
     saved.sidebar,
   ]);
 
+  const [advanced, setAdvanced] = useState(false);
+
   function pickPreset(hex: string) {
     if (!isAdmin) return;
-    setTheme(deriveThemeFromPrimary(hex));
+    const preset = ACCENT_PRESETS.find((p) => p.value.toUpperCase() === hex.toUpperCase());
+    const derived = deriveThemeFromPrimary(hex);
+    setTheme(
+      preset?.soft && preset.ink
+        ? { ...derived, highlight: preset.soft, accentDark: preset.ink }
+        : derived,
+    );
   }
 
   function setField(key: keyof ChapterTheme, hex: string) {
@@ -201,155 +211,145 @@ function AccentColorSection() {
   const valid = THEME_FIELDS.every((f) => isThemeHex(theme[f.key]));
 
   return (
-    <div className="mt-6 border-t border-border pt-5">
-      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        <Palette className="h-5 w-5" /> Tema do capítulo
-      </div>
-      <p className="mb-3 text-sm text-muted-foreground">
-        Define fundo, sidebar, texto, destaques e realces do capítulo. No modo
-        escuro, fundo/sidebar/texto da interface permanecem escuros; as cores de
-        destaque continuam valendo.
+    <Card className="p-5 md:p-6">
+      <h2 className="flex items-center gap-2 text-lg font-bold">
+        <Palette className="h-5 w-5 text-tv-primary" aria-hidden /> Cor do capítulo
+      </h2>
+      <p className="mt-1 text-[15px] text-tv-text-2">
+        Escolha uma cor. O sistema inteiro muda na hora, inclusive este menu. No modo
+        escuro, fundo, menu e texto continuam escuros; as cores de destaque valem.
       </p>
 
-      <div className="flex flex-wrap gap-2">
+      <div role="radiogroup" aria-label="Cor do capítulo" className="mt-4 flex flex-wrap gap-4">
         {ACCENT_PRESETS.map((p) => {
           const selected = theme.accent.toUpperCase() === p.value.toUpperCase();
           return (
             <button
               key={p.value}
               type="button"
-              title={p.label}
-              aria-label={p.label}
-              aria-pressed={selected}
+              role="radio"
+              aria-checked={selected}
               disabled={!isAdmin}
               onClick={() => pickPreset(p.value)}
-              className="grid h-11 w-11 place-items-center rounded-full border-2 transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{
-                backgroundColor: p.value,
-                borderColor: selected ? "var(--foreground)" : "transparent",
-              }}
+              className="flex w-[72px] flex-col items-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {selected && <Check className="h-4 w-4" style={{ color: readableOn(p.value) }} />}
+              <span
+                className="grid h-12 w-12 place-items-center rounded-full"
+                style={{
+                  backgroundColor: p.value,
+                  boxShadow: selected ? `0 0 0 3px var(--tv-surface), 0 0 0 5px ${p.value}` : undefined,
+                }}
+              >
+                {selected && <Check className="h-5 w-5" style={{ color: readableOn(p.value) }} />}
+              </span>
+              <span className={`text-[13px] leading-tight ${selected ? "font-bold" : "font-medium text-tv-text-2"}`}>
+                {p.label}
+              </span>
             </button>
           );
         })}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {THEME_FIELDS.map((f) => (
-          <div key={f.key}>
-            <Label className="mb-1 block text-xs">{f.label}</Label>
-            <input
-              type="color"
-              value={isThemeHex(theme[f.key]) ? theme[f.key] : DEFAULT_ACCENT}
-              disabled={!isAdmin}
-              onChange={(e) => setField(f.key, e.target.value)}
-              className="h-11 w-full cursor-pointer rounded-[8px] border border-border bg-transparent p-1 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label={f.label}
-            />
-            <Input
-              className="mt-1.5 h-9 font-mono text-xs uppercase"
-              value={theme[f.key]}
-              disabled={!isAdmin}
-              onChange={(e) => {
-                const v = e.target.value.toUpperCase();
-                if (isThemeHex(v)) setField(f.key, v);
-                else setTheme((prev) => ({ ...prev, [f.key]: v }));
-              }}
-            />
-          </div>
-        ))}
-      </div>
-
+      {/* Prévia: menu + conteúdo */}
       <div
-        className="mt-4 overflow-hidden rounded-[12px] border border-border"
+        className="mt-5 flex min-h-[150px] overflow-hidden rounded-[16px] border border-tv-border"
         style={{ backgroundColor: preview.background, color: preview.font }}
+        aria-hidden
       >
-        <div className="flex min-h-[140px]">
-          <div
-            className="flex w-[38%] flex-col gap-2 border-r p-3"
-            style={{
-              backgroundColor: preview.sidebar,
-              borderColor: "color-mix(in srgb, currentColor 12%, transparent)",
-            }}
+        <div
+          className="flex w-[38%] flex-col gap-2 border-r p-3"
+          style={{
+            backgroundColor: preview.sidebar,
+            borderColor: "color-mix(in srgb, currentColor 12%, transparent)",
+          }}
+        >
+          <span className="text-xs font-bold uppercase tracking-[0.06em] opacity-70">Menu</span>
+          <span
+            className="rounded-[8px] px-2.5 py-2 text-[13px] font-bold"
+            style={{ backgroundColor: preview.highlight, color: preview.accentDark }}
           >
-            <div className="text-xs font-medium uppercase tracking-wide opacity-70">
-              Sidebar
-            </div>
-            <div
-              className="rounded-[6px] px-2 py-1.5 text-xs font-medium"
-              style={{
-                backgroundColor: `${preview.accent}22`,
-                color: preview.accent,
-              }}
-            >
-              Item ativo
-            </div>
-            <div className="px-2 py-1.5 text-xs opacity-60">Item</div>
+            Item ativo
+          </span>
+          <span className="px-2.5 py-2 text-[13px] opacity-70">Outro item</span>
+        </div>
+        <div className="flex-1 p-4">
+          <span className="text-xs font-bold uppercase tracking-[0.06em] opacity-70">Prévia</span>
+          <div className="mt-1.5 font-display text-lg font-extrabold">
+            {active?.chapter.name ?? "Capítulo"}
           </div>
-          <div className="flex-1 p-4">
-            <div className="text-xs font-medium uppercase tracking-wide opacity-70">
-              Pré-visualização
-            </div>
-            <div className="mt-2 text-sm font-semibold">Título do capítulo</div>
-            <p className="mt-1 text-sm opacity-80">
-              Texto de apoio com a cor tipográfica do tema.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span
-                className="inline-flex h-9 items-center rounded-[8px] px-3 text-sm font-medium"
-                style={{
-                  backgroundColor: preview.accent,
-                  color: readableOn(preview.accent),
-                }}
-              >
-                Botão principal
-              </span>
-              <span
-                className="inline-flex h-9 items-center rounded-[8px] px-3 text-sm font-medium"
-                style={{
-                  backgroundColor: preview.accentDark,
-                  color: readableOn(preview.accentDark),
-                }}
-              >
-                Destaque escuro
-              </span>
-              <span
-                className="inline-flex h-9 items-center rounded-[8px] px-3 text-sm font-medium"
-                style={{
-                  backgroundColor: preview.highlight,
-                  color: preview.font,
-                }}
-              >
-                Realce
-              </span>
-            </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span
+              className="inline-flex min-h-10 items-center rounded-[12px] px-3.5 text-sm font-semibold"
+              style={{ backgroundColor: preview.accent, color: readableOn(preview.accent) }}
+            >
+              Botão principal
+            </span>
+            <span
+              className="inline-flex min-h-10 items-center rounded-[12px] px-3.5 text-sm font-semibold"
+              style={{ backgroundColor: preview.highlight, color: preview.accentDark }}
+            >
+              Botão secundário
+            </span>
           </div>
         </div>
       </div>
 
+      <button
+        type="button"
+        aria-expanded={advanced}
+        onClick={() => setAdvanced((v) => !v)}
+        className="mt-4 min-h-11 text-[15px] font-semibold text-tv-primary underline-offset-4 hover:underline"
+      >
+        {advanced ? "Esconder ajuste fino das cores" : "Ajuste fino das cores (avançado)"}
+      </button>
+
+      {advanced ? (
+        <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {THEME_FIELDS.map((f) => (
+            <label key={f.key} className="flex flex-col gap-1.5 text-sm font-semibold">
+              {f.label}
+              <span className="flex items-center gap-2 rounded-[12px] border border-tv-border bg-tv-surface px-2">
+                <input
+                  type="color"
+                  value={isThemeHex(theme[f.key]) ? theme[f.key] : DEFAULT_ACCENT}
+                  disabled={!isAdmin}
+                  onChange={(e) => setField(f.key, e.target.value)}
+                  className="h-8 w-8 shrink-0 cursor-pointer rounded-full border-0 bg-transparent p-0 disabled:cursor-not-allowed"
+                  aria-label={`Escolher cor: ${f.label}`}
+                />
+                <Input
+                  className="h-11 border-0 px-1 font-mono text-[15px] uppercase shadow-none focus-visible:ring-0"
+                  value={theme[f.key]}
+                  disabled={!isAdmin}
+                  aria-label={`Código da cor: ${f.label}`}
+                  onChange={(e) => {
+                    const v = e.target.value.toUpperCase();
+                    if (isThemeHex(v)) setField(f.key, v);
+                    else setTheme((prev) => ({ ...prev, [f.key]: v }));
+                  }}
+                />
+              </span>
+              <span className="text-[13px] font-normal text-tv-text-2">{f.uso}</span>
+            </label>
+          ))}
+        </div>
+      ) : null}
+
       {isAdmin ? (
-        <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button variant="outline" onClick={() => pickPreset(DEFAULT_ACCENT)}>
-            <RotateCcw className="mr-2 h-4 w-4" /> Restaurar padrão
+            <RotateCcw className="h-4 w-4" /> Restaurar padrão
           </Button>
-          <Button
-            style={{
-              backgroundColor: preview.accent,
-              color: readableOn(preview.accent),
-            }}
-            disabled={save.isPending || !valid || !dirty}
-            onClick={() => save.mutate()}
-          >
-            <Save className="mr-2 h-4 w-4" /> {save.isPending ? "Salvando…" : "Salvar tema"}
+          <Button disabled={save.isPending || !valid || !dirty} onClick={() => save.mutate()}>
+            <Save className="h-4 w-4" /> {save.isPending ? "Salvando…" : "Salvar cor"}
           </Button>
         </div>
       ) : (
-        <p className="mt-4 text-xs text-muted-foreground">
-          Somente administradores podem alterar o tema do capítulo.
+        <p className="mt-4 text-[13px] text-tv-text-2">
+          Somente administradores podem alterar a cor do capítulo.
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -357,14 +357,12 @@ function AppearanceCard() {
   const { mode, setMode } = useTheme();
 
   return (
-    <Card className="p-5">
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        <Moon className="h-5 w-5" /> Aparência
-      </div>
-      <p className="mb-3 text-sm text-muted-foreground">
-        Escolha o tema da interface. A opção “Sistema” segue a preferência do seu dispositivo.
-      </p>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+    <>
+    <Card className="p-5 md:p-6">
+      <h2 className="flex items-center gap-2 text-lg font-bold">
+        <Moon className="h-5 w-5 text-tv-primary" aria-hidden /> Aparência
+      </h2>
+      <div role="radiogroup" aria-label="Aparência" className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
         {THEME_OPTIONS.map((opt) => {
           const Icon = opt.icon;
           const selected = mode === opt.value;
@@ -372,25 +370,28 @@ function AppearanceCard() {
             <button
               key={opt.value}
               type="button"
+              role="radio"
+              aria-checked={selected}
               onClick={() => setMode(opt.value)}
-              aria-pressed={selected}
-              className={`flex min-h-[44px] items-center gap-3 rounded-[8px] border px-4 py-2.5 text-sm font-medium transition-colors ${
-                selected
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:bg-muted/60"
+              className={`flex min-h-[64px] items-center gap-3 rounded-[14px] border-2 px-4 py-3 text-left transition-colors ${
+                selected ? "border-tv-primary bg-tv-soft" : "border-tv-border bg-tv-surface hover:bg-tv-bg"
               }`}
             >
-              <Icon className="h-4 w-4" />
-              {opt.label}
+              <Icon className={`h-5 w-5 shrink-0 ${selected ? "text-tv-primary" : "text-tv-text-2"}`} aria-hidden />
+              <span>
+                <span className="block text-[15px] font-bold">{opt.label}</span>
+                <span className="block text-[13px] text-tv-text-2">{opt.sub}</span>
+              </span>
             </button>
           );
         })}
       </div>
-
-      <AccentColorSection />
     </Card>
+    <AccentColorSection />
+    </>
   );
 }
+
 
 
 
@@ -586,7 +587,7 @@ function ConfiguracoesPage() {
         <TabsContent value="visual" className="space-y-4">
           <AppearanceCard />
           <Card className="p-5">
-            <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <div className="mb-4 flex items-center gap-2 text-lg font-bold text-tv-text [&>svg]:text-tv-primary">
               <Building2 className="h-5 w-5" /> Logo do capítulo
             </div>
 
@@ -655,7 +656,7 @@ function ConfiguracoesPage() {
           </Card>
 
           <Card className="p-5">
-            <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <div className="mb-4 flex items-center gap-2 text-lg font-bold text-tv-text [&>svg]:text-tv-primary">
               <ImagePlus className="h-5 w-5" /> Assinatura de e-mail
             </div>
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
@@ -791,7 +792,7 @@ function DefaultDuesCard() {
 
   return (
     <Card className="p-5">
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+      <div className="mb-4 flex items-center gap-2 text-lg font-bold text-tv-text [&>svg]:text-tv-primary">
         <Receipt className="h-5 w-5" /> Mensalidades
       </div>
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -954,7 +955,7 @@ function PublicLobbyLinkCard() {
   return (
     <>
       <Card className="p-5">
-        <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        <div className="mb-4 flex items-center gap-2 text-lg font-bold text-tv-text [&>svg]:text-tv-primary">
           <Link2 className="h-5 w-5" /> Link público
         </div>
         <p className="mb-3 text-xs text-muted-foreground">
@@ -1128,7 +1129,7 @@ function ChapterProfileCard() {
 
   return (
     <Card className="p-5">
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+      <div className="mb-4 flex items-center gap-2 text-lg font-bold text-tv-text [&>svg]:text-tv-primary">
         <Building2 className="h-5 w-5" /> Perfil do capítulo
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -1263,7 +1264,7 @@ function LodgesCard() {
 
   return (
     <Card className="p-5">
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+      <div className="mb-4 flex items-center gap-2 text-lg font-bold text-tv-text [&>svg]:text-tv-primary">
         <Landmark className="h-5 w-5" /> Lojas patrocinadoras
       </div>
 

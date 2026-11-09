@@ -120,7 +120,7 @@ export function PixKeyCard() {
 
   return (
     <Card className="p-5 space-y-4">
-      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+      <div className="flex items-center gap-2 text-lg font-bold text-tv-text [&>svg]:text-tv-primary">
         <QrCode className="h-5 w-5" /> Chave Pix do capítulo
       </div>
       <p className="text-sm text-muted-foreground">
