@@ -230,7 +230,7 @@ function FluxoCaixa() {
   const [month, setMonth] = useState<number | null>(null);
   const [monthOrder, setMonthOrder] = useState<"newest" | "oldest">("newest");
   const [openMonths, setOpenMonths] = useState<Set<number>>(
-    () => new Set([now.getMonth() + 1]),
+    () => new Set([now.getMonth() + 1, now.getMonth()].filter((m) => m >= 1)),
   );
   const [sortKey, setSortKey] = useState<CashSortKey>("entry_date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -557,7 +557,8 @@ function FluxoCaixa() {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   }
 
-  // Visão anual: abre todos os meses para a listagem bater com o Excel.
+  // Visão anual: abre só o mês atual e o anterior (em anos passados, dezembro e
+  // novembro) para a tela carregar leve; os demais ficam recolhidos.
   const openMonthsPeriodRef = useRef<string>("");
   useEffect(() => {
     if (month !== null) return;
@@ -565,7 +566,8 @@ function FluxoCaixa() {
     const periodKey = `${active?.chapter_id ?? ""}:${year}`;
     if (openMonthsPeriodRef.current === periodKey) return;
     openMonthsPeriodRef.current = periodKey;
-    setOpenMonths(new Set(entriesByMonth.map((g) => g.month)));
+    const last = year === now.getFullYear() ? now.getMonth() + 1 : 12;
+    setOpenMonths(new Set([last, last - 1].filter((m) => m >= 1)));
   }, [year, month, active?.chapter_id, entriesByMonth]);
 
   function toggleMonth(m: number) {
