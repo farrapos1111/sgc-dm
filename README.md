@@ -54,6 +54,18 @@ Toda a documentação vive em [`docs/`](./docs/) e também no visualizador do ap
 
 > Antes de abrir PR, rode `npm run check` (typecheck + testes) — é o mesmo que o CI exige. O `lint` ainda acusa formatação pré-existente no código herdado — **rode lint e format apenas nos arquivos que você editar**. As lacunas conhecidas estão em [docs/TECNICO.md](./docs/TECNICO.md#12-estado-atual-e-lacunas-conhecidas) e o que fazer a respeito, no [roadmap](./docs/OPEN-SOURCE.md#roadmap--onde-ajudar).
 
+## App iOS (Capacitor)
+
+O app da App Store fica neste mesmo repositório (`ios/`, `capacitor.config.ts`). Ele **abre o site publicado** (`server.url = https://templovirtual.app`) em vez de empacotar os arquivos, porque o sistema depende de funções de servidor, decide o "mundo" (hub, ODM, Bethel, Loja) pelo endereço e guarda a sessão em cookie. Assim web e app usam o mesmo código e cada deploy atualiza os dois. Em troca, o app precisa de internet — sem conexão ele mostra `capacitor-www/offline.html`.
+
+| Comando | O que faz |
+| --- | --- |
+| `npm run cap:sync` | copia a configuração e as telas de carregamento/offline para o projeto iOS |
+| `npm run build:ios` | build web + `cap sync ios` |
+| `npm run cap:open` | abre o projeto no Xcode (só no Mac) |
+
+Para testar contra outro ambiente: `CAP_SERVER_URL=https://... npm run cap:sync`. Código exclusivo do app fica atrás de `isNative()` / `isIOS()` (`src/lib/platform.ts`).
+
 ## Licença
 
 Este projeto é licenciado sob a **[GNU Affero General Public License v3.0 (AGPL-3.0)](./LICENSE)**.

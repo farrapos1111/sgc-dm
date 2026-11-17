@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Sem conexão — Templo Virtual</title>
+    <style>
+      :root { color-scheme: light dark; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        display: grid;
+        place-items: center;
+        padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+        box-sizing: border-box;
+        background: #f4f4f1;
+        color: #17181a;
+        font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+        -webkit-tap-highlight-color: transparent;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { background: #121316; color: #f2f2ef; }
+        p { color: #a9abb0; }
+      }
+      main { max-width: 340px; text-align: center; }
+      img { width: 64px; height: 64px; }
+      h1 { margin: 20px 0 8px; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+      p { margin: 0 0 24px; color: #5e6168; }
+      button {
+        width: 100%; min-height: 52px; border: 0; border-radius: 14px;
+        background: #9e1b32; color: #fff; font: inherit; font-weight: 700;
+      }
+      button:active { transform: scale(0.98); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="logo.svg" alt="" />
+      <h1>Sem conexão</h1>
+      <p>Não foi possível abrir o Templo Virtual. Confira sua internet e tente de novo.</p>
+      <button type="button" id="retry">Tentar de novo</button>
+    </main>
+    <script>
+      // Volta para o endereço do app (server.url); o Capacitor guarda a URL original.
+      document.getElementById("retry").addEventListener("click", function () {
+        var url = (window.Capacitor && window.Capacitor.getServerUrl && window.Capacitor.getServerUrl()) || "https://templovirtual.app";
+        window.location.replace(url);
+      });
+    </script>
+  </body>
+</html>
