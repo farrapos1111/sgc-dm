@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Fragment, Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -29,7 +30,24 @@ import {
   type DueMemberLite,
 } from "@/lib/dues-rules";
 import { chapterFoundedAt } from "@/lib/terms";
-import { ClipboardList, Vote } from "lucide-react";
+import {
+  ClipboardList,
+  FileDown,
+  FileSpreadsheet,
+  FileText,
+  Vote,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { todayYmd } from "@/lib/timezone";
+import {
+  buildAttendanceReportRows,
+  type ReportItem,
+} from "@/lib/attendance-report";
 import { Button } from "@/components/ui/button";
 import {
   PresencasOverviewTab,
@@ -70,7 +88,9 @@ function eventYear(startAt: string): number | null {
 }
 
 type FrequencyRange =
-  { kind: "year"; year: number } | { kind: "months"; months: 3 | 6 | 12 };
+  | { kind: "year"; year: number }
+  | { kind: "semester"; year: number; semester: 1 | 2 }
+  | { kind: "months"; months: 3 | 6 | 12 };
 
 type PresencasFilters = {
   year: number;
@@ -100,8 +120,10 @@ const SORT_VALUES = new Set(["desc", "asc"]);
 const TAB_VALUES = new Set(["itens", "frequencia", "graficos", "visao"]);
 const FREQ_MONTHS = new Set(["m:3", "m:6", "m:12"]);
 
+const FREQ_SEMESTER_RE = /^s:(\d{4})-([12])$/;
+
 function isValidFreq(freq: string): boolean {
-  if (FREQ_MONTHS.has(freq)) return true;
+  if (FREQ_MONTHS.has(freq) || FREQ_SEMESTER_RE.test(freq)) return true;
   return /^\d{4}$/.test(freq) && Number.isFinite(Number(freq));
 }
 
@@ -161,6 +183,14 @@ function parseFrequencyRange(value: string): FrequencyRange {
   if (value === "m:3" || value === "m:6" || value === "m:12") {
     return { kind: "months", months: Number(value.slice(2)) as 3 | 6 | 12 };
   }
+  const sem = FREQ_SEMESTER_RE.exec(value);
+  if (sem) {
+    return {
+      kind: "semester",
+      year: Number(sem[1]),
+      semester: Number(sem[2]) as 1 | 2,
+    };
+  }
   const year = Number(value);
   return {
     kind: "year",
@@ -199,6 +229,12 @@ function PresencasFrequencyTab({
       const start = new Date(i.start_at);
       if (Number.isNaN(start.getTime())) return false;
       if (range.kind === "year") return start.getFullYear() === range.year;
+      if (range.kind === "semester") {
+        return (
+          start.getFullYear() === range.year &&
+          (start.getMonth() < 6 ? 1 : 2) === range.semester
+        );
+      }
       return start >= periodStart(range.months);
     });
     const recordByKey = new Map<string, string>();
@@ -248,7 +284,63 @@ function PresencasFrequencyTab({
   const rangeLabel =
     range.kind === "year"
       ? String(range.year)
-      : `últimos ${range.months} meses`;
+      : range.kind === "semester"
+        ? `${range.semester}º semestre de ${range.year}`
+        : `últimos ${range.months} meses`;
+  const { active } = useActiveChapter();
+  const [exporting, setExporting] = useState(false);
+
+  async function exportReport(format: "pdf" | "xlsx") {
+    if (!active) return;
+    setExporting(true);
+    try {
+      const range = parseFrequencyRange(effectiveFreq);
+      const today = new Date();
+      const todayStr = todayYmd();
+      const bounds =
+        range.kind === "year"
+          ? { fromYmd: `${range.year}-01-01`, toYmd: `${range.year}-12-31` }
+          : range.kind === "semester"
+            ? range.semester === 1
+              ? { fromYmd: `${range.year}-01-01`, toYmd: `${range.year}-06-30` }
+              : { fromYmd: `${range.year}-07-01`, toYmd: `${range.year}-12-31` }
+            : {
+                fromYmd: todayYmd(periodStart(range.months, today)),
+                toYmd: todayStr,
+              };
+      let rows = buildAttendanceReportRows({
+        items: items as ReportItem[],
+        members,
+        records,
+        bounds,
+      });
+      if (aptosVoto) {
+        const ids = new Set(frequency.map((m) => m.id));
+        rows = rows.filter((r) => ids.has(r.id));
+      }
+      const payload = {
+        chapterName: `${active.chapter.name} nº ${active.chapter.number}`,
+        chapterCity: active.chapter.city,
+        logoPath: (active.chapter as any).logo_url ?? null,
+        periodLabel: aptosVoto ? "Aptos a voto — últimos 6 meses" : rangeLabel,
+        threshold: aptosVoto ? 50 : 75,
+        subtitle:
+          "Sessões e filantropias obrigatórias com presença ou falta marcada, contadas a partir da iniciação.",
+        rows,
+      };
+      if (format === "pdf") {
+        const { exportAttendancePdf } = await import("@/lib/presencas-pdf");
+        await exportAttendancePdf(payload);
+      } else {
+        const { exportAttendanceXlsx } = await import("@/lib/presencas-xlsx");
+        await exportAttendanceXlsx(payload);
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao exportar");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <>
@@ -263,9 +355,11 @@ function PresencasFrequencyTab({
           </SelectTrigger>
           <SelectContent>
             {availableYears.map((y) => (
-              <SelectItem key={y} value={String(y)}>
-                Ano {y}
-              </SelectItem>
+              <Fragment key={y}>
+                <SelectItem value={String(y)}>Ano {y}</SelectItem>
+                <SelectItem value={`s:${y}-1`}>1º semestre {y}</SelectItem>
+                <SelectItem value={`s:${y}-2`}>2º semestre {y}</SelectItem>
+              </Fragment>
             ))}
             <SelectItem value="m:12">Últimos 12 meses</SelectItem>
             <SelectItem value="m:6">Últimos 6 meses</SelectItem>
@@ -284,6 +378,28 @@ function PresencasFrequencyTab({
           Aptos a voto
           {aptosVoto ? ` (${frequency.length})` : null}
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5 text-xs"
+              disabled={exporting}
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              {exporting ? "Gerando…" : "Exportar"}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onSelect={() => void exportReport("pdf")}>
+              <FileText className="mr-2 h-4 w-4" /> PDF
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void exportReport("xlsx")}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <Card className="p-0">
         <ul className="divide-y divide-border">
@@ -389,8 +505,10 @@ function PresencasPage() {
       const year = availableYears.includes(f.year)
         ? f.year
         : availableYears[0]!;
+      const semMatch = FREQ_SEMESTER_RE.exec(f.freq);
       const freqOk =
         FREQ_MONTHS.has(f.freq) ||
+        (semMatch != null && availableYears.includes(Number(semMatch[1]))) ||
         (availableYears.includes(Number(f.freq)) && /^\d{4}$/.test(f.freq));
       const freq = freqOk ? f.freq : String(year);
       if (year === f.year && freq === f.freq) return f;

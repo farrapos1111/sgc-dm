@@ -79,7 +79,7 @@ import {
 } from "@/lib/cash-categories";
 
 import { downloadCashTemplate, exportCashXlsx, parseCashSheet, type ParsedRow } from "@/lib/finance-xlsx";
-import { exportCashPdf } from "@/lib/finance-pdf";
+import { exportCashPdf, exportCashSimplePdf } from "@/lib/finance-pdf";
 import {
   ensureCashShareToken,
   getCashShareToken,
@@ -758,6 +758,29 @@ function FluxoCaixa() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao gerar PDF"),
   });
 
+  const exportSimplePdf = useMutation({
+    mutationFn: async () => {
+      const signers = await getFinanceSigners({ data: { chapterId: active!.chapter_id } });
+      await exportCashSimplePdf({
+        chapterName: `${active!.chapter.name} nº ${active!.chapter.number}`,
+        chapterCity: active!.chapter.city,
+        logoPath: (active!.chapter as any).logo_url ?? null,
+        periodLabel,
+        year,
+        entries: filteredEntries,
+        totals: periodTotals,
+        opening:
+          month === null
+            ? { balance: openingBalance, previousYear: opening.previousYear }
+            : null,
+        cashBalance: month === null ? cashBalanceValue : null,
+        cashBalanceLabel,
+        signers,
+      });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao gerar PDF"),
+  });
+
   const shareUrl =
     shareToken && publicSlug?.slug
       ? `${typeof window !== "undefined" ? window.location.origin : ""}${publicOrgHref(publicSlug.slug, "fluxo")}`
@@ -938,6 +961,13 @@ function FluxoCaixa() {
               >
                 <FileText className="h-4 w-4" /> {exportPdf.isPending ? "Gerando…" : "PDF"}
               </DropdownMenuItem>
+              <DropdownMenuItem
+                className="min-h-11 gap-2 rounded-[10px] text-[15px]"
+                disabled={exportSimplePdf.isPending}
+                onSelect={() => exportSimplePdf.mutate()}
+              >
+                <FileText className="h-4 w-4" /> {exportSimplePdf.isPending ? "Gerando…" : "PDF simples"}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           {writable ? (
@@ -977,7 +1007,7 @@ function FluxoCaixa() {
       {/* Filtros e ações */}
       <div className="mb-4 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+          <div className="relative w-full sm:min-w-[200px] sm:max-w-xs sm:flex-1">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-8 pr-8"
@@ -1019,7 +1049,7 @@ function FluxoCaixa() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="min-w-36 justify-between">
+              <Button variant="outline" className="min-w-36 flex-1 justify-between sm:flex-none">
                 <span>
                   Categorias
                   {selectedCategories.length > 0 ? ` (${selectedCategories.length})` : ""}
@@ -1109,7 +1139,7 @@ function FluxoCaixa() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <div className="inline-flex rounded-full bg-tv-line p-1" role="tablist" aria-label="Tipo de lançamento">
+          <div className="flex flex-1 rounded-full bg-tv-line p-1 sm:inline-flex sm:flex-none" role="tablist" aria-label="Tipo de lançamento">
             {(
               [
                 ["all", "Tudo"],
@@ -1123,7 +1153,7 @@ function FluxoCaixa() {
                 role="tab"
                 aria-selected={kindFilter === k}
                 onClick={() => setKindFilter(k)}
-                className={`min-h-9 rounded-full px-4 text-sm font-semibold transition-all duration-200 ${
+                className={`min-h-9 flex-1 rounded-full px-4 text-sm font-semibold transition-all duration-200 sm:flex-none ${
                   kindFilter === k ? "bg-tv-surface text-tv-text shadow-sm" : "text-tv-text-2"
                 }`}
               >
@@ -1132,8 +1162,8 @@ function FluxoCaixa() {
             ))}
           </div>
           {writable ? (
-            <Button variant="outline" className="md:hidden" onClick={() => setCatsOpen(true)}>
-              <Settings2 className="h-4 w-4" /> Categorias
+            <Button variant="outline" size="icon" className="shrink-0 md:hidden" aria-label="Gerenciar categorias" onClick={() => setCatsOpen(true)}>
+              <Settings2 className="h-4 w-4" />
             </Button>
           ) : null}
           <div className="hidden flex-wrap items-center gap-1 rounded-lg border border-border bg-muted/30 p-1 md:inline-flex">
@@ -1164,6 +1194,16 @@ function FluxoCaixa() {
             >
               <FileText className="mr-1.5 h-4 w-4" />
               {exportPdf.isPending ? "Gerando…" : "PDF"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              onClick={() => exportSimplePdf.mutate()}
+              disabled={exportSimplePdf.isPending}
+            >
+              <FileText className="mr-1.5 h-4 w-4" />
+              {exportSimplePdf.isPending ? "Gerando…" : "PDF simples"}
             </Button>
             {writable ? (
               <>
@@ -1290,7 +1330,7 @@ function FluxoCaixa() {
               value={monthOrder}
               onValueChange={(v) => setMonthOrder(v as "newest" | "oldest")}
             >
-              <SelectTrigger className="w-52">
+              <SelectTrigger className="w-full sm:w-52">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1298,10 +1338,10 @@ function FluxoCaixa() {
                 <SelectItem value="oldest">Meses: mais antigos</SelectItem>
               </SelectContent>
             </Select>
-            <Button type="button" variant="outline" size="sm" onClick={expandAllMonths}>
+            <Button type="button" variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={expandAllMonths}>
               Expandir todos
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={collapseAllMonths}>
+            <Button type="button" variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={collapseAllMonths}>
               Fechar todos
             </Button>
           </div>

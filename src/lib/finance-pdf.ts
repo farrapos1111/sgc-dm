@@ -387,3 +387,234 @@ export async function exportCashPdf(input: FinancePdfInput) {
 
   doc.save(`fluxo-de-caixa-${fileSafe(input.periodLabel)}.pdf`);
 }
+
+/** Valor em reais só com caracteres do Helvetica (evita espaço especial no PDF). */
+function pdfBRL(value: number): string {
+  const n = Number.isFinite(value) ? value : 0;
+  const [intRaw, dec = "00"] = Math.abs(n).toFixed(2).split(".");
+  const int = intRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${n < 0 ? "-" : ""}R$ ${int},${dec}`;
+}
+
+type SimpleCashPdfInput = Omit<FinancePdfInput, "entries" | "periodLabel"> & {
+  periodLabel: string;
+  year: number;
+  entries: Entry[];
+  issuedAt?: Date;
+};
+
+/** Relatório simplificado: entradas x saídas x resultado de cada mês e resultado final. */
+export async function exportCashSimplePdf(input: SimpleCashPdfInput) {
+  const { jsPDF: JsPDF } = await import("jspdf");
+  const doc = new JsPDF({ unit: "mm", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const contentW = pageW - MARGIN * 2;
+  const issued = input.issuedAt ?? new Date();
+
+  const logo = await ensurePdfLogoDataUrl(
+    input.logoDataUrl ?? (await loadLogoDataUrl(input.logoPath)),
+  );
+  let y = MARGIN;
+  if (logo) {
+    try {
+      const props = doc.getImageProperties(logo);
+      const ratio = props.width / props.height;
+      const h = ratio >= 1 ? LOGO_MAX / ratio : LOGO_MAX;
+      doc.addImage(logo, (pageW - h * ratio) / 2, y, h * ratio, h);
+      y += h + 4;
+    } catch {
+      /* ignora logo inválida */
+    }
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  setRgb(doc, COLOR_BLACK);
+  doc.text(input.chapterName, pageW / 2, y, { align: "center", maxWidth: contentW });
+  y += 6;
+
+  const issuedLong = issued.toLocaleDateString("pt-BR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  setRgb(doc, COLOR_GRAY);
+  doc.text(
+    [input.chapterCity?.trim(), issuedLong].filter(Boolean).join(" | "),
+    pageW / 2,
+    y,
+    { align: "center" },
+  );
+  y += 8;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  setRgb(doc, COLOR_BLACK);
+  doc.text(`Relatório Simplificado de Fluxo de Caixa — ${input.periodLabel}`, pageW / 2, y, {
+    align: "center",
+    maxWidth: contentW,
+  });
+  y += 6;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  setRgb(doc, COLOR_GRAY);
+  doc.text(
+    `Destinado aos DeMolays e membros do Conselho do ${input.chapterName}`,
+    pageW / 2,
+    y,
+    { align: "center", maxWidth: contentW },
+  );
+  y += 10;
+  setRgb(doc, COLOR_BLACK);
+
+  const months = groupByMonth(input.entries);
+  const totals = sumCashByKind(input.entries);
+  const colEntrada = MARGIN + contentW * 0.5;
+  const colSaida = MARGIN + contentW * 0.75;
+  const colResult = pageW - MARGIN;
+
+  // Cabeçalho da tabela
+  doc.setFillColor(240, 240, 238);
+  doc.rect(MARGIN, y - 5, contentW, 8, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Mês", MARGIN + 2, y);
+  doc.text("Entradas", colEntrada, y, { align: "right" });
+  doc.text("Saídas", colSaida, y, { align: "right" });
+  doc.text("Resultado", colResult - 2, y, { align: "right" });
+  y += 8;
+
+  if (months.length === 0) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(10);
+    setRgb(doc, COLOR_GRAY);
+    doc.text("Nenhuma movimentação no período.", MARGIN + 2, y);
+    setRgb(doc, COLOR_BLACK);
+    y += 8;
+  }
+
+  for (const g of months) {
+    if (y > pageH - 80) {
+      doc.addPage();
+      y = MARGIN + 4;
+    }
+    const name = monthName(g.month);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    setRgb(doc, COLOR_BLACK);
+    doc.text(name.charAt(0).toUpperCase() + name.slice(1), MARGIN + 2, y);
+    setRgb(doc, COLOR_GREEN);
+    doc.text(pdfBRL(g.income), colEntrada, y, { align: "right" });
+    setRgb(doc, COLOR_RED);
+    doc.text(pdfBRL(g.expense), colSaida, y, { align: "right" });
+    doc.setFont("helvetica", "bold");
+    setRgb(doc, g.balance >= 0 ? COLOR_GREEN : COLOR_RED);
+    doc.text(pdfBRL(g.balance), colResult - 2, y, { align: "right" });
+    setRgb(doc, COLOR_BLACK);
+    doc.setDrawColor(230, 230, 228);
+    doc.line(MARGIN, y + 2.5, pageW - MARGIN, y + 2.5);
+    y += 7;
+  }
+
+  // Linha de total
+  y += 1;
+  doc.setDrawColor(120, 120, 120);
+  doc.line(MARGIN, y - 4, pageW - MARGIN, y - 4);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  setRgb(doc, COLOR_BLACK);
+  doc.text("Total", MARGIN + 2, y + 1);
+  setRgb(doc, COLOR_GREEN);
+  doc.text(pdfBRL(totals.income), colEntrada, y + 1, { align: "right" });
+  setRgb(doc, COLOR_RED);
+  doc.text(pdfBRL(totals.expense), colSaida, y + 1, { align: "right" });
+  setRgb(doc, totals.balance >= 0 ? COLOR_GREEN : COLOR_RED);
+  doc.text(pdfBRL(totals.balance), colResult - 2, y + 1, { align: "right" });
+  setRgb(doc, COLOR_BLACK);
+  y += 12;
+
+  if (input.opening) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Restante de ${input.opening.previousYear}:`, MARGIN + 2, y);
+    doc.text(pdfBRL(input.opening.balance), colResult - 2, y, { align: "right" });
+    y += 6;
+  }
+  if (input.cashBalance != null) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(`${input.cashBalanceLabel ?? "Saldo do caixa"}:`, MARGIN + 2, y);
+    doc.text(pdfBRL(input.cashBalance), colResult - 2, y, { align: "right" });
+    y += 6;
+  }
+  y += 6;
+
+  if (y > pageH - 75) {
+    doc.addPage();
+    y = MARGIN + 4;
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("Resultado final", pageW / 2, y, { align: "center" });
+  y += 8;
+  doc.setFontSize(18);
+  setRgb(doc, totals.balance >= 0 ? COLOR_GREEN : COLOR_RED);
+  doc.text(pdfBRL(totals.balance), pageW / 2, y, { align: "center" });
+  setRgb(doc, COLOR_BLACK);
+  y += 24;
+
+  // Assinaturas lado a lado (2 por linha)
+  const colW = contentW / 2;
+  input.signers.forEach((s, i) => {
+    const col = i % 2;
+    if (i > 0 && col === 0) y += 26;
+    if (y > pageH - 25) {
+      doc.addPage();
+      y = MARGIN + 24;
+    }
+    const x = MARGIN + col * colW;
+    if (s.signatureDataUrl?.startsWith("data:image/")) {
+      try {
+        const props = doc.getImageProperties(s.signatureDataUrl);
+        const ratio = props.width / props.height;
+        let w = Math.min(50, colW - 4);
+        let h = w / ratio;
+        if (h > 16) {
+          h = 16;
+          w = h * ratio;
+        }
+        doc.addImage(s.signatureDataUrl, x + (colW - w) / 2, y - h + 1, w, h);
+      } catch {
+        /* imagem inválida */
+      }
+    }
+    doc.setDrawColor(120, 120, 120);
+    doc.line(x + 4, y + 2, x + colW - 4, y + 2);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(s.name || "____________________", x + colW / 2, y + 7, {
+      align: "center",
+      maxWidth: colW - 4,
+    });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    setRgb(doc, COLOR_GRAY);
+    doc.text(s.role, x + colW / 2, y + 12, { align: "center" });
+    setRgb(doc, COLOR_BLACK);
+  });
+
+  const pages = doc.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setFontSize(8);
+    doc.setTextColor(140, 140, 140);
+    const footer = [input.chapterName, input.chapterCity].filter(Boolean).join(" — ");
+    doc.text(footer, MARGIN, pageH - 8);
+    if (pages > 1) doc.text(`${p}/${pages}`, pageW - MARGIN, pageH - 8, { align: "right" });
+  }
+
+  doc.save(`fluxo-de-caixa-simplificado-${fileSafe(input.periodLabel)}.pdf`);
+}

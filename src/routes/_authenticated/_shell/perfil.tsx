@@ -198,24 +198,24 @@ function PerfilOdm() {
             />
             <div className="min-w-0">
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1">
-                <TabsTrigger value="cadastro" className="gap-1.5">
+              <TabsList className="scroll-row mb-4 flex h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto md:flex-wrap">
+                <TabsTrigger value="cadastro" className="shrink-0 gap-1.5">
                   <UserRound className="h-3.5 w-3.5" />
                   Cadastro
                 </TabsTrigger>
-                <TabsTrigger value="frequencia" className="gap-1.5">
+                <TabsTrigger value="frequencia" className="shrink-0 gap-1.5">
                   <CalendarCheck className="h-3.5 w-3.5" />
                   Frequência
                 </TabsTrigger>
-                <TabsTrigger value="cobrancas" className="gap-1.5">
+                <TabsTrigger value="cobrancas" className="shrink-0 gap-1.5">
                   <Wallet className="h-3.5 w-3.5" />
                   Cobranças
                 </TabsTrigger>
-                <TabsTrigger value="historico" className="gap-1.5">
+                <TabsTrigger value="historico" className="shrink-0 gap-1.5">
                   <History className="h-3.5 w-3.5" />
                   Histórico
                 </TabsTrigger>
-                <TabsTrigger value="carteirinhas" className="gap-1.5">
+                <TabsTrigger value="carteirinhas" className="shrink-0 gap-1.5">
                   <CreditCard className="h-3.5 w-3.5" />
                   Carteirinhas
                 </TabsTrigger>
