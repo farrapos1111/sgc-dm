@@ -405,7 +405,7 @@ function MembroPerfilOdm() {
 
         <TabsContent value="dados">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Card className="rounded-[12px] p-5">
+            <Card className="p-5">
               <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
                 Identificação
               </h3>
@@ -560,7 +560,7 @@ function MembroPerfilOdm() {
                 </div>
               </dl>
             </Card>
-            <Card className="rounded-[12px] p-5">
+            <Card className="p-5">
               <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
                 Contato
               </h3>
@@ -616,7 +616,7 @@ function MembroPerfilOdm() {
             ) : null}
 
             {guardians.length > 0 && (
-              <Card className="rounded-[12px] p-5 md:col-span-2">
+              <Card className="p-5 md:col-span-2">
                 <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
                   Responsáveis
                 </h3>
@@ -640,7 +640,7 @@ function MembroPerfilOdm() {
             )}
 
             {consents.length > 0 && (
-              <Card className="rounded-[12px] p-5 md:col-span-2">
+              <Card className="p-5 md:col-span-2">
                 <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                   <Shield className="h-4 w-4" /> Consentimentos LGPD
                 </h3>
@@ -664,7 +664,7 @@ function MembroPerfilOdm() {
               const activeAffs = (affiliations ?? []).filter((a) => a.active);
               if (activeAffs.length <= 1) return null;
               return (
-                <Card className="rounded-[12px] p-5 md:col-span-2">
+                <Card className="p-5 md:col-span-2">
                   <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
                     {affiliatedOrgsHeading(orgType)}
                   </h3>
@@ -758,7 +758,7 @@ function MembroPerfilOdm() {
                 />
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Card className="rounded-[12px] p-5">
+                <Card className="p-5">
                   <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
                     Cargos do capítulo e conselho
                   </h3>
@@ -818,7 +818,7 @@ function MembroPerfilOdm() {
                     />
                   )}
                 </Card>
-                <Card className="rounded-[12px] p-5">
+                <Card className="p-5">
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-muted-foreground">
                       Comissões deste capítulo
@@ -901,7 +901,7 @@ function MembroPerfilOdm() {
             <PageSkeleton />
           ) : (
             <>
-              <Card className="mb-4 rounded-[12px] p-5">
+              <Card className="mb-4 p-5">
                 <div className="text-sm font-medium text-muted-foreground">
                   Frequência em itens obrigatórios
                 </div>
@@ -924,7 +924,7 @@ function MembroPerfilOdm() {
                   </span>
                 </div>
               </Card>
-              <Card className="rounded-[12px] p-0">
+              <Card className="p-0">
                 {attendanceRows.length === 0 ? (
                   <div className="p-5 text-sm text-muted-foreground">
                     Nenhum registro de presença ainda.
@@ -997,7 +997,7 @@ function MembroPerfilOdm() {
         </TabsContent>
 
         <TabsContent value="timeline">
-          <Card className="rounded-[12px] p-5">
+          <Card className="p-5">
             {audit.length === 0 ? (
               <div className="text-sm text-muted-foreground">
                 Nenhum evento registrado ainda.
@@ -1098,7 +1098,7 @@ function MemberFinanceTab({
 
   if (error) {
     return (
-      <Card className="rounded-[12px] p-5 text-sm text-rose-600 dark:text-rose-400">
+      <Card className="p-5 text-sm text-rose-600 dark:text-rose-400">
         {error}
       </Card>
     );
@@ -1106,7 +1106,7 @@ function MemberFinanceTab({
 
   if (pending && !finance) {
     return (
-      <Card className="rounded-[12px] p-5 text-sm text-muted-foreground">
+      <Card className="p-5 text-sm text-muted-foreground">
         Carregando financeiro…
       </Card>
     );
@@ -1147,7 +1147,7 @@ function MemberFinanceTab({
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card className="rounded-[12px] p-4">
+        <Card className="p-4">
           <div className="text-xs text-muted-foreground">Total em aberto</div>
           <div
             className={`mt-1 text-xl font-bold ${
@@ -1157,7 +1157,7 @@ function MemberFinanceTab({
             {formatBRL(summary.totalOpen)}
           </div>
         </Card>
-        <Card className="rounded-[12px] p-4">
+        <Card className="p-4">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Receipt className="h-3.5 w-3.5" /> Mensalidades
           </div>
@@ -1169,7 +1169,7 @@ function MemberFinanceTab({
             {summary.duesOpenCount === 1 ? "" : "s"}
           </div>
         </Card>
-        <Card className="rounded-[12px] p-4">
+        <Card className="p-4">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Banknote className="h-3.5 w-3.5" /> Cobranças
           </div>
@@ -1182,7 +1182,7 @@ function MemberFinanceTab({
         </Card>
       </div>
 
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <h3 className="mb-3 text-sm font-semibold">
           Mensalidades · {year}
           {finance?.defaultAmount != null ? (
@@ -1241,7 +1241,7 @@ function MemberFinanceTab({
         )}
       </Card>
 
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <h3 className="mb-3 text-sm font-semibold">Cobranças</h3>
         {(finance?.charges.length ?? 0) === 0 ? (
           <p className="text-sm text-muted-foreground">

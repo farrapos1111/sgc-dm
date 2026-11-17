@@ -393,7 +393,7 @@ function MembersContent() {
       </div>
 
       {!isLoading && rows.length === 0 && (
-        <Card className="rounded-[12px] p-8 text-center text-sm text-muted-foreground">
+        <Card className="p-8 text-center text-sm text-muted-foreground">
           {ids.length === 0
             ? "Selecione ao menos uma instituição para listar membros."
             : "Nenhum membro encontrado com estes filtros."}
@@ -407,7 +407,7 @@ function MembersContent() {
           return (
             <Card
               key={m.id}
-              className="flex items-start gap-3 rounded-[12px] p-4"
+              className="flex items-start gap-3 p-4"
             >
               <div
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-xs font-semibold text-white"

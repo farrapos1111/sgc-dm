@@ -394,7 +394,7 @@ export function EventFinancePanel({
 
   if (financeQ.error || totalsQ.error) {
     return (
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <p className="text-sm text-destructive">
           Não foi possível carregar o financeiro do evento.
         </p>
@@ -414,7 +414,7 @@ export function EventFinancePanel({
 
   return (
     <div className="space-y-4">
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <div className="flex flex-col gap-4">
           <div>
             <div className="grid grid-cols-3 gap-3">
@@ -600,7 +600,7 @@ export function EventFinancePanel({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {(totals?.byCategory ?? []).map((c) => (
-          <Card key={c.categoryId} className="rounded-[12px] p-4">
+          <Card key={c.categoryId} className="p-4">
             <div className="text-sm font-medium">{c.name}</div>
             <div className="mt-1 text-xl font-bold">{formatBRL(c.income)}</div>
             {c.categoryId !== "other" &&
@@ -618,14 +618,14 @@ export function EventFinancePanel({
           </Card>
         ))}
         {totalsQ.isSuccess && (totals?.byCategory ?? []).length === 0 && (
-          <Card className="rounded-[12px] p-5 sm:col-span-2 lg:col-span-3 text-sm text-muted-foreground">
+          <Card className="p-5 sm:col-span-2 lg:col-span-3 text-sm text-muted-foreground">
             Nenhum lançamento no período. Cadastre categorias/itens e lance no
             Caixa ou nas comandas.
           </Card>
         )}
       </div>
 
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="flex items-center gap-2 text-sm font-medium">
@@ -743,7 +743,7 @@ export function EventFinancePanel({
         )}
       </Card>
 
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Wallet className="h-4 w-4 text-muted-foreground" />

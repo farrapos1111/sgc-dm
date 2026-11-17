@@ -1,0 +1,37 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-08T22:45:00Z"},
+  "title": "Templo Virtual · Redesign",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 390, "h": 844, "title": "Mobile · Início", "is_interactive": true, "radius": 28},
+    "M-Membros.dc.html": {"x": 470, "y": 0, "w": 390, "h": 844, "title": "Mobile · Membros", "is_interactive": true, "radius": 28},
+    "M-Perfil.dc.html": {"x": 940, "y": 0, "w": 390, "h": 844, "title": "Mobile · Perfil", "is_interactive": true, "radius": 28},
+    "M-Caixa.dc.html": {"x": 1410, "y": 0, "w": 390, "h": 844, "title": "Mobile · Caixa", "is_interactive": true, "radius": 28},
+    "M-Mensalidades.dc.html": {"x": 1880, "y": 0, "w": 390, "h": 844, "title": "Mobile · Mensalidades", "is_interactive": true, "radius": 28},
+    "M-Chamada.dc.html": {"x": 2350, "y": 0, "w": 390, "h": 844, "title": "Mobile · Chamada", "is_interactive": true, "radius": 28},
+    "M-Ata.dc.html": {"x": 2820, "y": 0, "w": 390, "h": 844, "title": "Mobile · Ata", "is_interactive": true, "radius": 28},
+    "TabBar.dc.html": {"x": 3290, "y": 0, "w": 390, "h": 84, "title": "Componente · Barra de abas"},
+    "Sidebar.dc.html": {"x": 3760, "y": 0, "w": 264, "h": 960, "title": "Componente · Menu lateral"},
+    "D-Inicio.dc.html": {"x": 0, "y": 1340, "w": 1440, "h": 1000, "title": "Desktop · Início", "expand": "fill", "is_interactive": true},
+    "D-Membros.dc.html": {"x": 1520, "y": 1340, "w": 1440, "h": 1000, "title": "Desktop · Membros", "expand": "fill", "is_interactive": true},
+    "D-Perfil.dc.html": {"x": 3040, "y": 1340, "w": 1440, "h": 1000, "title": "Desktop · Perfil", "expand": "fill", "is_interactive": true},
+    "D-Caixa.dc.html": {"x": 4560, "y": 1340, "w": 1440, "h": 1000, "title": "Desktop · Fluxo de caixa", "expand": "fill", "is_interactive": true},
+    "D-Mensalidades.dc.html": {"x": 6080, "y": 1340, "w": 1440, "h": 1000, "title": "Desktop · Mensalidades", "expand": "fill", "is_interactive": true},
+    "D-Chamada.dc.html": {"x": 7600, "y": 1340, "w": 1440, "h": 1000, "title": "Desktop · Chamada", "expand": "fill", "is_interactive": true},
+    "D-Atas.dc.html": {"x": 9120, "y": 1340, "w": 1440, "h": 1000, "title": "Desktop · Atas", "expand": "fill", "is_interactive": true}
+  },
+  "order": [
+    "Main.dc.html", "M-Membros.dc.html", "M-Perfil.dc.html", "M-Caixa.dc.html", "M-Mensalidades.dc.html", "M-Chamada.dc.html", "M-Ata.dc.html",
+    "TabBar.dc.html", "Sidebar.dc.html",
+    "D-Inicio.dc.html", "D-Membros.dc.html", "D-Perfil.dc.html", "D-Caixa.dc.html", "D-Mensalidades.dc.html", "D-Chamada.dc.html", "D-Atas.dc.html"
+  ],
+  "notes": {
+    "tMobile": {"x": 0, "y": -300, "text": "Mobile · cara de app de banco", "kind": "title1", "maxW": 3210},
+    "tComp": {"x": 3290, "y": -300, "text": "Componentes", "kind": "title1", "maxW": 734},
+    "tDesk": {"x": 0, "y": 1040, "text": "Desktop", "kind": "title1", "maxW": 10560},
+    "principios": {"x": 4120, "y": 0, "w": 440, "fill": "orange", "size": "m", "text": "Princípios do redesign\n\n1. Cor da marca vem do seletor de identidade: cada tela tem o tweak Tema (Bordô, Azul, Verde, Roxo, Grafite). Só a cor primária e seu tom claro mudam; neutros, verde de entrada e vermelho de saída ficam fixos.\n2. Texto base 16px no mobile e alvos de toque de 44px ou mais, para quem não tem costume com tecnologia.\n3. Todo ícone tem rótulo escrito. Nada depende só de ícone ou só de cor.\n4. Ações frequentes à mão: atalhos na Início e botão central de Chamada na barra de abas.\n5. Status sempre em palavra (Pago, Em aberto, Atrasado, Isento), nunca só a letra.\n6. Valores podem ser ocultados no olho, como em app de banco."}
+  },
+  "designSystems": []
+}

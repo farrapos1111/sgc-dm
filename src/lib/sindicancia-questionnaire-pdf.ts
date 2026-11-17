@@ -1,4 +1,4 @@
-import { jsPDF } from "jspdf";
+import type { jsPDF } from "jspdf";
 import { loadLogoDataUrl } from "@/lib/chapter-logo";
 import { formatDateBR } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
@@ -106,7 +106,9 @@ function ensureSpace(
 export async function exportSindicanciaQuestionnairePdf(
   input: SindicanciaQuestionnairePdfInput,
 ) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  // jsPDF (~300 KB) só é baixado quando alguém exporta.
+  const { jsPDF: JsPDF } = await import("jspdf");
+  const doc = new JsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const contentW = pageW - MARGIN * 2;

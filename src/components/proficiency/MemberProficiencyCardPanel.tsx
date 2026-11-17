@@ -113,7 +113,7 @@ export function MemberProficiencyCardPanel({
 
   return (
     <>
-      <Card className="rounded-[12px] p-5 md:col-span-2">
+      <Card className="p-5 md:col-span-2">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <CreditCard className="h-4 w-4" />

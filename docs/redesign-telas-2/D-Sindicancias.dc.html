@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Sindicâncias · desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A">
+  <div style="flex: 1 1 264px; max-width: 100%; display: flex; flex-direction: column; background: #FFFFFF">
+    <dc-import name="Sidebar" active="sindicancias" tema="{{tema}}" hint-size="264px,1180px"></dc-import>
+  </div>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box">
+    <div style="max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between">
+        <div>
+          <p style="margin: 0; font-size: 14px; color: #5E6168">Comissão de Sindicâncias</p>
+          <h1 style="margin: 2px 0 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.02em">Sindicâncias</h1>
+          <p style="margin: 4px 0 0; font-size: 15px; color: #5E6168">Visitas aos indicados. Aparecem no calendário, sem chamada de presença.</p>
+        </div>
+        <button style="min-height: 46px; padding: 0 18px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Nova sindicância</button>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+        <label style="flex: 1 1 260px; max-width: 400px; display: flex; align-items: center; gap: 10px; background: #FFFFFF; border: 1px solid #E2E2DE; border-radius: 12px; padding: 0 14px; min-height: 44px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5E6168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"></path></svg>
+          <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar sindicância</span>
+          <input type="search" placeholder="Buscar indicado, local ou responsável" style="flex: 1; min-width: 0; border: 0; outline: none; font: inherit; font-size: 15px; background: transparent">
+        </label>
+        <sc-for list="{{filtros}}" as="f" hint-placeholder-count="4">
+          <button onClick="{{f.pick}}" aria-pressed="{{f.pressed}}" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid {{f.bd}}; background: {{f.bg}}; color: {{f.fg}}; font-size: 14px; font-weight: 600">{{f.label}}</button>
+        </sc-for>
+      </div>
+
+      <sc-for list="{{lista}}" as="s" hint-placeholder-count="3">
+        <div style="background: #FFFFFF; border-radius: 20px; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px">
+          <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start">
+            <span style="width: 48px; height: 48px; border-radius: 50%; background: {{t.s}}; color: {{t.i}}; display: grid; place-items: center; font-weight: 700; font-size: 15px; flex: none">{{s.ini}}</span>
+            <div style="flex: 1 1 300px; min-width: 0">
+              <span style="display: block; font-size: 13px; color: #5E6168; font-weight: 600">Indicado</span>
+              <span style="display: block; font-size: 18px; font-weight: 700">{{s.nome}}</span>
+              <span style="display: block; font-size: 14px; color: #3F4249; margin-top: 2px">{{s.quando}} · {{s.local}}</span>
+            </div>
+            <span style="display: flex; gap: 6px; flex-wrap: wrap">
+              <span style="font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px; background: {{s.sbg}}; color: {{s.sfg}}">{{s.status}}</span>
+              <span style="font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 999px; background: #F0F0EC; color: #3F4249">{{s.ata}}</span>
+            </span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; background: #FAFAF8; border-radius: 14px; padding: 12px 14px">
+            <span><span style="display: block; font-size: 12px; color: #5E6168; font-weight: 600">Tio ou Sênior</span><span style="font-size: 14px; font-weight: 600">{{s.tio}}</span></span>
+            <span><span style="display: block; font-size: 12px; color: #5E6168; font-weight: 600">Sindicante</span><span style="font-size: 14px; font-weight: 600">{{s.sind}}</span></span>
+            <span><span style="display: block; font-size: 12px; color: #5E6168; font-weight: 600">Escrivão</span><span style="font-size: 14px; font-weight: 600">{{s.esc}}</span></span>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+            <sc-for list="{{acoes}}" as="a" hint-placeholder-count="4">
+              <button style="min-height: 42px; padding: 0 14px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31; display: flex; align-items: center; gap: 8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{a.icon}}"></path></svg>{{a.label}}</button>
+            </sc-for>
+            <span style="flex: 1"></span>
+            <button style="min-height: 42px; padding: 0 14px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31; display: flex; align-items: center; gap: 6px">Mudar situação<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+            <button aria-label="Excluir sindicância" style="width: 42px; height: 42px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; color: #A1261B; display: grid; place-items: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"></path></svg></button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { filtro: 'Todas' }; }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const f = this.state.filtro;
+    const ST = { Aprovada:['#DDF0E5','#155A38'], Arquivada:['#E6E6E3','#4F5258'], 'Em andamento':['#FDF3D8','#7A4F00'] };
+    const S = [
+      { ini:'LC', nome:'Leonardo Rocha Costa', quando:'Quinta, 01/10 às 19:00', local:'Rua Ricardo Borges Caon, 1382, Salgado Filho', tio:'Jorge Eduardo Lolas Feiten', sind:'Elias Algemiro Artagabeitia Ferreira', esc:'Bryan Joaquim Ferreira Pereira', status:'Arquivada', ata:'Ata em rascunho' },
+      { ini:'RC', nome:'Rodrigo Oliveira Cristovan', quando:'Quinta, 01/10 às 19:00', local:'Rua Demenciano Cidade, 33, Diamantino', tio:'Victor Gobi de Araújo', sind:'Rafael Machado Roldo', esc:'Braian Roldo Visona', status:'Aprovada', ata:'Ata concluída' },
+      { ini:'RM', nome:'Rafael Orlando de Oliveira Maddalozzo', quando:'Quarta, 30/09 às 19:00', local:'Rua Treze de Maio, 1604, Cristo Redentor', tio:'Marco Antônio Parisenti da Costa', sind:'Miguel Panisson Cruz', esc:'Braian Roldo Visona', status:'Aprovada', ata:'Ata concluída' }
+    ].map((x) => ({ ...x, sbg: ST[x.status][0], sfg: ST[x.status][1] }));
+    const lista = S.filter((x) => f === 'Todas' ? true : f === 'Aprovadas' ? x.status === 'Aprovada' : f === 'Arquivadas' ? x.status === 'Arquivada' : x.status === 'Em andamento');
+    const filtros = ['Todas','Em andamento','Aprovadas','Arquivadas'].map((label) => { const on = f === label; return { label, pressed: on ? 'true' : 'false', bg: on ? '#17181A' : '#FFFFFF', fg: on ? '#FFFFFF' : '#2A2C31', bd: on ? '#17181A' : '#DCDCD8', pick: () => this.setState({ filtro: label }) }; });
+    return {
+      t, tema, filtros, lista,
+      acoes: [
+        {label:'Copiar chave', icon:'M9 9h11v11H9zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1'},
+        {label:'Roteiro', icon:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01'},
+        {label:'Ata', icon:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5'},
+        {label:'Participantes', icon:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'}
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

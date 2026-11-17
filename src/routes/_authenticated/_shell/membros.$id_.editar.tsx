@@ -286,7 +286,7 @@ function EditarMembroOdm() {
           enviadas como solicitação e só entram em vigor após aprovação.
         </p>
       )}
-      <Card className="space-y-6 rounded-[12px] p-6">
+      <Card className="space-y-6 p-6">
         <MemberDataFields
           value={dados}
           onChange={(p) => setDados((d) => ({ ...d, ...p }))}

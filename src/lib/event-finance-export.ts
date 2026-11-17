@@ -1,5 +1,4 @@
-import { jsPDF } from "jspdf";
-import * as XLSX from "xlsx";
+import type { jsPDF } from "jspdf";
 import { loadLogoDataUrl } from "@/lib/chapter-logo";
 import { centsToMoney, moneyCents } from "@/lib/cash-totals";
 import { formatBRL, formatDateBR } from "@/lib/format";
@@ -1058,7 +1057,9 @@ export type EventFinanceSimplePdfInput = {
 
 /** Relatório PDF do financeiro do evento (estilo fluxo de caixa). */
 export async function exportEventFinancePdf(input: EventFinancePdfInput) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  // jsPDF (~300 KB) só é baixado quando alguém exporta.
+  const { jsPDF: JsPDF } = await import("jspdf");
+  const doc = new JsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const contentW = pageW - MARGIN * 2;
@@ -1266,7 +1267,9 @@ function drawSimpleSigner(
 export async function exportEventFinanceSimplePdf(
   input: EventFinanceSimplePdfInput,
 ) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  // jsPDF (~300 KB) só é baixado quando alguém exporta.
+  const { jsPDF: JsPDF } = await import("jspdf");
+  const doc = new JsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const contentW = pageW - MARGIN * 2;
@@ -1443,11 +1446,12 @@ export type EventTicketExportRow = {
 };
 
 /** Planilha de ingressos: Comprador, Vendedor, Tipo, Valor. */
-export function exportEventTicketsXlsx(
+export async function exportEventTicketsXlsx(
   rows: EventTicketExportRow[],
   fileName: string,
   options?: { eventName?: string },
 ) {
+  const XLSX = await import("xlsx");
   const active = rows.filter((r) => r.status !== "cancelado");
   const sheetRows = active.map((r) => ({
     "Nome Comprador": r.buyer_name || "—",
@@ -1592,7 +1596,9 @@ export async function exportEventComandasPdf(input: {
   rows: ComandaReportRow[];
   spent?: number;
 }) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  // jsPDF (~300 KB) só é baixado quando alguém exporta.
+  const { jsPDF: JsPDF } = await import("jspdf");
+  const doc = new JsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const contentW = pageW - MARGIN * 2;

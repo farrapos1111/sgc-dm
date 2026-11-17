@@ -10,7 +10,7 @@ export type ChapterTheme = {
 };
 
 const DEFAULT_ACCENT = "#9E1B32";
-const DEFAULT_BG = "#FAFAF8";
+const DEFAULT_BG = "#F4F4F1";
 const DEFAULT_FONT = "#1A1A1A";
 const DEFAULT_SIDEBAR = "#FFFFFF";
 
@@ -98,8 +98,8 @@ export function deriveThemeFromPrimary(primaryColor: string): ChapterTheme {
   return {
     background: DEFAULT_BG,
     accent,
-    accentDark: darkenHex(accent),
-    highlight: mixHex(accent, "#FFFFFF", 0.82),
+    accentDark: darkenHex(accent, 0.2),
+    highlight: mixHex(accent, "#FFFFFF", 0.91),
     font: DEFAULT_FONT,
     sidebar: DEFAULT_SIDEBAR,
   };
@@ -154,6 +154,10 @@ export function applyChapterThemeVars(
   el.style.setProperty("--chapter-font", theme.font);
   el.style.setProperty("--chapter-sidebar", theme.sidebar);
   el.style.setProperty("--chapter-primary", theme.accent);
+  // Tokens do redesign vêm do seletor de identidade (Configurações > Visual):
+  // Realce = tom claro (soft), Destaque escuro = tinta (ink).
+  el.style.setProperty("--chapter-soft", theme.highlight);
+  el.style.setProperty("--chapter-ink", theme.accentDark);
   el.style.setProperty("--primary", theme.accent);
   const onPrimary = readableOnHex(theme.accent);
   el.style.setProperty("--primary-foreground", onPrimary);
@@ -179,6 +183,8 @@ export function clearChapterThemeVars(el: HTMLElement | null | undefined): void 
     "--chapter-font",
     "--chapter-sidebar",
     "--chapter-primary",
+    "--chapter-soft",
+    "--chapter-ink",
     "--primary",
     "--primary-foreground",
     "--sidebar-primary-foreground",

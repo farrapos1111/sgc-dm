@@ -603,7 +603,7 @@ function Fichas() {
         <ul className="space-y-3">
           {visible.map((f) => (
             <li key={f.id}>
-              <Card className="rounded-[12px] p-4">
+              <Card className="p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <button
                     type="button"

@@ -473,7 +473,7 @@ export function MinutesPanel({
   const votes = publicVotes.data ?? [];
 
   return (
-    <Card className="rounded-[12px] p-5">
+    <Card className="p-5">
       {dialog}
 
       <Dialog

@@ -71,7 +71,7 @@ function OficioDetailPage() {
             Início
           </Link>
         </Button>
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           Você não tem permissão para acessar ofícios neste capítulo.
         </Card>
       </div>
@@ -87,7 +87,7 @@ function OficioDetailPage() {
             Ofícios
           </Link>
         </Button>
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           Carregando…
         </Card>
       </div>

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Chamada · mobile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A; overflow: hidden">
+  <div style="flex: 1; overflow-y: auto; min-height: 0">
+    <div style="padding: 16px 16px 0; display: flex; align-items: center; gap: 8px">
+      <a href="Main.dc.html" aria-label="Voltar para o início" style="width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; display: grid; place-items: center; flex: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      </a>
+      <span style="flex: 1"></span>
+      <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #155A38; background: #DDF0E5; padding: 6px 12px; border-radius: 999px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #1F7A4D"></span>Chamada aberta</span>
+    </div>
+    <div style="padding: 12px 16px 0">
+      <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -0.02em">Iniciação</h1>
+      <p style="margin: 4px 0 0; font-size: 15px; color: #5E6168">Sessão ritualística · Sáb, 07/11 · 13:30 · Obrigatória</p>
+    </div>
+
+    <div style="margin: 14px 16px 0; background: #FFFFFF; border-radius: 20px; padding: 16px">
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; text-align: center">
+        <div><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 28px; font-weight: 800; color: #155A38">{{np}}</span><span style="font-size: 13px; color: #5E6168">Presentes</span></div>
+        <div><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 28px; font-weight: 800; color: #A1261B">{{na}}</span><span style="font-size: 13px; color: #5E6168">Faltaram</span></div>
+        <div><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 28px; font-weight: 800; color: #17181A">{{nf}}</span><span style="font-size: 13px; color: #5E6168">Faltam marcar</span></div>
+      </div>
+      <div style="height: 10px; border-radius: 999px; background: #EEEEEA; margin-top: 14px; overflow: hidden; display: flex">
+        <div style="width: {{wp}}; background: #1F7A4D"></div>
+        <div style="width: {{wa}}; background: #C8463A"></div>
+      </div>
+    </div>
+
+    <div style="padding: 12px 16px 0; display: flex; gap: 8px">
+      <label style="flex: 1; display: flex; align-items: center; gap: 8px; background: #FFFFFF; border: 1px solid #E2E2DE; border-radius: 14px; padding: 0 12px; min-height: 48px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5E6168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"></path></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar membro</span>
+        <input type="search" placeholder="Buscar membro" style="flex: 1; min-width: 0; border: 0; outline: none; font: inherit; font-size: 16px; background: transparent">
+      </label>
+      <button onClick="{{todos}}" style="min-height: 48px; padding: 0 14px; border: 0; border-radius: 14px; background: {{t.s}}; color: {{t.i}}; font-weight: 600; font-size: 14px; white-space: nowrap">Todos presentes</button>
+    </div>
+
+    <div style="padding: 12px 16px 20px; display: flex; flex-direction: column; gap: 8px">
+      <sc-for list="{{lista}}" as="m" hint-placeholder-count="8">
+        <div style="background: #FFFFFF; border-radius: 18px; padding: 12px 12px 12px 14px; border: 1px solid {{m.borda}}">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <span style="flex: 1; min-width: 0; font-size: 16px; font-weight: 600; line-height: 1.25">{{m.nome}}</span>
+            <button onClick="{{m.presente}}" aria-pressed="{{m.pOn}}" style="min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid {{m.pBd}}; background: {{m.pBg}}; color: {{m.pFg}}; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 4px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Veio
+            </button>
+            <button onClick="{{m.ausente}}" aria-pressed="{{m.aOn}}" style="min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid {{m.aBd}}; background: {{m.aBg}}; color: {{m.aFg}}; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 4px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>Faltou
+            </button>
+          </div>
+          <sc-if value="{{m.isA}}" hint-placeholder-val="{{false}}">
+            <input type="text" aria-label="Justificativa da falta" placeholder="Motivo da falta (opcional)" style="margin-top: 10px; width: 100%; box-sizing: border-box; min-height: 44px; border: 1px solid #E2E2DE; border-radius: 12px; padding: 0 12px; font: inherit; font-size: 15px; background: #FAFAF8">
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  <div style="padding: 12px 16px; background: #FFFFFF; border-top: 1px solid #E6E6E2; display: flex; gap: 10px; align-items: center">
+    <span style="flex: 1; font-size: 13px; color: #5E6168; line-height: 1.3">Salvo automaticamente</span>
+    <button style="min-height: 52px; padding: 0 22px; border: 0; border-radius: 14px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 16px">Encerrar chamada</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { marc: {
+      'André Azevedo de Oliveira':'A', 'Ariam Miguel Sander Lumertz dos Reis':'P', 'Arthur Espinosa da Silva':'A',
+      'Arthur Toigo de Campos':'P', 'Arthur Tonet Pagliarin':'P', 'Bernardo Luiz Candeia':'P', 'Braian Roldo Visona':'A',
+      'Bryan Joaquim Ferreira Pereira':'P', 'Davi Bernardo Prux':'', 'Gabriel Machado Roldo':''
+    } };
+  }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const t = T[this.props.tema ?? 'Bordô'] || T['Bordô'];
+    const marc = this.state.marc;
+    const set = (nome, v) => this.setState({ marc: { ...marc, [nome]: marc[nome] === v ? '' : v } });
+    const nomes = Object.keys(marc);
+    const p = nomes.filter((n) => marc[n] === 'P').length, a = nomes.filter((n) => marc[n] === 'A').length, f = nomes.length - p - a;
+    const np = 13 + p, na = 10 + a, total = 23 + nomes.length;
+    const lista = nomes.map((nome) => {
+      const v = marc[nome];
+      return { nome, isA: v === 'A',
+        presente: () => set(nome, 'P'), ausente: () => set(nome, 'A'),
+        pOn: v === 'P' ? 'true' : 'false', aOn: v === 'A' ? 'true' : 'false',
+        pBg: v === 'P' ? '#1F7A4D' : '#FFFFFF', pFg: v === 'P' ? '#FFFFFF' : '#2A2C31', pBd: v === 'P' ? '#1F7A4D' : '#DCDCD8',
+        aBg: v === 'A' ? '#B42318' : '#FFFFFF', aFg: v === 'A' ? '#FFFFFF' : '#2A2C31', aBd: v === 'A' ? '#B42318' : '#DCDCD8',
+        borda: v === '' ? '#E9D58A' : '#FFFFFF' };
+    });
+    const todos = () => { const m = {}; nomes.forEach((n) => { m[n] = 'P'; }); this.setState({ marc: m }); };
+    return { t, lista, todos, np, na, nf: f, wp: (np / total * 100).toFixed(1) + '%', wa: (na / total * 100).toFixed(1) + '%' };
+  }
+}
+</script>
+</body>
+</html>

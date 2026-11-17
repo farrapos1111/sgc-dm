@@ -45,7 +45,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -232,7 +231,22 @@ function EventoDetalhe() {
     <div>
       <PageHeader
         title={data.event.name}
-        subtitle={`${formatDateTimeBR(data.event.starts_at)}${data.event.location ? ` · ${data.event.location}` : ""} · ${statusLabel}${financeWindowOpen ? "" : " · caixa encerrado"}`}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>
+              {formatDateTimeBR(data.event.starts_at)}
+              {data.event.location ? ` · ${data.event.location}` : ""}
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-bold first-letter:uppercase ${
+                financeWindowOpen ? "bg-tv-in-bg text-tv-in" : "bg-tv-line text-[#3F4249] dark:text-tv-text-2"
+              }`}
+            >
+              {statusLabel}
+              {financeWindowOpen ? "" : " · caixa encerrado"}
+            </span>
+          </span>
+        }
         actions={
           <div className="flex flex-wrap gap-2">
             {canReopenEvent && !financeWindowOpen ? (
@@ -279,16 +293,17 @@ function EventoDetalhe() {
             ) : null}
             <Button
               variant="ghost"
+              className="hidden md:inline-flex"
               onClick={() => navigate({ to: "/eventos" })}
             >
-              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+              <ArrowLeft className="h-4 w-4" /> Eventos
             </Button>
           </div>
         }
       />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="mb-4 flex h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto p-1">
+        <TabsList className="scroll-row mb-4 flex h-auto w-full flex-nowrap justify-start gap-1 p-1">
           <TabsTrigger value="resumo" className="shrink-0">
             Resumo
           </TabsTrigger>
@@ -320,39 +335,44 @@ function EventoDetalhe() {
               className="text-left"
               onClick={() => setTab("financeiro")}
             >
-              <Card className="rounded-[12px] p-5 transition-colors hover:bg-muted/40">
-                <div className="text-sm text-muted-foreground">Arrecadação</div>
-                <div className="mt-1 text-2xl font-bold">
+              <Card className="h-full p-5 transition-shadow hover:shadow-[0_4px_14px_rgba(20,20,20,0.07)]">
+                <div className="text-sm text-tv-text-2">Arrecadado</div>
+                <div className="mt-1 font-display text-[28px] font-extrabold tabular-nums">
                   {formatBRL(raised)}
                 </div>
                 {raisedHint && (
-                  <div className="mt-1 text-xs text-muted-foreground">
+                  <div className="mt-1 text-[13px] text-tv-text-2">
                     {raisedHint}
                   </div>
                 )}
                 {data.event.goal_amount > 0 && (
                   <div className="mt-3">
-                    <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                      <span>{pct.toFixed(0)}% da meta</span>
+                    <div className="mb-1.5 flex justify-between text-[13px] text-tv-text-2">
+                      <span className={pct >= 100 ? "font-semibold text-tv-in" : ""}>
+                        {pct >= 100 ? "Meta batida · " : ""}
+                        {pct.toFixed(0)}% da meta
+                      </span>
                       <span>
                         Meta: {formatBRL(Number(data.event.goal_amount))}
                       </span>
                     </div>
-                    <Progress value={pct} className="h-1.5" />
+                    <div className="h-2 overflow-hidden rounded-full bg-tv-line" aria-hidden>
+                      <div className="h-full rounded-full bg-tv-primary" style={{ width: `${Math.min(100, pct)}%` }} />
+                    </div>
                   </div>
                 )}
-                <div className="mt-2 text-xs text-muted-foreground underline-offset-2 hover:underline">
+                <div className="mt-3 text-sm font-semibold text-tv-primary">
                   Ver financeiro →
                 </div>
               </Card>
             </button>
-            <Card className="rounded-[12px] p-5">
-              <div className="text-sm text-muted-foreground">Ingressos</div>
-              <div className="mt-1 text-2xl font-bold">
-                {data.tickets.length}
+            <Card className="p-5">
+              <div className="text-sm text-tv-text-2">Ingressos</div>
+              <div className="mt-1 font-display text-[28px] font-extrabold tabular-nums">
+                {data.tickets.length} {data.tickets.length === 1 ? "vendido" : "vendidos"}
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {data.checkins.length} check-ins realizados
+              <div className="mt-1 text-[13px] text-tv-text-2">
+                {data.checkins.length} {data.checkins.length === 1 ? "check-in" : "check-ins"} na entrada
               </div>
             </Card>
             <TicketArtworkCard
@@ -618,7 +638,7 @@ function EventDetailsCard({
 
   if (!editing) {
     return (
-      <Card className="rounded-[12px] p-5 space-y-3 md:col-span-2">
+      <Card className="p-5 space-y-3 md:col-span-2">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-sm text-muted-foreground">Informações</div>
@@ -671,7 +691,7 @@ function EventDetailsCard({
   }
 
   return (
-    <Card className="rounded-[12px] p-5 space-y-4 md:col-span-2">
+    <Card className="p-5 space-y-4 md:col-span-2">
       <div className="flex items-center justify-between gap-3">
         <div className="text-sm font-medium">Editar evento</div>
         <Button
@@ -855,7 +875,7 @@ function TicketArtworkCard({
   }
 
   return (
-    <Card className="rounded-[12px] overflow-hidden md:col-span-2">
+    <Card className="overflow-hidden md:col-span-2">
       <div
         className="relative h-36 bg-cover bg-center"
         style={{
@@ -1073,7 +1093,7 @@ function TicketsList({
 
   return (
     <>
-      <Card className="rounded-[12px] p-0">
+      <Card className="p-0">
         <div className="border-b border-border p-3 space-y-2">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -1406,7 +1426,7 @@ function TicketTypesCard({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <Card className="rounded-[12px] p-0">
+      <Card className="p-0">
         <CollapsibleTrigger asChild>
           <button
             type="button"
@@ -1761,7 +1781,7 @@ function SellTicketCard({
   return (
     <>
       <Collapsible open={sellOpen} onOpenChange={setSellOpen}>
-        <Card className="rounded-[12px] p-0">
+        <Card className="p-0">
           <CollapsibleTrigger asChild>
             <button
               type="button"
@@ -2186,7 +2206,7 @@ function TablesMap({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
           {tables.length === 0 && (
-            <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+            <Card className="p-6 text-sm text-muted-foreground">
               Nenhuma mesa criada. Adicione a primeira ao lado.
             </Card>
           )}
@@ -2198,27 +2218,27 @@ function TablesMap({
             </p>
           ) : null}
           {tables.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3 text-[13px] font-medium text-tv-text-2">
               <span className="inline-flex items-center gap-1.5">
                 <span
-                  className="inline-block h-3 w-3 rounded-full bg-emerald-500"
+                  className="inline-block h-3 w-3 rounded-full border border-tv-in bg-tv-in-bg"
                   aria-hidden
                 />
                 Pago
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span
-                  className="inline-block h-3 w-3 rounded-full bg-amber-500"
+                  className="inline-block h-3 w-3 rounded-full border border-tv-warn bg-tv-warn-bg"
                   aria-hidden
                 />
-                Em aberto / parcial
+                Falta pagar (em aberto ou parcial)
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span
-                  className="inline-block h-3 w-3 rounded-full bg-muted"
+                  className="inline-block h-3 w-3 rounded-full border border-dashed border-tv-text-2 bg-tv-surface"
                   aria-hidden
                 />
-                Livre
+                Lugar livre
               </span>
             </div>
           ) : null}
@@ -2260,7 +2280,7 @@ function TablesMap({
                 return ticketMatchesSeller(ticketById.get(s.ticket_id));
               }).length;
               return (
-                <Card key={t.id} className="rounded-[12px] p-5">
+                <Card key={t.id} className="p-5">
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="font-semibold">{t.label}</div>
@@ -2317,7 +2337,18 @@ function TablesMap({
                           key={s.id}
                           type="button"
                           onClick={() => openAssign(s)}
-                          className={`flex flex-col items-center gap-1 rounded-[10px] p-1 text-left transition-colors hover:bg-muted/50 ${
+                          aria-label={
+                            guest
+                              ? `Lugar ${s.seat_number}: ${guest.buyer_name}, ${
+                                  guest.settlement === "paid"
+                                    ? "pago"
+                                    : guest.settlement === "partial"
+                                      ? "parcialmente pago"
+                                      : "em aberto"
+                                }`
+                              : `Lugar ${s.seat_number}: livre`
+                          }
+                          className={`flex flex-col items-center gap-1 rounded-[10px] p-1 text-left transition-colors hover:bg-tv-bg ${
                             dimmed ? "opacity-35" : ""
                           }`}
                           title={
@@ -2340,9 +2371,9 @@ function TablesMap({
                             className={`grid h-10 w-10 place-items-center rounded-full text-xs font-semibold ${
                               taken && !dimmed
                                 ? guest?.settlement === "paid"
-                                  ? "bg-emerald-500 text-white"
-                                  : "bg-amber-500 text-white"
-                                : "bg-muted text-muted-foreground"
+                                  ? "border-2 border-tv-in bg-tv-in-bg text-tv-in"
+                                  : "border-2 border-tv-warn bg-tv-warn-bg text-tv-warn"
+                                : "border-2 border-dashed border-[#CFCFCA] text-tv-text-2 dark:border-tv-border"
                             }`}
                             style={
                               highlight
@@ -2376,7 +2407,7 @@ function TablesMap({
             })}
           </div>
         </div>
-        <Card className="rounded-[12px] p-5 space-y-3">
+        <Card className="p-5 space-y-3">
           <h3 className="text-sm font-semibold">Nova mesa</h3>
           <div>
             <Label className="mb-1 block text-xs">Nome</Label>

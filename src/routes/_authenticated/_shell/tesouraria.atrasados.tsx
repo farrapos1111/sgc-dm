@@ -584,7 +584,7 @@ function Atrasados() {
     return (
       <div className="space-y-4">
         <PageHeader title="Atrasados" />
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           Você não tem permissão para acessar atrasados neste capítulo.
         </Card>
       </div>
@@ -595,7 +595,7 @@ function Atrasados() {
     return (
       <div className="space-y-4">
         <PageHeader title="Atrasados" />
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           Este capítulo não cobra mensalidade. Ative a opção em{" "}
           <span className="font-medium text-foreground">
             Configurações → Tesouraria
@@ -706,17 +706,17 @@ function Atrasados() {
       </div>
 
       <div className="mb-4 grid gap-2 sm:grid-cols-3">
-        <Card className="rounded-[12px] p-3">
+        <Card className="p-3">
           <div className="text-xs text-muted-foreground">Membros na lista</div>
           <div className="text-lg font-semibold">{displayed.length}</div>
         </Card>
-        <Card className="rounded-[12px] p-3">
+        <Card className="p-3">
           <div className="text-xs text-muted-foreground">Com atraso</div>
           <div className="text-lg font-semibold text-rose-700 dark:text-rose-300">
             {overdueMembers}
           </div>
         </Card>
-        <Card className="rounded-[12px] p-3">
+        <Card className="p-3">
           <div className="text-xs text-muted-foreground">Total em aberto</div>
           <div className="text-lg font-semibold">{formatBRL(openTotal)}</div>
         </Card>
@@ -767,7 +767,7 @@ function Atrasados() {
             return (
               <li key={member.id}>
                 <Card
-                  className={`rounded-[12px] p-3 ${
+                  className={`p-3 ${
                     highlighted ? "border-rose-200 dark:border-rose-900/60" : ""
                   }`}
                 >

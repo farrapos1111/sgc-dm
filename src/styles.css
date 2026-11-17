@@ -54,6 +54,25 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-brand: var(--chapter-primary);
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Redesign 2026 (docs/templo-virtual-redesign/HANDOFF.md) */
+  --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-tv-primary: var(--chapter-primary);
+  --color-tv-soft: var(--tv-soft);
+  --color-tv-ink: var(--tv-ink);
+  --color-tv-bg: var(--tv-bg);
+  --color-tv-surface: var(--tv-surface);
+  --color-tv-sidebar: var(--tv-sidebar);
+  --color-tv-border: var(--tv-border);
+  --color-tv-line: var(--tv-line);
+  --color-tv-text: var(--tv-text);
+  --color-tv-text-2: var(--tv-text-2);
+  --color-tv-in: var(--tv-in);
+  --color-tv-in-bg: var(--tv-in-bg);
+  --color-tv-out: var(--tv-out);
+  --color-tv-out-bg: var(--tv-out-bg);
+  --color-tv-warn: var(--tv-warn);
+  --color-tv-warn-bg: var(--tv-warn-bg);
 }
 
 /* Clicáveis: cursor pointer consistente (exceto desabilitados) */
@@ -119,9 +138,41 @@ input[type="date"]:not(:disabled) {
   --sidebar-accent-foreground: var(--chapter-font);
   --sidebar-border: color-mix(in srgb, var(--chapter-font) 12%, var(--chapter-sidebar));
   --sidebar-ring: var(--chapter-primary);
+
+  /* Redesign: cor da marca (soft/ink definidos pelo tema do capítulo) e neutros fixos */
+  --tv-soft: var(--chapter-soft, color-mix(in srgb, var(--chapter-primary) 9%, #ffffff));
+  --tv-ink: var(--chapter-ink, color-mix(in srgb, var(--chapter-primary) 80%, #000000));
+  --tv-bg: var(--chapter-bg);
+  --tv-sidebar: var(--chapter-sidebar);
+  --tv-surface: #FFFFFF;
+  --tv-border: #E2E2DE;
+  --tv-line: #F0F0EC;
+  --tv-text: var(--chapter-font);
+  --tv-text-2: #5E6168;
+  --tv-in: #155A38;
+  --tv-in-bg: #EAF5EF;
+  --tv-out: #A1261B;
+  --tv-out-bg: #FBEDEC;
+  --tv-warn: #7A4F00;
+  --tv-warn-bg: #FDF3D8;
 }
 
 .dark {
+  --tv-soft: color-mix(in srgb, var(--chapter-primary) 28%, #17181A);
+  --tv-ink: color-mix(in srgb, var(--chapter-primary) 35%, #FFFFFF);
+  --tv-bg: oklch(0.15 0 0);
+  --tv-sidebar: oklch(0.18 0 0);
+  --tv-surface: oklch(0.2 0 0);
+  --tv-border: oklch(1 0 0 / 12%);
+  --tv-line: oklch(1 0 0 / 8%);
+  --tv-text: oklch(0.98 0 0);
+  --tv-text-2: oklch(0.72 0 0);
+  --tv-in: #7FD3A6;
+  --tv-in-bg: rgba(46, 125, 91, 0.22);
+  --tv-out: #F2A39B;
+  --tv-out-bg: rgba(180, 35, 24, 0.22);
+  --tv-warn: #F3CD72;
+  --tv-warn-bg: rgba(183, 121, 31, 0.22);
   --background: oklch(0.15 0 0);
   --foreground: oklch(0.98 0 0);
   --card: oklch(0.2 0 0);
@@ -366,5 +417,122 @@ input[type="date"]:not(:disabled) {
     box-shadow:
       0 1px 2px rgb(0 0 0 / 0.05),
       0 6px 20px -4px rgb(0 0 0 / 0.14);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Celular: sem barras de rolagem visíveis (a rolagem continua)        */
+/* ------------------------------------------------------------------ */
+@media (max-width: 767px), (hover: none) and (pointer: coarse) {
+  *,
+  *::before,
+  *::after {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+/* Faixas que rolam para o lado (chips, abas) */
+.scroll-row {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 16px;
+}
+.scroll-row > * {
+  scroll-snap-align: start;
+}
+
+/* ------------------------------------------------------------------ */
+/* Movimento                                                           */
+/* ------------------------------------------------------------------ */
+:root {
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-soft: cubic-bezier(0.4, 0, 1, 1);
+}
+
+@keyframes tv-page-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.page-enter {
+  animation: tv-page-in 240ms var(--ease-out-soft) both;
+}
+
+@keyframes tv-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.fade-enter {
+  animation: tv-fade-in 200ms var(--ease-out-soft) both;
+}
+
+/* Barra de carregamento do topo: corre até ~90% enquanto a tela carrega */
+@keyframes tv-progress {
+  0% {
+    transform: scaleX(0);
+  }
+  60% {
+    transform: scaleX(0.7);
+  }
+  100% {
+    transform: scaleX(0.92);
+  }
+}
+.nav-progress {
+  transform-origin: left;
+  animation: tv-progress 2.4s var(--ease-out-soft) forwards;
+}
+
+/* Sanfonas (componente Expand) */
+.tv-expand {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows 240ms var(--ease-out-soft),
+    opacity 180ms var(--ease-out-soft),
+    visibility 0s linear 240ms;
+}
+.tv-expand[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+/* Sempre aberto a partir do computador (sanfona só no celular) */
+@media (min-width: 768px) {
+  .tv-expand.tv-expand-md-open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    visibility: visible;
+  }
+}
+.tv-expand > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }

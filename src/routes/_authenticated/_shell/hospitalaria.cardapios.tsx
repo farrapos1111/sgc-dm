@@ -94,7 +94,7 @@ function Cardapios() {
       />
 
       {open && writable && (
-        <Card className="mb-6 space-y-4 rounded-[12px] p-6">
+        <Card className="mb-6 space-y-4 p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Label className="mb-1.5 block text-sm">Título *</Label>
@@ -142,7 +142,7 @@ function Cardapios() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {menus.map((m) => (
-            <Card key={m.id} className="rounded-[12px] p-5">
+            <Card key={m.id} className="p-5">
               <div className="mb-1 flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="truncate font-semibold">{m.title}</div>

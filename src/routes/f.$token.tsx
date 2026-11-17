@@ -239,7 +239,7 @@ function PublicInvestigationSignup() {
   if (isError || !chapter) {
     return (
       <PublicShell accent="#9E1B32">
-        <Card className="rounded-[12px] border-border/80 bg-card p-6 text-center shadow-sm">
+        <Card className="border-border/80 bg-card p-6 text-center shadow-sm">
           <h2 className="text-lg font-semibold text-foreground">
             Link indisponível
           </h2>
@@ -261,7 +261,7 @@ function PublicInvestigationSignup() {
         subtitle={chapter.city ?? undefined}
         logoUrl={chapter.logo_url}
       >
-        <Card className="rounded-[12px] border-border/80 bg-card p-8 text-center shadow-sm">
+        <Card className="border-border/80 bg-card p-8 text-center shadow-sm">
           <div
             className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full text-white"
             style={{ backgroundColor: accent }}
@@ -308,7 +308,7 @@ function PublicInvestigationSignup() {
         </div>
       </div>
 
-      <Card className="rounded-[12px] border-border/80 bg-card p-5 shadow-sm sm:p-6">
+      <Card className="border-border/80 bg-card p-5 shadow-sm sm:p-6">
         <InvestigationFileForm
           value={form}
           onChange={(p) => setForm((f) => ({ ...f, ...p }))}

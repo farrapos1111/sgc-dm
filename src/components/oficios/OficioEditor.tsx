@@ -167,7 +167,7 @@ export function OficioDraftPanel({
   const preview = issueCtx.data;
 
   return (
-    <Card className="rounded-[12px] p-5">
+    <Card className="p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground">
           <FileText className="h-4 w-4 shrink-0" />
@@ -355,7 +355,7 @@ export function OficioViewPanel({ oficio }: ViewProps) {
   const chapterNumber = active?.chapter.number;
 
   return (
-    <Card className="rounded-[12px] p-5">
+    <Card className="p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
           <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />

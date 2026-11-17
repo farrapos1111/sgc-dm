@@ -466,7 +466,7 @@ function NovoMembroOdm() {
         }
       />
 
-      <Card className="rounded-[12px] p-6">
+      <Card className="p-6">
         {step === "dados" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">

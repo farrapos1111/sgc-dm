@@ -38,7 +38,7 @@ function AppearanceContent() {
 
   if (scope.type !== "region") {
     return (
-      <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+      <Card className="p-6 text-sm text-muted-foreground">
         Selecione um escopo regional para configurar a aparência.
       </Card>
     );
@@ -46,7 +46,7 @@ function AppearanceContent() {
 
   if (!canManageChapters) {
     return (
-      <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+      <Card className="p-6 text-sm text-muted-foreground">
         Sem permissão para alterar a aparência desta região.
       </Card>
     );
@@ -101,7 +101,7 @@ function RegionAccentSection({
   });
 
   return (
-    <Card className="space-y-4 rounded-[12px] p-5">
+    <Card className="space-y-4 p-5">
       <div>
         <h3 className="text-sm font-semibold">Cor de destaque</h3>
         <p className="text-xs text-muted-foreground">
@@ -198,7 +198,7 @@ function RegionLogoSection({
   });
 
   return (
-    <Card className="space-y-4 rounded-[12px] p-5">
+    <Card className="space-y-4 p-5">
       <div>
         <h3 className="text-sm font-semibold">Logo da região</h3>
         <p className="text-xs text-muted-foreground">

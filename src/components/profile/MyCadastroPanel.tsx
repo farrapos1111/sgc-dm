@@ -25,9 +25,7 @@ import {
 } from "@/components/ui/select";
 import {
   digitsOnly,
-  formatCpfMask,
   formatDateBR,
-  formatRgMask,
   isUnder21,
   kindLabel,
   maskCpfInput,
@@ -53,6 +51,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
   const [rg, setRg] = useState("");
+  const [editDocs, setEditDocs] = useState(false);
   const [address, setAddress] = useState({
     zip: "",
     street: "",
@@ -202,7 +201,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
 
   if (isLoading) {
     return (
-      <Card className="flex justify-center rounded-[12px] p-8 text-muted-foreground">
+      <Card className="flex justify-center p-8 text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </Card>
     );
@@ -210,7 +209,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
 
   if (error || !member) {
     return (
-      <Card className="rounded-[12px] p-5 text-sm text-destructive">
+      <Card className="p-5 text-sm text-destructive">
         {error instanceof Error
           ? error.message
           : "Não foi possível carregar o cadastro"}
@@ -220,7 +219,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
 
   return (
     <div className="space-y-4">
-      <Card className="space-y-3 rounded-[12px] p-5">
+      <Card className="space-y-3 p-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h3 className="text-base font-semibold">{member.full_name}</h3>
@@ -260,7 +259,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
         </p>
       </Card>
 
-      <Card className="space-y-4 rounded-[12px] p-5">
+      <Card className="space-y-4 p-5">
         <h3 className="text-sm font-semibold text-muted-foreground">
           Dados editáveis
         </h3>
@@ -279,24 +278,39 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
               onChange={(e) => setEmail(e.target.value)}
             />
           </Field>
-          <Field label="CPF">
-            <Input
-              value={cpf}
-              placeholder={formatCpfMask(member.cpf_last2)}
-              onChange={(e) => setCpf(maskCpfInput(e.target.value))}
-            />
-          </Field>
-          <Field label="RG">
-            <Input
-              value={rg}
-              placeholder={formatRgMask(member.rg_last2)}
-              onChange={(e) => setRg(e.target.value.slice(0, 20))}
-            />
-          </Field>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Deixe CPF e RG em branco para manter os valores já cadastrados.
-        </p>
+        {/* CPF e RG nunca aparecem na tela, nem mascarados (redesign). */}
+        <div className="flex flex-col gap-3 rounded-[14px] bg-tv-bg p-4 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-[15px] text-tv-text-2">
+            {member.cpf_last2 || member.rg_last2
+              ? "CPF e RG cadastrados e protegidos."
+              : "CPF e RG ainda não cadastrados."}
+          </span>
+          {!editDocs ? (
+            <Button type="button" variant="outline" onClick={() => setEditDocs(true)}>
+              Atualizar documentos
+            </Button>
+          ) : null}
+        </div>
+        {editDocs ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Novo CPF">
+              <Input
+                value={cpf}
+                inputMode="numeric"
+                placeholder="Deixe vazio para manter"
+                onChange={(e) => setCpf(maskCpfInput(e.target.value))}
+              />
+            </Field>
+            <Field label="Novo RG">
+              <Input
+                value={rg}
+                placeholder="Deixe vazio para manter"
+                onChange={(e) => setRg(e.target.value.slice(0, 20))}
+              />
+            </Field>
+          </div>
+        ) : null}
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
@@ -385,7 +399,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
 
       {isUnder21(member.birth_date) &&
         guardians.map((g, idx) => (
-          <Card key={g.id} className="space-y-4 rounded-[12px] p-5">
+          <Card key={g.id} className="space-y-4 p-5">
             <h3 className="text-sm font-semibold">
               Responsável {idx + 1}
               <span className="ml-2 font-normal text-muted-foreground">
@@ -424,7 +438,7 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
               <Field label="CPF">
                 <Input
                   value={g.cpf}
-                  placeholder={formatCpfMask(g.cpf_last2)}
+                  placeholder={g.cpf_last2 ? "Cadastrado · deixe vazio para manter" : ""}
                   onChange={(e) =>
                     patchGuardian(g.id, { cpf: maskCpfInput(e.target.value) })
                   }

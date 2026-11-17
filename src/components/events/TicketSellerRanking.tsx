@@ -160,7 +160,7 @@ export function TicketSellerRanking({
   const accent = primary || undefined;
 
   return (
-    <Card className="rounded-[12px] overflow-hidden">
+    <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
         <Trophy className="h-4 w-4 text-muted-foreground" aria-hidden />
         <div className="min-w-0 flex-1">

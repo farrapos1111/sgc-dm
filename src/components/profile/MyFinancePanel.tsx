@@ -48,7 +48,7 @@ export function MyFinancePanel({
 
   if (isLoading && !finance) {
     return (
-      <Card className="flex justify-center rounded-[12px] p-8 text-muted-foreground">
+      <Card className="flex justify-center p-8 text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </Card>
     );
@@ -56,7 +56,7 @@ export function MyFinancePanel({
 
   if (error) {
     return (
-      <Card className="rounded-[12px] p-5 text-sm text-destructive">
+      <Card className="p-5 text-sm text-destructive">
         {error instanceof Error ? error.message : "Erro ao carregar cobranças"}
       </Card>
     );
@@ -112,7 +112,7 @@ export function MyFinancePanel({
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card className="rounded-[12px] p-4">
+        <Card className="p-4">
           <div className="text-xs text-muted-foreground">Total em aberto</div>
           <div
             className={`mt-1 text-xl font-bold ${
@@ -122,7 +122,7 @@ export function MyFinancePanel({
             {formatBRL(summary.totalOpen)}
           </div>
         </Card>
-        <Card className="rounded-[12px] p-4">
+        <Card className="p-4">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Receipt className="h-3.5 w-3.5" /> Mensalidades
           </div>
@@ -134,7 +134,7 @@ export function MyFinancePanel({
             {summary.duesOpenCount === 1 ? "" : "s"}
           </div>
         </Card>
-        <Card className="rounded-[12px] p-4">
+        <Card className="p-4">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Banknote className="h-3.5 w-3.5" /> Cobranças
           </div>
@@ -147,7 +147,7 @@ export function MyFinancePanel({
         </Card>
       </div>
 
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <h3 className="mb-3 text-sm font-semibold">
           Mensalidades · {year}
           {finance?.defaultAmount != null ? (
@@ -206,7 +206,7 @@ export function MyFinancePanel({
         )}
       </Card>
 
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <h3 className="mb-3 text-sm font-semibold">Cobranças</h3>
         {(finance?.charges.length ?? 0) === 0 ? (
           <p className="text-sm text-muted-foreground">

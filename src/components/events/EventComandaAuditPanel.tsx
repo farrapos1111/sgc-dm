@@ -113,7 +113,7 @@ export function EventComandaAuditPanel({
 
   if (q.isLoading) {
     return (
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <p className="text-sm text-muted-foreground">Carregando audit log…</p>
       </Card>
     );
@@ -121,7 +121,7 @@ export function EventComandaAuditPanel({
 
   if (q.error) {
     return (
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <p className="text-sm text-destructive">
           {mutationErrorMessage(q.error, "Erro ao carregar audit log")}
         </p>
@@ -130,7 +130,7 @@ export function EventComandaAuditPanel({
   }
 
   return (
-    <Card className="rounded-[12px] p-5">
+    <Card className="p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-2">
           <ScrollText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />

@@ -73,7 +73,7 @@ function NovoEvento() {
         }
       />
 
-      <Card className="rounded-[12px] p-6 space-y-4">
+      <Card className="p-6 space-y-4">
         <div>
           <Label className="mb-1.5 block text-sm">Nome *</Label>
           <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />

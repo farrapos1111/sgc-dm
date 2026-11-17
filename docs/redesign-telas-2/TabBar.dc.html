@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Barra de abas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+</style>
+</helmet>
+<nav aria-label="Navegação principal" style="width: 390px; height: 84px; box-sizing: border-box; background: #FFFFFF; border-top: 1px solid #E6E6E2; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: start; padding: 8px 6px 0; font-family: Inter, system-ui, sans-serif; flex: none">
+  <sc-for list="{{tabs}}" as="tab" hint-placeholder-count="5">
+    <sc-if value="{{tab.central}}" hint-placeholder-val="{{false}}">
+      <a href="{{tab.href}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: -22px">
+        <span style="width: 56px; height: 56px; border-radius: 50%; background: {{t.p}}; color: #FFFFFF; display: grid; place-items: center; box-shadow: 0 6px 16px rgba(20,20,20,0.18); border: 4px solid #FFFFFF">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{tab.icon}}"></path></svg>
+        </span>
+        <span style="font-size: 12px; font-weight: 600; color: {{tab.color}}">{{tab.label}}</span>
+      </a>
+    </sc-if>
+    <sc-if value="{{tab.normal}}" hint-placeholder-val="{{true}}">
+      <a href="{{tab.href}}" aria-current="{{tab.current}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 52px; justify-content: center">
+        <span style="width: 52px; height: 30px; border-radius: 999px; background: {{tab.pill}}; color: {{tab.color}}; display: grid; place-items: center">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{tab.icon}}"></path></svg>
+        </span>
+        <span style="font-size: 12px; font-weight: {{tab.weight}}; color: {{tab.color}}">{{tab.label}}</span>
+      </a>
+    </sc-if>
+  </sc-for>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["inicio","membros","chamada","caixa","perfil"],"default":"inicio"},"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":390,"height":84}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const t = T[this.props.tema ?? 'Bordô'] || T['Bordô'];
+    const active = this.props.active ?? 'inicio';
+    const base = [
+      {k:'inicio', label:'Início', href:'Main.dc.html', icon:'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'},
+      {k:'membros', label:'Membros', href:'M-Membros.dc.html', icon:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'},
+      {k:'chamada', label:'Chamada', href:'M-Chamada.dc.html', icon:'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11', central:true},
+      {k:'caixa', label:'Caixa', href:'M-Caixa.dc.html', icon:'M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3M21 8h-5a3 3 0 0 0 0 6h5zM16 11h.01'},
+      {k:'perfil', label:'Perfil', href:'M-Perfil.dc.html', icon:'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'}
+    ];
+    const tabs = base.map((b) => {
+      const on = b.k === active;
+      return { ...b, central: !!b.central, normal: !b.central, current: on ? 'page' : 'false',
+        color: on ? t.p : '#5E6168', pill: on ? t.s : 'transparent', weight: on ? 700 : 500 };
+    });
+    return { t, tabs };
+  }
+}
+</script>
+</body>
+</html>

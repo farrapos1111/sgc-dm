@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LobbyPresencasPage } from "./c.$token.presencas";
+import { LobbyPresencasPage } from "@/components/public/LobbyPresencasPage";
 
 export const Route = createFileRoute("/$org/frequencia")({
   ssr: false,

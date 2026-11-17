@@ -123,7 +123,7 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: Landmark,
     items: [
       { to: "/calendario", label: "Calendário", icon: CalendarDays },
-      { to: "/gestao", label: "Cargos e Comissões", icon: Briefcase },
+      { to: "/gestao", label: "Cargos e comissões", icon: Briefcase },
       { to: "/configuracoes", label: "Configurações", icon: Settings },
     ],
   },
@@ -162,7 +162,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/sindicancias/fichas", label: "Fichas", icon: FolderSearch },
       { to: "/sindicancias/sindicarias", label: "Sindicâncias", icon: Gavel },
-      { to: "/sindicancias/config", label: "Configurações", icon: Settings },
     ],
   },
   {
@@ -356,6 +355,45 @@ export function visibleGroups(
 
       if (items.length === 0) return null;
       return { ...g, items };
+    })
+    .filter((g): g is NavGroup => g !== null);
+}
+
+/* ------------------------------------------------------------------ */
+/* Bethel (esfera FDJ): só o que já funciona com fichas fdj_members.   */
+/* ------------------------------------------------------------------ */
+
+/** Rotas liberadas no Bethel (prefixos). O resto ainda depende das fichas ODM. */
+export const FDJ_ALLOWED_PREFIXES = [
+  "/inicio",
+  "/perfil",
+  "/membros",
+  "/gestao",
+  "/presencas",
+  "/atas",
+  "/calendario",
+  "/configuracoes",
+  "/mais",
+] as const;
+
+const FDJ_LABELS: Partial<Record<string, string>> = {
+  "/gestao": "Cargos",
+};
+
+export function isPathAllowedForFdj(pathname: string): boolean {
+  return FDJ_ALLOWED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
+export function filterGroupsForFdj(groups: NavGroup[]): NavGroup[] {
+  return groups
+    .map((g) => {
+      if (g.to) return isPathAllowedForFdj(g.to) ? g : null;
+      const items = (g.items ?? [])
+        .filter((i) => isPathAllowedForFdj(i.to))
+        .map((i) => (FDJ_LABELS[i.to] ? { ...i, label: FDJ_LABELS[i.to]! } : i));
+      return items.length ? { ...g, items } : null;
     })
     .filter((g): g is NavGroup => g !== null);
 }

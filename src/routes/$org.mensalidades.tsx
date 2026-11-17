@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { usePublicLobby } from "@/context/PublicLobbyContext";
-import { PublicMensalidadesView } from "./mensalidades.$token";
+import { PublicMensalidadesView } from "@/components/public/PublicMensalidadesView";
 
 export const Route = createFileRoute("/$org/mensalidades")({
   ssr: false,

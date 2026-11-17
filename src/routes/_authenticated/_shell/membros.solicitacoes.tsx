@@ -154,7 +154,7 @@ function SolicitacoesPage() {
                 <Link2 className="h-4 w-4" /> Solicitações de vínculo
               </h2>
               {affiliations.map((req) => (
-                <Card key={req.id} className="space-y-3 rounded-[12px] p-5">
+                <Card key={req.id} className="space-y-3 p-5">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <div className="font-medium">
@@ -220,7 +220,7 @@ function SolicitacoesPage() {
                 <Pencil className="h-4 w-4" /> Solicitações de alteração de dados
               </h2>
               {changes.map((req) => (
-                <Card key={req.id} className="space-y-3 rounded-[12px] p-5">
+                <Card key={req.id} className="space-y-3 p-5">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <div className="font-medium">

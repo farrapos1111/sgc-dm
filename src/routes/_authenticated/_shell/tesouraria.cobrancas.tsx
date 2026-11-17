@@ -487,13 +487,13 @@ function Cobrancas() {
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-4">
-        <Card className="rounded-[12px] p-5">
+        <Card className="p-5">
           <div className="text-sm text-muted-foreground">Recebido</div>
           <div className="text-xl font-bold text-emerald-600">
             {formatBRL(totals.paid)}
           </div>
         </Card>
-        <Card className="rounded-[12px] p-5">
+        <Card className="p-5">
           <div className="text-sm text-muted-foreground">Em aberto</div>
           <div className="text-xl font-bold text-amber-600">
             {formatBRL(totals.openAmt)}
@@ -527,7 +527,7 @@ function Cobrancas() {
           }
         />
       ) : (
-        <Card className="divide-y divide-border rounded-[12px]">
+        <Card className="divide-y divide-border ">
           {filteredCharges.map((c) => {
             const amount = Number(c.amount) || 0;
             const amountPaid = Number(c.amount_paid) || 0;

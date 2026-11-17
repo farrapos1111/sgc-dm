@@ -243,7 +243,7 @@ function MandatoryDatesContent() {
 
   if (!canManageChapters) {
     return (
-      <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+      <Card className="p-6 text-sm text-muted-foreground">
         Sem permissão para gerenciar datas obrigatórias neste escopo.
       </Card>
     );
@@ -265,7 +265,7 @@ function MandatoryDatesContent() {
         }
       />
 
-      <Card className="rounded-[12px] p-0 overflow-hidden">
+      <Card className="p-0 overflow-hidden">
         {isLoading ? (
           <p className="p-5 text-sm text-muted-foreground">Carregando…</p>
         ) : rows.length === 0 ? (

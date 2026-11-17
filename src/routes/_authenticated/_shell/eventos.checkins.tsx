@@ -336,7 +336,7 @@ function Checkins() {
         </p>
       ) : null}
 
-      <Card className="mb-3 rounded-[12px] p-3 sm:mb-4 sm:p-5">
+      <Card className="mb-3 p-3 sm:mb-4 sm:p-5">
         <div className="mb-2 flex items-center justify-between gap-2 sm:mb-3">
           <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
             <QrCode className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -407,7 +407,7 @@ function Checkins() {
           </div>
 
           {selectedEvent ? (
-            <Card className="mb-3 rounded-[12px] border-border/80 bg-muted/30 p-3">
+            <Card className="mb-3 border-border/80 bg-muted/30 p-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold leading-snug">
@@ -519,7 +519,7 @@ function Checkins() {
               }
             />
           ) : (
-            <Card className="overflow-hidden rounded-[12px]">
+            <Card className="overflow-hidden ">
               <div className="hidden grid-cols-[minmax(0,1.4fr)_7rem_auto] gap-3 border-b border-border bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground sm:grid">
                 <button
                   type="button"

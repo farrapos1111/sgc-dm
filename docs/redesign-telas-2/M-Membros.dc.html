@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Membros · mobile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A; overflow: hidden">
+  <div style="flex: 1; overflow-y: auto; min-height: 0">
+    <div style="padding: 20px 16px 8px; display: flex; align-items: center; justify-content: space-between">
+      <div>
+        <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 28px; font-weight: 800; letter-spacing: -0.02em">Membros</h1>
+        <p style="margin: 2px 0 0; font-size: 14px; color: #5E6168">78 cadastrados no Farrapos</p>
+      </div>
+      <button style="min-height: 48px; padding: 0 16px; border: 0; border-radius: 14px; background: {{t.p}}; color: #FFFFFF; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 6px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Novo
+      </button>
+    </div>
+
+    <div style="padding: 8px 16px 0">
+      <label style="display: flex; align-items: center; gap: 10px; background: #FFFFFF; border: 1px solid #E2E2DE; border-radius: 14px; padding: 0 14px; min-height: 52px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5E6168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"></path></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar membro</span>
+        <input type="search" placeholder="Buscar por nome" style="flex: 1; border: 0; outline: none; font: inherit; font-size: 16px; background: transparent; color: #17181A">
+      </label>
+    </div>
+
+    <div style="display: flex; gap: 8px; overflow-x: auto; padding: 12px 16px 4px">
+      <sc-for list="{{chips}}" as="c" hint-placeholder-count="5">
+        <button onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="flex: none; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 14px; font-weight: 600; white-space: nowrap">{{c.label}}</button>
+      </sc-for>
+    </div>
+
+    <div style="padding: 12px 16px 0">
+      <button style="width: 100%; display: flex; align-items: center; gap: 12px; background: {{t.s}}; border: 0; border-radius: 16px; padding: 14px; text-align: left; color: {{t.i}}">
+        <span style="width: 40px; height: 40px; border-radius: 12px; background: #FFFFFF; display: grid; place-items: center; flex: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg></span>
+        <span style="flex: 1"><span style="display: block; font-weight: 700; font-size: 15px">3 solicitações aguardando</span><span style="display: block; font-size: 13px">Novos cadastros para aprovar</span></span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg>
+      </button>
+    </div>
+
+    <p style="margin: 18px 16px 8px; font-size: 13px; font-weight: 600; color: #5E6168">{{contagem}}</p>
+    <div style="margin: 0 16px 16px; background: #FFFFFF; border-radius: 20px; overflow: hidden">
+      <sc-for list="{{lista}}" as="m" hint-placeholder-count="8">
+        <a href="M-Perfil.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #F0F0EC; min-height: 56px">
+          <span style="width: 44px; height: 44px; flex: none; border-radius: 50%; background: {{t.s}}; color: {{t.i}}; display: grid; place-items: center; font-weight: 700; font-size: 15px">{{m.ini}}</span>
+          <span style="flex: 1; min-width: 0">
+            <span style="display: block; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{m.nome}}</span>
+            <span style="display: block; font-size: 13px; color: #5E6168">{{m.tipo}}</span>
+          </span>
+          <span style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: {{m.sbg}}; color: {{m.sfg}}">{{m.status}}</span>
+        </a>
+      </sc-for>
+    </div>
+  </div>
+  <dc-import name="TabBar" active="membros" tema="{{tema}}" hint-size="390px,84px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { filtro: 'Todos' }; }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const f = this.state.filtro;
+    const M = [
+      ['AB','Adrian Ruan Horn de Borba','Senior DeMolay','Regular'],
+      ['AP','Adriano Lopes Parise','Maçom','Regular'],
+      ['AO','André Azevedo de Oliveira','DeMolay ativo','Regular'],
+      ['AD','Andre Girardi Dalathea','Maçom','Regular'],
+      ['AB','Andrew Horn de Borba','Senior DeMolay','Irregular'],
+      ['AZ','Anthony Ricardo Marcolin Machado Zencke','DeMolay ativo','Irregular'],
+      ['AR','Ariam Miguel Sander Lumertz dos Reis','DeMolay ativo · apto ao Grau DeMolay','Regular'],
+      ['AG','Arthur Adami Gaio','Senior DeMolay','Regular'],
+      ['AS','Arthur Eduardo da Silva','Senior DeMolay','Irregular'],
+      ['AS','Arthur Espinosa da Silva','DeMolay ativo','Regular'],
+      ['AP','Arthur Perotoni','Maçom','Regular'],
+      ['BC','Bernardo Luiz Candeia','DeMolay ativo','Regular']
+    ].map(([ini,nome,tipo,status]) => ({ini,nome,tipo,status,
+      sbg: status === 'Regular' ? '#EAF5EF' : '#FDF3D8', sfg: status === 'Regular' ? '#155A38' : '#7A4F00'}));
+    const lista = M.filter((m) => f === 'Todos' ? true : f === 'Irregulares' ? m.status === 'Irregular' : m.tipo.indexOf(f) === 0);
+    const chips = ['Todos','DeMolay ativo','Senior DeMolay','Maçom','Irregulares'].map((label) => {
+      const on = label === f;
+      return { label, pressed: on ? 'true' : 'false', bg: on ? t.p : '#FFFFFF', fg: on ? '#FFFFFF' : '#2A2C31', border: on ? t.p : '#DCDCD8',
+        pick: () => this.setState({ filtro: label }) };
+    });
+    return { t, tema, chips, lista, contagem: f === 'Todos' ? 'Mostrando A a B · 78 no total' : lista.length + ' encontrados em ' + f };
+  }
+}
+</script>
+</body>
+</html>

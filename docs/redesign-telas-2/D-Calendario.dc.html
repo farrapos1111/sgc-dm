@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Calendário · desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A">
+  <div style="flex: 1 1 264px; max-width: 100%; display: flex; flex-direction: column; background: #FFFFFF">
+    <dc-import name="Sidebar" active="calendario" tema="{{tema}}" hint-size="264px,1180px"></dc-import>
+  </div>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box">
+    <div style="max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between">
+        <div>
+          <p style="margin: 0; font-size: 14px; color: #5E6168">Gestão</p>
+          <h1 style="margin: 2px 0 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.02em">Calendário</h1>
+          <p style="margin: 4px 0 0; font-size: 15px; color: #5E6168">Sessões, eventos e ações de filantropia num lugar só</p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+          <div role="tablist" aria-label="Visualização" style="background: #E9E9E5; border-radius: 12px; padding: 4px; display: flex; gap: 4px">
+            <sc-for list="{{vistas}}" as="v" hint-placeholder-count="2">
+              <button role="tab" aria-selected="{{v.sel}}" onClick="{{v.pick}}" style="min-height: 38px; padding: 0 14px; border: 0; border-radius: 9px; background: {{v.bg}}; color: {{v.fg}}; font-weight: 600; font-size: 14px; box-shadow: {{v.sh}}">{{v.label}}</button>
+            </sc-for>
+          </div>
+          <button style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Exportar</button>
+          <button style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Categorias</button>
+          <button style="min-height: 44px; padding: 0 18px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Novo compromisso</button>
+        </div>
+      </div>
+
+      <div style="background: #FFFFFF; border-radius: 20px; padding: 18px 20px">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px">
+          <span style="font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{t.p}}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>Datas obrigatórias do 2º semestre</span>
+          <span style="font-size: 14px; color: #5E6168">3 de 5 resolvidas</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 8px 16px; margin-top: 12px">
+          <sc-for list="{{obrigatorias}}" as="o" hint-placeholder-count="5">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #FAFAF8; border: 1px solid #F0F0EC">
+              <span style="flex: 1; min-width: 0"><span style="display: block; font-size: 14px; font-weight: 600">{{o.nome}}</span><span style="display: block; font-size: 13px; color: #5E6168">{{o.prazo}}</span></span>
+              <span style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: {{o.bg}}; color: {{o.fg}}; white-space: nowrap">{{o.status}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+        <sc-for list="{{filtros}}" as="f" hint-placeholder-count="4">
+          <button onClick="{{f.pick}}" aria-pressed="{{f.pressed}}" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid {{f.bd}}; background: {{f.bg}}; color: {{f.fg}}; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 50%; background: {{f.dot}}"></span>{{f.label}}</button>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+        <div style="flex: 3 1 600px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 18px 20px">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px">
+            <span style="font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 20px; font-weight: 800">Novembro de 2026</span>
+            <span style="display: flex; gap: 6px">
+              <button aria-label="Mês anterior" style="width: 40px; height: 40px; border-radius: 10px; border: 1px solid #E2E2DE; background: #FFFFFF; display: grid; place-items: center; color: #2A2C31"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <button style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Hoje</button>
+              <button aria-label="Próximo mês" style="width: 40px; height: 40px; border-radius: 10px; border: 1px solid #E2E2DE; background: #FFFFFF; display: grid; place-items: center; color: #2A2C31"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg></button>
+            </span>
+          </div>
+          <sc-if value="{{isMes}}" hint-placeholder-val="{{true}}">
+            <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px">
+              <sc-for list="{{semana}}" as="w" hint-placeholder-count="7"><span style="text-align: center; font-size: 13px; font-weight: 600; color: #5E6168; padding: 4px 0">{{w}}</span></sc-for>
+              <sc-for list="{{cels}}" as="c" hint-placeholder-count="35">
+                <sc-if value="{{c.vazio}}" hint-placeholder-val="{{false}}"><span></span></sc-if>
+                <sc-if value="{{c.dia}}" hint-placeholder-val="{{true}}">
+                  <button onClick="{{c.pick}}" aria-label="{{c.aria}}" aria-pressed="{{c.selS}}" style="min-height: 100px; border-radius: 12px; border: 2px solid {{c.bd}}; background: {{c.bg}}; padding: 6px; text-align: left; display: flex; flex-direction: column; gap: 4px; color: #17181A; min-width: 0">
+                    <span style="width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 700; background: {{c.nbg}}; color: {{c.nfg}}">{{c.n}}</span>
+                    <sc-for list="{{c.evs}}" as="e" hint-placeholder-count="1">
+                      <span style="display: block; font-size: 12px; font-weight: 600; padding: 3px 6px; border-radius: 6px; background: {{e.bg}}; color: {{e.fg}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%">{{e.h}} {{e.n}}</span>
+                    </sc-for>
+                  </button>
+                </sc-if>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{isAgenda}}" hint-placeholder-val="{{false}}">
+            <div style="display: flex; flex-direction: column">
+              <sc-for list="{{agenda}}" as="e" hint-placeholder-count="4">
+                <div style="display: flex; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid #F0F0EC">
+                  <span style="width: 56px; text-align: center; flex: none"><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 24px; font-weight: 800">{{e.d}}</span><span style="display: block; font-size: 12px; color: #5E6168; font-weight: 600">{{e.wd}}</span></span>
+                  <span style="flex: 1; min-width: 0"><span style="display: block; font-size: 16px; font-weight: 600">{{e.n}}</span><span style="display: block; font-size: 14px; color: #5E6168">{{e.h}} · Heráclito Victória nº 3168</span></span>
+                  <span style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: {{e.bg}}; color: {{e.fg}}">{{e.tipo}}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+
+        <aside style="flex: 1 1 280px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+          <span style="font-size: 13px; font-weight: 600; color: #5E6168; text-transform: uppercase; letter-spacing: 0.06em">Dia selecionado</span>
+          <span style="font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 20px; font-weight: 800">{{selTitulo}}</span>
+          <sc-if value="{{temEv}}" hint-placeholder-val="{{true}}">
+            <sc-for list="{{selEvs}}" as="e" hint-placeholder-count="1">
+              <div style="border: 1px solid #ECECE8; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px">
+                <span style="align-self: flex-start; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: {{e.bg}}; color: {{e.fg}}">{{e.tipo}}</span>
+                <span style="font-size: 16px; font-weight: 700; line-height: 1.3">{{e.n}}</span>
+                <span style="font-size: 14px; color: #3F4249">{{e.h}} · Heráclito Victória nº 3168</span>
+                <button style="min-height: 44px; border: 0; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 600; font-size: 14px">Copiar chave do dia</button>
+                <a href="D-Chamada.dc.html" style="min-height: 44px; border-radius: 12px; background: {{t.s}}; color: {{t.i}}; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center">Abrir chamada</a>
+              </div>
+            </sc-for>
+          </sc-if>
+          <sc-if value="{{semEv}}" hint-placeholder-val="{{false}}">
+            <p style="margin: 0; font-size: 15px; color: #5E6168">Nada marcado neste dia.</p>
+            <button style="min-height: 44px; border-radius: 12px; border: 1px dashed #CFCFCA; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31">Adicionar compromisso neste dia</button>
+          </sc-if>
+        </aside>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { vista: 'Mês', sel: 14, filtro: 'Todos' }; }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const K = {
+      'Sessões': {bg:'#E3EAF7', fg:'#22427A', dot:'#3B63B3', tipo:'Sessão ritualística'},
+      'Filantropia': {bg:'#DDF0E5', fg:'#155A38', dot:'#1F7A4D', tipo:'Filantropia'},
+      'Visita a loja': {bg:'#EFE7F7', fg:'#4A2270', dot:'#7A45B0', tipo:'Visita a loja'}
+    };
+    const EV = { 7:[{h:'13:30', n:'Iniciação', k:'Sessões'}], 14:[{h:'13:30', n:'Dia em Memória a Frank Sherman Land', k:'Sessões'}], 21:[{h:'13:30', n:'Eleição', k:'Sessões'}], 28:[{h:'13:30', n:'Visita em asilo', k:'Filantropia'}] };
+    const WD = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    const WDL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    const f = this.state.filtro;
+    const evsDe = (d) => (EV[d] || []).filter((e) => f === 'Todos' || e.k === f).map((e) => ({ ...e, bg: K[e.k].bg, fg: K[e.k].fg, tipo: K[e.k].tipo }));
+    const cels = [];
+    for (let i = 0; i < 35; i++) {
+      const d = i + 1;
+      if (d > 30) { cels.push({ vazio: true, dia: false }); continue; }
+      const hoje = d === 8, sel = d === this.state.sel;
+      cels.push({ vazio: false, dia: true, n: d, evs: evsDe(d), pick: () => this.setState({ sel: d }),
+        aria: WDL[i % 7] + ', ' + d + ' de novembro', selS: sel ? 'true' : 'false',
+        bd: sel ? t.p : '#F0F0EC', bg: sel ? t.s : '#FFFFFF', nbg: hoje ? t.p : 'transparent', nfg: hoje ? '#FFFFFF' : '#17181A' });
+    }
+    const agenda = Object.keys(EV).map(Number).filter((d) => evsDe(d).length).map((d) => ({ d, wd: WD[(d - 1) % 7], ...evsDe(d)[0] }));
+    const selEvs = evsDe(this.state.sel);
+    const vistas = ['Mês','Agenda'].map((label) => { const on = this.state.vista === label; return { label, sel: on ? 'true' : 'false', bg: on ? '#FFFFFF' : 'transparent', fg: on ? '#17181A' : '#4A4D54', sh: on ? '0 1px 3px rgba(20,20,20,0.12)' : 'none', pick: () => this.setState({ vista: label }) }; });
+    const filtros = ['Todos','Sessões','Filantropia','Visita a loja'].map((label) => { const on = f === label; return { label, pressed: on ? 'true' : 'false', bg: on ? '#17181A' : '#FFFFFF', fg: on ? '#FFFFFF' : '#2A2C31', bd: on ? '#17181A' : '#DCDCD8', dot: label === 'Todos' ? '#9A9DA3' : K[label].dot, pick: () => this.setState({ filtro: label }) }; });
+    const ob = (nome, prazo, ok, st) => ({ nome, prazo, status: st, bg: ok ? '#DDF0E5' : '#FDF3D8', fg: ok ? '#155A38' : '#7A4F00' });
+    return {
+      t, tema, cels, agenda, vistas, filtros, semana: WD,
+      isMes: this.state.vista === 'Mês', isAgenda: this.state.vista === 'Agenda',
+      selTitulo: WDL[(this.state.sel - 1) % 7] + ', ' + this.state.sel + ' de novembro',
+      selEvs, temEv: selEvs.length > 0, semEv: selEvs.length === 0,
+      obrigatorias: [
+        ob('Iniciação ao Grau Iniciático','Até 12 de dezembro', true, 'Feita em 07/11'),
+        ob('Dia em Memória a Frank Sherman Land','Dentro de novembro', true, 'Marcado 14/11'),
+        ob('Iniciação ao Grau DeMolay','Até 12 de dezembro', false, 'Falta marcar'),
+        ob('Evento de arrecadação','Até 12 de dezembro', true, 'Feito em 19/09'),
+        ob('Dia do Meu Governo','Dentro de novembro', false, 'Falta marcar')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

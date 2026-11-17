@@ -64,7 +64,7 @@ export function ScopeGuard({ children }: { children: React.ReactNode }) {
     return <div className="text-sm text-muted-foreground">Carregando…</div>;
   if (!activeScope)
     return (
-      <Card className="flex items-center gap-3 rounded-[12px] p-5 text-sm text-muted-foreground">
+      <Card className="flex items-center gap-3 p-5 text-sm text-muted-foreground">
         <AlertCircle className="h-4 w-4" />
         Selecione um escopo regional ou estadual no seletor acima.
       </Card>
@@ -223,13 +223,13 @@ function PanoramaContent() {
       )}
 
       {!isLoading && chapters.length === 0 && (
-        <Card className="rounded-[12px] p-8 text-center text-sm text-muted-foreground">
+        <Card className="p-8 text-center text-sm text-muted-foreground">
           Nenhuma instituição vinculada a este escopo ainda.
         </Card>
       )}
 
       {!isLoading && chapters.length > 0 && visible.length === 0 && (
-        <Card className="rounded-[12px] p-6 text-sm text-muted-foreground">
+        <Card className="p-6 text-sm text-muted-foreground">
           Nenhuma instituição encontrada com essa busca.
         </Card>
       )}
@@ -240,7 +240,7 @@ function PanoramaContent() {
             (c as { org_type?: string | null }).org_type,
           );
           return (
-            <Card key={c.id} className="rounded-[12px] p-4">
+            <Card key={c.id} className="p-4">
               <div className="flex items-start gap-3">
                 <ChapterLogoAvatar
                   logoPath={c.logo_url}
@@ -333,7 +333,7 @@ function MetricCard({
   value: string;
 }) {
   return (
-    <Card className="rounded-[12px] p-4">
+    <Card className="p-4">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Icon className="h-4 w-4" />
         {label}

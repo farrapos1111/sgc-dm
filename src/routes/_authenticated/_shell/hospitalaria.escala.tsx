@@ -92,7 +92,7 @@ function Escala() {
       />
 
       {open && writable && (
-        <Card className="mb-6 space-y-4 rounded-[12px] p-6">
+        <Card className="mb-6 space-y-4 p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label className="mb-1.5 block text-sm">Membro *</Label>
@@ -143,7 +143,7 @@ function Escala() {
           description="Defina quem serve em cada data da hospitalaria."
         />
       ) : (
-        <Card className="divide-y divide-border rounded-[12px]">
+        <Card className="divide-y divide-border ">
           {duties.map((d) => {
             const member = d.member as unknown as { full_name: string } | null;
             return (

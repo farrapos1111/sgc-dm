@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LobbyMemberPortalPage } from "./c.$token.eu";
+import { LobbyMemberPortalPage } from "@/components/public/LobbyMemberPortalPage";
 
 export const Route = createFileRoute("/$org/perfil")({
   ssr: false,

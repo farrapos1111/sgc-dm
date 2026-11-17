@@ -36,7 +36,7 @@ export function MyHistoryPanel({ memberId, demolay }: Props) {
 
   if (isLoading) {
     return (
-      <Card className="flex justify-center rounded-[12px] p-8 text-muted-foreground">
+      <Card className="flex justify-center p-8 text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </Card>
     );
@@ -44,7 +44,7 @@ export function MyHistoryPanel({ memberId, demolay }: Props) {
 
   if (error) {
     return (
-      <Card className="rounded-[12px] p-5 text-sm text-destructive">
+      <Card className="p-5 text-sm text-destructive">
         {error instanceof Error ? error.message : "Erro ao carregar histórico"}
       </Card>
     );
@@ -72,7 +72,7 @@ export function MyHistoryPanel({ memberId, demolay }: Props) {
 
   return (
     <div className="space-y-4">
-      <Card className="rounded-[12px] p-5">
+      <Card className="p-5">
         <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
           Histórico DeMolay
         </h3>
@@ -123,7 +123,7 @@ export function MyHistoryPanel({ memberId, demolay }: Props) {
         />
       ) : null}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card className="rounded-[12px] p-5">
+        <Card className="p-5">
           <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
             Cargos ritualísticos
           </h3>
@@ -158,7 +158,7 @@ export function MyHistoryPanel({ memberId, demolay }: Props) {
           )}
         </Card>
 
-        <Card className="rounded-[12px] p-5">
+        <Card className="p-5">
           <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
             Comissões
           </h3>

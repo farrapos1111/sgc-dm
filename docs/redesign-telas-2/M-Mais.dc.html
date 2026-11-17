@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Todos os módulos · mobile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A; overflow: hidden">
+  <div style="flex: 1; overflow-y: auto; min-height: 0">
+    <div style="padding: 16px 16px 0; display: flex; align-items: center; gap: 8px">
+      <a href="Main.dc.html" aria-label="Voltar para o início" style="width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; display: grid; place-items: center; flex: none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      </a>
+      <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 24px; font-weight: 800; letter-spacing: -0.02em">Tudo do capítulo</h1>
+    </div>
+    <div style="padding: 14px 16px 0">
+      <label style="display: flex; align-items: center; gap: 10px; background: #FFFFFF; border: 1px solid #E2E2DE; border-radius: 14px; padding: 0 14px; min-height: 52px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5E6168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"></path></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar função</span>
+        <input type="search" placeholder="O que você procura?" style="flex: 1; min-width: 0; border: 0; outline: none; font: inherit; font-size: 16px; background: transparent">
+      </label>
+    </div>
+    <div style="padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 12px">
+      <sc-for list="{{grupos}}" as="g" hint-placeholder-count="6">
+        <div style="background: #FFFFFF; border-radius: 20px; padding: 16px">
+          <h2 style="margin: 0 0 12px; font-size: 15px; font-weight: 700">{{g.titulo}}</h2>
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 6px">
+            <sc-for list="{{g.itens}}" as="i" hint-placeholder-count="4">
+              <a href="{{i.href}}" style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; position: relative">
+                <span style="width: 52px; height: 52px; border-radius: 16px; background: {{t.s}}; color: {{t.p}}; display: grid; place-items: center">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{i.icon}}"></path></svg>
+                </span>
+                <sc-if value="{{i.badge}}" hint-placeholder-val="{{false}}"><span style="position: absolute; top: -4px; right: 6px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: #B42318; color: #FFFFFF; font-size: 11px; font-weight: 700; display: grid; place-items: center; border: 2px solid #FFFFFF">{{i.badge}}</span></sc-if>
+                <span style="font-size: 12px; font-weight: 500; line-height: 1.2; color: #2A2C31">{{i.label}}</span>
+              </a>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  <dc-import name="TabBar" active="" tema="{{tema}}" hint-size="390px,84px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const I = {
+      users:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+      file:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5',
+      mail:'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6',
+      check:'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+      wallet:'M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3M21 8h-5a3 3 0 0 0 0 6h5zM16 11h.01',
+      receipt:'M4 2v20l3-2 3 2 2-2 2 2 3-2 3 2V2l-3 2-3-2-2 2-2-2-3 2zM8 8h8M8 12h8M8 16h5',
+      alert:'M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01',
+      card:'M2 5h20v14H2zM2 10h20M6 15h4',
+      calendar:'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
+      brief:'M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16M4 6h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z',
+      gear:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
+      ticket:'M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4zM13 5v2M13 11v2M13 17v2',
+      qr:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v.01M14 20v.01M20 20h-3',
+      ficha:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h5M14 2v6h6M20 8v3M16.5 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM21 22l-2.7-2.7',
+      gavel:'M14 13l-8.5 8.5a2.1 2.1 0 0 1-3-3L11 10M16 16l6-6M8 8l6-6M9 7l8 8M21 11l-8-8',
+      food:'M3 2v7a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6a2 2 0 0 0 2 2h3zM21 15v7',
+      escala:'M3 17l2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8'
+    };
+    const it = (label, icon, href, badge) => ({ label, icon, href: href || '#', badge: badge || false });
+    return {
+      t, tema,
+      grupos: [
+        { titulo:'Secretaria', itens:[ it('Membros',I.users,'M-Membros.dc.html','3'), it('Atas',I.file,'M-Ata.dc.html'), it('Ofícios',I.mail), it('Chamada',I.check,'M-Chamada.dc.html') ] },
+        { titulo:'Tesouraria', itens:[ it('Caixa',I.wallet,'M-Caixa.dc.html'), it('Mensali­dades',I.receipt,'M-Mensalidades.dc.html'), it('Atrasados',I.alert,'#','14'), it('Cobranças',I.card) ] },
+        { titulo:'Gestão', itens:[ it('Agenda',I.calendar,'M-Calendario.dc.html'), it('Cargos',I.brief,'M-Gestao.dc.html'), it('Ajustes',I.gear) ] },
+        { titulo:'Comissão de Eventos', itens:[ it('Eventos',I.ticket,'M-Eventos.dc.html'), it('Check-in',I.qr) ] },
+        { titulo:'Comissão de Sindicâncias', itens:[ it('Fichas',I.ficha), it('Sindicân­cias',I.gavel,'M-Sindicancias.dc.html') ] },
+        { titulo:'Hospitalaria', itens:[ it('Cardápios',I.food), it('Escala',I.escala) ] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

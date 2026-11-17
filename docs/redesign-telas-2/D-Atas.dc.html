@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Atas · desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+a:hover{color:inherit}
+button{font:inherit;cursor:pointer}
+input::placeholder{color:#6B6E75}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; background: #F4F4F1; font-family: Inter, system-ui, sans-serif; color: #17181A">
+  <div style="flex: 1 1 264px; max-width: 100%; display: flex; flex-direction: column; background: #FFFFFF">
+    <dc-import name="Sidebar" active="atas" tema="{{tema}}" hint-size="264px,960px"></dc-import>
+  </div>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box">
+    <div style="max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between">
+        <div>
+          <p style="margin: 0; font-size: 14px; color: #5E6168">Secretaria</p>
+          <h1 style="margin: 2px 0 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.02em">Atas</h1>
+          <p style="margin: 4px 0 0; font-size: 15px; color: #5E6168">15 em andamento no 2º semestre de 2026</p>
+        </div>
+        <div role="tablist" aria-label="Situação" style="background: #E9E9E5; border-radius: 14px; padding: 4px; display: flex; gap: 4px">
+          <sc-for list="{{abas}}" as="a" hint-placeholder-count="3">
+            <button role="tab" aria-selected="{{a.sel}}" onClick="{{a.pick}}" style="min-height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: {{a.bg}}; color: {{a.fg}}; font-weight: 600; font-size: 14px; box-shadow: {{a.sh}}">{{a.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+        <label style="flex: 1 1 260px; max-width: 420px; display: flex; align-items: center; gap: 10px; background: #FFFFFF; border: 1px solid #E2E2DE; border-radius: 12px; padding: 0 14px; min-height: 44px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5E6168" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"></path></svg>
+          <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar ata</span>
+          <input type="search" placeholder="Buscar sessão ou trecho" style="flex: 1; min-width: 0; border: 0; outline: none; font: inherit; font-size: 15px; background: transparent">
+        </label>
+        <sc-for list="{{selects}}" as="s" hint-placeholder-count="3">
+          <button style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31; display: flex; align-items: center; gap: 6px">{{s}}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start">
+        <div style="flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+          <sc-for list="{{atas}}" as="a" hint-placeholder-count="7">
+            <button onClick="{{a.pick}}" aria-pressed="{{a.sel}}" style="width: 100%; text-align: left; background: #FFFFFF; border-radius: 16px; padding: 14px 16px; border: 2px solid {{a.bd}}; color: #17181A; display: flex; gap: 12px; align-items: center">
+              <span style="width: 44px; flex: none; text-align: center; line-height: 1.1"><span style="display: block; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 20px; font-weight: 800">{{a.dia}}</span><span style="display: block; font-size: 12px; color: #5E6168; text-transform: uppercase; font-weight: 600">{{a.mes}}</span></span>
+              <span style="flex: 1; min-width: 0"><span style="display: block; font-size: 15px; font-weight: 600">{{a.nome}}</span><span style="display: block; font-size: 13px; color: #5E6168; margin-top: 2px">{{a.nivel}} · {{a.hora}} · 0 de 3 assinaturas</span></span>
+              <span style="font-size: 12px; font-weight: 600; background: #F0F0EC; color: #3F4249; padding: 3px 9px; border-radius: 999px">Rascunho</span>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="flex: 1.4 1 420px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap">
+            <div>
+              <h2 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 22px; font-weight: 800">{{atual.nome}}</h2>
+              <p style="margin: 4px 0 0; font-size: 14px; color: #5E6168">Sessão de {{atual.dia}}/{{atual.mesN}}/2026 às {{atual.hora}}</p>
+            </div>
+            <div style="display: flex; gap: 8px">
+              <button style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #E2E2DE; background: #FFFFFF; font-weight: 600; font-size: 14px; color: #2A2C31; display: flex; align-items: center; gap: 6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>PDF</button>
+              <a href="D-Chamada.dc.html" style="min-height: 44px; padding: 0 16px; border-radius: 12px; background: {{t.p}}; color: #FFFFFF; font-weight: 700; font-size: 14px; display: flex; align-items: center">Abrir sessão</a>
+            </div>
+          </div>
+          <div>
+            <span style="display: block; font-size: 13px; font-weight: 600; color: #5E6168; margin-bottom: 10px">Andamento</span>
+            <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px">
+              <sc-for list="{{etapas}}" as="e" hint-placeholder-count="4">
+                <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 6px; border-radius: 999px; background: {{e.bar}}"></span><span style="font-size: 13px; font-weight: {{e.w}}; color: {{e.fg}}">{{e.label}}</span></div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px">
+            <span style="font-weight: 600; color: #3F4249">Quem pode ler:</span>
+            <span style="font-weight: 700; background: {{t.s}}; color: {{t.i}}; padding: 5px 12px; border-radius: 999px">{{atual.nivel}}</span>
+          </div>
+          <div style="border-top: 1px solid #EEEEEA; padding-top: 16px">
+            <p style="margin: 0; font-size: 16px; line-height: 1.65; color: #24262B">Aos 07 dias do mês de novembro de 2026, no templo da A∴R∴L∴S∴ Heráclito Victória nº 3168, reuniram-se os membros do Capítulo Farrapos nº 1111, estando presentes os DeMolays Ativos, Seniores DeMolays, Tios Maçons e demais visitantes, conforme registro de frequência da Secretaria.</p>
+            <p style="margin: 12px 0 0; font-size: 16px; line-height: 1.65; color: #24262B">Os trabalhos foram presididos pelos Irmãos Ricardo Pieruccini Massairo, Gabriel Machado Roldo e Guilherme Gonçalves Peres. Representando a supervisão maçônica esteve presente o Tio Leonardo Argenta.</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: #3F4249; background: #F4F4F1; border-radius: 12px; padding: 12px 14px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+            Só o Escrivão edita o texto. Você poderá aprovar ou pedir ajustes quando ela entrar em revisão.
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["Bordô","Azul","Verde","Roxo","Grafite"],"default":"Bordô","section":"Identidade"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { sel: 0, aba: 'Em andamento' }; }
+  renderVals() {
+    const T = {'Bordô':{p:'#8A1C2B',s:'#F7E9EB',i:'#6E1622'},'Azul':{p:'#1F4FA3',s:'#E7EEFA',i:'#173E80'},'Verde':{p:'#17694A',s:'#E3F1EA',i:'#10523A'},'Roxo':{p:'#5B2A86',s:'#EFE7F7',i:'#4A2270'},'Grafite':{p:'#2A2E35',s:'#E9EAEC',i:'#2A2E35'}};
+    const tema = this.props.tema ?? 'Bordô';
+    const t = T[tema] || T['Bordô'];
+    const A = [
+      ['Iniciação','07','Nov','11','13:30','Pública'],
+      ['Instrução Ritualística + Troca','17','Out','10','13:30','Pública'],
+      ['Palestra Tio Cristian Rizzardi','12','Set','09','13:30','Grau Iniciático'],
+      ['Teste de Proficiência DeMolays','05','Set','09','09:00','Grau DeMolay'],
+      ['Teste de Proficiência DeMolays','05','Set','09','09:00','Grau Iniciático'],
+      ['Dia do Maçom','22','Ago','08','13:30','Grau DeMolay'],
+      ['Apresentação de Segurança Digital','22','Ago','08','13:30','Grau Iniciático']
+    ];
+    const atas = A.map(([nome, dia, mes, mesN, hora, nivel], i) => ({ nome, dia, mes, mesN, hora, nivel,
+      sel: this.state.sel === i ? 'true' : 'false', bd: this.state.sel === i ? t.p : '#FFFFFF', pick: () => this.setState({ sel: i }) }));
+    const abas = ['Em andamento','Todas','Lixeira'].map((label) => {
+      const on = this.state.aba === label;
+      return { label, sel: on ? 'true' : 'false', bg: on ? '#FFFFFF' : 'transparent', fg: on ? '#17181A' : '#4A4D54', sh: on ? '0 1px 3px rgba(20,20,20,0.12)' : 'none', pick: () => this.setState({ aba: label }) };
+    });
+    const etapas = ['Rascunho','Em revisão','Aprovada','Assinada'].map((label, i) => ({ label, bar: i === 0 ? t.p : '#E6E6E2', fg: i === 0 ? '#17181A' : '#6B6E75', w: i === 0 ? 700 : 500 }));
+    return { t, tema, atas, abas, etapas, atual: atas[this.state.sel], selects: ['2026','2º semestre','Todos os graus'] };
+  }
+}
+</script>
+</body>
+</html>
