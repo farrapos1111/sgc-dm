@@ -329,7 +329,30 @@ export const listAttendanceOverview = createServerFn({ method: "POST" })
         if (!page || page.length < PAGE) break;
       }
     }
-    return { items: eventRows, members: members.data ?? [], records };
+    // Períodos de afastamento (inatividade) para o relatório de frequência.
+    const memberRows = (members.data ?? []) as Array<{ id: string }>;
+    const awayByMember = new Map<
+      string,
+      Array<{ started_on: string; ended_on: string | null }>
+    >();
+    if (memberRows.length > 0) {
+      const { data: away, error: awayErr } = await context.supabase
+        .from("member_away_periods")
+        .select("member_id, started_on, ended_on")
+        .eq("chapter_id", data.chapterId);
+      if (!awayErr) {
+        for (const row of away ?? []) {
+          const list = awayByMember.get(row.member_id) ?? [];
+          list.push({ started_on: row.started_on, ended_on: row.ended_on });
+          awayByMember.set(row.member_id, list);
+        }
+      }
+    }
+    const membersWithAway = memberRows.map((m) => ({
+      ...m,
+      awayPeriods: awayByMember.get(m.id) ?? [],
+    }));
+    return { items: eventRows, members: membersWithAway, records };
   });
 
 /** Histórico de presença de um membro. */

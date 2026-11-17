@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Fragment, Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { useActiveChapter } from "@/context/ActiveChapterContext";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -29,7 +30,24 @@ import {
   type DueMemberLite,
 } from "@/lib/dues-rules";
 import { chapterFoundedAt } from "@/lib/terms";
-import { ClipboardList, Vote } from "lucide-react";
+import {
+  ClipboardList,
+  FileDown,
+  FileSpreadsheet,
+  FileText,
+  Vote,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { todayYmd } from "@/lib/timezone";
+import {
+  buildAttendanceReportRows,
+  type ReportItem,
+} from "@/lib/attendance-report";
 import { Button } from "@/components/ui/button";
 import {
   PresencasOverviewTab,
@@ -70,7 +88,9 @@ function eventYear(startAt: string): number | null {
 }
 
 type FrequencyRange =
-  { kind: "year"; year: number } | { kind: "months"; months: 3 | 6 | 12 };
+  | { kind: "year"; year: number }
+  | { kind: "semester"; year: number; semester: 1 | 2 }
+  | { kind: "months"; months: 3 | 6 | 12 };
 
 type PresencasFilters = {
   year: number;
@@ -100,8 +120,10 @@ const SORT_VALUES = new Set(["desc", "asc"]);
 const TAB_VALUES = new Set(["itens", "frequencia", "graficos", "visao"]);
 const FREQ_MONTHS = new Set(["m:3", "m:6", "m:12"]);
 
+const FREQ_SEMESTER_RE = /^s:(\d{4})-([12])$/;
+
 function isValidFreq(freq: string): boolean {
-  if (FREQ_MONTHS.has(freq)) return true;
+  if (FREQ_MONTHS.has(freq) || FREQ_SEMESTER_RE.test(freq)) return true;
   return /^\d{4}$/.test(freq) && Number.isFinite(Number(freq));
 }
 
@@ -161,6 +183,14 @@ function parseFrequencyRange(value: string): FrequencyRange {
   if (value === "m:3" || value === "m:6" || value === "m:12") {
     return { kind: "months", months: Number(value.slice(2)) as 3 | 6 | 12 };
   }
+  const sem = FREQ_SEMESTER_RE.exec(value);
+  if (sem) {
+    return {
+      kind: "semester",
+      year: Number(sem[1]),
+      semester: Number(sem[2]) as 1 | 2,
+    };
+  }
   const year = Number(value);
   return {
     kind: "year",
@@ -199,6 +229,12 @@ function PresencasFrequencyTab({
       const start = new Date(i.start_at);
       if (Number.isNaN(start.getTime())) return false;
       if (range.kind === "year") return start.getFullYear() === range.year;
+      if (range.kind === "semester") {
+        return (
+          start.getFullYear() === range.year &&
+          (start.getMonth() < 6 ? 1 : 2) === range.semester
+        );
+      }
       return start >= periodStart(range.months);
     });
     const recordByKey = new Map<string, string>();
@@ -248,24 +284,82 @@ function PresencasFrequencyTab({
   const rangeLabel =
     range.kind === "year"
       ? String(range.year)
-      : `últimos ${range.months} meses`;
+      : range.kind === "semester"
+        ? `${range.semester}º semestre de ${range.year}`
+        : `últimos ${range.months} meses`;
+  const { active } = useActiveChapter();
+  const [exporting, setExporting] = useState(false);
+
+  async function exportReport(format: "pdf" | "xlsx") {
+    if (!active) return;
+    setExporting(true);
+    try {
+      const range = parseFrequencyRange(effectiveFreq);
+      const today = new Date();
+      const todayStr = todayYmd();
+      const bounds =
+        range.kind === "year"
+          ? { fromYmd: `${range.year}-01-01`, toYmd: `${range.year}-12-31` }
+          : range.kind === "semester"
+            ? range.semester === 1
+              ? { fromYmd: `${range.year}-01-01`, toYmd: `${range.year}-06-30` }
+              : { fromYmd: `${range.year}-07-01`, toYmd: `${range.year}-12-31` }
+            : {
+                fromYmd: todayYmd(periodStart(range.months, today)),
+                toYmd: todayStr,
+              };
+      let rows = buildAttendanceReportRows({
+        items: items as ReportItem[],
+        members,
+        records,
+        bounds,
+      });
+      if (aptosVoto) {
+        const ids = new Set(frequency.map((m) => m.id));
+        rows = rows.filter((r) => ids.has(r.id));
+      }
+      const payload = {
+        chapterName: `${active.chapter.name} nº ${active.chapter.number}`,
+        chapterCity: active.chapter.city,
+        logoPath: (active.chapter as any).logo_url ?? null,
+        periodLabel: aptosVoto ? "Aptos a voto — últimos 6 meses" : rangeLabel,
+        threshold: aptosVoto ? 50 : 75,
+        subtitle:
+          "Sessões e filantropias obrigatórias com presença ou falta marcada, contadas a partir da iniciação.",
+        rows,
+      };
+      if (format === "pdf") {
+        const { exportAttendancePdf } = await import("@/lib/presencas-pdf");
+        await exportAttendancePdf(payload);
+      } else {
+        const { exportAttendanceXlsx } = await import("@/lib/presencas-xlsx");
+        await exportAttendanceXlsx(payload);
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao exportar");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
         <Select
           value={effectiveFreq}
           onValueChange={onFreqChange}
           disabled={aptosVoto}
         >
-          <SelectTrigger className="h-9 w-[220px] text-xs">
+          <SelectTrigger className="col-span-2 h-9 w-full text-xs sm:w-[220px]">
             <SelectValue placeholder="Período" />
           </SelectTrigger>
           <SelectContent>
             {availableYears.map((y) => (
-              <SelectItem key={y} value={String(y)}>
-                Ano {y}
-              </SelectItem>
+              <Fragment key={y}>
+                <SelectItem value={String(y)}>Ano {y}</SelectItem>
+                <SelectItem value={`s:${y}-1`}>1º semestre {y}</SelectItem>
+                <SelectItem value={`s:${y}-2`}>2º semestre {y}</SelectItem>
+              </Fragment>
             ))}
             <SelectItem value="m:12">Últimos 12 meses</SelectItem>
             <SelectItem value="m:6">Últimos 6 meses</SelectItem>
@@ -284,6 +378,28 @@ function PresencasFrequencyTab({
           Aptos a voto
           {aptosVoto ? ` (${frequency.length})` : null}
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5 text-xs"
+              disabled={exporting}
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              {exporting ? "Gerando…" : "Exportar"}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onSelect={() => void exportReport("pdf")}>
+              <FileText className="mr-2 h-4 w-4" /> PDF
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void exportReport("xlsx")}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <Card className="p-0">
         <ul className="divide-y divide-border">
@@ -297,12 +413,12 @@ function PresencasFrequencyTab({
           {frequency.map((m) => (
             <li
               key={m.id}
-              className="flex items-center justify-between gap-3 p-4"
+              className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
             >
               <Link
                 to="/membros/$id"
                 params={{ id: m.id }}
-                className="min-w-0 truncate text-sm font-medium"
+                className="min-w-0 break-words text-sm font-medium sm:truncate"
               >
                 {m.full_name}
               </Link>
@@ -389,8 +505,10 @@ function PresencasPage() {
       const year = availableYears.includes(f.year)
         ? f.year
         : availableYears[0]!;
+      const semMatch = FREQ_SEMESTER_RE.exec(f.freq);
       const freqOk =
         FREQ_MONTHS.has(f.freq) ||
+        (semMatch != null && availableYears.includes(Number(semMatch[1]))) ||
         (availableYears.includes(Number(f.freq)) && /^\d{4}$/.test(f.freq));
       const freq = freqOk ? f.freq : String(year);
       if (year === f.year && freq === f.freq) return f;
@@ -448,22 +566,22 @@ function PresencasPage() {
           setFilters((f) => ({ ...f, tab: v as PresencasFilters["tab"] }))
         }
       >
-        <TabsList className="mb-4 flex h-auto flex-wrap gap-1">
-          <TabsTrigger value="itens">Chamadas</TabsTrigger>
-          <TabsTrigger value="visao">Visão geral</TabsTrigger>
-          <TabsTrigger value="frequencia">Frequência</TabsTrigger>
-          <TabsTrigger value="graficos">Gráficos</TabsTrigger>
+        <TabsList className="scroll-row mb-4 flex h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto sm:w-auto sm:flex-wrap">
+          <TabsTrigger className="shrink-0" value="itens">Chamadas</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="visao">Visão geral</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="frequencia">Frequência</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="graficos">Gráficos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="itens">
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <Select
               value={String(year)}
               onValueChange={(v) =>
                 setFilters((f) => ({ ...f, year: Number(v) }))
               }
             >
-              <SelectTrigger className="h-9 w-[110px] text-xs">
+              <SelectTrigger className="h-9 w-full text-xs sm:w-[110px]">
                 <SelectValue placeholder="Ano" />
               </SelectTrigger>
               <SelectContent>
@@ -480,7 +598,7 @@ function PresencasPage() {
                 setFilters((f) => ({ ...f, typeFilter: v }))
               }
             >
-              <SelectTrigger className="h-9 w-[190px] text-xs">
+              <SelectTrigger className="h-9 w-full text-xs sm:w-[190px]">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -501,7 +619,7 @@ function PresencasPage() {
                 }))
               }
             >
-              <SelectTrigger className="h-9 w-[190px] text-xs">
+              <SelectTrigger className="col-span-2 h-9 w-full text-xs sm:w-[190px]">
                 <SelectValue placeholder="Obrigatoriedade" />
               </SelectTrigger>
               <SelectContent>
@@ -523,7 +641,7 @@ function PresencasPage() {
                 }))
               }
             >
-              <SelectTrigger className="h-9 w-[200px] text-xs">
+              <SelectTrigger className="col-span-2 h-9 w-full text-xs sm:w-[200px]">
                 <SelectValue placeholder="Ordenação" />
               </SelectTrigger>
               <SelectContent>
@@ -556,11 +674,11 @@ function PresencasPage() {
                         search={{ tab: "chamada" }}
                         className="block p-4 hover:bg-muted"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <span className="min-w-0 truncate text-sm font-medium">
+                        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                          <span className="min-w-0 break-words text-sm font-medium sm:truncate">
                             {it.title}
                           </span>
-                          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                          <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:justify-end">
                             <span
                               className="rounded-full px-1.5 py-0.5 text-xs font-medium"
                               style={{

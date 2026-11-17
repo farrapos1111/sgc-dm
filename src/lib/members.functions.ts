@@ -633,7 +633,8 @@ export const getMyCurrentPositions = createServerFn({ method: "POST" })
       .eq("chapter_id", data.chapterId)
       .in("member_id", memberIds)
       .eq("term_year", data.year)
-      .eq("term_semester", data.semester);
+      .eq("term_semester", data.semester)
+      .is("ended_at", null);
     if (error) throw new Error(error.message);
 
     const seen = new Set<string>();
@@ -685,7 +686,8 @@ export const listMyChapterAccessLabels = createServerFn({ method: "POST" })
       .in("chapter_id", chapterIds)
       .in("member_id", memberIds)
       .eq("term_year", term.year)
-      .eq("term_semester", term.semester);
+      .eq("term_semester", term.semester)
+      .is("ended_at", null);
     if (error) throw new Error(error.message);
 
     for (const r of rows ?? []) {

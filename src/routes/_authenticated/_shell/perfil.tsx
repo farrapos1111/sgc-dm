@@ -43,6 +43,7 @@ import { affiliatedOrgsHeading } from "@/lib/org-types";
 import { formatDateBR, kindLabel, statusLabel } from "@/lib/format";
 import {
   CalendarCheck,
+  ChevronDown,
   CreditCard,
   History,
   IdCard,
@@ -198,24 +199,24 @@ function PerfilOdm() {
             />
             <div className="min-w-0">
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1">
-                <TabsTrigger value="cadastro" className="gap-1.5">
+              <TabsList className="scroll-row mb-4 flex h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto md:flex-wrap">
+                <TabsTrigger value="cadastro" className="shrink-0 gap-1.5">
                   <UserRound className="h-3.5 w-3.5" />
                   Cadastro
                 </TabsTrigger>
-                <TabsTrigger value="frequencia" className="gap-1.5">
+                <TabsTrigger value="frequencia" className="shrink-0 gap-1.5">
                   <CalendarCheck className="h-3.5 w-3.5" />
                   Frequência
                 </TabsTrigger>
-                <TabsTrigger value="cobrancas" className="gap-1.5">
+                <TabsTrigger value="cobrancas" className="shrink-0 gap-1.5">
                   <Wallet className="h-3.5 w-3.5" />
                   Cobranças
                 </TabsTrigger>
-                <TabsTrigger value="historico" className="gap-1.5">
+                <TabsTrigger value="historico" className="shrink-0 gap-1.5">
                   <History className="h-3.5 w-3.5" />
                   Histórico
                 </TabsTrigger>
-                <TabsTrigger value="carteirinhas" className="gap-1.5">
+                <TabsTrigger value="carteirinhas" className="shrink-0 gap-1.5">
                   <CreditCard className="h-3.5 w-3.5" />
                   Carteirinhas
                 </TabsTrigger>
@@ -248,7 +249,10 @@ function PerfilOdm() {
                     examGrauIniciatico: selected.examGrauIniciatico,
                     examGrauDemolay: selected.examGrauDemolay,
                     demolayId: selected.demolayId,
-                    masonicId: selected.masonicId,
+                    masonicId:
+                      selected.kind === "macom" || selected.masonicId
+                        ? selected.masonicId
+                        : null,
                   }}
                 />
               </TabsContent>
@@ -429,7 +433,10 @@ function ProfileSideCard({
     { label: "Iniciação no Grau DeMolay", date: member.iniciacaoGrauDemolay },
     { label: "Exame do Grau DeMolay", date: member.examGrauDemolay },
   ];
-  const id = member.demolayId ?? member.masonicId;
+  const id =
+    member.demolayId ??
+    (member.kind === "macom" || member.masonicId ? member.masonicId : null);
+  const [trajOpen, setTrajOpen] = useState(false);
   return (
     <div className="flex flex-col gap-4">
       <div className="relative overflow-hidden rounded-[22px] bg-tv-primary p-5 text-white">
@@ -454,7 +461,7 @@ function ProfileSideCard({
             {statusLabel(member.status)}
           </span>
         </div>
-        <div className="relative mt-10">
+        <div className="relative mt-7 sm:mt-10">
           <span className="block font-display text-[22px] font-extrabold leading-tight">
             {member.fullName}
           </span>
@@ -470,9 +477,20 @@ function ProfileSideCard({
       </Button>
 
       <div className="rounded-[20px] bg-tv-surface p-5">
-        <span className="text-[13px] font-semibold uppercase tracking-[0.06em] text-tv-text-2">
-          Minha trajetória
-        </span>
+        <button
+          type="button"
+          aria-expanded={trajOpen}
+          onClick={() => setTrajOpen((v) => !v)}
+          className="flex w-full items-center justify-between text-left md:pointer-events-none"
+        >
+          <span className="text-[13px] font-semibold uppercase tracking-[0.06em] text-tv-text-2">
+            Minha trajetória
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 text-tv-text-2 transition-transform md:hidden ${trajOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+        <div className={trajOpen ? "block" : "hidden md:block"}>
         <ol className="mt-3">
           {steps.map((st, i) => (
             <li key={st.label} className="flex gap-3">
@@ -498,6 +516,7 @@ function ProfileSideCard({
         <p className="text-[13px] text-tv-text-2">
           Datas e graus são alterados apenas pela secretaria do capítulo de origem.
         </p>
+        </div>
       </div>
     </div>
   );

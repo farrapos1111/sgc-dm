@@ -83,6 +83,8 @@ type ChargeForm = {
   description: string;
   amount: string;
   status: ChargeStatus;
+  dueDate: string;
+  installments: string;
 };
 
 const emptyForm = (): ChargeForm => ({
@@ -91,7 +93,35 @@ const emptyForm = (): ChargeForm => ({
   description: "",
   amount: "",
   status: "em_aberto",
+  dueDate: todayYmd(),
+  installments: "1",
 });
+
+function addMonthsYmd(ymd: string, months: number): string {
+  const y = Number(ymd.slice(0, 4));
+  const m = Number(ymd.slice(5, 7)) - 1 + months;
+  const d = Number(ymd.slice(8, 10));
+  const last = new Date(y, m + 1, 0).getDate();
+  const dt = new Date(y, m, Math.min(d, last));
+  return [
+    String(dt.getFullYear()),
+    String(dt.getMonth() + 1).padStart(2, "0"),
+    String(dt.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+/** Divide em centavos; o resto vai para as primeiras parcelas. */
+function splitInstallments(total: number, n: number): number[] {
+  const cents = Math.round(total * 100);
+  const base = Math.floor(cents / n);
+  const extra = cents - base * n;
+  return Array.from({ length: n }, (_, i) => (base + (i < extra ? 1 : 0)) / 100);
+}
+
+function parseInstallments(v: string): number {
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 48) : 1;
+}
 
 const STATUS_LABEL: Record<ChargeStatus, string> = {
   em_aberto: "Em aberto",
@@ -279,28 +309,54 @@ function Cobrancas() {
   }
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const amount = parseChargeAmount(form.amount);
       if (amount == null) {
         throw new Error("O valor da cobrança deve ser pelo menos R$ 0,01");
       }
-      return upsertMemberCharge({
-        data: {
-          chapterId: active!.chapter_id,
-          id: form.id,
-          memberId: form.memberId,
-          kind: "entrada",
-          category: form.category,
-          description: form.description.trim(),
-          amount,
-          dueDate: todayYmd(),
-          status: form.id ? form.status : "em_aberto",
-          paidAt: todayYmd(),
-        },
-      });
+      const base = {
+        chapterId: active!.chapter_id,
+        memberId: form.memberId,
+        kind: "entrada" as const,
+        category: form.category,
+        paidAt: todayYmd(),
+      };
+      const dueDate = form.dueDate || todayYmd();
+      const n = form.id ? 1 : parseInstallments(form.installments);
+      if (n === 1) {
+        return upsertMemberCharge({
+          data: {
+            ...base,
+            id: form.id,
+            description: form.description.trim(),
+            amount,
+            dueDate,
+            status: form.id ? form.status : "em_aberto",
+          },
+        });
+      }
+      const values = splitInstallments(amount, n);
+      if (values.some((v) => parseChargeAmount(String(v)) == null)) {
+        throw new Error("Valor pequeno demais para esse número de parcelas");
+      }
+      for (let i = 0; i < n; i++) {
+        await upsertMemberCharge({
+          data: {
+            ...base,
+            description: `${form.description.trim()} (${i + 1}/${n})`,
+            amount: values[i],
+            dueDate: addMonthsYmd(dueDate, i),
+            status: "em_aberto",
+          },
+        });
+      }
     },
     onSuccess: async () => {
-      toast.success("Cobrança salva");
+      toast.success(
+        !form.id && parseInstallments(form.installments) > 1
+          ? "Cobrança parcelada criada"
+          : "Cobrança salva",
+      );
       setOpen(false);
       setForm(emptyForm());
       await qc.invalidateQueries({ queryKey: ["member-charges"] });
@@ -392,6 +448,8 @@ function Cobrancas() {
       description: c.description,
       amount: String(c.amount),
       status: c.status as ChargeStatus,
+      dueDate: String(c.due_date).slice(0, 10),
+      installments: "1",
     });
     setOpen(true);
   }
@@ -418,7 +476,7 @@ function Cobrancas() {
         title="Cobranças"
         subtitle="Atribua cobranças a membros, registre pagamentos parciais ou totais e acompanhe a quitação. Cada pagamento gera lançamento no fluxo de caixa."
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 [&>button]:flex-1 sm:[&>button]:flex-none">
             <Button variant="outline" onClick={() => void copyOpenList()}>
               <Copy className="mr-2 h-4 w-4" />
               Copiar lista
@@ -438,8 +496,8 @@ function Cobrancas() {
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+        <div className="relative col-span-2 sm:min-w-[200px] sm:max-w-xs sm:flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-8 pr-8"
@@ -462,7 +520,7 @@ function Cobrancas() {
           value={statusFilter}
           onValueChange={(v) => setStatusFilter(v as ListFilter)}
         >
-          <SelectTrigger className="w-52">
+          <SelectTrigger className="w-full sm:w-52">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -474,7 +532,7 @@ function Cobrancas() {
           </SelectContent>
         </Select>
         <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Ordenar" />
           </SelectTrigger>
           <SelectContent>
@@ -549,16 +607,41 @@ function Cobrancas() {
                   Number(String(c.due_date).slice(5, 7)) - 1,
                   Number(String(c.due_date).slice(8, 10)),
                 );
+            const badge = (
+              <Badge
+                variant="secondary"
+                className={
+                  overdue
+                    ? "bg-rose-100 text-rose-800"
+                    : c.status === "pago" || pct >= 100
+                      ? "bg-emerald-100 text-emerald-800"
+                      : amountPaid > 0
+                        ? "bg-amber-100 text-amber-800"
+                        : undefined
+                }
+              >
+                {overdue
+                  ? "Atrasada"
+                  : pct >= 100 || c.status === "pago"
+                    ? "Pago"
+                    : amountPaid > 0
+                      ? "Parcial"
+                      : STATUS_LABEL[c.status as ChargeStatus]}
+              </Badge>
+            );
             return (
               <div
                 key={c.id}
-                className="flex flex-wrap items-center gap-3 px-4 py-3"
+                className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-3"
               >
                 <div className="min-w-0 flex-1 space-y-1.5">
-                  <div className="truncate text-sm font-medium">
-                    {c.member_name || "—"}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 break-words text-sm font-medium sm:truncate">
+                      {c.member_name || "—"}
+                    </div>
+                    <span className="shrink-0 sm:hidden">{badge}</span>
                   </div>
-                  <div className="truncate text-xs text-muted-foreground">
+                  <div className="break-words text-xs text-muted-foreground sm:truncate">
                     {c.description} · {c.category}
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -567,8 +650,13 @@ function Cobrancas() {
                       ? ` · resta ${formatBRL(remaining)}`
                       : ""}
                   </div>
+                  {c.due_date && c.status !== "isento" ? (
+                    <div className="text-xs text-muted-foreground">
+                      Vence em {formatDateBR(c.due_date)}
+                    </div>
+                  ) : null}
                   {c.status !== "isento" && (
-                    <div className="max-w-xs space-y-1">
+                    <div className="space-y-1 sm:max-w-xs">
                       <Progress value={pct} className="h-1.5" />
                       <div className="text-xs text-muted-foreground">
                         {pct}% quitado
@@ -576,28 +664,9 @@ function Cobrancas() {
                     </div>
                   )}
                 </div>
-                <Badge
-                  variant="secondary"
-                  className={
-                    overdue
-                      ? "bg-rose-100 text-rose-800"
-                      : c.status === "pago" || pct >= 100
-                        ? "bg-emerald-100 text-emerald-800"
-                        : amountPaid > 0
-                          ? "bg-amber-100 text-amber-800"
-                          : undefined
-                  }
-                >
-                  {overdue
-                    ? "Atrasada"
-                    : pct >= 100 || c.status === "pago"
-                      ? "Pago"
-                      : amountPaid > 0
-                        ? "Parcial"
-                        : STATUS_LABEL[c.status as ChargeStatus]}
-                </Badge>
+                <span className="hidden shrink-0 sm:inline-flex">{badge}</span>
                 {writable && (
-                  <div className="inline-flex">
+                  <div className="-mx-2 flex justify-end border-t border-border/60 pt-1 sm:mx-0 sm:border-0 sm:pt-0">
                     {c.status !== "isento" && remaining > 0 && (
                       <Button
                         variant="ghost"
@@ -648,7 +717,7 @@ function Cobrancas() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {form.id ? "Editar cobrança" : "Nova cobrança"}
@@ -711,6 +780,51 @@ function Cobrancas() {
                 }
               />
             </div>
+            <div>
+              <Label className="mb-1.5 block text-sm">
+                {!form.id && parseInstallments(form.installments) > 1
+                  ? "1º vencimento"
+                  : "Vencimento"}
+              </Label>
+              <Input
+                type="date"
+                value={form.dueDate}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, dueDate: e.target.value }))
+                }
+              />
+            </div>
+            {!form.id && (
+              <div>
+                <Label className="mb-1.5 block text-sm">Parcelas</Label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={48}
+                  step={1}
+                  value={form.installments}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, installments: e.target.value }))
+                  }
+                />
+              </div>
+            )}
+            {!form.id &&
+              parseInstallments(form.installments) > 1 &&
+              chargeAmountValid && (
+                <p className="text-xs text-muted-foreground sm:col-span-2">
+                  {parseInstallments(form.installments)}x de{" "}
+                  {formatBRL(
+                    splitInstallments(
+                      parseChargeAmount(form.amount) ?? 0,
+                      parseInstallments(form.installments),
+                    )[0],
+                  )}
+                  , uma por mês a partir do vencimento. Cada parcela vira uma
+                  cobrança separada.
+                </p>
+              )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
