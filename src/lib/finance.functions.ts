@@ -1253,6 +1253,10 @@ async function fetchYearDues(
         };
       }),
     );
+    // Só cria competências faltantes (ignoreDuplicates). Não reaplica
+    // isento/desligado em em_aberto: isso apagava alterações manuais no refresh.
+    // Irregularidade já desliga via RPC desligar_open_dues_from; inclusão manual
+    // ainda chama applyAutoStatusesForOpenDues uma vez.
     const { error: ensErr } = await supabase.from("member_dues").upsert(rows, {
       onConflict: "chapter_id,member_id,competence_year,competence_month",
       ignoreDuplicates: true,
@@ -1261,11 +1265,6 @@ async function fetchYearDues(
       // Ainda devolve membros para a UI não ficar vazia (ex.: enum/migration pendente)
       console.error("listYearDues ensure upsert:", ensErr.message);
     } else {
-      try {
-        await applyAutoStatusesForOpenDues(supabase, chapterId, year, rows);
-      } catch (e: any) {
-        console.error("listYearDues applyAutoStatuses:", e?.message ?? e);
-      }
       const refreshed = await duesQuery;
       if (!refreshed.error) dues = refreshed.data ?? [];
     }
