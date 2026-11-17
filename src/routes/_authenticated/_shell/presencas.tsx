@@ -344,13 +344,13 @@ function PresencasFrequencyTab({
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
         <Select
           value={effectiveFreq}
           onValueChange={onFreqChange}
           disabled={aptosVoto}
         >
-          <SelectTrigger className="h-9 w-[220px] text-xs">
+          <SelectTrigger className="col-span-2 h-9 w-full text-xs sm:w-[220px]">
             <SelectValue placeholder="Período" />
           </SelectTrigger>
           <SelectContent>
@@ -413,12 +413,12 @@ function PresencasFrequencyTab({
           {frequency.map((m) => (
             <li
               key={m.id}
-              className="flex items-center justify-between gap-3 p-4"
+              className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
             >
               <Link
                 to="/membros/$id"
                 params={{ id: m.id }}
-                className="min-w-0 truncate text-sm font-medium"
+                className="min-w-0 break-words text-sm font-medium sm:truncate"
               >
                 {m.full_name}
               </Link>
@@ -566,22 +566,22 @@ function PresencasPage() {
           setFilters((f) => ({ ...f, tab: v as PresencasFilters["tab"] }))
         }
       >
-        <TabsList className="mb-4 flex h-auto flex-wrap gap-1">
-          <TabsTrigger value="itens">Chamadas</TabsTrigger>
-          <TabsTrigger value="visao">Visão geral</TabsTrigger>
-          <TabsTrigger value="frequencia">Frequência</TabsTrigger>
-          <TabsTrigger value="graficos">Gráficos</TabsTrigger>
+        <TabsList className="scroll-row mb-4 flex h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto sm:w-auto sm:flex-wrap">
+          <TabsTrigger className="shrink-0" value="itens">Chamadas</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="visao">Visão geral</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="frequencia">Frequência</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="graficos">Gráficos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="itens">
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <Select
               value={String(year)}
               onValueChange={(v) =>
                 setFilters((f) => ({ ...f, year: Number(v) }))
               }
             >
-              <SelectTrigger className="h-9 w-[110px] text-xs">
+              <SelectTrigger className="h-9 w-full text-xs sm:w-[110px]">
                 <SelectValue placeholder="Ano" />
               </SelectTrigger>
               <SelectContent>
@@ -598,7 +598,7 @@ function PresencasPage() {
                 setFilters((f) => ({ ...f, typeFilter: v }))
               }
             >
-              <SelectTrigger className="h-9 w-[190px] text-xs">
+              <SelectTrigger className="h-9 w-full text-xs sm:w-[190px]">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -619,7 +619,7 @@ function PresencasPage() {
                 }))
               }
             >
-              <SelectTrigger className="h-9 w-[190px] text-xs">
+              <SelectTrigger className="col-span-2 h-9 w-full text-xs sm:w-[190px]">
                 <SelectValue placeholder="Obrigatoriedade" />
               </SelectTrigger>
               <SelectContent>
@@ -641,7 +641,7 @@ function PresencasPage() {
                 }))
               }
             >
-              <SelectTrigger className="h-9 w-[200px] text-xs">
+              <SelectTrigger className="col-span-2 h-9 w-full text-xs sm:w-[200px]">
                 <SelectValue placeholder="Ordenação" />
               </SelectTrigger>
               <SelectContent>
@@ -674,11 +674,11 @@ function PresencasPage() {
                         search={{ tab: "chamada" }}
                         className="block p-4 hover:bg-muted"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <span className="min-w-0 truncate text-sm font-medium">
+                        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                          <span className="min-w-0 break-words text-sm font-medium sm:truncate">
                             {it.title}
                           </span>
-                          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                          <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:justify-end">
                             <span
                               className="rounded-full px-1.5 py-0.5 text-xs font-medium"
                               style={{

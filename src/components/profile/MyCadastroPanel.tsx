@@ -235,7 +235,9 @@ export function MyCadastroPanel({ memberId }: { memberId: string }) {
         </div>
         <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           <ReadonlyRow label="Nascimento" value={formatDateBR(member.birth_date)} />
-          <ReadonlyRow label="ID maçônico" value={member.masonic_id || "—"} />
+          {member.masonic_id || member.kind === "macom" ? (
+            <ReadonlyRow label="ID maçônico" value={member.masonic_id || "—"} />
+          ) : null}
           <ReadonlyRow
             label="Iniciação OD"
             value={formatDateBR(member.iniciacao_ordem)}

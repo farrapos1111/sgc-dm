@@ -76,15 +76,17 @@ export function MyHistoryPanel({ memberId, demolay }: Props) {
         <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
           Histórico DeMolay
         </h3>
-        <dl className="grid gap-3 sm:grid-cols-2 text-sm">
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-4 text-sm">
           <div>
             <dt className="text-xs text-muted-foreground">ID DeMolay</dt>
             <dd className="font-medium">{demolay.demolayId || "—"}</dd>
           </div>
-          <div>
-            <dt className="text-xs text-muted-foreground">ID maçônico</dt>
-            <dd className="font-medium">{demolay.masonicId || "—"}</dd>
-          </div>
+          {demolay.masonicId ? (
+            <div>
+              <dt className="text-xs text-muted-foreground">ID maçônico</dt>
+              <dd className="font-medium">{demolay.masonicId}</dd>
+            </div>
+          ) : null}
           <div>
             <dt className="text-xs text-muted-foreground">Grau atual</dt>
             <dd className="font-medium">{demolay.grauLabel}</dd>

@@ -174,7 +174,10 @@ function MembroPerfilOdm() {
   const showDemolayRitual = usesDemolayRitualFields(orgType);
   const showDemolayId = usesDemolayIdField(orgType);
   const memberKind = (member as { kind?: string }).kind;
-  const showMasonicId = isLodge || memberKind === "macom";
+  const showMasonicId =
+    isLodge ||
+    memberKind === "macom" ||
+    !!(member as { masonic_id?: string | null } | undefined)?.masonic_id;
 
   const needsOrg = tab === "cargos";
   const needsAttendance = tab === "presencas";
@@ -526,9 +529,9 @@ function MembroPerfilOdm() {
                     </Badge>
                   }
                 />
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-2 last:border-0 last:pb-0">
                   <dt className="shrink-0 text-muted-foreground">CPF</dt>
-                  <dd className="flex min-w-0 flex-wrap items-center gap-2 font-mono sm:justify-end">
+                  <dd className="flex min-w-0 flex-wrap items-center justify-end gap-2 font-mono">
                     {revealed.cpf ?? formatCpfMask(member.cpf_last2)}
                     {!revealed.cpf && (
                       <Button
@@ -542,9 +545,9 @@ function MembroPerfilOdm() {
                     )}
                   </dd>
                 </div>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-2 last:border-0 last:pb-0">
                   <dt className="shrink-0 text-muted-foreground">RG</dt>
-                  <dd className="flex min-w-0 flex-wrap items-center gap-2 font-mono sm:justify-end">
+                  <dd className="flex min-w-0 flex-wrap items-center justify-end gap-2 font-mono">
                     {revealed.rg ?? formatRgMask(member.rg_last2)}
                     {!revealed.rg && (
                       <Button
@@ -1612,9 +1615,9 @@ function AuditCadastroDiff({
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-      <dt className="shrink-0 text-muted-foreground">{k}</dt>
-      <dd className="min-w-0 break-words sm:text-right">{v}</dd>
+    <div className="flex items-start justify-between gap-3 border-b border-border/50 pb-2 last:border-0 last:pb-0">
+      <dt className="max-w-[45%] shrink-0 text-muted-foreground">{k}</dt>
+      <dd className="min-w-0 break-words text-right font-medium sm:font-normal">{v}</dd>
     </div>
   );
 }
