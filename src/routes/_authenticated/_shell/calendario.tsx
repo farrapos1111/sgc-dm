@@ -95,6 +95,7 @@ import {
 } from "@/lib/timezone";
 import { downloadIcs, googleCalendarUrl, outlookCalendarUrl } from "@/lib/ics";
 import { matchesLooseSearch } from "@/lib/utils";
+import { ORG_TYPE_LABELS, type OrgType } from "@/lib/org-types";
 import { resolveCalendarChaveText } from "@/lib/resolve-calendar-chave";
 import {
   TYPE_META,
@@ -428,6 +429,53 @@ function CalendarioPage() {
     return `${typeFilters.size} tipos`;
   }, [typeFilters, typeLabels]);
 
+  async function handleExportPdf(period: "s1" | "s2" | "ano") {
+    const mem =
+      memberships.find((m) => m.chapter_id === categoriesChapterId) ?? active;
+    if (!mem) {
+      toast.error("Selecione um capítulo para exportar.");
+      return;
+    }
+    const year = cursor.getFullYear();
+    const [fromM, toM, label] =
+      period === "s1"
+        ? [1, 6, `1º Semestre de ${year}`]
+        : period === "s2"
+          ? [7, 12, `2º Semestre de ${year}`]
+          : [1, 12, `Ano de ${year}`];
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const from = `${year}-${pad(fromM)}`;
+    const to = `${year}-${pad(toM)}`;
+    const list = filtered
+      .filter((it) => it.chapter_id === mem.chapter_id)
+      .filter((it) => {
+        const k = toLocalDateKey(it.start_at).slice(0, 7);
+        return k >= from && k <= to;
+      })
+      .map((it) => ({
+        start_at: it.start_at,
+        end_at: it.end_at,
+        typeLabel: resolveTypeMeta(it.event_type, typeLabels).label,
+        title: it.title,
+        description: it.description,
+        location: it.location,
+      }));
+    try {
+      const { exportCalendarPdf } = await import("@/lib/calendar-pdf");
+      await exportCalendarPdf({
+        orgLabel:
+          ORG_TYPE_LABELS[(mem.chapter.org_type ?? "capitulo") as OrgType] ??
+          "Capítulo",
+        orgName: mem.chapter.name,
+        periodLabel: label,
+        logoPath: mem.chapter.logo_url,
+        items: list,
+      });
+    } catch {
+      toast.error("Não foi possível gerar o PDF.");
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -462,17 +510,40 @@ function CalendarioPage() {
                 </button>
               ))}
             </div>
-            <Button
-              variant="outline"
-              onClick={() =>
-                downloadIcs(filtered, `calendario-sgcdm`, "Templo Virtual · Calendário")
-              }
-              title="Baixar .ics para Google Agenda, Apple, Outlook ou Teams"
-              aria-label="Exportar calendário"
-            >
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Exportar</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" aria-label="Exportar calendário">
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">Exportar</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onSelect={() =>
+                    downloadIcs(
+                      filtered,
+                      `calendario-sgcdm`,
+                      "Templo Virtual · Calendário",
+                    )
+                  }
+                >
+                  Arquivo .ics (Google, Apple, Outlook)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>
+                  PDF · {cursor.getFullYear()}
+                </DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => handleExportPdf("s1")}>
+                  1º semestre
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleExportPdf("s2")}>
+                  2º semestre
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleExportPdf("ano")}>
+                  Ano inteiro
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {canManageCats && categoriesChapterId && (
               <Button
                 variant="outline"

@@ -342,9 +342,9 @@
     "semantic_hash": ""
   },
   "src/components/profile/MyCadastroPanel.tsx": {
-    "mtime": 1794493365.1861525,
-    "seen": 1794930925.784132,
-    "ast_hash": "7388521bffbd422e3f71a14c4431ce0e",
+    "mtime": 1794938642.816207,
+    "seen": 1795267468.3272152,
+    "ast_hash": "5ce08e652c764fb91f97473b80a72a76",
     "semantic_hash": ""
   },
   "src/components/profile/MyFinancePanel.tsx": {
@@ -354,9 +354,9 @@
     "semantic_hash": ""
   },
   "src/components/profile/MyHistoryPanel.tsx": {
-    "mtime": 1794493365.1881502,
-    "seen": 1794930925.7841413,
-    "ast_hash": "afd40235d155f9110331099d5b458562",
+    "mtime": 1794938642.8167162,
+    "seen": 1795267468.3272955,
+    "ast_hash": "d80bc90d8cc38acc6eedab9d22282117",
     "semantic_hash": ""
   },
   "src/components/profile/MyOfficeSignaturesPanel.tsx": {
@@ -810,9 +810,9 @@
     "semantic_hash": ""
   },
   "src/lib/attendance.functions.ts": {
-    "mtime": 1793709376.689336,
-    "seen": 1794930925.7968378,
-    "ast_hash": "11832b7be8b33c1034241cc10b06792d",
+    "mtime": 1794937569.764931,
+    "seen": 1795267468.3344247,
+    "ast_hash": "8cbabed2db0caa371bf72be9a8e52a3b",
     "semantic_hash": ""
   },
   "src/lib/audit-log.ts": {
@@ -1056,9 +1056,9 @@
     "semantic_hash": ""
   },
   "src/lib/finance-pdf.ts": {
-    "mtime": 1794493365.2159188,
-    "seen": 1794930925.8028402,
-    "ast_hash": "94883b30b9f9a25023847c1e538b1fec",
+    "mtime": 1794934573.233743,
+    "seen": 1795267468.3380156,
+    "ast_hash": "b2f3cf3c23b67cb207251a8f7bd41c24",
     "semantic_hash": ""
   },
   "src/lib/finance-xlsx.ts": {
@@ -1542,9 +1542,9 @@
     "semantic_hash": ""
   },
   "src/routes/_authenticated/_shell/calendario.tsx": {
-    "mtime": 1794493365.2369173,
-    "seen": 1794930925.8136833,
-    "ast_hash": "a6d7b37724f07f5b54239cd03f3a0964",
+    "mtime": 1795267380.3470843,
+    "seen": 1795267468.344231,
+    "ast_hash": "3038392e7b60501817b6d91e2f46ffce",
     "semantic_hash": ""
   },
   "src/routes/_authenticated/_shell/configuracoes-globais.cargos.tsx": {
@@ -1596,9 +1596,9 @@
     "semantic_hash": ""
   },
   "src/routes/_authenticated/_shell/gestao.tsx": {
-    "mtime": 1794493365.2439156,
-    "seen": 1794930925.813927,
-    "ast_hash": "3a5bd4f40dc04f4270e0c2384c202e91",
+    "mtime": 1794938284.2073686,
+    "seen": 1795267468.3448668,
+    "ast_hash": "c8f79e8dedc9386885ed2910444ab112",
     "semantic_hash": ""
   },
   "src/routes/_authenticated/_shell/hospitalaria.cardapios.tsx": {
@@ -1626,9 +1626,9 @@
     "semantic_hash": ""
   },
   "src/routes/_authenticated/_shell/membros.$id.tsx": {
-    "mtime": 1794493365.2469163,
-    "seen": 1794930925.8139474,
-    "ast_hash": "d0ff6b37af45559820bd907a8fe9934b",
+    "mtime": 1794938642.8482773,
+    "seen": 1795267468.3451858,
+    "ast_hash": "41af1f251bb85b3c8440a8198cb6893a",
     "semantic_hash": ""
   },
   "src/routes/_authenticated/_shell/membros.$id_.editar.tsx": {
@@ -1680,15 +1680,15 @@
     "semantic_hash": ""
   },
   "src/routes/_authenticated/_shell/perfil.tsx": {
-    "mtime": 1794930964.2115316,
-    "seen": 1794931247.7748077,
-    "ast_hash": "3b27b849687d3d13546253eed57384f8",
+    "mtime": 1794938651.2449641,
+    "seen": 1795267468.3458414,
+    "ast_hash": "962a6bb46a603635a27cf04fad64a74c",
     "semantic_hash": ""
   },
   "src/routes/_authenticated/_shell/presencas.tsx": {
-    "mtime": 1794493365.2588058,
-    "seen": 1794930925.8139858,
-    "ast_hash": "a58a7336fcbb0e907ee771cc5e764930",
+    "mtime": 1794938442.9251463,
+    "seen": 1795267468.3458443,
+    "ast_hash": "ed7be989102c564b0f118a3677c8190b",
     "semantic_hash": ""
   },
   "src/routes/_authenticated/_shell/regional.aparencia.tsx": {
@@ -1800,9 +1800,9 @@
     "semantic_hash": ""
   },
   "src/routes/_authenticated/_shell/tesouraria.fluxo.tsx": {
-    "mtime": 1794930851.9880023,
-    "seen": 1794930925.8150513,
-    "ast_hash": "676a66dd6a9eb51251750513de00b034",
+    "mtime": 1794938878.7003474,
+    "seen": 1795267468.3475585,
+    "ast_hash": "574c92fa8cc0cc9b3eeb2d8ec1a6f172",
     "semantic_hash": ""
   },
   "src/routes/_authenticated/_shell/tesouraria.mensalidades.tsx": {
@@ -2781,6 +2781,36 @@
     "mtime": 1794493365.1604667,
     "seen": 1794930925.8467994,
     "ast_hash": "5c3b9fbc5e624a256168538cbe6edbc9",
+    "semantic_hash": ""
+  },
+  "src/lib/attendance-report.ts": {
+    "mtime": 1794937568.4025114,
+    "seen": 1795267468.3343334,
+    "ast_hash": "b79d1085c0376ffc25ee0598da51a185",
+    "semantic_hash": ""
+  },
+  "src/lib/calendar-pdf.test.ts": {
+    "mtime": 1795267422.9253144,
+    "seen": 1795267468.334882,
+    "ast_hash": "a0f23e491258adf90ef799e6864b86e8",
+    "semantic_hash": ""
+  },
+  "src/lib/calendar-pdf.ts": {
+    "mtime": 1795267371.196825,
+    "seen": 1795267468.3348842,
+    "ast_hash": "a820f0d912f9979481d81ecde17b17d9",
+    "semantic_hash": ""
+  },
+  "src/lib/presencas-pdf.ts": {
+    "mtime": 1794937623.020961,
+    "seen": 1795267468.3412027,
+    "ast_hash": "ee1a39a1407edc231acf48c4aee8eebf",
+    "semantic_hash": ""
+  },
+  "src/lib/presencas-xlsx.ts": {
+    "mtime": 1794937623.1604931,
+    "seen": 1795267468.341205,
+    "ast_hash": "ce958268f0dc478202438bd9749100a0",
     "semantic_hash": ""
   },
   "package-lock.json": {
