@@ -146,7 +146,10 @@ function GestaoContent({ active }: { active: Membership }) {
   const [openCommission, setOpenCommission] = useState<string | number | null>(null);
   const chapterId = active.chapter_id;
   const foundedAt = chapterFoundedAt(active.chapter);
-  const terms = useMemo(() => termOptions({ foundedAt }), [foundedAt]);
+  const terms = useMemo(
+    () => termOptions({ foundedAt, futureYears: 1 }),
+    [foundedAt],
+  );
   const canEdit = canScreen("gestao", "edit") || can("secretaria");
   const canEditCommissions = can("comissoes");
   const canLinkModules =

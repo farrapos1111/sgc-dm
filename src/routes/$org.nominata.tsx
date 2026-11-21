@@ -60,6 +60,7 @@ function PublicNominataPage() {
         foundedAt: chapterFoundedAt({
           settings: { founded_at: data?.chapter.founded_at ?? undefined },
         }),
+        futureYears: 1,
       }),
     [data?.chapter.founded_at],
   );
