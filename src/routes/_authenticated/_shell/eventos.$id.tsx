@@ -1303,7 +1303,7 @@ function TicketsList({
           </ul>
         )}
         <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md p-0 gap-0 overflow-hidden">
+          <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md p-0 gap-0">
             <DialogHeader className="sr-only">
               <DialogTitle>Ingresso</DialogTitle>
             </DialogHeader>
@@ -1939,7 +1939,7 @@ function SellTicketCard({
           if (!o) setSoldPasses([]);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md p-0 gap-0 overflow-hidden">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md p-0 gap-0">
           <DialogHeader className="sr-only">
             <DialogTitle>
               {soldPasses.length === 1

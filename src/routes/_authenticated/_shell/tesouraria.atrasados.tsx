@@ -973,7 +973,7 @@ function Atrasados() {
       )}
 
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
-        <DialogContent className="flex max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg flex-col overflow-hidden p-4 sm:p-6">
+        <DialogContent className="flex max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-lg flex-col overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Relatório de atrasados</DialogTitle>
           </DialogHeader>
@@ -1038,7 +1038,7 @@ function Atrasados() {
         </Sheet>
       ) : (
         <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
-          <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-md">
+          <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Enviar cobrança por e-mail</DialogTitle>
             </DialogHeader>

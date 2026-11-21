@@ -680,7 +680,7 @@ function Fichas() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] max-w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-2xl md:max-w-4xl lg:max-w-6xl">
+        <DialogContent className="max-h-[90dvh] max-w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-2xl md:max-w-4xl lg:max-w-6xl">
           <DialogHeader>
             <DialogTitle>Nova ficha</DialogTitle>
           </DialogHeader>
@@ -722,7 +722,7 @@ function Fichas() {
           }
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-2xl md:max-w-4xl lg:max-w-6xl">
+        <DialogContent className="max-h-[90dvh] max-w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-2xl md:max-w-4xl lg:max-w-6xl">
           <DialogHeader>
             <DialogTitle>Editar ficha</DialogTitle>
           </DialogHeader>
@@ -771,7 +771,7 @@ function Fichas() {
           if (!o) setDetailId(null);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-2xl md:max-w-4xl lg:max-w-5xl">
+        <DialogContent className="max-h-[90dvh] max-w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-2xl md:max-w-4xl lg:max-w-5xl">
           {detail && (
             <>
               <DialogHeader>

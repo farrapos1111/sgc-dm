@@ -848,7 +848,7 @@ function SindicariasPage() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nova sindicância</DialogTitle>
           </DialogHeader>
@@ -983,7 +983,7 @@ function SindicariasPage() {
           if (!o) setEditing(null);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Membros — {editing?.nominee_name ?? "Sindicância"}
@@ -1041,7 +1041,7 @@ function SindicariasPage() {
           if (!o) setAtaRow(null);
         }}
       >
-        <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[92dvh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {ataMode === "roteiro"
@@ -1104,7 +1104,7 @@ function SindicariasPage() {
         </Sheet>
       ) : (
         <Dialog open={remindOpen} onOpenChange={setRemindOpen}>
-          <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-md">
+          <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Enviar lembrete</DialogTitle>
             </DialogHeader>
