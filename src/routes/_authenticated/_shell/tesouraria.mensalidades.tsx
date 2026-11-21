@@ -425,7 +425,8 @@ function Mensalidades() {
     const founded = chapterFoundedAt(active?.chapter);
     const start = founded ? Number(founded.slice(0, 4)) : now.getFullYear() - 2;
     const years: number[] = [];
-    for (let y = now.getFullYear(); y >= start; y--) years.push(y);
+    // Inclui o ano seguinte para permitir lançar mensalidades antecipadas.
+    for (let y = now.getFullYear() + 1; y >= start; y--) years.push(y);
     return years;
   }, [active?.chapter]);
 
