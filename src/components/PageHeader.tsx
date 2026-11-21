@@ -44,8 +44,8 @@ export function PageHeader({
   const section =
     eyebrow ?? SECTION_BY_PREFIX.find(([p]) => pathname === p || pathname.startsWith(`${p}/`))?.[1];
   return (
-    <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between lg:mb-6">
-      <div className="min-w-0">
+    <header className="mb-5 flex flex-col gap-3 lg:mb-6 lg:flex-row lg:items-end lg:justify-between">
+      <div className="min-w-0 lg:min-w-[14rem]">
         {showBack ? (
           <button
             type="button"
@@ -63,7 +63,7 @@ export function PageHeader({
         {subtitle ? <p className="mt-1 text-[15px] text-tv-text-2">{subtitle}</p> : null}
       </div>
       {actions && (
-        <div className="flex w-full shrink-0 flex-wrap items-center gap-2.5 sm:w-auto">{actions}</div>
+        <div className="flex w-full flex-wrap items-center gap-2.5 lg:w-auto lg:shrink-0 lg:justify-end">{actions}</div>
       )}
     </header>
   );

@@ -137,9 +137,10 @@ export async function exportCalendarPdf(input: CalendarPdfInput) {
     rows.forEach((row, r) => {
       const y = gridTop + r * (rowH + rowGap);
       const cellW = contentW / MAX_COLS;
-      // Mesma largura de célula em todas as linhas; linha incompleta fica alinhada à esquerda.
+      // Mesma largura de célula em todas as linhas; linha incompleta fica centralizada.
+      const offsetX = ((MAX_COLS - row.length) * cellW) / 2;
       row.forEach((cell, c) => {
-        drawCell(doc, cell, MARGIN + c * cellW, y, cellW, rowH);
+        drawCell(doc, cell, MARGIN + offsetX + c * cellW, y, cellW, rowH);
       });
     });
 

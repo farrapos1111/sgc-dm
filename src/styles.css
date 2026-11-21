@@ -421,6 +421,39 @@ input[type="date"]:not(:disabled) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Barras de rolagem (desktop): finas, discretas, seguem o tema        */
+/* ------------------------------------------------------------------ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent)
+    transparent;
+}
+*:hover {
+  scrollbar-color: color-mix(in oklab, var(--color-foreground) 38%, transparent)
+    transparent;
+}
+
+/* Navegadores sem scrollbar-color (Safari antigo) */
+@supports not (scrollbar-color: auto) {
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklab, var(--color-foreground) 25%, transparent);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--color-foreground) 45%, transparent);
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Celular: sem barras de rolagem visíveis (a rolagem continua)        */
 /* ------------------------------------------------------------------ */
 @media (max-width: 767px), (hover: none) and (pointer: coarse) {
