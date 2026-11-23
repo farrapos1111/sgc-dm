@@ -53,16 +53,18 @@ const MODULES: Module[] = [
   {
     slot: "secretaria",
     tab: "Secretaria",
-    title: "Membros, chamada e atas",
+    title: "Membros, chamada e sindicâncias",
     text: "O cadastro de cada membro concentra o histórico. A chamada é feita na hora da sessão, com motivo para as faltas.",
     points: [
-      "Cadastro de membros com cargos e graus",
+      "Perfil de cada membro com frequência e carteirinha digital",
       "Chamada com resumo de presenças",
-      "Atas e ofícios com numeração",
+      "Sindicâncias com parecer de cada sindicante",
     ],
     shots: [
       { src: "/shots/demo-chamada.webp", label: "Chamada", demo: "chamada" },
       { src: "/shots/demo-membros.webp", label: "Membros", demo: "membros" },
+      { src: "/shots/demo-perfil.webp", label: "Perfil", demo: "perfil/m06" },
+      { src: "/shots/demo-sindicancias.webp", label: "Sindicância", demo: "sindicancias/s1" },
     ],
   },
   {
@@ -91,6 +93,21 @@ const MODULES: Module[] = [
       "Cargos e comissões por gestão",
     ],
     shots: [{ src: "/shots/demo-calendario.webp", label: "Calendário", demo: "calendario" }],
+  },
+  {
+    slot: "comissoes",
+    tab: "Eventos",
+    title: "Ingressos, check-in e comandas",
+    text: "A comissão de eventos vende ingressos, faz o check-in na porta e controla o consumo de cada participante numa comanda virtual.",
+    points: [
+      "Venda de ingressos por tipo e valor",
+      "Comandas com baixa de cada item e recibo com Pix",
+      "Estoque de produtos e arrecadação do evento",
+    ],
+    shots: [
+      { src: "/shots/demo-eventos.webp", label: "Participantes", demo: "eventos" },
+      { src: "/shots/demo-comanda.webp", label: "Comanda", demo: "eventos" },
+    ],
   },
 ];
 
@@ -561,6 +578,11 @@ export function HubLanding() {
               <p>
                 Telas do sistema com dados fictícios. Abra o ambiente de teste e use à vontade: nada
                 é salvo.
+              </p>
+              <p className="tv-try">
+                Testar como <a href={`${DEMO_PATH}#odm/inicio`}>Capítulo DeMolay</a>,{" "}
+                <a href={`${DEMO_PATH}#fdj/inicio`}>Bethel</a> ou{" "}
+                <a href={`${DEMO_PATH}#loja/inicio`}>Loja Maçônica</a>
               </p>
             </div>
             <ModuleShowcase />

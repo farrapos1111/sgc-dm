@@ -1,15 +1,34 @@
-/* Tema da demonstração: identidade "Azul" do redesign (docs/templo-virtual-redesign). */
-.tv-demo {
-  --chapter-primary: #1f4fa3;
-  --tv-soft: #e7eefa;
-  --tv-ink: #173e80;
+/*
+ * Tema da demonstração por organização (identidades do redesign:
+ * docs/templo-virtual-redesign/HANDOFF.md). Fica no <html> para valer
+ * também nos diálogos, que abrem fora da árvore da demo.
+ */
+html[data-demo-org] {
   --tv-bg: #f4f4f1;
   --tv-sidebar: #ffffff;
 }
 
-.dark .tv-demo {
-  --tv-soft: color-mix(in srgb, #1f4fa3 28%, #17181a);
-  --tv-ink: color-mix(in srgb, #1f4fa3 35%, #ffffff);
+html[data-demo-org="odm"] {
+  --chapter-primary: #1f4fa3;
+  --tv-soft: #e7eefa;
+  --tv-ink: #173e80;
+}
+
+html[data-demo-org="fdj"] {
+  --chapter-primary: #5b2a86;
+  --tv-soft: #efe7f7;
+  --tv-ink: #4a2270;
+}
+
+html[data-demo-org="loja"] {
+  --chapter-primary: #2a2e35;
+  --tv-soft: #e9eaec;
+  --tv-ink: #2a2e35;
+}
+
+html.dark[data-demo-org] {
   --tv-bg: oklch(0.15 0 0);
   --tv-sidebar: oklch(0.18 0 0);
+  --tv-soft: color-mix(in srgb, var(--chapter-primary) 28%, #17181a);
+  --tv-ink: color-mix(in srgb, var(--chapter-primary) 35%, #ffffff);
 }

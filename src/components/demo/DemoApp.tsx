@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ComponentType,
@@ -10,6 +11,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
+  ArrowLeftRight,
   CalendarDays,
   Check,
   CheckSquare,
@@ -20,6 +22,7 @@ import {
   Eye,
   EyeOff,
   FileText,
+  Gavel,
   Home,
   LayoutGrid,
   LogOut,
@@ -27,7 +30,6 @@ import {
   Plus,
   Receipt,
   RotateCcw,
-  Search,
   Ticket,
   Trash2,
   UserRound,
@@ -35,50 +37,78 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { HomeView, type HomeViewProps } from "@/components/home/HomeView";
 import { cn } from "@/lib/utils";
 import {
   brl,
-  CASH_CATEGORIES_IN,
-  CASH_CATEGORIES_OUT,
-  CASH_YEAR_BEFORE,
-  DEMO_CASH,
-  DEMO_EVENTS,
-  DEMO_MEMBERS,
-  DEMO_ORG,
   DEMO_TODAY,
-  DEMO_USER,
   DUE_META,
-  DUE_VALUE,
   EVENT_COLORS,
   initialDues,
   initials,
   MONTHS_LONG,
   MONTHS_SHORT,
+  ORG_KINDS,
+  ORGS,
+  memberById,
   type CashEntry,
   type DemoEvent,
+  type DemoOrg,
   type DueStatus,
+  type Investigation,
+  type OrgKind,
+  type SocialEvent,
 } from "./demo-data";
+import {
+  Avatar,
+  Chip,
+  FilterChips,
+  Panel,
+  PrimaryButton,
+  ScreenHeader,
+  SearchBox,
+  SoftButton,
+} from "./demo-ui";
+import { fieldClass, notInDemo } from "./demo-helpers";
+import { ProfileScreen } from "./DemoProfile";
+import { EventsScreen } from "./DemoEvents";
+import { InvestigationsScreen } from "./DemoInvestigations";
 import "./demo.css";
 
 export type DemoScreen =
   | "inicio"
   | "membros"
+  | "perfil"
   | "chamada"
+  | "sindicancias"
   | "caixa"
   | "mensalidades"
   | "calendario"
+  | "eventos"
   | "mais";
 
 const SCREENS: DemoScreen[] = [
   "inicio",
   "membros",
+  "perfil",
   "chamada",
+  "sindicancias",
   "caixa",
   "mensalidades",
   "calendario",
+  "eventos",
   "mais",
 ];
+
+type Route = { org: OrgKind; screen: DemoScreen; id: string | null };
+type Go = (screen: DemoScreen, id?: string | null) => void;
 
 type NavItem = { id: DemoScreen; label: string; icon: ComponentType<{ className?: string }> };
 
@@ -89,6 +119,7 @@ const NAV_SECTIONS: { label: string | null; items: NavItem[] }[] = [
     items: [
       { id: "membros", label: "Membros", icon: Users },
       { id: "chamada", label: "Chamada", icon: CheckSquare },
+      { id: "sindicancias", label: "Sindicâncias", icon: Gavel },
     ],
   },
   {
@@ -98,10 +129,8 @@ const NAV_SECTIONS: { label: string | null; items: NavItem[] }[] = [
       { id: "mensalidades", label: "Mensalidades", icon: Receipt },
     ],
   },
-  {
-    label: "Gestão",
-    items: [{ id: "calendario", label: "Calendário", icon: CalendarDays }],
-  },
+  { label: "Gestão", items: [{ id: "calendario", label: "Calendário", icon: CalendarDays }] },
+  { label: "Comissões", items: [{ id: "eventos", label: "Eventos", icon: Ticket }] },
 ];
 
 const MOBILE_TABS: (NavItem & { central?: boolean })[] = [
@@ -116,41 +145,71 @@ const MOBILE_TABS: (NavItem & { central?: boolean })[] = [
 const LINK_TO_SCREEN: [string, DemoScreen][] = [
   ["/tesouraria/mensalidades", "mensalidades"],
   ["/tesouraria/fluxo", "caixa"],
+  ["/sindicancias", "sindicancias"],
   ["/presencas", "chamada"],
   ["/membros", "membros"],
   ["/calendario", "calendario"],
+  ["/eventos", "eventos"],
+  ["/perfil", "perfil"],
 ];
 
-function readHash(): DemoScreen {
-  if (typeof window === "undefined") return "inicio";
-  const h = window.location.hash.replace("#", "") as DemoScreen;
-  return SCREENS.includes(h) ? h : "inicio";
+function parseHash(): Route {
+  const parts =
+    typeof window === "undefined"
+      ? []
+      : window.location.hash.replace(/^#/, "").split("/").filter(Boolean);
+  let org: OrgKind = "odm";
+  if (parts[0] && (ORG_KINDS as string[]).includes(parts[0])) org = parts.shift() as OrgKind;
+  const screen = SCREENS.includes(parts[0] as DemoScreen) ? (parts[0] as DemoScreen) : "inicio";
+  return { org, screen, id: parts[1] ?? null };
 }
 
-const notInDemo = () =>
-  toast("Disponível na versão completa", {
-    description: "A demonstração mostra as principais telas. Solicite acesso para usar tudo.",
-  });
+function writeHash(r: Route) {
+  window.history.replaceState(null, "", `#${r.org}/${r.screen}${r.id ? `/${r.id}` : ""}`);
+}
 
 /* ------------------------------------------------------------------ */
 
 export function DemoApp() {
-  const [screen, setScreen] = useState<DemoScreen>("inicio");
+  const [route, setRoute] = useState<Route>({ org: "odm", screen: "inicio", id: null });
   const [resetKey, setResetKey] = useState(0);
+  const [chooser, setChooser] = useState(false);
+  const org = ORGS[route.org];
 
   useEffect(() => {
-    setScreen(readHash());
-    const onHash = () => setScreen(readHash());
+    setRoute(parseHash());
+    const onHash = () => setRoute(parseHash());
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  function go(next: DemoScreen) {
-    setScreen(next);
-    if (typeof window !== "undefined") {
-      window.history.replaceState(null, "", `#${next}`);
-      window.scrollTo({ top: 0 });
-    }
+  // Tema da organização no <html>, para valer também em diálogos (portal).
+  useLayoutEffect(() => {
+    const el = document.documentElement;
+    el.dataset.demoOrg = route.org;
+    return () => {
+      delete el.dataset.demoOrg;
+    };
+  }, [route.org]);
+
+  const go: Go = (screen, id = null) => {
+    const next = { ...route, screen, id };
+    setRoute(next);
+    writeHash(next);
+    window.scrollTo({ top: 0 });
+  };
+
+  function switchOrg(kind: OrgKind) {
+    setChooser(false);
+    if (kind === route.org) return;
+    // Perfis e sindicâncias abertas são de outra organização: volta para a lista.
+    const keep: DemoScreen = route.screen === "perfil" ? "membros" : route.screen;
+    const next: Route = { org: kind, screen: keep, id: null };
+    setRoute(next);
+    writeHash(next);
+    toast(`Vendo como ${ORGS[kind].viewAs}`, {
+      description: `${ORGS[kind].short}: membros, cargos e valores próprios.`,
+    });
   }
 
   function reset() {
@@ -162,22 +221,91 @@ export function DemoApp() {
 
   return (
     <div className="tv-demo min-h-screen bg-tv-bg font-sans text-tv-text">
-      <DemoBanner onReset={reset} />
-      <DemoWorkspace key={resetKey} screen={screen} go={go} />
+      <DemoBanner org={org} onReset={reset} onSwitch={switchOrg} />
+      <DemoWorkspace
+        key={`${route.org}-${resetKey}`}
+        org={org}
+        route={route}
+        go={go}
+        openChooser={() => setChooser(true)}
+      />
+      <Dialog open={chooser} onOpenChange={setChooser}>
+        <DialogContent className="rounded-[22px] border-0 bg-tv-surface p-5 text-tv-text sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl font-bold">
+              Ver a demonstração como
+            </DialogTitle>
+            <DialogDescription className="text-tv-text-2">
+              Cada organização tem cargos, graus, termos e valores próprios.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="flex flex-col gap-2">
+            {ORG_KINDS.map((k) => {
+              const o = ORGS[k];
+              const on = k === route.org;
+              return (
+                <li key={k}>
+                  <button
+                    type="button"
+                    onClick={() => switchOrg(k)}
+                    aria-current={on ? "true" : undefined}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-[16px] border p-3 text-left",
+                      on ? "border-tv-primary bg-tv-soft" : "border-tv-border hover:bg-tv-bg",
+                    )}
+                  >
+                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px] bg-white p-1.5">
+                      <img src={o.emblem} alt="" className="h-full w-full object-contain" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold">{o.viewAs}</span>
+                      <span className="block text-[13px] text-tv-text-2">{o.short}</span>
+                    </span>
+                    {on ? <Check className="h-5 w-5 text-tv-primary" aria-hidden /> : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function DemoBanner({ onReset }: { onReset: () => void }) {
+function DemoBanner({
+  org,
+  onReset,
+  onSwitch,
+}: {
+  org: DemoOrg;
+  onReset: () => void;
+  onSwitch: (k: OrgKind) => void;
+}) {
   return (
     <div className="fixed inset-x-0 top-0 z-40 flex h-12 items-center gap-2 bg-[#17181A] px-3 text-sm text-white sm:px-5">
-      <span className="rounded-full bg-[#FFC72C] px-2.5 py-1 text-xs font-bold text-[#17181A]">
+      <span className="hidden rounded-full bg-[#FFC72C] px-2.5 py-1 text-xs font-bold text-[#17181A] sm:inline">
         Demonstração
       </span>
-      <span className="hidden min-w-0 truncate text-white/80 lg:inline">
-        Os dados são fictícios e nada do que você fizer aqui é salvo.
+      <label className="flex min-w-0 items-center gap-2">
+        <span className="hidden text-white/70 md:inline">Ver como</span>
+        <span className="sr-only md:hidden">Ver a demonstração como</span>
+        <select
+          value={org.kind}
+          onChange={(e) => onSwitch(e.target.value as OrgKind)}
+          className="min-h-9 min-w-0 max-w-[190px] rounded-[10px] border border-white/20 bg-white/10 px-2 font-semibold text-white outline-none [&>option]:text-[#17181A]"
+        >
+          {ORG_KINDS.map((k) => (
+            <option key={k} value={k}>
+              {ORGS[k].viewAs}
+            </option>
+          ))}
+        </select>
+      </label>
+      <span className="hidden min-w-0 truncate text-white/70 xl:inline">
+        Dados fictícios. Nada do que você fizer aqui é salvo.
       </span>
-      <span className="ml-auto flex items-center gap-1.5">
+      <span className="ml-auto flex items-center gap-1">
         <button
           type="button"
           onClick={onReset}
@@ -189,7 +317,7 @@ function DemoBanner({ onReset }: { onReset: () => void }) {
         </button>
         <Link
           to="/auth/adicionar-organizacao"
-          className="hidden min-h-9 items-center rounded-[10px] bg-white px-3 font-semibold text-[#17181A] sm:flex"
+          className="hidden min-h-9 items-center rounded-[10px] bg-white px-3 font-semibold text-[#17181A] lg:flex"
         >
           Solicitar acesso
         </Link>
@@ -209,13 +337,25 @@ function DemoBanner({ onReset }: { onReset: () => void }) {
 
 type Marks = Record<string, "P" | "A" | "">;
 
-function DemoWorkspace({ screen, go }: { screen: DemoScreen; go: (s: DemoScreen) => void }) {
+function DemoWorkspace({
+  org,
+  route,
+  go,
+  openChooser,
+}: {
+  org: DemoOrg;
+  route: Route;
+  go: Go;
+  openChooser: () => void;
+}) {
   const [hidden, setHidden] = useState(false);
-  const [cash, setCash] = useState<CashEntry[]>(DEMO_CASH);
-  const [dues, setDues] = useState<Record<string, DueStatus[]>>(initialDues);
+  const [cash, setCash] = useState<CashEntry[]>(org.cash);
+  const [dues, setDues] = useState<Record<string, DueStatus[]>>(() => initialDues(org));
+  const [social, setSocial] = useState<SocialEvent>(org.social);
+  const [investigations, setInvestigations] = useState<Investigation[]>(org.investigations);
   const [marks, setMarks] = useState<Marks>(() => {
     const m: Marks = {};
-    DEMO_MEMBERS.forEach((mem, i) => {
+    org.members.forEach((mem, i) => {
       if (mem.status !== "Ativo") return;
       m[mem.id] = i < 8 ? (i % 4 === 3 ? "A" : "P") : "";
     });
@@ -227,26 +367,25 @@ function DemoWorkspace({ screen, go }: { screen: DemoScreen; go: (s: DemoScreen)
   const totals = useMemo(() => {
     const inc = cash.filter((c) => c.type === "in").reduce((s, c) => s + c.value, 0);
     const out = cash.filter((c) => c.type === "out").reduce((s, c) => s + c.value, 0);
-    const yearIn = CASH_YEAR_BEFORE.in + inc;
-    const yearOut = CASH_YEAR_BEFORE.out + out;
+    const yearIn = org.yearBefore.in + inc;
+    const yearOut = org.yearBefore.out + out;
     return {
       monthIn: inc,
       monthOut: out,
       yearIn,
       yearOut,
-      balance: CASH_YEAR_BEFORE.opening + yearIn - yearOut,
+      balance: org.yearBefore.opening + yearIn - yearOut,
     };
-  }, [cash]);
+  }, [cash, org]);
 
   const dueStats = useMemo(() => {
     let paid = 0;
     let open = 0;
     let late = 0;
     let pendingMembers = 0;
-    for (const m of DEMO_MEMBERS) {
-      const row = dues[m.id] ?? [];
+    for (const m of org.members) {
       let pending = false;
-      for (const s of row) {
+      for (const s of dues[m.id] ?? []) {
         if (s === "P") paid++;
         if (s === "A") {
           open++;
@@ -267,7 +406,9 @@ function DemoWorkspace({ screen, go }: { screen: DemoScreen; go: (s: DemoScreen)
       pendingMembers,
       pct: counted ? Math.round((paid / counted) * 100) : 0,
     };
-  }, [dues]);
+  }, [dues, org]);
+
+  const openProfile = (id: string) => go("perfil", id);
 
   /** Links do HomeView (rotas do app real) viram navegação local. */
   function interceptLinks(e: MouseEvent<HTMLDivElement>) {
@@ -276,56 +417,123 @@ function DemoWorkspace({ screen, go }: { screen: DemoScreen; go: (s: DemoScreen)
     e.preventDefault();
     const path = (a.getAttribute("href") ?? "").split("?")[0];
     const hit = LINK_TO_SCREEN.find(([p]) => path === p || path.startsWith(`${p}/`));
-    if (hit) go(hit[1]);
-    else notInDemo();
+    if (!hit) return notInDemo();
+    if (hit[1] === "perfil") go("perfil", org.user.memberId);
+    else go(hit[1]);
   }
 
-  const content: Record<DemoScreen, ReactNode> = {
-    inicio: (
-      <div onClickCapture={interceptLinks}>
-        <HomeView {...homeProps({ hidden, setHidden, totals, dueStats })} />
-      </div>
-    ),
-    membros: <MembersScreen />,
-    chamada: (
-      <AttendanceScreen
-        marks={marks}
-        setMarks={setMarks}
-        reasons={reasons}
-        setReasons={setReasons}
-        closed={closed}
-        setClosed={setClosed}
-      />
-    ),
-    caixa: (
-      <CashScreen
-        cash={cash}
-        setCash={setCash}
-        totals={totals}
-        hidden={hidden}
-        setHidden={setHidden}
-      />
-    ),
-    mensalidades: <DuesScreen dues={dues} setDues={setDues} stats={dueStats} />,
-    calendario: <CalendarScreen />,
-    mais: <MoreScreen go={go} />,
-  };
+  let content: ReactNode;
+  switch (route.screen) {
+    case "inicio":
+      content = (
+        <div onClickCapture={interceptLinks}>
+          <HomeView
+            {...homeProps({
+              org,
+              hidden,
+              setHidden,
+              totals,
+              dueStats,
+              investigations,
+              social,
+              openChooser,
+            })}
+          />
+        </div>
+      );
+      break;
+    case "membros":
+      content = <MembersScreen org={org} openProfile={openProfile} />;
+      break;
+    case "perfil": {
+      const member =
+        memberById(org, route.id ?? org.user.memberId) ?? memberById(org, org.user.memberId)!;
+      const isMe = member.id === org.user.memberId;
+      content = (
+        <ProfileScreen
+          org={org}
+          member={member}
+          dues={dues[member.id] ?? []}
+          isMe={isMe}
+          onBack={() => go(isMe ? "inicio" : "membros")}
+        />
+      );
+      break;
+    }
+    case "chamada":
+      content = (
+        <AttendanceScreen
+          org={org}
+          marks={marks}
+          setMarks={setMarks}
+          reasons={reasons}
+          setReasons={setReasons}
+          closed={closed}
+          setClosed={setClosed}
+          openProfile={openProfile}
+        />
+      );
+      break;
+    case "sindicancias":
+      content = (
+        <InvestigationsScreen
+          org={org}
+          list={investigations}
+          setList={setInvestigations}
+          openId={route.id}
+          setOpenId={(id) => go("sindicancias", id)}
+          openProfile={openProfile}
+        />
+      );
+      break;
+    case "caixa":
+      content = (
+        <CashScreen
+          org={org}
+          cash={cash}
+          setCash={setCash}
+          totals={totals}
+          hidden={hidden}
+          setHidden={setHidden}
+        />
+      );
+      break;
+    case "mensalidades":
+      content = (
+        <DuesScreen
+          org={org}
+          dues={dues}
+          setDues={setDues}
+          stats={dueStats}
+          openProfile={openProfile}
+        />
+      );
+      break;
+    case "calendario":
+      content = <CalendarScreen org={org} />;
+      break;
+    case "eventos":
+      content = <EventsScreen org={org} event={social} setEvent={setSocial} />;
+      break;
+    default:
+      content = <MoreScreen org={org} go={go} openChooser={openChooser} />;
+  }
 
-  const wide = screen === "mensalidades" || screen === "caixa";
+  const wide = route.screen === "mensalidades" || route.screen === "caixa";
 
   return (
     <>
-      <DemoSidebar screen={screen} go={go} />
+      <DemoSidebar org={org} route={route} go={go} openChooser={openChooser} />
       <div className="flex min-h-screen flex-col pt-12 md:pl-[264px]">
         <main className="relative flex-1 px-4 pb-28 pt-4 sm:px-6 md:px-8 md:pb-12 md:pt-6">
           <div className={cn("mx-auto w-full", wide ? "max-w-[1400px]" : "max-w-[1120px]")}>
-            <div key={screen} className="page-enter">
-              {content[screen]}
+            <div key={`${route.screen}-${route.id ?? ""}`} className="page-enter">
+              {content}
             </div>
           </div>
         </main>
       </div>
-      <DemoTabBar screen={screen} go={go} />
+      <DemoTabBar route={route} go={go} />
     </>
   );
 }
@@ -334,30 +542,43 @@ function DemoWorkspace({ screen, go }: { screen: DemoScreen; go: (s: DemoScreen)
 /* Shell                                                               */
 /* ------------------------------------------------------------------ */
 
-function OrgMark({ className }: { className?: string }) {
+function OrgMark({ org, className }: { org: DemoOrg; className?: string }) {
   return (
-    <span
-      className={cn(
-        "grid shrink-0 place-items-center bg-tv-primary font-bold text-white",
-        className,
-      )}
-      aria-hidden
-    >
-      <img src="/favicon-white.svg" alt="" className="h-3/5 w-3/5" />
+    <span className={cn("grid shrink-0 place-items-center bg-white p-1", className)} aria-hidden>
+      <img src={org.emblem} alt="" className="h-full w-full object-contain" />
     </span>
   );
 }
 
-function DemoSidebar({ screen, go }: { screen: DemoScreen; go: (s: DemoScreen) => void }) {
+function DemoSidebar({
+  org,
+  route,
+  go,
+  openChooser,
+}: {
+  org: DemoOrg;
+  route: Route;
+  go: Go;
+  openChooser: () => void;
+}) {
+  const me = memberById(org, org.user.memberId)!;
   return (
     <aside className="fixed bottom-0 left-0 top-12 z-30 hidden w-[264px] flex-col border-r border-[#E8E8E4] bg-tv-sidebar px-3.5 py-5 text-tv-text md:flex dark:border-tv-border">
-      <div className="flex items-center gap-2.5 px-1.5">
-        <OrgMark className="h-10 w-10 rounded-[12px]" />
-        <div className="min-w-0 flex-1 leading-tight">
-          <div className="text-xs font-medium text-tv-text-2">{DEMO_ORG.name}</div>
-          <div className="truncate text-[15px] font-bold">Exemplo nº {DEMO_ORG.number}</div>
-        </div>
-      </div>
+      <button
+        type="button"
+        onClick={openChooser}
+        className="flex items-center gap-2.5 rounded-[12px] px-1.5 py-1 text-left hover:bg-tv-bg"
+        aria-label={`${org.short}. Trocar organização`}
+      >
+        <OrgMark org={org} className="h-10 w-10 rounded-[12px] border border-tv-border" />
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block text-xs font-medium text-tv-text-2">Templo Virtual</span>
+          <span className="block truncate text-[15px] font-bold">
+            {org.short.replace(`${org.orgType} `, "")}
+          </span>
+        </span>
+        <ArrowLeftRight className="h-4 w-4 shrink-0 text-tv-text-2" aria-hidden />
+      </button>
 
       <nav
         aria-label="Menu principal"
@@ -371,7 +592,11 @@ function DemoSidebar({ screen, go }: { screen: DemoScreen; go: (s: DemoScreen) =
               </span>
             ) : null}
             {sec.items.map((it) => {
-              const on = it.id === screen;
+              const on =
+                it.id === route.screen ||
+                (it.id === "membros" &&
+                  route.screen === "perfil" &&
+                  route.id !== org.user.memberId);
               return (
                 <button
                   key={it.id}
@@ -395,22 +620,24 @@ function DemoSidebar({ screen, go }: { screen: DemoScreen; go: (s: DemoScreen) =
       </nav>
 
       <div className="mt-3.5 border-t border-[#EEEEEA] pt-3.5 dark:border-tv-border">
-        <div className="flex items-center gap-2.5">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-tv-soft text-sm font-bold text-tv-ink">
-            {initials(DEMO_USER.name)}
+        <button
+          type="button"
+          onClick={() => go("perfil", me.id)}
+          className="flex w-full items-center gap-2.5 rounded-[12px] p-1 text-left hover:bg-tv-bg"
+        >
+          <Avatar name={me.name} size={40} />
+          <span className="min-w-0 flex-1 leading-tight">
+            <span className="block truncate text-sm font-semibold">{me.name}</span>
+            <span className="block truncate text-xs text-tv-text-2">{org.user.role}</span>
           </span>
-          <div className="min-w-0 flex-1 leading-tight">
-            <div className="truncate text-sm font-semibold">{DEMO_USER.name}</div>
-            <div className="truncate text-xs text-tv-text-2">{DEMO_USER.role}</div>
-          </div>
-        </div>
+        </button>
       </div>
     </aside>
   );
 }
 
-function DemoTabBar({ screen, go }: { screen: DemoScreen; go: (s: DemoScreen) => void }) {
-  const inMais = screen === "mais" || screen === "mensalidades" || screen === "calendario";
+function DemoTabBar({ route, go }: { route: Route; go: Go }) {
+  const inMais = !["inicio", "membros", "chamada", "caixa"].includes(route.screen);
   return (
     <nav
       aria-label="Navegação principal"
@@ -418,7 +645,7 @@ function DemoTabBar({ screen, go }: { screen: DemoScreen; go: (s: DemoScreen) =>
       style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
     >
       {MOBILE_TABS.map((tab) => {
-        const on = tab.id === "mais" ? inMais : tab.id === screen;
+        const on = tab.id === "mais" ? inMais : tab.id === route.screen;
         const Icon = tab.icon;
         if (tab.central) {
           return (
@@ -472,145 +699,32 @@ function DemoTabBar({ screen, go }: { screen: DemoScreen; go: (s: DemoScreen) =>
 }
 
 /* ------------------------------------------------------------------ */
-/* Peças comuns                                                        */
-/* ------------------------------------------------------------------ */
-
-function ScreenHeader({
-  eyebrow,
-  title,
-  subtitle,
-  actions,
-}: {
-  eyebrow?: string;
-  title: ReactNode;
-  subtitle?: string;
-  actions?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <div className="min-w-0">
-        {eyebrow ? <p className="text-sm text-tv-text-2">{eyebrow}</p> : null}
-        <h1 className="font-display text-[28px] font-extrabold tracking-[-0.02em] md:text-[32px]">
-          {title}
-        </h1>
-        {subtitle ? <p className="mt-1 text-[15px] text-tv-text-2">{subtitle}</p> : null}
-      </div>
-      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
-    </div>
-  );
-}
-
-function Panel({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("rounded-[20px] bg-tv-surface p-5", className)}>{children}</div>;
-}
-
-function SearchBox({
-  value,
-  onChange,
-  label,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  label: string;
-}) {
-  return (
-    <label className="flex min-h-[46px] flex-1 basis-[240px] items-center gap-2.5 rounded-[12px] border border-tv-border bg-tv-surface px-3.5">
-      <Search className="h-[18px] w-[18px] text-tv-text-2" aria-hidden />
-      <span className="sr-only">{label}</span>
-      <input
-        type="search"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={label}
-        className="min-w-0 flex-1 border-0 bg-transparent text-[15px] outline-none placeholder:text-[#6B6E75]"
-      />
-    </label>
-  );
-}
-
-function FilterChips<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: readonly T[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <>
-      {options.map((o) => {
-        const on = o === value;
-        return (
-          <button
-            key={o}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onChange(o)}
-            className={cn(
-              "min-h-[46px] rounded-[12px] border px-3.5 text-sm font-semibold",
-              on
-                ? "border-tv-text bg-tv-text text-tv-surface"
-                : "border-[#DCDCD8] bg-tv-surface text-[#2A2C31] dark:border-tv-border dark:text-tv-text",
-            )}
-          >
-            {o}
-          </button>
-        );
-      })}
-    </>
-  );
-}
-
-function PrimaryButton({
-  children,
-  onClick,
-  type = "button",
-}: {
-  children: ReactNode;
-  onClick?: () => void;
-  type?: "button" | "submit";
-}) {
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      className="flex min-h-[46px] items-center gap-2 rounded-[12px] bg-tv-primary px-4 text-[15px] font-semibold text-white"
-    >
-      {children}
-    </button>
-  );
-}
-
-function SoftButton({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex min-h-[46px] items-center gap-2 rounded-[12px] border border-tv-border bg-tv-surface px-3.5 text-sm font-semibold text-[#2A2C31] dark:text-tv-text"
-    >
-      {children}
-    </button>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Início (HomeView real com dados fictícios)                          */
 /* ------------------------------------------------------------------ */
 
 function homeProps({
+  org,
   hidden,
   setHidden,
   totals,
   dueStats,
+  investigations,
+  social,
+  openChooser,
 }: {
+  org: DemoOrg;
   hidden: boolean;
   setHidden: (fn: (v: boolean) => boolean) => void;
   totals: { monthIn: number; monthOut: number; balance: number };
   dueStats: { open: number; late: number; pendingMembers: number; pct: number };
+  investigations: Investigation[];
+  social: SocialEvent;
+  openChooser: () => void;
 }): HomeViewProps {
   const today = DEMO_TODAY.getDate();
-  const birthdays = DEMO_MEMBERS.filter((m) => m.birthday.endsWith("/11"))
+  const me = memberById(org, org.user.memberId)!;
+  const birthdays = org.members
+    .filter((m) => m.birthday.endsWith("/11"))
     .map((m) => ({ m, day: Number(m.birthday.slice(0, 2)) }))
     .sort((a, b) => a.day - b.day)
     .map(({ m, day }) => ({
@@ -622,34 +736,40 @@ function homeProps({
       past: day < today,
     }));
   const result = totals.monthIn - totals.monthOut;
-  const nextEv = DEMO_EVENTS.find((e) => e.day > today) ?? null;
+  const nextEv = org.events.find((e) => e.day > today) ?? null;
+  const open = investigations.filter((i) => i.status === "Em andamento");
 
   return {
     greeting: "Boa tarde",
-    firstName: DEMO_USER.name.split(" ")[0],
-    roleLine: `${DEMO_USER.role} · ${DEMO_ORG.name}`,
+    firstName: me.name.split(" ")[0],
+    roleLine: `${org.user.role} · ${org.name}`,
     dateLine: "Segunda-feira, 23 de novembro de 2026",
-    chapterLabel: `Exemplo nº ${DEMO_ORG.number}`,
-    chapterMark: <OrgMark className="h-full w-full rounded-full" />,
-    onSwitchChapter: notInDemo,
+    chapterLabel: org.short,
+    chapterMark: <OrgMark org={org} className="h-full w-full rounded-full" />,
+    onSwitchChapter: openChooser,
     switchLabel: "Trocar organização",
     hidden,
     onToggleHidden: () => setHidden((v) => !v),
     ongoing: [],
-    sindicancias: [
-      {
-        id: "s1",
-        title: "Sindicância de candidato a iniciação",
-        when: "Prazo até 05/12/2026",
-        badge: "2 de 3 respostas",
-        highlight: false,
-      },
-    ],
+    sindicancias: open.map((i) => {
+      const done = i.investigators.filter((x) => x.verdict).length;
+      const mine = i.investigators.find((x) => x.memberId === org.user.memberId);
+      return {
+        id: i.id,
+        title: `Sindicância de ${i.candidate}`,
+        when: `Prazo até ${i.deadline}`,
+        badge:
+          mine && !mine.verdict
+            ? "Falta o seu parecer"
+            : `${done} de ${i.investigators.length} pareceres`,
+        highlight: Boolean(mine && !mine.verdict),
+      };
+    }),
     next: nextEv
       ? {
           title: nextEv.title,
           typeLabel: nextEv.type,
-          when: `Sábado, ${String(nextEv.day).padStart(2, "0")}/11 · ${nextEv.time}`,
+          when: `${weekday(nextEv.day)}, ${String(nextEv.day).padStart(2, "0")}/11 · ${nextEv.time}`,
           inDays: `em ${nextEv.day - today} dias`,
           location: nextEv.place,
           copyLabel: "Copiar chave do dia",
@@ -668,16 +788,16 @@ function homeProps({
       { label: "Caixa", to: "/tesouraria/fluxo", icon: Wallet },
       { label: "Mensalidades", to: "/tesouraria/mensalidades", icon: Receipt },
       { label: "Calendário", to: "/calendario", icon: CalendarDays },
-      { label: "Atas", to: "/atas", icon: FileText },
       { label: "Eventos", to: "/eventos", icon: Ticket },
+      { label: "Sindicâncias", to: "/sindicancias", icon: Gavel },
       { label: "Perfil", to: "/perfil", icon: UserRound },
     ],
     shortcutsDesktop: [
       { label: "Chamada", to: "/presencas", icon: CheckSquare },
       { label: "Caixa", to: "/tesouraria/fluxo", icon: Wallet },
       { label: "Mensalidades", to: "/tesouraria/mensalidades", icon: Receipt },
-      { label: "Membros", to: "/membros", icon: Users },
-      { label: "Calendário", to: "/calendario", icon: CalendarDays },
+      { label: "Eventos", to: "/eventos", icon: Ticket },
+      { label: "Sindicâncias", to: "/sindicancias", icon: Gavel },
     ],
     finance: {
       saldo: brl(totals.balance),
@@ -688,10 +808,10 @@ function homeProps({
       saidas: brl(totals.monthOut),
     },
     dues: {
-      aberto: brl((dueStats.open + dueStats.late) * DUE_VALUE),
-      atrasado: dueStats.late ? brl(dueStats.late * DUE_VALUE) : null,
+      aberto: brl((dueStats.open + dueStats.late) * org.dueValue),
+      atrasado: dueStats.late ? brl(dueStats.late * org.dueValue) : null,
       pendentes: dueStats.pendingMembers,
-      pendingMembersLabel: `${dueStats.pendingMembers} membros com pendência`,
+      pendingMembersLabel: `${dueStats.pendingMembers} ${org.memberWord.many} com pendência`,
       pctRecebido: dueStats.pct,
       year: 2026,
     },
@@ -702,84 +822,88 @@ function homeProps({
         detail: `${dueStats.late} competências em atraso`,
         to: "/tesouraria/mensalidades",
       },
-      { id: "n2", label: "Chamada da última sessão sem fechar", to: "/presencas" },
+      ...(open.some((i) =>
+        i.investigators.some((x) => x.memberId === org.user.memberId && !x.verdict),
+      )
+        ? [{ id: "n2", label: "Sindicância aguardando o seu parecer", to: "/sindicancias" }]
+        : []),
     ],
     birthdays,
     birthdayMonth: "novembro",
-    nextEvent: { name: "Jantar de Natal", when: "12/12", info: "48 ingressos vendidos" },
+    nextEvent: {
+      name: social.title,
+      when: social.date.split(" · ")[0].split(", ")[1] ?? social.date,
+      info: `${social.guests.length} ingressos vendidos`,
+    },
     canCreateEvent: true,
-    minutes: [
-      { id: "a1", title: "Ata da sessão de iniciação", date: "07/11/2026", status: "Em revisão" },
-      { id: "a2", title: "Ata da reunião de diretoria", date: "02/11/2026", status: "Aprovada" },
-    ],
+    minutes: org.minutes,
   };
+}
+
+function weekday(day: number) {
+  const w = new Date(2026, 10, day).toLocaleDateString("pt-BR", { weekday: "long" });
+  return w.charAt(0).toUpperCase() + w.slice(1).replace("-feira", "");
 }
 
 /* ------------------------------------------------------------------ */
 /* Membros                                                             */
 /* ------------------------------------------------------------------ */
 
-const GRADE_FILTERS = ["Todos", "DeMolay", "Iniciático", "Sênior"] as const;
-
-function MembersScreen() {
+function MembersScreen({ org, openProfile }: { org: DemoOrg; openProfile: (id: string) => void }) {
   const [q, setQ] = useState("");
-  const [grade, setGrade] = useState<(typeof GRADE_FILTERS)[number]>("Todos");
-  const list = DEMO_MEMBERS.filter(
+  const options = ["Todos", ...org.grades] as const;
+  const [grade, setGrade] = useState<string>("Todos");
+  const list = org.members.filter(
     (m) =>
       (grade === "Todos" || m.grade === grade) &&
       m.name.toLowerCase().includes(q.trim().toLowerCase()),
   );
+  const title = org.kind === "loja" ? "Quadro de obreiros" : "Membros";
 
   return (
     <div className="flex flex-col gap-[18px]">
       <ScreenHeader
         eyebrow="Secretaria"
-        title="Membros"
-        subtitle={`${DEMO_MEMBERS.length} cadastrados no ${DEMO_ORG.name}`}
+        title={title}
+        subtitle={`${org.members.length} ${org.memberWord.many} cadastrados`}
         actions={
           <PrimaryButton onClick={notInDemo}>
             <Plus className="h-[18px] w-[18px]" aria-hidden />
-            Novo membro
+            Novo cadastro
           </PrimaryButton>
         }
       />
       <div className="flex flex-wrap gap-2.5">
-        <SearchBox value={q} onChange={setQ} label="Buscar membro" />
-        <FilterChips options={GRADE_FILTERS} value={grade} onChange={setGrade} />
+        <SearchBox value={q} onChange={setQ} label="Buscar pelo nome" />
+        <FilterChips options={options} value={grade} onChange={setGrade} />
       </div>
       {list.length === 0 ? (
-        <Panel className="text-center text-tv-text-2">
-          Nenhum membro encontrado com esse filtro.
-        </Panel>
+        <Panel className="text-center text-tv-text-2">Ninguém encontrado com esse filtro.</Panel>
       ) : (
         <ul className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((m) => (
-            <li key={m.id} className="flex items-start gap-3 rounded-[18px] bg-tv-surface p-4">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-tv-soft text-[15px] font-bold text-tv-ink">
-                {initials(m.name)}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-semibold">{m.name}</p>
-                <p className="truncate text-[13px] text-tv-text-2">{m.role ?? "Membro"}</p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <span className="rounded-full bg-tv-line px-2.5 py-0.5 text-xs font-semibold text-[#3F4249] dark:text-tv-text">
-                    {m.grade}
+            <li key={m.id}>
+              <button
+                type="button"
+                onClick={() => openProfile(m.id)}
+                className="flex w-full items-start gap-3 rounded-[18px] bg-tv-surface p-4 text-left transition-shadow hover:shadow-[0_4px_14px_rgba(20,20,20,0.07)]"
+              >
+                <Avatar name={m.name} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-semibold">{m.name}</span>
+                  <span className="block truncate text-[13px] text-tv-text-2">
+                    {m.role ?? "Sem cargo nesta gestão"}
                   </span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                      m.status === "Ativo"
-                        ? "bg-tv-in-bg text-tv-in"
-                        : "bg-tv-warn-bg text-tv-warn",
-                    )}
-                  >
-                    {m.status}
+                  <span className="mt-2 flex flex-wrap gap-1.5">
+                    <Chip>{m.grade}</Chip>
+                    <Chip tone={m.status === "Ativo" ? "in" : "warn"}>{m.status}</Chip>
+                    <Chip tone={m.attendance >= 75 ? "neutral" : "warn"}>
+                      Frequência {m.attendance}%
+                    </Chip>
                   </span>
-                  <span className="rounded-full bg-tv-line px-2.5 py-0.5 text-xs font-medium text-tv-text-2">
-                    Aniversário {m.birthday}
-                  </span>
-                </div>
-              </div>
+                </span>
+                <ChevronRight className="mt-3 h-5 w-5 shrink-0 text-tv-text-2" aria-hidden />
+              </button>
             </li>
           ))}
         </ul>
@@ -795,33 +919,38 @@ function MembersScreen() {
 const ATT_FILTERS = ["Todos", "Sem marcar"] as const;
 
 function AttendanceScreen({
+  org,
   marks,
   setMarks,
   reasons,
   setReasons,
   closed,
   setClosed,
+  openProfile,
 }: {
+  org: DemoOrg;
   marks: Marks;
   setMarks: (fn: (m: Marks) => Marks) => void;
   reasons: Record<string, string>;
   setReasons: (fn: (r: Record<string, string>) => Record<string, string>) => void;
   closed: boolean;
   setClosed: (v: boolean) => void;
+  openProfile: (id: string) => void;
 }) {
   const [filter, setFilter] = useState<(typeof ATT_FILTERS)[number]>("Todos");
   const [q, setQ] = useState("");
+  const session = org.events.find((e) => e.day === org.sessionDay)!;
+  const me = memberById(org, org.user.memberId)!;
   const ids = Object.keys(marks);
   const present = ids.filter((id) => marks[id] === "P").length;
   const absent = ids.filter((id) => marks[id] === "A").length;
   const unmarked = ids.length - present - absent;
-  const list = DEMO_MEMBERS.filter(
+  const list = org.members.filter(
     (m) =>
       m.id in marks &&
       (filter === "Todos" || marks[m.id] === "") &&
       m.name.toLowerCase().includes(q.trim().toLowerCase()),
   );
-
   const set = (id: string, v: "P" | "A") =>
     setMarks((cur) => ({ ...cur, [id]: cur[id] === v ? "" : v }));
 
@@ -831,7 +960,7 @@ function AttendanceScreen({
         eyebrow="Chamada"
         title={
           <span className="flex flex-wrap items-center gap-3">
-            Sessão magna
+            {session.title}
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-sans text-[13px] font-bold tracking-normal",
@@ -845,19 +974,17 @@ function AttendanceScreen({
             </span>
           </span>
         }
-        subtitle="Sessão ritualística · Sábado, 28/11/2026 · 19:30 · Obrigatória"
+        subtitle={`Sessão ritualística · ${weekday(session.day)}, ${session.day}/11/2026 · ${session.time} · Obrigatória`}
       />
 
       <div className="flex flex-wrap items-start gap-[18px]">
         <div className="flex min-w-0 flex-[2_1_520px] flex-col gap-3">
           <div className="flex flex-wrap gap-2.5">
-            <SearchBox value={q} onChange={setQ} label="Buscar membro" />
+            <SearchBox value={q} onChange={setQ} label="Buscar pelo nome" />
             <FilterChips options={ATT_FILTERS} value={filter} onChange={setFilter} />
           </div>
           {list.length === 0 ? (
-            <Panel className="text-center text-tv-text-2">
-              Todos os membros já foram marcados.
-            </Panel>
+            <Panel className="text-center text-tv-text-2">Todos já foram marcados.</Panel>
           ) : (
             <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
               {list.map((m) => {
@@ -871,9 +998,13 @@ function AttendanceScreen({
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="min-w-0 flex-1 text-[15px] font-semibold leading-tight">
+                      <button
+                        type="button"
+                        onClick={() => openProfile(m.id)}
+                        className="min-w-0 flex-1 text-left text-[15px] font-semibold leading-tight hover:underline"
+                      >
                         {m.name}
-                      </span>
+                      </button>
                       <button
                         type="button"
                         disabled={closed}
@@ -1000,13 +1131,23 @@ function AttendanceScreen({
             <span className="text-[15px] font-bold text-tv-text">Sessão</span>
             <span className="flex items-center gap-2">
               <MapPin className="h-4 w-4" aria-hidden />
-              Templo da Loja Exemplo
+              {session.place}
             </span>
             <span className="flex items-center gap-2">
               <Clock className="h-4 w-4" aria-hidden />
-              Início às 19:30
+              Início às {session.time}
             </span>
-            <span>Presidida por {DEMO_USER.name}</span>
+            <span>
+              Presidida por {me.name} ({org.user.role})
+            </span>
+            <button
+              type="button"
+              onClick={notInDemo}
+              className="flex min-h-8 items-center gap-1.5 font-semibold text-tv-primary"
+            >
+              <FileText className="h-4 w-4" aria-hidden />
+              Abrir {org.minutesWord.toLowerCase()} desta sessão
+            </button>
           </Panel>
         </aside>
       </div>
@@ -1021,12 +1162,14 @@ function AttendanceScreen({
 const CASH_FILTERS = ["Todos", "Entradas", "Saídas"] as const;
 
 function CashScreen({
+  org,
   cash,
   setCash,
   totals,
   hidden,
   setHidden,
 }: {
+  org: DemoOrg;
   cash: CashEntry[];
   setCash: (fn: (c: CashEntry[]) => CashEntry[]) => void;
   totals: { monthIn: number; monthOut: number; yearIn: number; yearOut: number; balance: number };
@@ -1075,18 +1218,18 @@ function CashScreen({
             {money(totals.balance)}
           </span>
           <span className="text-[13px] opacity-80">
-            Inclui {money(CASH_YEAR_BEFORE.opening)} de 2025
+            Inclui {money(org.yearBefore.opening)} de 2025
           </span>
         </Panel>
         <Panel>
           <span className="text-sm text-tv-text-2">Entradas em 2026</span>
-          <span className="mt-1 block font-display text-[22px] font-extrabold text-tv-in">
+          <span className="mt-1 block font-display text-[20px] font-extrabold text-tv-in sm:text-[22px]">
             {money(totals.yearIn)}
           </span>
         </Panel>
         <Panel>
           <span className="text-sm text-tv-text-2">Saídas em 2026</span>
-          <span className="mt-1 block font-display text-[22px] font-extrabold text-tv-out">
+          <span className="mt-1 block font-display text-[20px] font-extrabold text-tv-out sm:text-[22px]">
             {money(totals.yearOut)}
           </span>
         </Panel>
@@ -1103,6 +1246,7 @@ function CashScreen({
 
       {formOpen ? (
         <NewEntryForm
+          org={org}
           onCancel={() => setFormOpen(false)}
           onSave={(entry) => {
             setCash((c) => [entry, ...c]);
@@ -1155,14 +1299,9 @@ function CashScreen({
                   </span>
                 </span>
                 <span className="hidden md:block">
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-1 text-xs font-semibold",
-                      c.type === "in" ? "bg-tv-in-bg text-tv-in" : "bg-tv-out-bg text-tv-out",
-                    )}
-                  >
+                  <Chip tone={c.type === "in" ? "in" : "out"}>
                     {c.type === "in" ? "Entrada" : "Saída"}
-                  </span>
+                  </Chip>
                 </span>
                 <span
                   className={cn(
@@ -1194,16 +1333,18 @@ function CashScreen({
 }
 
 function NewEntryForm({
+  org,
   onSave,
   onCancel,
 }: {
+  org: DemoOrg;
   onSave: (e: CashEntry) => void;
   onCancel: () => void;
 }) {
   const [type, setType] = useState<"in" | "out">("in");
   const [desc, setDesc] = useState("");
   const [value, setValue] = useState("");
-  const cats = type === "in" ? CASH_CATEGORIES_IN : CASH_CATEGORIES_OUT;
+  const cats = type === "in" ? org.cashIn : org.cashOut;
   const [category, setCategory] = useState(cats[0]);
   const [error, setError] = useState<string | null>(null);
 
@@ -1222,9 +1363,6 @@ function NewEntryForm({
       value: Math.round(num * 100) / 100,
     });
   }
-
-  const field =
-    "min-h-[46px] w-full rounded-[12px] border border-tv-border bg-tv-bg px-3.5 text-[15px] outline-none focus:border-tv-primary";
 
   return (
     <form onSubmit={submit} className="rounded-[20px] bg-tv-surface p-5">
@@ -1251,7 +1389,7 @@ function NewEntryForm({
             aria-pressed={type === t}
             onClick={() => {
               setType(t);
-              setCategory((t === "in" ? CASH_CATEGORIES_IN : CASH_CATEGORIES_OUT)[0]);
+              setCategory((t === "in" ? org.cashIn : org.cashOut)[0]);
             }}
             className={cn(
               "min-h-10 rounded-[10px] px-4 text-sm font-semibold",
@@ -1268,7 +1406,7 @@ function NewEntryForm({
         <label className="flex flex-col gap-1.5 text-sm font-semibold">
           Descrição
           <input
-            className={field}
+            className={fieldClass}
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
             placeholder="Ex.: Compra de materiais"
@@ -1277,7 +1415,7 @@ function NewEntryForm({
         <label className="flex flex-col gap-1.5 text-sm font-semibold">
           Valor (R$)
           <input
-            className={field}
+            className={fieldClass}
             inputMode="decimal"
             value={value}
             onChange={(e) => setValue(e.target.value)}
@@ -1286,7 +1424,11 @@ function NewEntryForm({
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-semibold">
           Categoria
-          <select className={field} value={category} onChange={(e) => setCategory(e.target.value)}>
+          <select
+            className={fieldClass}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
             {cats.map((c) => (
               <option key={c}>{c}</option>
             ))}
@@ -1313,13 +1455,17 @@ function NewEntryForm({
 const CYCLE: DueStatus[] = ["P", "A", "T", "I"];
 
 function DuesScreen({
+  org,
   dues,
   setDues,
   stats,
+  openProfile,
 }: {
+  org: DemoOrg;
   dues: Record<string, DueStatus[]>;
   setDues: (fn: (d: Record<string, DueStatus[]>) => Record<string, DueStatus[]>) => void;
   stats: { paid: number; open: number; late: number; pendingMembers: number; pct: number };
+  openProfile: (id: string) => void;
 }) {
   function cycle(id: string, month: number) {
     setDues((d) => {
@@ -1336,31 +1482,43 @@ function DuesScreen({
       <ScreenHeader
         eyebrow="Tesouraria"
         title="Mensalidades 2026"
-        subtitle={`Valor mensal de ${brl(DUE_VALUE)}. Toque numa competência para mudar a situação.`}
+        subtitle={`Valor mensal de ${brl(org.dueValue)}. Toque numa competência para mudar a situação.`}
         actions={
-          <SoftButton onClick={notInDemo}>
-            <Download className="h-[18px] w-[18px]" aria-hidden />
-            Exportar
-          </SoftButton>
+          <>
+            <SoftButton
+              onClick={() =>
+                toast.success("Cobrança enviada", {
+                  description: `${stats.pendingMembers} ${org.memberWord.many} com pendência vão receber o aviso com o Pix.`,
+                })
+              }
+            >
+              <Receipt className="h-[18px] w-[18px]" aria-hidden />
+              Cobrar pendentes
+            </SoftButton>
+            <SoftButton onClick={notInDemo}>
+              <Download className="h-[18px] w-[18px]" aria-hidden />
+              Exportar
+            </SoftButton>
+          </>
         }
       />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Panel>
           <span className="text-sm text-tv-text-2">Recebido no ano</span>
           <span className="mt-1 block font-display text-[22px] font-extrabold text-tv-in">
-            {brl(stats.paid * DUE_VALUE)}
+            {brl(stats.paid * org.dueValue)}
           </span>
         </Panel>
         <Panel>
           <span className="text-sm text-tv-text-2">Em aberto</span>
           <span className="mt-1 block font-display text-[22px] font-extrabold">
-            {brl(stats.open * DUE_VALUE)}
+            {brl(stats.open * org.dueValue)}
           </span>
         </Panel>
         <Panel>
           <span className="text-sm text-tv-text-2">Atrasado</span>
           <span className="mt-1 block font-display text-[22px] font-extrabold text-[#7E3F00] dark:text-tv-warn">
-            {brl(stats.late * DUE_VALUE)}
+            {brl(stats.late * org.dueValue)}
           </span>
         </Panel>
         <Panel>
@@ -1389,7 +1547,7 @@ function DuesScreen({
           <thead>
             <tr className="text-xs font-bold text-tv-text-2">
               <th scope="col" className="sticky left-0 z-10 bg-tv-surface px-4 py-3 text-left">
-                Membro
+                Nome
               </th>
               {MONTHS_SHORT.map((m) => (
                 <th key={m} scope="col" className="px-1 py-3 text-center">
@@ -1402,16 +1560,22 @@ function DuesScreen({
             </tr>
           </thead>
           <tbody>
-            {DEMO_MEMBERS.map((m) => {
+            {org.members.map((m) => {
               const row = dues[m.id] ?? [];
-              const owed = row.filter((s) => s === "A" || s === "T").length * DUE_VALUE;
+              const owed = row.filter((s) => s === "A" || s === "T").length * org.dueValue;
               return (
                 <tr key={m.id} className="border-t border-tv-line">
                   <th
                     scope="row"
-                    className="sticky left-0 z-10 max-w-[200px] truncate bg-tv-surface px-4 py-2 text-left font-semibold"
+                    className="sticky left-0 z-10 max-w-[210px] bg-tv-surface px-4 py-2 text-left font-semibold"
                   >
-                    {m.name}
+                    <button
+                      type="button"
+                      onClick={() => openProfile(m.id)}
+                      className="block max-w-full truncate text-left hover:underline"
+                    >
+                      {m.name}
+                    </button>
                   </th>
                   {row.map((s, i) => (
                     <td key={i} className="px-0.5 py-1.5 text-center">
@@ -1458,11 +1622,10 @@ function DuesScreen({
 /* Calendário                                                          */
 /* ------------------------------------------------------------------ */
 
-function CalendarScreen() {
+function CalendarScreen({ org }: { org: DemoOrg }) {
   const [selected, setSelected] = useState<DemoEvent | null>(
-    DEMO_EVENTS.find((e) => e.day === 28) ?? null,
+    org.events.find((e) => e.day === org.sessionDay) ?? null,
   );
-  // Novembro de 2026 começa num domingo.
   const firstWeekday = new Date(2026, 10, 1).getDay();
   const cells: (number | null)[] = [
     ...Array.from({ length: firstWeekday }, () => null),
@@ -1505,11 +1668,9 @@ function CalendarScreen() {
         }
       />
 
-      <div className="rounded-[16px] border border-[#F0C9C4] bg-tv-out-bg p-4 text-sm text-tv-out">
+      <div className="rounded-[16px] border border-[#F0C9C4] bg-tv-out-bg p-4 text-sm text-tv-out dark:border-transparent">
         <p className="font-bold">Datas obrigatórias do semestre</p>
-        <p className="mt-1">
-          Sessão magna até 30/11 · Ação de filantropia até 12/12 · Iniciação até 12/12
-        </p>
+        <p className="mt-1">{org.mandatory}</p>
       </div>
 
       <div className="flex flex-wrap items-start gap-[18px]">
@@ -1523,7 +1684,7 @@ function CalendarScreen() {
           </div>
           <div className="grid grid-cols-7">
             {cells.map((day, i) => {
-              const evs = day ? DEMO_EVENTS.filter((e) => e.day === day) : [];
+              const evs = day ? org.events.filter((e) => e.day === day) : [];
               return (
                 <div
                   key={i}
@@ -1581,7 +1742,8 @@ function CalendarScreen() {
               <div className="mt-2 flex flex-col gap-1.5 text-[15px] text-[#3F4249] dark:text-tv-text-2">
                 <span className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4" aria-hidden />
-                  {String(selected.day).padStart(2, "0")}/11/2026 às {selected.time}
+                  {weekday(selected.day)}, {String(selected.day).padStart(2, "0")}/11/2026 às{" "}
+                  {selected.time}
                 </span>
                 <span className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" aria-hidden />
@@ -1592,19 +1754,19 @@ function CalendarScreen() {
                 type="button"
                 onClick={() =>
                   toast.success("Convite enviado", {
-                    description: "Na versão completa, os membros recebem o convite por e-mail.",
+                    description: `Na versão completa, os ${org.memberWord.many} recebem o convite por e-mail com o arquivo de agenda.`,
                   })
                 }
                 className="mt-4 min-h-[46px] w-full rounded-[12px] bg-tv-soft text-[15px] font-semibold text-tv-ink"
               >
-                Enviar convite aos membros
+                Enviar convite
               </button>
             </Panel>
           ) : null}
           <Panel className="p-0">
             <p className="px-5 pb-1 pt-4 text-[15px] font-bold">Agenda de novembro</p>
             <ul>
-              {DEMO_EVENTS.map((e) => (
+              {org.events.map((e) => (
                 <li key={e.id} className="border-t border-tv-line first:border-0">
                   <button
                     type="button"
@@ -1642,13 +1804,20 @@ function CalendarScreen() {
 /* Mais (mobile)                                                       */
 /* ------------------------------------------------------------------ */
 
-function MoreScreen({ go }: { go: (s: DemoScreen) => void }) {
+function MoreScreen({ org, go, openChooser }: { org: DemoOrg; go: Go; openChooser: () => void }) {
   const items: { id: DemoScreen; label: string; detail: string; icon: NavItem["icon"] }[] = [
     {
       id: "mensalidades",
       label: "Mensalidades",
-      detail: "Situação de cada membro mês a mês",
+      detail: "Situação de cada um, mês a mês",
       icon: Receipt,
+    },
+    { id: "eventos", label: "Eventos", detail: "Ingressos, check-in e comandas", icon: Ticket },
+    {
+      id: "sindicancias",
+      label: "Sindicâncias",
+      detail: `Pareceres sobre ${org.memberWord.candidate.toLowerCase()}s`,
+      icon: Gavel,
     },
     {
       id: "calendario",
@@ -1656,7 +1825,12 @@ function MoreScreen({ go }: { go: (s: DemoScreen) => void }) {
       detail: "Sessões, reuniões e eventos",
       icon: CalendarDays,
     },
-    { id: "membros", label: "Membros", detail: "Cadastro e cargos", icon: Users },
+    {
+      id: "perfil",
+      label: "Meu perfil",
+      detail: "Dados, frequência e carteirinha",
+      icon: UserRound,
+    },
   ];
   return (
     <div className="flex flex-col gap-[18px]">
@@ -1666,7 +1840,7 @@ function MoreScreen({ go }: { go: (s: DemoScreen) => void }) {
           <li key={it.id} className="border-t border-tv-line first:border-0">
             <button
               type="button"
-              onClick={() => go(it.id)}
+              onClick={() => go(it.id, it.id === "perfil" ? org.user.memberId : null)}
               className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left"
             >
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] bg-tv-soft text-tv-primary">
@@ -1681,12 +1855,18 @@ function MoreScreen({ go }: { go: (s: DemoScreen) => void }) {
           </li>
         ))}
       </ul>
-      <Panel className="text-[15px] text-tv-text-2">
-        Atas, ofícios, eventos, comissões e sindicâncias fazem parte da versão completa.{" "}
-        <Link to="/auth/adicionar-organizacao" className="font-semibold text-tv-primary">
-          Solicitar acesso
-        </Link>
-      </Panel>
+      <button
+        type="button"
+        onClick={openChooser}
+        className="flex items-center gap-3 rounded-[20px] bg-tv-surface p-4 text-left"
+      >
+        <OrgMark org={org} className="h-11 w-11 rounded-[12px] border border-tv-border" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold">Ver como outra organização</span>
+          <span className="block text-[13px] text-tv-text-2">Agora: {org.viewAs}</span>
+        </span>
+        <ArrowLeftRight className="h-5 w-5 text-tv-text-2" aria-hidden />
+      </button>
     </div>
   );
 }
