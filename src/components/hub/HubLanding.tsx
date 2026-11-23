@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { REALM_CARD_BLURB, REALMS, realmEntryUrl, type Realm } from "@/lib/realm";
 import { getSupademoDemoId, supademoEmbedUrl, type SupademoSlotId } from "@/lib/supademo";
@@ -6,16 +6,15 @@ import { cn } from "@/lib/utils";
 import { useHubHostGuard } from "@/components/hub/useHubSession";
 import "./hub-landing.css";
 
-const PIX_KEY = "pix@templovirtual.com.br";
 const GITHUB_URL = "https://github.com/farrapos1111/sgc-dm";
 const JOIN_PATH = "/auth/adicionar-organizacao";
+const PIX_KEY = "pix@templovirtual.com.br";
 
 const NAV_LINKS = [
   { href: "#ordens", label: "Ordens" },
   { href: "#sistema", label: "O sistema" },
-  { href: "#cronograma", label: "Cronograma" },
+  { href: "#plataforma", label: "Plataforma" },
   { href: "#valor", label: "Valor" },
-  { href: "#apoiar", label: "Apoiar" },
   { href: "#contato", label: "Contato" },
 ] as const;
 
@@ -25,130 +24,158 @@ const REALM_INFO: Record<Realm, { name: string; emblem: string }> = {
   loja: { name: "Lojas Maçônicas", emblem: "/esferas/loja.webp" },
 };
 
+type Shot = { src: string; label: string };
+
 type Module = {
   slot: SupademoSlotId;
   tab: string;
   title: string;
   text: string;
   points: string[];
+  shots: Shot[];
 };
 
 const MODULES: Module[] = [
   {
     slot: "overview",
     tab: "Início",
-    title: "O dia da sua organização numa tela",
+    title: "O dia da organização numa tela",
     text: "O painel abre com o que importa agora: próximo compromisso, saldo do mês, mensalidades pendentes e aniversariantes.",
     points: [
       "Chave do dia para registrar presença",
       "Saldo do mês vindo direto do fluxo de caixa",
       "Aniversariantes e próximos eventos",
     ],
+    shots: [{ src: "/shots/overview.png", label: "Painel inicial" }],
   },
   {
     slot: "secretaria",
     tab: "Secretaria",
-    title: "Membros, atas e ofícios sem papelada",
-    text: "O cadastro de cada membro concentra o histórico. Atas e ofícios ficam organizados e fáceis de encontrar.",
+    title: "Membros, atas, ofícios e frequência",
+    text: "O cadastro de cada membro concentra o histórico. A frequência é lançada por reunião, com justificativa para as ausências.",
     points: [
       "Cadastro completo de membros",
       "Atas e ofícios com numeração",
-      "Frequência de cada reunião",
+      "Frequência com justificativas",
     ],
+    shots: [{ src: "/shots/secretaria.png", label: "Frequência" }],
   },
   {
     slot: "tesouraria",
     tab: "Tesouraria",
     title: "Caixa e mensalidades em dia",
-    text: "Lance entradas e saídas, acompanhe quem está em dia e gere relatórios para prestar contas.",
+    text: "Entradas e saídas organizadas por categoria e a situação de cada membro mês a mês, prontas para a prestação de contas.",
     points: [
-      "Fluxo de caixa com relatórios",
+      "Fluxo de caixa com exportação em Excel e PDF",
       "Mensalidades por competência",
-      "Cobranças para quem está pendente",
+      "Controle de atrasos e cobranças",
+    ],
+    shots: [
+      { src: "/shots/tesouraria.png", label: "Fluxo de caixa" },
+      { src: "/shots/Mensalidades.png", label: "Mensalidades" },
     ],
   },
   {
     slot: "gestao",
     tab: "Gestão",
-    title: "Calendário e nominata da gestão",
-    text: "Planeje a gestão com o calendário compartilhado e mantenha a nominata de cada período registrada.",
-    points: ["Calendário com convites", "Nominata por gestão", "Chave do dia para cada reunião"],
+    title: "Calendário, cargos e comissões",
+    text: "O calendário da gestão destaca as datas obrigatórias da ordem. Cargos e comissões ficam registrados por período.",
+    points: [
+      "Calendário com datas obrigatórias",
+      "Cargos e comissões por gestão",
+      "Chave do dia para cada reunião",
+    ],
+    shots: [{ src: "/shots/gestao.png", label: "Calendário" }],
   },
   {
     slot: "comissoes",
-    tab: "Comissões",
-    title: "Eventos e comissões organizados",
-    text: "Cada comissão tem seu espaço: eventos, manutenção, novos membros e hospitalaria.",
+    tab: "Eventos",
+    title: "Eventos, ingressos e comandas",
+    text: "A comissão de eventos controla ingressos, consumo e caixa do evento, com recibo e Pix na hora.",
     points: [
-      "Comandas virtuais nos eventos",
-      "Fichas de indicação",
-      "Questionários de sindicância",
+      "Ingressos e check-in por QR Code",
+      "Comandas virtuais com recibo",
+      "Financeiro do evento integrado ao caixa",
     ],
+    shots: [{ src: "/shots/comissoes.png", label: "Comanda de evento" }],
   },
 ];
 
 const PILLARS = [
   {
     title: "Acessibilidade",
-    text: "Todo mundo consegue usar. Poucos cliques, pensado primeiro para o celular.",
+    text: "Qualquer membro da administração opera o sistema, do celular ou do computador, com poucos cliques.",
   },
   {
     title: "Transparência",
-    text: "Código aberto, com espaço para quem quiser olhar, sugerir ou contribuir.",
+    text: "Código aberto e registros de cada alteração, para que a prestação de contas seja simples.",
   },
   {
     title: "Otimização",
-    text: "Rápido de operar, com respostas instantâneas mesmo em conexão fraca.",
+    text: "Tarefas de secretaria e tesouraria que levavam horas são resolvidas em minutos.",
   },
 ] as const;
 
-const ROADMAP = [
-  { state: "done", label: "Concluída", text: "Escopo inicial e montagem do projeto base." },
+const GOVERNANCE: { title: string; text: string; icon: ReactNode }[] = [
   {
-    state: "done",
-    label: "Concluída",
-    text: "Validação no dia a dia do Capítulo Farrapos nº 1111.",
+    title: "Acesso por cargo",
+    text: "Cada pessoa vê e altera apenas o que o seu cargo permite. A troca de gestão atualiza as permissões.",
+    icon: <path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z" />,
   },
   {
-    state: "now",
-    label: "Em andamento",
-    text: "Testes com outras paramaçônicas, ouvindo as necessidades de cada uma.",
+    title: "Dados separados por organização",
+    text: "Cada instituição tem o próprio espaço. Nenhuma organização enxerga os dados de outra.",
+    icon: (
+      <>
+        <rect x="3" y="4" width="18" height="7" rx="1.5" />
+        <rect x="3" y="13" width="18" height="7" rx="1.5" />
+      </>
+    ),
   },
   {
-    state: "next",
-    label: "Próxima",
-    text: "Implementar o que surgir dos testes e modularizar por organização.",
+    title: "Histórico de alterações",
+    text: "Lançamentos financeiros e comandas guardam quem fez cada mudança e quando.",
+    icon: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </>
+    ),
   },
   {
-    state: "next",
-    label: "Próxima",
-    text: "Expansão para o restante do estado e versão como app de celular.",
+    title: "Código aberto",
+    text: "O código-fonte é público e pode ser auditado por qualquer pessoa ou instituição.",
+    icon: <path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14" />,
   },
-] as const;
+];
 
 const STEPS = [
-  "Solicite a inclusão da organização e o cadastro da liderança (MC, HR ou VM).",
-  "Com o primeiro acesso, cadastre os demais membros e o calendário.",
-  "Configure a tesouraria, a secretaria e as outras áreas.",
-  "Use no dia a dia e envie sugestões de melhoria.",
+  "A liderança solicita a inclusão da organização (MC, HR, VM ou equivalente).",
+  "Após a aprovação, a administração cadastra os membros e o calendário.",
+  "Tesouraria, secretaria e demais áreas são configuradas conforme a rotina.",
+  "A equipe acompanha a implantação e recebe sugestões de melhoria.",
 ] as const;
 
 const FAQ = [
   {
-    q: "Quanto custa para uma paramaçônica?",
-    a: "Nada. Capítulos, Bethéis e demais paramaçônicas usam a plataforma inteira de graça.",
+    q: "Quais ordens são atendidas?",
+    a: "Ordem DeMolay (Capítulos, Colégios Alumni, Castelos e Priorados), Filhas de Jó, Estrela do Oriente e Lojas Maçônicas. Ordem do Arco-Íris e Ação Paramaçônica Juvenil estão em implantação.",
+  },
+  {
+    q: "Quanto custa para uma organização paramaçônica?",
+    a: "Nada. Organizações paramaçônicas usam a plataforma inteira sem custo. Para Lojas Maçônicas, o escopo é definido em conjunto.",
   },
   {
     q: "Funciona no celular?",
-    a: "Sim. O sistema foi desenhado primeiro para o celular e funciona igual no computador.",
+    a: "Sim. O sistema foi desenhado primeiro para o celular e funciona da mesma forma no computador.",
   },
   {
-    q: "Como posso contribuir?",
-    a: "Com sugestões, doações via Pix ou entrando na comissão de Tecnologia e Inovação. As três formas estão em Apoiar o projeto.",
+    q: "Como os dados são protegidos?",
+    a: "O acesso é individual e limitado pelo cargo de cada pessoa, os dados de cada organização ficam separados e as alterações relevantes ficam registradas.",
   },
   {
-    q: "Existe uma comissão de Tecnologia?",
-    a: "Sim. Se você tem interesse e conhecimento, peça para entrar pelos contatos desta página.",
+    q: "Como apoiar a manutenção da plataforma?",
+    a: `Organizações e pessoas que quiserem contribuir com os custos de servidor e domínio podem fazer uma doação via Pix para ${PIX_KEY}. Contribuições de código são bem-vindas no repositório público.`,
   },
 ] as const;
 
@@ -173,7 +200,36 @@ function Mark({ size = 32 }: { size?: number }) {
   return <img src="/favicon-white.svg" alt="" width={size} height={size} />;
 }
 
-/** Coluna clássica em traço — ícone dos três pilares. */
+/** Emblema da Estrela do Oriente: estrela de cinco pontas invertida com as cinco cores. */
+function EasternStarEmblem() {
+  const R = 46;
+  const r = 19;
+  const cx = 50;
+  const cy = 52;
+  // Ponta de baixo azul; em sentido horário: amarelo, branco, verde e vermelho.
+  const colors = ["#2a5bd7", "#f2c230", "#f2f2f2", "#1f8a4c", "#c8262e"];
+  const pt = (rad: number, ang: number) =>
+    `${(cx + rad * Math.cos(ang)).toFixed(2)},${(cy + rad * Math.sin(ang)).toFixed(2)}`;
+  const points = colors.map((color, i) => {
+    const a = Math.PI / 2 + (i * 2 * Math.PI) / 5;
+    const step = Math.PI / 5;
+    return { color, d: `M${cx},${cy} L${pt(r, a - step)} L${pt(R, a)} L${pt(r, a + step)} Z` };
+  });
+  const pent = colors
+    .map((_, i) => pt(r, Math.PI / 2 + Math.PI / 5 + (i * 2 * Math.PI) / 5))
+    .join(" ");
+  return (
+    <svg viewBox="0 0 100 100" width="96" height="96" aria-hidden>
+      {points.map((p) => (
+        <path key={p.color} d={p.d} fill={p.color} stroke="#8a6d1d" strokeWidth="1.2" />
+      ))}
+      <polygon points={pent} fill="#13306e" stroke="#c9a227" strokeWidth="1.4" />
+      <circle cx={cx} cy={cy} r="5" fill="#c9a227" />
+    </svg>
+  );
+}
+
+/** Coluna clássica em traço: ícone dos três pilares. */
 function ColumnIcon() {
   return (
     <svg
@@ -193,13 +249,16 @@ function ColumnIcon() {
 
 function ModuleShowcase() {
   const [active, setActive] = useState(0);
+  const [shotIdx, setShotIdx] = useState(0);
   const [demoOpen, setDemoOpen] = useState(false);
   const tabsRef = useRef<Array<HTMLButtonElement | null>>([]);
   const mod = MODULES[active];
+  const shot = mod.shots[shotIdx] ?? mod.shots[0];
   const demoId = getSupademoDemoId(mod.slot);
 
   function select(i: number) {
     setActive(i);
+    setShotIdx(0);
     setDemoOpen(false);
   }
 
@@ -262,12 +321,6 @@ function ModuleShowcase() {
           ) : null}
         </div>
         <figure className="tv-screen">
-          <div className="tv-screen-bar" aria-hidden>
-            <i />
-            <i />
-            <i />
-            <span>templovirtual.app</span>
-          </div>
           <div className="tv-screen-view">
             {demoId && demoOpen ? (
               <iframe
@@ -279,9 +332,9 @@ function ModuleShowcase() {
               />
             ) : (
               <img
-                key={mod.slot}
-                src={`/shots/${mod.slot}.png`}
-                alt={`Tela de ${mod.tab} do Templo Virtual`}
+                key={shot.src}
+                src={shot.src}
+                alt={`Tela de ${shot.label} no Templo Virtual`}
                 width={1467}
                 height={802}
                 loading={active === 0 ? "eager" : "lazy"}
@@ -289,6 +342,29 @@ function ModuleShowcase() {
               />
             )}
           </div>
+          <figcaption>
+            {mod.shots.length > 1 ? (
+              <span className="tv-shot-switch" role="group" aria-label="Telas do módulo">
+                {mod.shots.map((s, i) => (
+                  <button
+                    key={s.src}
+                    type="button"
+                    aria-pressed={i === shotIdx}
+                    className={cn(i === shotIdx && "is-on")}
+                    onClick={() => {
+                      setShotIdx(i);
+                      setDemoOpen(false);
+                    }}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </span>
+            ) : (
+              <span>{shot.label}</span>
+            )}
+            <span className="tv-screen-src">Capítulo Farrapos nº 1111</span>
+          </figcaption>
         </figure>
       </div>
     </div>
@@ -301,7 +377,6 @@ export function HubLanding() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [navStuck, setNavStuck] = useState(false);
   const [pastHero, setPastHero] = useState(false);
-  const [pixCopied, setPixCopied] = useState(false);
 
   useEffect(() => {
     const onScroll = () => {
@@ -334,21 +409,6 @@ export function HubLanding() {
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
-
-  async function copyPix() {
-    try {
-      await navigator.clipboard.writeText(PIX_KEY);
-    } catch {
-      const t = document.createElement("textarea");
-      t.value = PIX_KEY;
-      document.body.appendChild(t);
-      t.select();
-      document.execCommand("copy");
-      t.remove();
-    }
-    setPixCopied(true);
-    window.setTimeout(() => setPixCopied(false), 2400);
-  }
 
   const close = () => setMenuOpen(false);
 
@@ -420,21 +480,21 @@ export function HubLanding() {
           <img className="tv-hero-mark" src="/favicon-white.svg" alt="" width={72} height={72} />
           <h1>Templo Virtual</h1>
           <p className="tv-hero-sub">
-            Secretaria, tesouraria, calendário e comissões da sua ordem paramaçônica ou loja
-            maçônica, num só lugar.
+            Plataforma de gestão para ordens paramaçônicas e lojas maçônicas: secretaria,
+            tesouraria, calendário e comissões num só lugar.
           </p>
           <div className="tv-hero-cta">
             <Link to={JOIN_PATH} className="tv-btn tv-btn-gold">
               Solicitar acesso
             </Link>
             <a className="tv-btn tv-btn-ghost" href="#sistema">
-              Ver o sistema
+              Conhecer o sistema
             </a>
           </div>
           <ul className="tv-hero-facts">
-            <li>Gratuito para paramaçônicas</li>
-            <li>Código aberto</li>
-            <li>Feito para o celular</li>
+            <li>Sem custo para paramaçônicas</li>
+            <li>Acesso por cargo</li>
+            <li>Celular e computador</li>
           </ul>
         </div>
         <div className="tv-floor" aria-hidden>
@@ -449,8 +509,8 @@ export function HubLanding() {
             <div className="tv-head">
               <h2>Escolha a sua ordem</h2>
               <p>
-                Cada ordem tem o próprio ambiente, com os módulos que a rotina dela usa. Entre pelo
-                seu.
+                Cada ordem tem o próprio ambiente, com os cargos, ritos e módulos que a sua rotina
+                usa.
               </p>
             </div>
             <div className="tv-realms">
@@ -470,21 +530,23 @@ export function HubLanding() {
                     <span>{REALM_CARD_BLURB[realm]}</span>
                     <span className="tv-realm-host">{realm}.templovirtual.app</span>
                   </span>
-                  <svg
-                    className="tv-realm-go"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    aria-hidden
-                  >
-                    <path d="M5 12h14M13 6l6 6-6 6" />
-                  </svg>
+                  <RealmArrow />
                 </a>
               ))}
+              <Link to={JOIN_PATH} className="tv-realm">
+                <span className="tv-realm-emblem">
+                  <EasternStarEmblem />
+                </span>
+                <span className="tv-realm-body">
+                  <strong>Estrela do Oriente</strong>
+                  <span>Gestão para Capítulos da Ordem da Estrela do Oriente.</span>
+                  <span className="tv-realm-host">Implantação mediante solicitação</span>
+                </span>
+                <RealmArrow />
+              </Link>
             </div>
             <p className="tv-soon">
-              Ordem do Arco-Íris e Ação Paramaçônica Juvenil estão a caminho.
+              Ordem do Arco-Íris e Ação Paramaçônica Juvenil estão em implantação.
             </p>
           </div>
         </section>
@@ -494,19 +556,17 @@ export function HubLanding() {
           <div className="tv-wrap">
             <div className="tv-head tv-head-light">
               <h2>Por dentro do sistema</h2>
-              <p>
-                Telas reais do Capítulo Farrapos nº 1111, que usa o Templo Virtual no dia a dia.
-              </p>
+              <p>Telas do Templo Virtual em uso real, com os dados de uma organização ativa.</p>
             </div>
             <ModuleShowcase />
           </div>
         </section>
 
-        {/* ---------- Pilares ---------- */}
-        <section className="tv-sec tv-marble" id="pilares">
+        {/* ---------- Plataforma ---------- */}
+        <section className="tv-sec tv-marble" id="plataforma">
           <div className="tv-wrap">
             <div className="tv-head">
-              <h2>Três colunas sustentam o projeto</h2>
+              <h2>Três colunas sustentam a plataforma</h2>
             </div>
             <div className="tv-pillars">
               {PILLARS.map((p) => (
@@ -520,49 +580,64 @@ export function HubLanding() {
           </div>
         </section>
 
-        {/* ---------- Cronograma ---------- */}
-        <section className="tv-sec tv-paper" id="cronograma">
-          <div className="tv-wrap">
-            <div className="tv-head">
-              <h2>Cronograma</h2>
-              <p>Onde o projeto está e para onde vai.</p>
+        <section className="tv-sec tv-paper" id="seguranca">
+          <div className="tv-wrap tv-split tv-split-gov">
+            <div className="tv-head tv-head-left">
+              <h2>Segurança e governança</h2>
+              <p>
+                Informações de membros e finanças pedem cuidado. A plataforma foi construída para
+                que cada organização tenha controle sobre quem acessa o quê.
+              </p>
+              <a className="tv-link" href={GITHUB_URL} target="_blank" rel="noreferrer">
+                Ver o código-fonte no GitHub
+              </a>
             </div>
-            <ol className="tv-road">
-              {ROADMAP.map((r, i) => (
-                <li key={r.text} className={cn("tv-road-step", `is-${r.state}`)}>
-                  <span className="tv-road-dot" aria-hidden>
-                    {i + 1}
-                  </span>
-                  <span className="tv-road-label">{r.label}</span>
-                  <p>{r.text}</p>
+            <ul className="tv-gov">
+              {GOVERNANCE.map((g) => (
+                <li key={g.title}>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    {g.icon}
+                  </svg>
+                  <div>
+                    <h3>{g.title}</h3>
+                    <p>{g.text}</p>
+                  </div>
                 </li>
               ))}
-            </ol>
+            </ul>
           </div>
         </section>
 
-        {/* ---------- Valor + Como começar ---------- */}
+        {/* ---------- Valor + Implantação ---------- */}
         <section className="tv-sec tv-indigo" id="valor">
           <div className="tv-wrap tv-split">
             <div>
               <div className="tv-head tv-head-light tv-head-left">
-                <h2>Quanto custa</h2>
+                <h2>Investimento</h2>
               </div>
               <div className="tv-prices">
                 <div className="tv-price">
                   <div>
-                    <h3>Paramaçônicas</h3>
+                    <h3>Organizações paramaçônicas</h3>
                     <p>
-                      DeMolay, Filhas de Jó e APJ. A plataforma inteira, com os módulos que a sua
-                      rotina pede.
+                      Capítulos, Bethéis e demais paramaçônicas. A plataforma inteira, com os
+                      módulos que a rotina pede.
                     </p>
                   </div>
-                  <strong>Grátis</strong>
+                  <strong>Sem custo</strong>
                 </div>
                 <div className="tv-price">
                   <div>
                     <h3>Lojas maçônicas</h3>
-                    <p>Analisamos juntos os módulos necessários e ajustamos às demandas da Loja.</p>
+                    <p>Escopo definido em conjunto com a Loja, a partir dos módulos necessários.</p>
                   </div>
                   <strong className="tv-price-talk">Sob consulta</strong>
                 </div>
@@ -570,7 +645,7 @@ export function HubLanding() {
             </div>
             <div id="iniciar">
               <div className="tv-head tv-head-light tv-head-left">
-                <h2>Como começar</h2>
+                <h2>Implantação</h2>
               </div>
               <ol className="tv-steps">
                 {STEPS.map((s) => (
@@ -589,63 +664,8 @@ export function HubLanding() {
           </div>
         </section>
 
-        {/* ---------- Apoiar ---------- */}
-        <section className="tv-sec tv-marble" id="apoiar">
-          <div className="tv-wrap">
-            <div className="tv-head">
-              <h2>Ajude a manter o Templo no ar</h2>
-              <p>
-                É gratuito para as paramaçônicas e vai continuar assim. Os custos são servidor,
-                domínio, backups e envio de mensagens.
-              </p>
-            </div>
-            <div className="tv-support">
-              <div className="tv-pix">
-                <h3>Doe via Pix</h3>
-                <p>
-                  Qualquer valor vai direto para o custeio da plataforma. Sem cadastro e sem valor
-                  mínimo.
-                </p>
-                <div className="tv-pix-box">
-                  <code>{PIX_KEY}</code>
-                  <button
-                    type="button"
-                    className="tv-btn tv-btn-gold"
-                    onClick={() => void copyPix()}
-                  >
-                    {pixCopied ? "Chave copiada" : "Copiar chave Pix"}
-                  </button>
-                </div>
-                <span className="tv-sr" aria-live="polite">
-                  {pixCopied ? "Chave Pix copiada" : ""}
-                </span>
-              </div>
-              <div className="tv-way">
-                <h3>Contribua com código</h3>
-                <p>
-                  O repositório é público: TanStack Start, TypeScript e Supabase. Abra uma issue ou
-                  mande um pull request.
-                </p>
-                <a className="tv-link" href={GITHUB_URL} target="_blank" rel="noreferrer">
-                  Ver repositório no GitHub
-                </a>
-              </div>
-              <div className="tv-way">
-                <h3>Doe seu tempo</h3>
-                <p>
-                  Indique o sistema para outra organização, relate um erro ou ofereça horas de
-                  design, texto ou suporte.
-                </p>
-                <a className="tv-link" href="#contato">
-                  Enviar uma sugestão
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* ---------- FAQ + Contato ---------- */}
-        <section className="tv-sec tv-paper" id="contato">
+        <section className="tv-sec tv-marble" id="contato">
           <div className="tv-wrap tv-split">
             <div>
               <div className="tv-head tv-head-left">
@@ -662,8 +682,8 @@ export function HubLanding() {
             </div>
             <div>
               <div className="tv-head tv-head-left">
-                <h2>Fale com a gente</h2>
-                <p>Dúvidas, sugestões ou implantação na sua organização.</p>
+                <h2>Fale com a equipe</h2>
+                <p>Dúvidas, demonstrações ou implantação na sua organização.</p>
               </div>
               <div className="tv-people">
                 {CONTACTS.map((c) => (
@@ -671,7 +691,7 @@ export function HubLanding() {
                     <img src={c.photo} alt="" width={64} height={64} loading="lazy" />
                     <div>
                       <strong>{c.name}</strong>
-                      <span>Programador e idealizador</span>
+                      <span>Fundador e desenvolvedor</span>
                       <a href={c.wa} target="_blank" rel="noreferrer">
                         WhatsApp {c.phone}
                       </a>
@@ -681,7 +701,7 @@ export function HubLanding() {
                 ))}
               </div>
               <Link to={JOIN_PATH} className="tv-btn tv-btn-navy tv-btn-block">
-                Quero adicionar minha organização
+                Solicitar inclusão da minha organização
               </Link>
             </div>
           </div>
@@ -695,11 +715,13 @@ export function HubLanding() {
             <Mark size={26} />
             <span>Templo Virtual</span>
           </a>
-          <p>Gestão para ordens paramaçônicas e lojas maçônicas. Caxias do Sul, RS.</p>
+          <p>
+            Plataforma de gestão para ordens paramaçônicas e lojas maçônicas. Caxias do Sul, RS.
+          </p>
           <nav aria-label="Rodapé">
             <a href="/documentacao">Documentação</a>
             <a href={GITHUB_URL} target="_blank" rel="noreferrer">
-              GitHub
+              Código-fonte
             </a>
             <Link to="/auth">Entrar</Link>
           </nav>
@@ -719,5 +741,20 @@ export function HubLanding() {
         </Link>
       </div>
     </div>
+  );
+}
+
+function RealmArrow() {
+  return (
+    <svg
+      className="tv-realm-go"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
   );
 }

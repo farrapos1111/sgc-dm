@@ -559,6 +559,11 @@
   height: 64px;
 }
 
+.tv-hub .tv-realm-emblem svg {
+  width: 64px;
+  height: 64px;
+}
+
 .tv-hub .tv-realm-emblem img {
   max-height: 64px;
   width: auto;
@@ -699,35 +704,10 @@
 .tv-hub .tv-screen {
   border-radius: 14px;
   overflow: hidden;
-  background: #fff;
+  background: var(--night-2);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1),
     0 30px 80px -30px rgba(0, 0, 0, 0.7);
-}
-
-.tv-hub .tv-screen-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  background: #e8ebf2;
-}
-
-.tv-hub .tv-screen-bar i {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #c4cad8;
-}
-
-.tv-hub .tv-screen-bar span {
-  margin-left: 10px;
-  padding: 2px 12px;
-  border-radius: 6px;
-  background: #fff;
-  font-size: 0.72rem;
-  color: var(--stone);
 }
 
 .tv-hub .tv-screen-view {
@@ -747,6 +727,46 @@
   width: 100%;
   height: 100%;
   border: 0;
+}
+
+.tv-hub .tv-screen figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: var(--mist);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tv-hub .tv-screen-src {
+  color: rgba(170, 180, 204, 0.7);
+}
+
+.tv-hub .tv-shot-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tv-hub .tv-shot-switch button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mist);
+  font: 600 0.82rem/1 var(--body);
+  cursor: pointer;
+}
+
+.tv-hub .tv-shot-switch button.is-on {
+  background: #fff;
+  color: var(--night);
 }
 
 @keyframes tv-fade {
@@ -785,90 +805,6 @@
 .tv-hub .tv-pillar p {
   margin-top: 6px;
   color: var(--stone);
-}
-
-/* ---------- cronograma ---------- */
-.tv-hub .tv-road {
-  position: relative;
-  display: grid;
-  gap: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.tv-hub .tv-road-step {
-  position: relative;
-  display: grid;
-  grid-template-columns: 40px 1fr;
-  column-gap: 18px;
-  padding-bottom: 28px;
-}
-
-.tv-hub .tv-road-step:last-child {
-  padding-bottom: 0;
-}
-
-.tv-hub .tv-road-step::before {
-  content: "";
-  position: absolute;
-  left: 19px;
-  top: 40px;
-  bottom: 0;
-  width: 2px;
-  background: var(--rule);
-}
-
-.tv-hub .tv-road-step.is-done::before {
-  background: var(--gold);
-}
-
-.tv-hub .tv-road-step:last-child::before {
-  display: none;
-}
-
-.tv-hub .tv-road-dot {
-  grid-row: span 2;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2px solid var(--rule);
-  background: var(--paper);
-  color: var(--stone);
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
-.tv-hub .is-done .tv-road-dot {
-  background: var(--gold);
-  border-color: var(--gold);
-  color: var(--night);
-}
-
-.tv-hub .is-now .tv-road-dot {
-  border-color: var(--indigo);
-  background: var(--indigo);
-  color: #fff;
-  box-shadow: 0 0 0 6px rgba(19, 48, 110, 0.14);
-}
-
-.tv-hub .tv-road-label {
-  align-self: end;
-  padding-top: 2px;
-  font-size: 0.85rem;
-  font-weight: 650;
-  color: var(--stone);
-}
-
-.tv-hub .is-now .tv-road-label {
-  color: var(--indigo);
-}
-
-.tv-hub .tv-road-step p {
-  margin-top: 2px;
-  color: var(--ink);
-  max-width: 34em;
 }
 
 /* ---------- valor + começar ---------- */
@@ -950,60 +886,36 @@
   margin-top: 28px;
 }
 
-/* ---------- apoiar ---------- */
-.tv-hub .tv-support {
+/* ---------- segurança e governança ---------- */
+.tv-hub .tv-gov {
   display: grid;
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.tv-hub .tv-gov li {
+  display: grid;
+  grid-template-columns: 44px 1fr;
   gap: 16px;
-}
-
-.tv-hub .tv-pix,
-.tv-hub .tv-way {
-  display: flex;
-  flex-direction: column;
-  padding: 24px;
-  border-radius: 18px;
-  background: var(--paper);
+  padding: 20px;
   border: 1px solid var(--rule);
+  border-radius: 16px;
 }
 
-.tv-hub .tv-pix {
-  background: var(--night);
-  border-color: var(--night);
-  color: #fff;
-}
-
-.tv-hub .tv-pix h3 {
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: 1.8rem;
-}
-
-.tv-hub .tv-pix p {
-  margin-top: 8px;
-  color: var(--mist);
-}
-
-.tv-hub .tv-way p {
-  margin-top: 8px;
-  color: var(--stone);
-}
-
-.tv-hub .tv-pix-box {
-  display: grid;
-  gap: 10px;
-  margin-top: 22px;
-}
-
-.tv-hub .tv-pix-box code {
-  display: block;
-  padding: 14px 16px;
+.tv-hub .tv-gov svg {
+  width: 44px;
+  height: 44px;
+  padding: 10px;
   border-radius: 12px;
-  border: 1px dashed rgba(255, 199, 44, 0.5);
-  background: rgba(255, 255, 255, 0.04);
-  font: 600 1rem/1.3 var(--body);
-  color: var(--gold-hi);
-  overflow-wrap: anywhere;
-  user-select: all;
+  background: var(--marble);
+  color: var(--indigo);
+}
+
+.tv-hub .tv-gov p {
+  margin-top: 4px;
+  font-size: 0.95rem;
+  color: var(--stone);
 }
 
 /* ---------- FAQ + contato ---------- */
@@ -1064,7 +976,8 @@
   align-items: start;
   padding: 18px;
   border-radius: 16px;
-  background: var(--marble);
+  background: var(--paper);
+  border: 1px solid var(--rule);
 }
 
 .tv-hub .tv-person img {
@@ -1201,12 +1114,8 @@
     flex-shrink: 0;
   }
 
-  .tv-hub .tv-pix-box {
-    grid-template-columns: 1fr auto;
-    align-items: center;
-  }
-
-  .tv-hub .tv-people {
+  .tv-hub .tv-people,
+  .tv-hub .tv-gov {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -1217,7 +1126,7 @@
 
 @media (min-width: 760px) {
   .tv-hub .tv-realms {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 16px;
   }
 
@@ -1230,7 +1139,8 @@
   }
 
   .tv-hub .tv-realm-emblem,
-  .tv-hub .tv-realm-emblem img {
+  .tv-hub .tv-realm-emblem img,
+  .tv-hub .tv-realm-emblem svg {
     width: auto;
     height: 96px;
     max-height: 96px;
@@ -1257,14 +1167,6 @@
     width: 48px;
     height: 96px;
     margin-bottom: 18px;
-  }
-
-  .tv-hub .tv-support {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .tv-hub .tv-pix {
-    grid-column: 1 / -1;
   }
 }
 
@@ -1299,52 +1201,26 @@
     gap: 48px;
   }
 
-  .tv-hub .tv-road {
-    grid-template-columns: repeat(5, 1fr);
-    gap: 20px;
-  }
-
-  .tv-hub .tv-road-step {
-    grid-template-columns: 1fr;
-    padding-bottom: 0;
-  }
-
-  .tv-hub .tv-road-step::before {
-    left: 48px;
-    right: -20px;
-    top: 19px;
-    bottom: auto;
-    width: auto;
-    height: 2px;
-  }
-
-  .tv-hub .tv-road-dot {
-    grid-row: auto;
-    margin-bottom: 18px;
-  }
-
   .tv-hub .tv-split {
     grid-template-columns: 1fr 1fr;
     gap: clamp(48px, 7vw, 96px);
     align-items: start;
   }
 
-  .tv-hub .tv-support {
-    grid-template-columns: 1.3fr 1fr 1fr;
-  }
-
-  .tv-hub .tv-pix {
-    grid-column: auto;
-  }
-
-  .tv-hub .tv-pix-box {
-    grid-template-columns: 1fr;
+  .tv-hub .tv-split-gov {
+    grid-template-columns: 0.8fr 1.2fr;
   }
 
   .tv-hub .tv-foot-in {
     grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 32px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .tv-hub .tv-realms {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
