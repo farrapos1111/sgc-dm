@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AtualizarCadastroRouteImport } from './routes/atualizar-cadastro'
 import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as ConsoleRouteRouteImport } from './routes/console/route'
+import { Route as DemonstracaoRouteImport } from './routes/demonstracao'
 import { Route as DocumentacaoRouteRouteImport } from './routes/documentacao/route'
 import { Route as OrgIndexRouteImport } from './routes/$org.index'
 import { Route as OrgCalendarioRouteImport } from './routes/$org.calendario'
@@ -129,6 +130,11 @@ const AuthRouteRoute = AuthRouteRouteImport.update({
 const ConsoleRouteRoute = ConsoleRouteRouteImport.update({
   id: '/console',
   path: '/console',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemonstracaoRoute = DemonstracaoRouteImport.update({
+  id: '/demonstracao',
+  path: '/demonstracao',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocumentacaoRouteRoute = DocumentacaoRouteRouteImport.update({
@@ -614,6 +620,7 @@ export interface FileRoutesByFullPath {
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
   '/$org': typeof OrgRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
+  '/demonstracao': typeof DemonstracaoRoute
   '/$org/calendario': typeof OrgCalendarioRoute
   '/$org/fluxo': typeof OrgFluxoRoute
   '/$org/frequencia': typeof OrgFrequenciaRoute
@@ -702,6 +709,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/console': typeof ConsoleAppIndexRoute
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
+  '/demonstracao': typeof DemonstracaoRoute
   '/$org/calendario': typeof OrgCalendarioRoute
   '/$org/fluxo': typeof OrgFluxoRoute
   '/$org/frequencia': typeof OrgFrequenciaRoute
@@ -793,6 +801,7 @@ export interface FileRoutesById {
   '/documentacao': typeof DocumentacaoRouteRouteWithChildren
   '/$org': typeof OrgRouteWithChildren
   '/atualizar-cadastro': typeof AtualizarCadastroRoute
+  '/demonstracao': typeof DemonstracaoRoute
   '/_authenticated/_shell': typeof AuthenticatedShellRouteRouteWithChildren
   '/console/_app': typeof ConsoleAppRouteRouteWithChildren
   '/$org/calendario': typeof OrgCalendarioRoute
@@ -888,6 +897,7 @@ export interface FileRouteTypes {
     | '/documentacao'
     | '/$org'
     | '/atualizar-cadastro'
+    | '/demonstracao'
     | '/$org/calendario'
     | '/$org/fluxo'
     | '/$org/frequencia'
@@ -976,6 +986,7 @@ export interface FileRouteTypes {
     | '/'
     | '/console'
     | '/atualizar-cadastro'
+    | '/demonstracao'
     | '/$org/calendario'
     | '/$org/fluxo'
     | '/$org/frequencia'
@@ -1066,6 +1077,7 @@ export interface FileRouteTypes {
     | '/documentacao'
     | '/$org'
     | '/atualizar-cadastro'
+    | '/demonstracao'
     | '/_authenticated/_shell'
     | '/console/_app'
     | '/$org/calendario'
@@ -1161,6 +1173,7 @@ export interface RootRouteChildren {
   DocumentacaoRouteRoute: typeof DocumentacaoRouteRouteWithChildren
   OrgRoute: typeof OrgRouteWithChildren
   AtualizarCadastroRoute: typeof AtualizarCadastroRoute
+  DemonstracaoRoute: typeof DemonstracaoRoute
   AtaTokenRoute: typeof AtaTokenRoute
   CTokenRoute: typeof CTokenRouteWithChildren
   FTokenRoute: typeof FTokenRoute
@@ -1211,6 +1224,13 @@ declare module '@tanstack/react-router' {
       path: '/console'
       fullPath: '/console'
       preLoaderRoute: typeof ConsoleRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demonstracao': {
+      id: '/demonstracao'
+      path: '/demonstracao'
+      fullPath: '/demonstracao'
+      preLoaderRoute: typeof DemonstracaoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/documentacao': {
@@ -2085,6 +2105,7 @@ const rootRouteChildren: RootRouteChildren = {
   DocumentacaoRouteRoute: DocumentacaoRouteRouteWithChildren,
   OrgRoute: OrgRouteWithChildren,
   AtualizarCadastroRoute: AtualizarCadastroRoute,
+  DemonstracaoRoute: DemonstracaoRoute,
   AtaTokenRoute: AtaTokenRoute,
   CTokenRoute: CTokenRouteWithChildren,
   FTokenRoute: FTokenRoute,
