@@ -12,8 +12,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       {
-        title:
-          "Templo Virtual · Gestão de ordens paramaçônicas e lojas maçônicas",
+        title: "Templo Virtual · Gestão de ordens paramaçônicas e lojas maçônicas",
       },
       {
         name: "description",
@@ -30,7 +29,7 @@ export const Route = createFileRoute("/")({
       },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Questrial&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Marcellus&display=swap",
       },
     ],
   }),
