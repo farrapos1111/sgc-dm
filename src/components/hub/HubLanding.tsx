@@ -8,6 +8,7 @@ import "./hub-landing.css";
 
 const GITHUB_URL = "https://github.com/farrapos1111/sgc-dm";
 const JOIN_PATH = "/auth/adicionar-organizacao";
+const DEMO_PATH = "/demonstracao";
 const PIX_KEY = "pix@templovirtual.com.br";
 
 const NAV_LINKS = [
@@ -15,6 +16,7 @@ const NAV_LINKS = [
   { href: "#sistema", label: "O sistema" },
   { href: "#plataforma", label: "Plataforma" },
   { href: "#valor", label: "Valor" },
+  { href: DEMO_PATH, label: "Testar" },
   { href: "#contato", label: "Contato" },
 ] as const;
 
@@ -24,7 +26,7 @@ const REALM_INFO: Record<Realm, { name: string; emblem: string }> = {
   loja: { name: "Lojas Maçônicas", emblem: "/esferas/loja.webp" },
 };
 
-type Shot = { src: string; label: string };
+type Shot = { src: string; label: string; demo: string };
 
 type Module = {
   slot: SupademoSlotId;
@@ -44,21 +46,24 @@ const MODULES: Module[] = [
     points: [
       "Chave do dia para registrar presença",
       "Saldo do mês vindo direto do fluxo de caixa",
-      "Aniversariantes e próximos eventos",
+      "Aniversariantes e atas para acompanhar",
     ],
-    shots: [{ src: "/shots/overview.png", label: "Painel inicial" }],
+    shots: [{ src: "/shots/demo-inicio.webp", label: "Painel inicial", demo: "inicio" }],
   },
   {
     slot: "secretaria",
     tab: "Secretaria",
-    title: "Membros, atas, ofícios e frequência",
-    text: "O cadastro de cada membro concentra o histórico. A frequência é lançada por reunião, com justificativa para as ausências.",
+    title: "Membros, chamada e atas",
+    text: "O cadastro de cada membro concentra o histórico. A chamada é feita na hora da sessão, com motivo para as faltas.",
     points: [
-      "Cadastro completo de membros",
+      "Cadastro de membros com cargos e graus",
+      "Chamada com resumo de presenças",
       "Atas e ofícios com numeração",
-      "Frequência com justificativas",
     ],
-    shots: [{ src: "/shots/secretaria.png", label: "Frequência" }],
+    shots: [
+      { src: "/shots/demo-chamada.webp", label: "Chamada", demo: "chamada" },
+      { src: "/shots/demo-membros.webp", label: "Membros", demo: "membros" },
+    ],
   },
   {
     slot: "tesouraria",
@@ -71,33 +76,21 @@ const MODULES: Module[] = [
       "Controle de atrasos e cobranças",
     ],
     shots: [
-      { src: "/shots/tesouraria.png", label: "Fluxo de caixa" },
-      { src: "/shots/Mensalidades.png", label: "Mensalidades" },
+      { src: "/shots/demo-caixa.webp", label: "Fluxo de caixa", demo: "caixa" },
+      { src: "/shots/demo-mensalidades.webp", label: "Mensalidades", demo: "mensalidades" },
     ],
   },
   {
     slot: "gestao",
     tab: "Gestão",
     title: "Calendário, cargos e comissões",
-    text: "O calendário da gestão destaca as datas obrigatórias da ordem. Cargos e comissões ficam registrados por período.",
+    text: "O calendário da gestão destaca as datas obrigatórias da ordem e envia convites aos membros.",
     points: [
       "Calendário com datas obrigatórias",
+      "Convites por e-mail para cada evento",
       "Cargos e comissões por gestão",
-      "Chave do dia para cada reunião",
     ],
-    shots: [{ src: "/shots/gestao.png", label: "Calendário" }],
-  },
-  {
-    slot: "comissoes",
-    tab: "Eventos",
-    title: "Eventos, ingressos e comandas",
-    text: "A comissão de eventos controla ingressos, consumo e caixa do evento, com recibo e Pix na hora.",
-    points: [
-      "Ingressos e check-in por QR Code",
-      "Comandas virtuais com recibo",
-      "Financeiro do evento integrado ao caixa",
-    ],
-    shots: [{ src: "/shots/comissoes.png", label: "Comanda de evento" }],
+    shots: [{ src: "/shots/demo-calendario.webp", label: "Calendário", demo: "calendario" }],
   },
 ];
 
@@ -314,11 +307,20 @@ function ModuleShowcase() {
               <li key={p}>{p}</li>
             ))}
           </ul>
-          {demoId && !demoOpen ? (
-            <button type="button" className="tv-btn tv-btn-line" onClick={() => setDemoOpen(true)}>
-              Abrir demonstração interativa
-            </button>
-          ) : null}
+          <div className="tv-panel-cta">
+            <a className="tv-btn tv-btn-gold" href={`${DEMO_PATH}#${shot.demo}`}>
+              Testar esta tela
+            </a>
+            {demoId && !demoOpen ? (
+              <button
+                type="button"
+                className="tv-btn tv-btn-line"
+                onClick={() => setDemoOpen(true)}
+              >
+                Ver tour guiado
+              </button>
+            ) : null}
+          </div>
         </div>
         <figure className="tv-screen">
           <div className="tv-screen-view">
@@ -363,7 +365,7 @@ function ModuleShowcase() {
             ) : (
               <span>{shot.label}</span>
             )}
-            <span className="tv-screen-src">Capítulo Farrapos nº 1111</span>
+            <span className="tv-screen-src">Dados fictícios</span>
           </figcaption>
         </figure>
       </div>
@@ -487,8 +489,8 @@ export function HubLanding() {
             <Link to={JOIN_PATH} className="tv-btn tv-btn-gold">
               Solicitar acesso
             </Link>
-            <a className="tv-btn tv-btn-ghost" href="#sistema">
-              Conhecer o sistema
+            <a className="tv-btn tv-btn-ghost" href={DEMO_PATH}>
+              Testar o sistema
             </a>
           </div>
           <ul className="tv-hero-facts">
@@ -556,7 +558,10 @@ export function HubLanding() {
           <div className="tv-wrap">
             <div className="tv-head tv-head-light">
               <h2>Por dentro do sistema</h2>
-              <p>Telas do Templo Virtual em uso real, com os dados de uma organização ativa.</p>
+              <p>
+                Telas do sistema com dados fictícios. Abra o ambiente de teste e use à vontade: nada
+                é salvo.
+              </p>
             </div>
             <ModuleShowcase />
           </div>

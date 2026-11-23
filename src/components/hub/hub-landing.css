@@ -169,6 +169,12 @@
 .tv-hub .tv-btn-line {
   border-color: rgba(255, 199, 44, 0.5);
   color: var(--gold-hi);
+}
+
+.tv-hub .tv-panel-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 24px;
 }
 

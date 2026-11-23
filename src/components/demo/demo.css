@@ -1,0 +1,15 @@
+/* Tema da demonstração: identidade "Azul" do redesign (docs/templo-virtual-redesign). */
+.tv-demo {
+  --chapter-primary: #1f4fa3;
+  --tv-soft: #e7eefa;
+  --tv-ink: #173e80;
+  --tv-bg: #f4f4f1;
+  --tv-sidebar: #ffffff;
+}
+
+.dark .tv-demo {
+  --tv-soft: color-mix(in srgb, #1f4fa3 28%, #17181a);
+  --tv-ink: color-mix(in srgb, #1f4fa3 35%, #ffffff);
+  --tv-bg: oklch(0.15 0 0);
+  --tv-sidebar: oklch(0.18 0 0);
+}
